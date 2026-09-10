@@ -24,14 +24,14 @@
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
-	xref wait_key,clear_image,dust_cloud,swap_screen,clear_input,hexagon
+	xref wait_key,clear_image,swap_screen,clear_input,hexagon
 	xref disp_message,damping,print_string,launch_system,get_range,draw_object
 	xref world_x_rotate,world_z_rotate,do_logic,move,hyperspace
 	xref disp_debug,mini_radar,obj_data,rand,check_hack,launch_sequence
 	xref remove_radar,radar,ecm,draw_sight,recharge,dock_check
 	xref flash_message,reduce_energy,object_logic,read_key,check_hit,well_done
 	xref draw_lasers,orthogonal,torus_drive,collision,update_inst,run_docking
-	xref check_police,check_inflight,draw_all,text_blatt,docking_sequence
+	xref check_police,check_inflight,draw_space,text_blatt,docking_sequence
 
 * ---- LOCAL CONSTANTS ----
 
@@ -70,7 +70,6 @@ fuel_dist: equ max_ctemp*23/24 ; temperature for fuel scooping
 	jsr clear_image ; clear image buffer
 	jsr remove_radar ; remove radar from screen
 	jsr update_inst ; update instruments (as required)
-	jsr dust_cloud ; draw and move the dust
 q_main_m68_1:
 	bsr do_countdown ; perform any countdown
 	bsr damping ; automatic damping
@@ -161,7 +160,7 @@ q_main_m68_19:
 	tst cockpit_on(a6) ; cockpit displayed ?
 ; Quelo: 		if <ne> then.s					yes
 	beq.s q_main_m68_21
-	jsr draw_all ; draw all stored objects
+	jsr draw_space ; planet/sun, starfield, then the remaining objects
 	jsr draw_lasers ; draw our lasers
 	jsr draw_sight ; draw laser sight
 	moveq #lgt_blue,d0 ; display any messages

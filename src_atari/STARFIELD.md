@@ -37,7 +37,7 @@ The view-dependent in-plane/vertical angles are:
 | Left | Negative pitch | Negative roll |
 | Right | Pitch | Roll |
 
-The normal frame draws the current particle positions, then rotates and advances them for the following frame, matching the object's draw/update order. Coordinates are checked after rotation and movement; invalid depths are recycled before division. Coloured jump trails keep their existing repeated drawing, duration and growth. The existing witchspace suppression remains in effect.
+The flight frame draws the planet and sun first, then the starfield, followed by all other 3D objects, laser beams, the laser sight and viewport messages. Stars therefore overlay the planet and sun, while ships, stations, other objects and the UI can cover them. Each object layer retains its existing depth order. The unfiltered renderer used by hangars and other scenes is unchanged. The starfield draws the current particle positions, then rotates and advances them for the following frame. Coordinates are checked after rotation and movement; invalid depths are recycled before division. Coloured jump trails keep their existing repeated drawing, duration and growth. The existing witchspace suppression remains in effect.
 
 The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-byte workspace allocation is removed. The original files under `assets` remain unchanged for reference. Builds omit the files from the disk images and remove stale copies from their generated distribution directory.
 
@@ -45,5 +45,4 @@ The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-by
 
 `tests/test_starfield.py` assembles the actual game routines and runs them with Unicorn 2.1.4. Tests cover the BBC depth/radial laws, sideways parallax, stopped motion, incoming edges, rear recycling, retro rockets, steering against a geometric projection reference, subpixel movement, and one-pixel drawing at every depth.
 
-The complete cloud is exercised over hundreds of frames on MC68000 and MC68020 CPU models with executable memory write-protected. Guarded buffers check that no drawing reaches the cockpit. These are CPU-level checks; they do not establish emulator gameplay quality or a frame-rate measurement.
-
+The complete cloud is exercised over hundreds of frames on MC68000 and MC68020 CPU models with executable memory write-protected. Guarded buffers check that no drawing reaches the cockpit. The separate `tests/test_layering.py` suite executes the scene traversal and raster routines with overlapping fixture objects, checking celestial/star/object occlusion, depth order, empty lists and the unfiltered renderer. These are CPU-level checks; they do not establish emulator gameplay quality or a frame-rate measurement.

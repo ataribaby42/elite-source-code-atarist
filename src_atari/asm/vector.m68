@@ -18,7 +18,7 @@
 
 	xref disp_message,fx,check_missile,magnitude_table,c_line
 	xref draw_explosion,draw_point,monst,solid_polygon,sqrt,c_solid_polygon
-	xref set_colour,this_panel
+	xref set_colour,this_panel,dust_cloud
 
 * ---- LOCAL CONSTANTS ----
 
@@ -282,11 +282,54 @@ q_vector_m68_32:
 
 * *******************************
 * **						   **
-* ** DRAW_IT - DRAW THE OBJECT **
+* ** DRAW_SPACE - FLIGHT LAYERS **
 * **						   **
 * *******************************
 
-* Draws the current object on the screen. Called ONLY from DRAW_ALL. This
+* Draw the flight scene with stars between celestial bodies and other objects.
+* DRAW_ALL remains the unfiltered renderer for hangars and other scenes.
+	q_subr draw_space,global
+
+	moveq #1,d0 ; planet and sun behind the starfield
+	bsr draw_space_layer
+	jsr dust_cloud ; exactly once, including an empty object list
+	moveq #0,d0 ; all other objects cover the starfield
+	bra draw_space_layer
+
+* D0.W selects celestial bodies (1) or other objects (0). Keep the existing
+* depth order within each layer. The selector and list cursor survive DRAW_IT.
+	q_subr draw_space_layer
+
+	tst.l next_record(a6)
+	beq.s .done
+	move.w d0,-(sp)
+	move.l list_ptr(a6),a0
+.loop:
+	move.l obj_ptr(a0),a5
+	moveq #0,d1
+	cmp.w #planet,type(a5)
+	beq.s .celestial
+	cmp.w #sun,type(a5)
+	bne.s .select
+.celestial:
+	moveq #1,d1
+.select:
+	cmp.w (sp),d1
+	bne.s .next
+	move.l a0,-(sp)
+	bsr draw_it
+	move.l (sp)+,a0
+.next:
+	move.l next_ptr(a0),a0
+	move.l a0,d0
+	bne.s .loop
+	addq.l #2,sp
+.done:
+	rts
+
+* ---- DRAW_IT - DRAW THE CURRENT OBJECT ----
+*
+* Draws the current object on the screen, through DRAW_ALL or DRAW_SPACE. This
 * routine sifts out special objects (e.g. planets, explosions) and then
 * passes each surface to DRAW_SURFACE.
 
