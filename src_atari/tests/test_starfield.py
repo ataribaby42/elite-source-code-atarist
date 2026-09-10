@@ -32,22 +32,32 @@ class StarfieldTests(unittest.TestCase):
         dust = (ROOT / 'asm/dust.m68').read_text()
         graphics = (ROOT / 'asm/graphics.m68').read_text()
         maths = (ROOT / 'asm/maths.m68').read_text()
+        init = (ROOT / 'asm/init.m68').read_text()
+        rotate = (ROOT / 'asm/rotate.m68').read_text()
+        data = (ROOT / 'asm/data.m68').read_text()
         names = re.findall(r'^\s*q_subr (\w+)', dust, re.M)
+        reset_names = ['reset_system', 'set_roll_angles', 'set_climb_angles', 'get_trig']
         constants = ['dust_front', 'dust_store', 'dust_len', 'no_dust', 'dust_used',
                      'dust_motion', 'dust_step', 'dust_speed', 'dust_plane_sin',
                      'dust_plane_cos', 'dust_vertical_sin', 'dust_vertical_cos',
                      'dust_x', 'dust_y', 'dust_z', 'view', 'speed', 'max_speed',
                      'roll_sin', 'roll_cos', 'climb_sin', 'climb_cos', 'retro_count',
                      'retro_life', 'dust_type', 'dust_size', 'dust_ctr', 'latch',
-                     'max_len', 'witch_space', 'scr_base', 'colour_ptr', 'random_seed']
+                     'max_len', 'witch_space', 'scr_base', 'colour_ptr', 'random_seed',
+                     'roll_angle', 'climb_angle']
         assembly = '\tinclude "common.def"\n\tinclude "macros.m68"\n'
         assembly += dust[dust.index('    rsset 0'):dust.index('    q_module dust')]
         assembly += re.search(r'^outcodes macro.*?^\s*endm', graphics, re.M | re.S).group(0) + '\n'
-        assembly += '\torg $10000\n\tdc.l ' + ','.join(names + constants) + '\n'
+        assembly += '\torg $10000\n\tdc.l ' + ','.join(names + reset_names + constants) + '\n'
         assembly += '\n'.join(routine(dust, name) for name in names)
         assembly += '\n'.join(routine(graphics, name) for name in
                               ['dot_to_addr', 'c_plotxy', 'plotxy', 'mask_plot'])
         assembly += '\n'.join(routine(maths, name) for name in ['random', 'rand'])
+        assembly += routine(init, 'reset_system')
+        assembly += re.search(r'^reset_table:\s*\n(?:\s*dc\.w[^\n]*\n)+', init, re.M).group(0)
+        assembly += '\n'.join(routine(rotate, name) for name in reset_names[1:])
+        assembly += re.search(r'\tq_global trig_table\s*\n(?:\s*dc\.l[^\n]*\n)+', data).group(0)
+        assembly += '\nquiet:\n\trts\n'
         assembly += '\nset_colour:\n\trts\nmult_by_320:\n\tdc.w '
         assembly += ','.join(str(y * 320) for y in range(200)) + '\n'
         assembly += graphics[graphics.index('\tq_global bit_masks'):graphics.index('clip_list:')]
@@ -63,8 +73,8 @@ class StarfieldTests(unittest.TestCase):
             if result.returncode:
                 raise AssertionError(result.stdout + result.stderr)
             cls.code = binary.read_bytes()
-        cls.symbols = dict(zip(names + constants,
-                              struct.unpack_from('>' + 'I' * (len(names) + len(constants)), cls.code)))
+        cls.symbols = dict(zip(names + reset_names + constants,
+                              struct.unpack_from('>' + 'I' * (len(names) + len(reset_names) + len(constants)), cls.code)))
 
     def prepare(self, view=0, speed=0, roll=0, pitch=0, retro=False,
                 screen=SCREEN, model=None):
@@ -190,6 +200,84 @@ class StarfieldTests(unittest.TestCase):
                         self.assertEqual(actual_x//UNIT, 127 if (view ^ retro) == 2 else -128)
                     else:
                         self.assertEqual(actual_y//UNIT, 55 if y < 0 else -56)
+
+    def test_vertical_side_recycling_preserves_subpixel_overshoot(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in (2, 3):
+                for retro in (False, True):
+                    self.prepare(view, speed=22, retro=retro, model=model)
+                    for y in (-91.5, -57, -56.25, 56, 56.75, 91.5):
+                        with self.subTest(cpu=model, view=view, retro=retro, y=y):
+                            self.set_star(0, y, 80)
+                            self.call('update_dust')
+                            self.assert_visible()
+                            _, actual_y, _ = self.get_star()
+                            self.assertEqual(actual_y, round((y + (112 if y < 0 else -112))*UNIT))
+                    # Projection failure sentinels or invalid coordinates must
+                    # still recover inside the viewport after a single update.
+                    for y in (-10000, 10000):
+                        self.set_star(0, y, 80)
+                        self.call('update_dust')
+                        self.assert_visible()
+
+    def test_steady_side_roll_does_not_synchronize_stars_into_rows(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in (2, 3):
+                for roll in (-math.radians(4), math.radians(4)):
+                    for speed in (0, 22):
+                        with self.subTest(cpu=model, view=view, roll=roll, speed=speed):
+                            self.prepare(view, speed=speed, roll=roll, model=model)
+                            self.call('init_dust')
+                            start = VARIABLES + self.symbols['dust_front'] + view*self.symbols['dust_store']
+                            unique_rows = []
+                            for frame in range(600):
+                                self.call('draw_dust')
+                                if frame >= 100:
+                                    rows = [self.get_star(start+i*self.symbols['dust_len'])[1]//UNIT
+                                            for i in range(self.symbols['no_dust'])]
+                                    unique_rows.append(len(set(rows)))
+                            # A 15-star cloud previously collapsed to about four
+                            # rows at full roll. Allow incidental alignments.
+                            self.assertGreater(sum(unique_rows)/len(unique_rows),
+                                               self.symbols['no_dust']*0.75)
+
+    def test_system_reset_initializes_trigonometry_before_first_control_input(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for stale in (0, 1234567):
+                self.prepare(model=model)
+                for name in ('roll_sin', 'roll_cos', 'climb_sin', 'climb_cos'):
+                    self.variable(name, stale, 4)
+                self.variable('roll_angle', 10)
+                self.variable('climb_angle', -10)
+                self.call('reset_system')
+                for axis in ('roll', 'climb'):
+                    angle = self.cpu.mem_read(VARIABLES+self.symbols[axis+'_angle'], 2)
+                    trig = self.cpu.mem_read(VARIABLES+self.symbols[axis+'_sin'], 8)
+                    self.assertEqual(angle, b'\0\0')
+                    self.assertEqual(trig, struct.pack('>ii', 0, 1 << 24))
+
+    def test_first_side_view_after_launch_keeps_the_cloud_spread_out(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in (2, 3):
+                self.prepare(view=view, model=model)
+                # Match a cold start: INIT_DUST runs with zeroed trig caches,
+                # RESET_SYSTEM runs at launch, then launch sets roll to +10.
+                for name in ('roll_sin', 'roll_cos', 'climb_sin', 'climb_cos'):
+                    self.variable(name, 0, 4)
+                self.call('init_dust')
+                self.call('reset_system')
+                self.variable('roll_angle', 10)
+                self.call('set_roll_angles')
+                start = VARIABLES + self.symbols['dust_front'] + view*self.symbols['dust_store']
+                for frame in range(30):
+                    # The original launch spin decays by one unit per frame.
+                    self.variable('roll_angle', max(0, 10-frame))
+                    self.call('set_roll_angles')
+                    self.call('draw_dust')
+                    stars = [self.get_star(start+i*self.symbols['dust_len'])
+                             for i in range(self.symbols['no_dust'])]
+                    self.assertGreater(max(s[0] for s in stars)-min(s[0] for s in stars), 100*UNIT)
+                    self.assertGreater(max(s[1] for s in stars)-min(s[1] for s in stars), 40*UNIT)
 
     def test_retros_reverse_translation_without_reversing_steering(self):
         for view in range(4):

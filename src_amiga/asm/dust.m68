@@ -25,7 +25,6 @@ dust_motion: rs.w 1            ; front/rear/left/right, including retro reversal
 dust_step: rs.w 1              ; speed*64 in depth's 8.8 units
 dust_speed: rs.w 1
 dust_count: rs.w 1
-dust_exit_edge: rs.w 1
 dust_plane_sin: rs.w 1         ; signed Q14 angles at the host projection scale
 dust_plane_cos: rs.w 1
 dust_vertical_sin: rs.w 1
@@ -111,9 +110,11 @@ dust_vertical_cos: rs.w 1
 ; STARS2: use the incoming side, or the opposite vertical edge after a turn.
 ; D2 = outcodes, bit 0/1 horizontal, bit 2/3 vertical.
     q_subr new_side
+    move.l dust_y(a5),-(sp)    ; retain the fractional overshoot before recycling
     move.w d2,-(sp)
     bsr new_coords
     move.w (sp)+,d2
+    move.l (sp)+,d1
     and.w #3,d2
     beq.s .vertical
     move.w #x_max,d0
@@ -126,11 +127,22 @@ dust_vertical_cos: rs.w 1
     move.l d0,dust_x(a5)
     bra.s .depth
 .vertical:
-    ; The caller saved the exited edge before random coordinates replaced it.
-    move.w dust_exit_edge(a6),d0
-    swap d0
-    clr.w d0
-    move.l d0,dust_y(a5)
+    ; Wrap the complete 16.16 position instead of snapping every new star
+    ; to the same row. Stars retain their distinct phase during steady roll.
+    cmp.l #y_min*65536,d1
+    blt.s .below
+    sub.l #y_size*65536,d1
+    cmp.l #(y_max+1)*65536,d1
+    blt.s .entry_y
+    move.l #y_min*65536,d1     ; recover safely from invalid large coordinates
+    bra.s .entry_y
+.below:
+    add.l #y_size*65536,d1
+    cmp.l #y_min*65536,d1
+    bge.s .entry_y
+    move.l #y_max*65536,d1
+.entry_y:
+    move.l d1,dust_y(a5)
 .depth:
     jsr random
     or.w #8,d0
@@ -372,7 +384,7 @@ dust_vertical_cos: rs.w 1
     move.l #(y_max+256)*65536,dust_y(a5)
     rts
 
-; Return outcodes in D2 and remember the incoming vertical edge for STARS2.
+; Return outcodes in D2; NEW_SIDE preserves the vertical boundary overshoot.
     q_subr dust_bounds
     clr.w d2
     move.w dust_x(a5),d0
@@ -385,7 +397,6 @@ dust_vertical_cos: rs.w 1
     bset #1,d2
 .bottom:
     move.w dust_y(a5),d1
-    move.w #y_max,dust_exit_edge(a6)
     cmp.w #y_min,d1
     bge.s .top
     bset #2,d2
@@ -393,7 +404,6 @@ dust_vertical_cos: rs.w 1
     cmp.w #y_max,d1
     ble.s .done
     bset #3,d2
-    move.w #y_min,dust_exit_edge(a6)
 .done:
     tst.w d2
     rts

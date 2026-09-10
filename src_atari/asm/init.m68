@@ -21,6 +21,7 @@
 	xref init_dust,traps,rand,monst,checksum,logo
 	xref cockpit,textscr,obj_data,bitmaps
 	xref hyper_buffer,quiet,blank_screen
+	xref set_roll_angles,set_climb_angles
 
 * ---- LOCAL CONSTANTS ----
 
@@ -667,6 +668,8 @@ q_init_m68_33:
 	clr (a6,d0)
 	bra q_init_m68_33
 q_init_m68_34:
+	jsr set_roll_angles ; refresh cached trig after clearing both control angles
+	jsr set_climb_angles ; zero angle requires cosine 1, including before first input
 	lea shuttle_ctr(a6),a0 ; initialise launch counters
 	move #256,d2
 	q_loop 1,3
