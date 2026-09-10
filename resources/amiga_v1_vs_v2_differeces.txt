@@ -1,0 +1,3 @@
+1. Thargoids yield 40 Cr instead of 15
+2. Military lasers allowed on all sides
+3. Library function

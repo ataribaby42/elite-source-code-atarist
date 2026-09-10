@@ -65,7 +65,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm', type=Path, default=TOOLS / 'vasmm68k_mot.exe')
     parser.add_argument('--vlink', type=Path, default=TOOLS / 'vlink.exe')
-    args = parser.parse_args()
+    parser.add_argument('options', nargs='*', metavar='noprotect=yes|no',
+                        help='skip the novella question with noprotect=yes (default: no)')
+    args = parser.parse_intermixed_args()
+    for option in args.options:
+        if option not in ('noprotect=yes', 'noprotect=no'):
+            parser.error(f'Unknown build option: {option}; expected noprotect=yes or noprotect=no')
+    noprotect = bool(args.options and args.options[-1] == 'noprotect=yes')
     args.vasm, args.vlink = args.vasm.resolve(), args.vlink.resolve()
     for tool in (args.vasm, args.vlink):
         check(tool.is_file(), f'Tool not found: {tool}. Restore the bundled root tools folder '
@@ -76,7 +82,7 @@ def main():
 
     def assemble(name, fmt='vobj', output=None, extra=(), extension='.m68'):
         output = output or BUILD / (name + '.o')
-        run([args.vasm, *FLAGS, '-F' + fmt, *extra,
+        run([args.vasm, *FLAGS, f'-Dnoprotect={int(noprotect)}', '-F' + fmt, *extra,
              '-I' + str(BUILD), '-I' + str(ROOT / 'asm'),
              '-o', output, ROOT / 'asm' / (name + extension)], name + '.log')
 
@@ -86,6 +92,7 @@ def main():
                     *(BUILD / (name + '.o') for name in modules + ['workspace'])], log)
 
     print(f'Assembling {len(modules)} game modules for MC68000...')
+    print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
     for name in modules + ['workspace', 'loader']:
         assemble(name)
     first_map = link_game('elite-pass1.map')
@@ -159,6 +166,7 @@ def main():
     baseline = json.loads((ROOT / 'original-sha256.json').read_text())
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
+        'build_options': {'noprotect': noprotect},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',
         'ram_end': f'{syms["ram_end"]:08X}',

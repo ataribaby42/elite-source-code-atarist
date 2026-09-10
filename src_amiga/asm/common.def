@@ -12,10 +12,22 @@
 ; Atari St Version 1.0 13th March 1988 Copyright (c) 1988 Mr. Micro Ltd.
 ; Designed and coded by Rob Nicholson. Developed from the MSX version.
 
+; Native OS services; no TOS trap interface.
+    ifnd fileio_implementation
+    xref file_open,file_create,file_read,file_write,file_close,file_first,file_next,console_write
+    endc
+
 ; Development flags.
 
+	ifnd amiga_implementation
+	xref amiga_present,amiga_exit,set_palette,random_seed_value
+	xref amiga_install,amiga_poll,palette,frclock
+	xref amiga_flip_address
+	endc
+	ifnd amiga_workspace_implementation
+	xref amiga_primary
+	endc
 
-com_link: equ -0 ; flag  using com-link
 use_novella: equ -1 ; flag  use novella protection
 	ifnd noprotect
 noprotect: equ 0 ; build option: skip only the novella question
@@ -74,60 +86,6 @@ c_repeat: equ 5 ; repeated bytes
 c_backspace: equ 8 ; move cursor back
 c_tab: equ 9 ; move to tab position
 
-; Bios functions.
-
-setexec: equ $05 ; set exception vector
-
-; Extended Bios Functions.
-
-physbase: equ $02 ; get base address of screen
-setscreen: equ $05 ; set screen attributes (resolution)
-setpalette: equ $06 ; set colour palette
-setcolor: equ $07 ; set colour of pen
-mfpint: equ $0d ; set MFP interrupt vector
-random24: equ $11 ; generate random number
-cursconf: equ $15 ; set cursor configuration
-vsync: equ $25 ; wait for VSYNC (flyback)
-
-; BDOS Functions.
-
-p_term: equ $00 ; terminate program
-c_conout: equ $02 ; console output
-c_rawcin: equ $07 ; raw character input
-c_conws: equ $09 ; write string to console
-f_setdta: equ $1a ; set DTA address
-s_mode: equ $20 ; switch mode (super-user)
-f_create: equ $3c ; create a file
-f_open: equ $3d ; open a file
-f_close: equ $3e ; close a file
-f_read: equ $3f ; read bytes from file
-f_write: equ $40 ; write bytes to file
-f_sfirst: equ $4e ; search for first file
-f_snext: equ $4f ; search for next file
-
-; Atari ports.
-
-psg_select: equ $ff8800 ; PSG register select
-psg_read: equ $ff8800 ; PSG read register
-psg_write: equ $ff8802 ; PSG write register
-mfp_io: equ $fffa01 ; MFP 	input/output
-mfp_edge: equ $fffa03 ; active edges
-mfp_direction: equ $fffa05 ; direction of I/O
-mfp_enable_a: equ $fffa07 ; interrupt enable A
-mfp_enable_b: equ $fffa09 ; interrupt enable B
-mfp_pending_a: equ $fffa0b ; interrupt pending A
-mfp_pending_b: equ $fffa0d ; interrupt pending B
-mfp_service_a: equ $fffa0f ; in service A
-mfp_service_b: equ $fffa11 ; in service B
-mfp_mask_a: equ $fffa13 ; mask register A
-mfp_mask_b: equ $fffa15 ; mask register B
-vram_base: equ $ff8201 ; video ram base address
-palette: equ $ff8240 ; palette registers (0..15)
-key_status: equ $fffc00 ; keyboard ACIA status port
-key_rx: equ $fffc02 ; keyboard ACIA data rx port
-midi_status: equ $fffc04 ; midi ACIA status port
-midi_rx: equ $fffc06 ; midi ACIA data rx port
-
 ; 68000 flag bits.
 
 carry: equ 0
@@ -178,7 +136,7 @@ off_left: equ 0 ; clipping flags
 off_right: equ 1
 off_bottom: equ 2
 off_top: equ 3
-stack_size: equ 256 ; program stack size (words)
+stack_size: equ 2048 ; AmigaDOS calls need a larger task stack
 io_size: equ 256 ; size of io buffer
 neo_size: equ 32128 ; size of NEOCHROME file
 key_size: equ 8 ; size of keyboard buffer
@@ -246,13 +204,6 @@ icon_disk: rs.b 1
 icon_find: rs.b 1
 icon_home: rs.b 1
 icon_options: rs.b 1
-
-; System variables.
-
-vblqueue: equ $456 ; VBLANK queue list
-screenptr: equ $45e ; new screen pointer
-frclock: equ $466 ; frame flyback clock
-conterm: equ $484 ; console terminal flags
 
 ; Dimensions of cockpit.
 

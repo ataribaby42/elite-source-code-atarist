@@ -1,0 +1,374 @@
+; Native AmigaOS 1.3 startup, display ownership, input and vertical blank.
+; Exec remains running for input.device and AmigaDOS commander files.
+amiga_implementation: equ 1
+    include "common.def"
+    include "macros.m68"
+    xref elite,vars,vblank,key_change,other_screen,quiet
+    xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
+    xdef palette,frclock,dos_base,set_palette,random_seed_value
+    xref active_files,directory_lock
+    xdef amiga_flip_address
+    section text,code
+amiga_entry:
+    movem.l d2-d7/a2-a6,-(sp)
+    move.l sp,host_stack
+    move.l 4.w,a6
+    move.l a6,exec_base
+    lea dos_name(pc),a1
+    moveq #0,d0
+    jsr -552(a6)                 ; OpenLibrary
+    move.l d0,dos_base
+    beq startup_failed
+    lea graphics_name(pc),a1
+    moveq #0,d0
+    jsr -552(a6)
+    move.l d0,graphics_base
+    beq startup_failed
+    move.l d0,a6
+    move.l 34(a6),old_view
+    suba.l a1,a1
+    jsr -222(a6)                 ; LoadView(NULL)
+    jsr -270(a6)                 ; WaitTOF twice for the old Copper list
+    jsr -270(a6)
+    move.w $dff002,saved_dma
+    move.w #$0120,$dff096        ; stop old bitplanes and sprites
+    st display_owned
+    jsr elite
+amiga_exit:
+    clr amiga_active
+    move.l exec_base,a6
+    tst input_added
+    beq .no_handler
+    lea input_request,a1
+    move.w #10,28(a1)            ; IND_REMHANDLER
+    jsr -456(a6)                 ; DoIO
+    clr input_added
+.no_handler:
+    tst input_open
+    beq .no_input
+    lea input_request,a1
+    jsr -450(a6)                 ; CloseDevice
+    clr input_open
+.no_input:
+    tst vblank_added
+    beq .no_vblank
+    lea vblank_server,a1
+    moveq #5,d0
+    jsr -174(a6)                 ; RemIntServer
+    clr vblank_added
+.no_vblank:
+    tst signal_owned
+    beq .no_signal
+    moveq #0,d0
+    move.b input_port+15,d0
+    jsr -336(a6)                 ; FreeSignal
+    clr signal_owned
+.no_signal:
+    tst display_owned
+    beq startup_failed
+    lea vars,a6
+    jsr quiet                   ; mute Paula before returning display ownership
+    move.w #$01af,$dff096        ; stop our display/audio DMA
+    move.l graphics_base,a6
+    move.l old_view,a1
+    jsr -222(a6)
+    move.l 38(a6),$dff080       ; restore graphics.library's Copper startup list
+    move.w saved_dma,d0
+    or.w #$8000,d0
+    move.w d0,$dff096
+    jsr -270(a6)
+    jsr -270(a6)
+    clr display_owned
+startup_failed:
+    move.l dos_base,d0
+    beq .files_closed
+    move.l d0,a6
+    lea active_files,a2
+    moveq #7,d7
+.close_file:
+    move.l (a2),d1
+    beq .next_file
+    clr.l (a2)
+    jsr -36(a6)                 ; Close
+.next_file:
+    addq.l #4,a2
+    dbra d7,.close_file
+    move.l directory_lock,d1
+    beq .files_closed
+    jsr -90(a6)                 ; UnLock
+    clr.l directory_lock
+.files_closed:
+    move.l exec_base,a6
+    move.l graphics_base,d0
+    beq .no_graphics
+    move.l d0,a1
+    jsr -414(a6)                 ; CloseLibrary
+.no_graphics:
+    move.l dos_base,d0
+    beq .no_dos
+    move.l d0,a1
+    jsr -414(a6)
+.no_dos:
+    move.l host_stack,sp
+    movem.l (sp)+,d2-d7/a2-a6
+    moveq #0,d0
+    rts
+
+amiga_install:
+    movem.l d0-d7/a0-a6,-(sp)
+    lea amiga_primary,a0
+    move.l a0,display_front
+    move.l exec_base,a6
+    moveq #-1,d0
+    jsr -330(a6)                 ; AllocSignal
+    tst.b d0
+    bmi .failed
+    st signal_owned
+    move.b d0,input_port+15
+    suba.l a1,a1
+    jsr -294(a6)                 ; FindTask
+    move.l d0,input_port+16
+    lea input_port+20,a0
+    lea 4(a0),a1
+    move.l a1,(a0)
+    clr.l 4(a0)
+    move.l a0,8(a0)
+    lea input_name(pc),a0
+    lea input_request,a1
+    moveq #0,d0
+    moveq #0,d1
+    jsr -444(a6)                 ; OpenDevice
+    tst d0
+    bne .failed
+    st input_open
+    lea input_request,a1
+    move.w #9,28(a1)
+    move.l #input_server,40(a1)
+    jsr -456(a6)
+    tst.b input_request+31
+    bne .failed
+    st input_added
+    lea vblank_server,a1
+    moveq #5,d0
+    jsr -168(a6)                 ; AddIntServer
+    st vblank_added
+    st amiga_active
+    movem.l (sp)+,d0-d7/a0-a6
+    rts
+.failed:
+    movem.l (sp)+,d0-d7/a0-a6
+    jmp amiga_exit
+
+ ; Present the actual OCS framebuffer; no screen conversion or shadow bitmap.
+amiga_present:
+    move.l scr_base(a6),display_pending
+    st ready
+.wait:
+    bsr amiga_poll
+    tst ready
+    bne .wait
+    rts
+
+; Flip an address inside either source screen, preserving its byte offset.
+; XOR is only valid for the bases when AmigaDOS chooses unaligned allocations.
+amiga_flip_address:
+    move.l d1,-(sp)
+    move.l d0,d1
+    sub.l #amiga_primary,d1
+    cmp.l #32768,d1
+    blo .primary
+    sub.l #other_screen,d0
+    add.l #amiga_primary,d0
+    bra .done
+.primary:
+    move.l d1,d0
+    add.l #other_screen,d0
+.done:
+    move.l (sp)+,d1
+    rts
+
+amiga_poll:
+    tst quit_requested
+    bne amiga_exit
+    rts
+
+amiga_vblank:
+    movem.l d0-d7/a0-a6,-(sp)
+    addq.l #1,frclock
+    tst amiga_active
+    beq .end
+    tst ready
+    beq .same
+    move.l display_pending,display_front
+    clr ready
+.same:
+    lea copper_planes,a0
+    move.l display_front,d0
+    moveq #3,d7
+.pointers:
+    swap d0
+    move.w d0,2(a0)
+    swap d0
+    move.w d0,6(a0)
+    add.l #40,d0
+    addq.l #8,a0
+    dbra d7,.pointers
+    lea palette,a0
+    lea $dff180,a1
+    moveq #15,d7
+.colours:
+    move.w (a0)+,d0
+    move.w d0,(a1)+
+    dbra d7,.colours
+    move.l #copper,$dff080
+    ; Copper restarts itself each frame. Do not strobe COPJMP1 while a blit runs.
+    move.w #$83c0,$dff096        ; master, bitplane, Copper and blitter DMA
+    lea vars,a6
+    bsr poll_joystick
+    jsr vblank                  ; cursor/sound work must follow display setup
+.end:
+    movem.l (sp)+,d0-d7/a0-a6
+    moveq #0,d0                  ; VERTB must leave Z set
+    rts
+
+poll_joystick:
+    move.w $dff00c,d0
+    lea key_states+$78(a6),a0
+    move.w d0,d1
+    lsr.w #1,d1
+    eor.w d0,d1
+    btst #8,d1
+    sne (a0)+
+    btst #0,d1
+    sne (a0)+
+    btst #9,d0
+    sne (a0)+
+    btst #1,d0
+    sne (a0)+
+    move.b -4(a0),d1            ; byte array starts at an odd address on MC68000
+    or.b -3(a0),d1
+    or.b -2(a0),d1
+    or.b -1(a0),d1
+    beq .no_joystick
+    st device(a6)
+.no_joystick:
+    btst #7,$bfe001
+    seq d0
+    or.b mouse_right,d0
+    move.b d0,key_states+$7d(a6) ; fire shares right mouse button
+    rts
+
+amiga_input:
+    movem.l d1-d7/a0-a6,-(sp)
+    lea vars,a6
+    move.l a0,a4
+.event:
+    move.l a4,d0
+    beq .done
+    cmp.b #1,4(a4)
+    beq .key
+    cmp.b #2,4(a4)
+    bne .next
+    move.w 10(a4),d0
+    add.w d0,move_x(a6)
+    move.w 12(a4),d0
+    add.w d0,move_y(a6)
+    move.w 8(a4),d0
+    btst #14,d0
+    sne key_states+$7c(a6)
+    btst #13,d0
+    sne mouse_right
+    bra .next
+.key:
+    move.w 6(a4),d2
+    cmp.w #$59,d2                ; Ctrl+F10 returns to AmigaDOS
+    bne .translate
+    btst #3,9(a4)               ; IEQUALIFIER_CONTROL; plain F10 is inventory
+    beq .translate
+    st quit_requested
+.translate:
+    move.w d2,d1
+    and.w #$ff,d1
+    jsr key_change
+.next:
+    move.l (a4),a4
+    bra .event
+.done:
+    movem.l (sp)+,d1-d7/a0-a6
+    moveq #0,d0                  ; consume events while the game owns input
+    rts
+
+ ; Asset palette import; the runtime palette contains native 12-bit OCS values.
+set_palette:
+    movem.l d0-d1/a0-a1,-(sp)
+    lea palette,a1
+    moveq #15,d1
+.copy:
+    move.w (a0)+,d0
+    and.w #$0777,d0
+    add.w d0,d0
+    move.w d0,(a1)+
+    dbra d1,.copy
+    movem.l (sp)+,d0-d1/a0-a1
+    rts
+random_seed_value:
+    move.l $dff004,d0
+    eor.l #$631ac947,d0
+    rts
+
+    section text,code
+dos_name: dc.b 'dos.library',0
+graphics_name: dc.b 'graphics.library',0
+input_name: dc.b 'input.device',0
+empty_name: dc.b 0
+    even
+input_port:
+    dc.l 0,0
+    dc.b 4,0
+    dc.l 0
+    dc.b 0,0
+    dc.l 0,0,0,0
+input_request:
+    dc.l 0,0
+    dc.b 5,0
+    dc.l 0,input_port
+    dc.w 48
+    dcb.b 28,0
+input_server:
+    dc.l 0,0
+    dc.b 2,100
+    dc.l input_name,0,amiga_input
+vblank_server:
+    dc.l 0,0
+    dc.b 2,-60
+    dc.l input_name,0,amiga_vblank
+
+    section amiga_copper,data
+copper:
+    dc.w $2001,$fffe            ; allow the VBL server to publish pointers first
+    dc.w $100,$0200,$08e,$2c81,$090,$f4c1,$092,$0038,$094,$00d0
+    dc.w $102,0,$104,0,$108,120,$10a,120
+copper_planes:
+    dc.w $0e0,0,$0e2,0,$0e4,0,$0e6,0,$0e8,0,$0ea,0,$0ec,0,$0ee,0
+    dc.w $100,$4200,$ffff,$fffe
+
+    section platform_vars,bss
+host_stack: ds.l 1
+exec_base: ds.l 1
+dos_base: ds.l 1
+graphics_base: ds.l 1
+old_view: ds.l 1
+display_front: ds.l 1
+display_pending: ds.l 1
+frclock: ds.l 1
+palette: ds.w 16
+saved_dma: ds.w 1
+display_owned: ds.w 1
+amiga_active: ds.w 1
+ready: ds.w 1
+quit_requested: ds.w 1
+signal_owned: ds.w 1
+input_open: ds.w 1
+input_added: ds.w 1
+vblank_added: ds.w 1
+mouse_right: ds.w 1

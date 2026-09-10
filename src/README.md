@@ -23,11 +23,14 @@ Run all commands below from the project root. Paths in the tables and text are a
 
 ## Editing and building
 
-Edit files in `src/asm`. `boot.s` and `workspace.m68` are new sources for the current build. The original novella questions are controlled by `use_novella = -1` in `src/asm/common.def`.
+Edit files in `src/asm`. `boot.s` and `workspace.m68` are new sources for the current build. The original novella questions are enabled by default. Build with `noprotect=yes` to skip the question without editing assembly definitions or changing other protection checks.
 
 ```powershell
 .\build.bat
+.\build.bat noprotect=yes
 ```
+
+`noprotect=no` restores the default behavior. The last occurrence wins when the option is repeated. The same options are accepted by `python src/build.py`.
 
 The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src-orig` or old `.LTX` objects. It writes the game files to `output/ELITE` and the floppy image to `output/ELITE.ST`. Both assembler and linker run from `src/build` with explicit output paths to prevent `a.out` from appearing in the root.
 
@@ -36,6 +39,7 @@ The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
 
 The link map is in `src/build/elite.map`; verification results and output SHA-256 hashes are in `src/build/verification.json`. See [ANALYSIS.md](ANALYSIS.md) for the memory layout, original architecture, and conversion details.
+
 
 ## Verification
 

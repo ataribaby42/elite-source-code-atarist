@@ -1,0 +1,30 @@
+; Relocatable workspace. Only display and audio DMA buffers require Chip RAM.
+amiga_workspace_implementation: equ 1
+    include "common.def"
+    xdef var_size,textscr,hyper_buffer,left_arm,right_arm
+    xdef save1_buffer,max1,save2_buffer,max2,bitmaps,texture,obj_data
+    xdef logo,dust_cos,dust_sin,cockpit,vars,ram_end,other_screen
+    section workspace,bss
+textscr: ds.b 3590
+hyper_buffer: ds.b 360
+left_arm: ds.w 200
+right_arm: ds.w 200
+save1_buffer: ds.b 4096
+max1:
+save2_buffer: ds.b 4096
+max2:
+    section amiga_bitmaps,bss    ; keep every BSS Hunk below the KS1.x 256 KB limit
+bitmaps: ds.b 146862
+    section workspace,bss
+texture: ds.b 24358
+obj_data: ds.b 20156
+logo: ds.b 16276
+dust_cos: ds.b 14592
+dust_sin: ds.b 14592
+cockpit: ds.b 13386
+vars: ds.b var_size
+ram_end:
+    section amiga_video,bss
+    xdef amiga_primary
+amiga_primary: ds.b 32768
+other_screen: ds.b 32768        ; original bitmap loader uses a 32 KB disk buffer

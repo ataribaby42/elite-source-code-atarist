@@ -1,0 +1,384 @@
+; Ported from src-orig/MACROS_M68; edit this copy.
+* GLOBAL <name> - define a global label.
+
+q_global macro
+
+	ifeq NARG-2
+	\2
+	endc
+	xdef \1
+
+\1:
+
+	endm
+
+* INC <param>	- increment paramater.
+
+q_inc macro
+
+	addq.\0 #1,\1
+
+	endm
+
+* DEC <param>	- decrement parameter.
+
+q_dec macro
+
+	subq.\0 #1,\1
+
+	endm
+
+* PUSH <reg>	- push register on stack.
+
+q_push macro
+
+	move.\0 \1,-(sp)
+
+	endm
+
+* POP <reg> 	- pop register from stack
+
+q_pop macro
+
+	move.\0 (sp)+,\1
+
+	endm
+
+* DZ <string>	- define zero terminated string
+
+q_dz macro
+
+	dc.b '\1',0
+
+	endm
+
+* EVEN			- Force even address
+
+q_even macro
+
+	even
+
+	endm
+
+* LOOP			- Start of loop
+
+q_loop macro
+
+	ifeq NARG-3
+	iflt \3-128
+	moveq #\3-1,\2
+	endc
+	ifge \3-128
+	move #\3-1,\2
+	endc
+	endc
+	ifeq NARG-2
+	iflt \2-128
+	moveq #\2-1,d7
+	endc
+	ifge \2-128
+	move #\2-1,d7
+	endc
+	endc
+
+loop_\1: set *
+
+	endm
+
+* NEXT			- End of loop
+
+q_next macro
+
+	ifeq NARG-2
+	dbra \2,loop_\1
+	endc
+	ifeq NARG-1
+	dbra d7,loop_\1
+	endc
+
+	endm
+
+* FLASH - Flash border
+
+q_flash macro
+
+q_macros_m68_1\@:
+	q_inc palette
+	bra q_macros_m68_1\@
+q_macros_m68_2\@:
+
+	endm
+
+* LET			- Let a variable equal a constant.
+
+q_let macro
+
+	move.\0 #\1,\2(a6)
+
+	endm
+
+* SUBR			- Define start of subroutine.
+
+q_subr macro
+
+	ifnc '\2',''
+	xdef \1
+	endc
+
+\1:
+
+	endm
+
+* SAVE_ALL		- Save all registers on stack
+
+q_save_all macro
+
+	movem.l d0-d7/a0-a6,-(sp)
+
+	endm
+
+* RESTORE_ALL	- Restore all registers from stack
+
+q_restore_all macro
+
+	movem.l (sp)+,d0-d7/a0-a6
+
+	endm
+
+* SEC - Set carry flag.
+
+q_sec macro
+
+	or #1<<carry,ccr
+
+	endm
+
+* CLC - Clear carry flag.
+
+q_clc macro
+
+	and #(1<<carry)^-1,ccr
+
+	endm
+
+* SFX - Trigger sound effect.
+
+q_sfx macro
+
+	move #sfx_\1,d0
+	jsr fx
+
+	endm
+
+* MODULE - Define module and RTS.
+
+q_module macro
+
+	section text,code
+
+return: set *
+
+	rts
+
+	endm
+
+* RET - Return on condition.
+
+q_ret macro
+
+	ifeq NARG
+return: set *
+	rts
+	mexit
+	endc
+	ifc '\1','return'
+	q_ret
+	mexit
+	endc
+	b\1 return
+
+	endm
+
+* CALL - Jump to subroutine (with condition).
+
+q_call macro
+
+; Quelo: 	if <\1> then.s
+	ifc '\1','eq'
+	bne.s q_macros_m68_3\@
+	endc
+	ifc '\1','ne'
+	beq.s q_macros_m68_3\@
+	endc
+	ifc '\1','gt'
+	ble.s q_macros_m68_3\@
+	endc
+	ifc '\1','le'
+	bgt.s q_macros_m68_3\@
+	endc
+	ifc '\1','ge'
+	blt.s q_macros_m68_3\@
+	endc
+	ifc '\1','lt'
+	bge.s q_macros_m68_3\@
+	endc
+	ifc '\1','hi'
+	bls.s q_macros_m68_3\@
+	endc
+	ifc '\1','ls'
+	bhi.s q_macros_m68_3\@
+	endc
+	ifc '\1','hs'
+	blo.s q_macros_m68_3\@
+	endc
+	ifc '\1','lo'
+	bhs.s q_macros_m68_3\@
+	endc
+	ifc '\1','vc'
+	bvs.s q_macros_m68_3\@
+	endc
+	ifc '\1','vs'
+	bvc.s q_macros_m68_3\@
+	endc
+	ifc '\1','pl'
+	bmi.s q_macros_m68_3\@
+	endc
+	ifc '\1','mi'
+	bpl.s q_macros_m68_3\@
+	endc
+	ifc '\1','cc'
+	bcs.s q_macros_m68_3\@
+	endc
+	ifc '\1','cs'
+	bcc.s q_macros_m68_3\@
+	endc
+	jsr \2
+q_macros_m68_3\@:
+
+	endm
+
+* HCLR - Clear high word of register.
+
+q_hclr macro
+
+	swap \1
+	clr \1
+	swap \1
+
+	endm
+
+* JP <cond>,addr - Jump on condition.
+
+q_jp macro
+
+; Quelo: 	if <\1> then.s
+	ifc '\1','eq'
+	bne.s q_macros_m68_5\@
+	endc
+	ifc '\1','ne'
+	beq.s q_macros_m68_5\@
+	endc
+	ifc '\1','gt'
+	ble.s q_macros_m68_5\@
+	endc
+	ifc '\1','le'
+	bgt.s q_macros_m68_5\@
+	endc
+	ifc '\1','ge'
+	blt.s q_macros_m68_5\@
+	endc
+	ifc '\1','lt'
+	bge.s q_macros_m68_5\@
+	endc
+	ifc '\1','hi'
+	bls.s q_macros_m68_5\@
+	endc
+	ifc '\1','ls'
+	bhi.s q_macros_m68_5\@
+	endc
+	ifc '\1','hs'
+	blo.s q_macros_m68_5\@
+	endc
+	ifc '\1','lo'
+	bhs.s q_macros_m68_5\@
+	endc
+	ifc '\1','vc'
+	bvs.s q_macros_m68_5\@
+	endc
+	ifc '\1','vs'
+	bvc.s q_macros_m68_5\@
+	endc
+	ifc '\1','pl'
+	bmi.s q_macros_m68_5\@
+	endc
+	ifc '\1','mi'
+	bpl.s q_macros_m68_5\@
+	endc
+	ifc '\1','cc'
+	bcs.s q_macros_m68_5\@
+	endc
+	ifc '\1','cs'
+	bcc.s q_macros_m68_5\@
+	endc
+	jmp \2
+q_macros_m68_5\@:
+
+	endm
+
+; Original listing option: 	list
+; Original listing option: 	opt mex
+
+* VARS - Declare start of variables.
+
+q_vars macro
+
+	rsset \1_vars
+
+	endm
+
+* END_VARS - Declare end of variables.
+
+q_end_vars macro
+
+	xdef \1_used
+
+\1_used: equ __RS-\1_vars
+
+	endm
+
+* ABS - Make parameter absolute.
+
+q_abs macro
+
+	tst.\0 \1
+; Quelo: 	if <mi> then.s
+	bpl.s q_macros_m68_7\@
+	neg.\0 \1
+q_macros_m68_7\@:
+
+	endm
+
+* RS - Reserve space.
+
+q_rs macro
+
+	rs.\0 \1
+	rs.w 0
+
+	endm
+
+* ACTION - Mouse action entry
+
+q_action macro
+
+	dc.w \1,\2,\3,\4,\5
+	ifeq \6
+	dc.l \7
+	dc.l \7
+	endc
+	ifne \6
+	dc.l s_\7
+	dc.l d_\7
+	endc
+
+	endm

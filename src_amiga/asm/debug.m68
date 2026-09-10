@@ -1,0 +1,344 @@
+	include "common.def"
+; Ported from src-orig/DEBUG_M68; edit this copy.
+* @@@@@   @@@@@@@ @@@@@@   @@  @@	@@@@
+*  @@ @@   @@	@  @@  @@  @@  @@  @@  @@
+*  @@  @@  @@ @    @@  @@  @@  @@ @@
+*  @@  @@  @@@@    @@@@@   @@  @@ @@
+*  @@  @@  @@ @    @@  @@  @@  @@ @@  @@@
+*  @@ @@   @@	@  @@  @@  @@  @@  @@  @@
+* @@@@@   @@@@@@@ @@@@@@	@@@@	@@@@@
+
+* Debug routines.
+
+	include "macros.m68"
+
+	xref text_colour,locate,print_char,elite,check_docked,clear_input
+	xref check_docked,print_string,fx,wait_key,hold_clock,prepare_text
+	xref locate,text_colour,wait_key,print_string,fx,vars,print_centre
+	xref input_line,save_state,restore_state,status
+
+* ---- LOCAL CONSTANTS ----
+
+hblank_vect: equ 26*4 ; hblank exception vector
+mfp_vect: equ 30*4 ; MFP 68901 exception vector
+key_vect: equ (64+6)*4 ; keyboard/midi exception vector
+
+	q_module debug
+
+	q_global start
+
+	jmp patch ; used for MONST breakpoints
+
+patch:
+
+	jmp elite ; patched by DEBUG
+
+	ds.w 128
+
+
+* **************************************
+* **								  **
+* ** DISP_DEBUG - DISPLAY DEBUG TABLE **
+* **								  **
+* **************************************
+
+* Displays a list of debug values across the screen.
+
+* Entry: None
+* Exit:  None
+
+* Regs:  All preserved
+* Subr:  HEX_BYTE
+
+	q_subr disp_debug,global
+
+	q_save_all save ; all registers
+	jsr hold_clock ; hold clock for a while
+	clr d0 ; position cursor
+	clr d1
+	jsr locate
+	moveq #white,d0 ; set text colour
+	moveq #black,d1
+	jsr text_colour
+	lea debug_table(pc),a0 ; base of debug table
+	moveq #no_entries-1,d7 ; loop for each entry
+	q_loop 1
+	move (a0)+,d0 ; get offset into vars
+	lea (a6,d0),a1 ; calculate actual address
+	move (a0)+,d6 ; get no. of bytes
+	q_dec d6
+	q_loop 2 ; loop for each byte
+	move.b (a1)+,d0 ; get byte and print
+	bsr hex_byte
+	q_next 2,d6 ; next byte
+	tst d7 ; last entry ?
+; Quelo: 		if <ne> then.s					no
+	beq.s q_debug_m68_1
+	moveq #',',d0 ; print a comma
+	jsr print_char
+q_debug_m68_1:
+	q_next 1 ; next entry
+	q_pop display_clock(a6) ; restore clock
+	q_restore_all restore ; all registers
+
+	q_ret
+
+
+* ************************************
+* **								**
+* ** HEX_WORD - PRINT A WORD IN HEX **
+* **								**
+* ************************************
+
+* Prints a 16 bit number in hex.
+
+* Entry: D0 = number to print
+* Exit:  None
+
+* Regs:  D0 corrupt.
+* Subr:  HEX_BYTE
+
+	q_subr hex_word,global
+
+	q_push d0 ; save low byte
+	lsr #8,d0 ; print high byte
+	bsr hex_byte
+	q_pop d0 ; print low byte
+	bra hex_byte
+
+
+* ************************************
+* **								**
+* ** HEX_BYTE - PRINT A BYTE IN HEX **
+* **								**
+* ************************************
+
+* Prints a 8 bit number in hex.
+
+* Entry: D0.B = Number to print
+* Exit:  None
+
+* Regs:  D0 corrupt.
+* Subr:  HEX_DIGIT
+
+	q_subr hex_byte,global
+
+	q_push d0 ; save low nibble
+	lsr #4,d0 ; print high nibble
+	bsr hex_digit
+	q_pop d0 ; print low nibble
+	bra hex_digit
+
+
+* ***********************************
+* **							   **
+* ** HEX_DIGIT - PRINT A HEX DIGIT **
+* **							   **
+* ***********************************
+
+* Prints a hex digit, i.e. 0..9 or A..F
+
+* Entry: D0.B = digit (0..15)
+* Exit:  None
+
+* Regs:  D0 corrupt
+* Subr:  PRINT_CHAR
+
+	q_subr hex_digit
+
+	and #15,d0 ; mask out unwanted bits
+	add.b #'0',d0 ; convert to ASCII
+; Quelo: 	if.b d0 <gt> #'9' then.s
+	cmp.b #'9',d0
+	ble.s q_debug_m68_3
+	add.b #7,d0
+q_debug_m68_3:
+	jmp print_char ; print and exit
+
+
+* ********************************
+* **							**
+* ** MONST - EXIT BACK TO MONST **
+* **							**
+* ********************************
+
+* Restores the system and exits to MONST.
+
+	q_subr monst,global
+	jmp amiga_exit
+
+	q_subr hacker,global
+
+	ifne use_novella
+	tst allow_hack(a6) ; allow hacking ?
+	q_ret eq ; no, return
+	endc
+	jsr save_state ; restore game state
+	jsr prepare_text ; prepare text screen
+	lea text4(pc),a0 ; print title
+	moveq #title_y,d1
+	jsr print_centre
+q_debug_m68_11:
+	lea game_state(a6),a5 ; start of saved game
+	clr d4 ; offset = 0
+	clr d1
+q_debug_m68_13:
+	q_push d1 ; locate cursor
+	asl #3,d1
+	add #text_top+8,d1
+	moveq #2,d0
+	jsr locate
+	moveq #orange,d0
+	moveq #black,d1
+	jsr text_colour
+	move d4,d0 ; print offset
+	bsr hex_byte
+	moveq #':',d0 ; print ": "
+	jsr print_char
+	q_loop 1,16 ; print 16 data bytes
+	cmp #7,d7
+; Quelo: 				if <eq> then.s
+	bne.s q_debug_m68_15
+	moveq #white,d0
+	moveq #black,d1
+	jsr text_colour
+	moveq #':',d0
+	jsr print_char
+q_debug_m68_15:
+	move (sp),d0 ; determine colour
+	eor d7,d0
+	and #1,d0
+; Quelo: 				if <eq> then.s
+	bne.s q_debug_m68_17
+	moveq #lgt_green,d0
+	bra.s q_debug_m68_18
+q_debug_m68_17:
+	moveq #lgt_blue,d0
+q_debug_m68_18:
+	moveq #black,d1
+	jsr text_colour
+	move.b (a5)+,d0
+	bsr hex_byte
+	q_next 1
+	q_pop d1 ; next line
+	add #16,d4
+	q_inc d1
+	cmp #16,d1
+	bne q_debug_m68_13
+q_debug_m68_14:
+	lea text5(pc),a0 ; input byte to change
+	bsr input_hex
+	cmp.b #27,d0 ; ESC ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_debug_m68_19
+	jsr restore_state ; restore game state
+	jmp status ; display status screen
+q_debug_m68_19:
+	q_push d1 ; save hex number
+	lea text6(pc),a0 ; input new value
+	bsr input_hex
+	q_pop d2 ; ESC ?
+	cmp.b #27,d0
+; Quelo: 		if <ne> then.s					no
+	beq.s q_debug_m68_21
+	lea game_state(a6),a0 ; change byte
+	move.b d1,(a0,d2)
+q_debug_m68_21:
+	bra q_debug_m68_11
+q_debug_m68_12:
+
+	q_ret return
+
+
+* **********************************
+* **							  **
+* ** INPUT_HEX - INPUT HEX NUMBER **
+* **							  **
+* **********************************
+
+* Inputs a hex number in the range 0..255 from the keyboard.
+
+* Entry: A0 = ptr: prompt string
+* Exit:  D0 = terminating key (ESC or CR)
+*		 D1 = number (unless ESC pressed)
+
+* Regs: ?
+* Subr: ?
+
+	q_subr input_hex
+
+	q_push.l a0 ; save prompt pointer
+q_debug_m68_23:
+	jsr clear_input ; print prompt
+	move.l (sp),a0
+	jsr print_string
+	moveq #'0',d0
+	moveq #'F',d1
+	moveq #2,d2
+	moveq #-1,d3
+	jsr input_line
+	cmp.b #27,d0 ; ESC ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_debug_m68_25
+	q_pop.l a0 ; clear stack
+	q_ret return
+q_debug_m68_25:
+	lea input(a6),a0 ; null return ?
+	tst.b (a0)
+; Quelo: 		if <ne> then.s					no
+	beq.s q_debug_m68_27
+	clr d1 ; accumulator = 0
+q_debug_m68_29:
+	move.b (a0)+,d2 ; end of string ?
+; Quelo: 				if <eq> then.s			yes
+	bne.s q_debug_m68_31
+	q_pop.l a0 ; clear stack
+	q_ret return
+q_debug_m68_31:
+	cmp.b #'0',d2 ; convert digit to hex
+	blo.s q_debug_m68_30
+	cmp.b #'9',d2
+; Quelo: 				if <ls> then.s
+	bhi.s q_debug_m68_33
+	sub.b #48,d2
+	bra.s q_debug_m68_34
+q_debug_m68_33:
+	cmp.b #'A',d2
+	blo.s q_debug_m68_30
+	sub.b #55,d2
+q_debug_m68_34:
+	asl #4,d1
+	add.b d2,d1
+	bra q_debug_m68_29
+q_debug_m68_30:
+q_debug_m68_27:
+	bra q_debug_m68_23
+q_debug_m68_24:
+
+* **** LOCAL DATA ****
+
+debug_table:
+
+*	 dc debug_data,4
+*	 dc tharg_max+1,1
+	dc prog_checksum,2
+	dc top_memory,4
+
+no_entries: equ (*-debug_table)/4
+
+trap_no: dc.w 4 ; trap number of exception
+
+* Palette for debugging.
+
+monst_palette:
+
+	dc.w $000,$777,$777,$777,$777,$777,$777,$777
+	dc.w $777,$777,$777,$777,$777,$777,$777,$777
+
+* Text messages.
+
+text2: dc.b c_cursor,0,12,c_colour,white,black,'Trap #$',0
+text3: dc.b ' - ',0
+text4: dc.b 'Hacker V1.0',0
+text5: dc.b 'Byte to change ? ',0
+text6: dc.b 'New value for byte ? ',0

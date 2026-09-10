@@ -1,0 +1,380 @@
+; Paula sample playback. Original Amiga effects are extracted at build time.
+; The existing Blue Danube score is played with a small looped waveform.
+    include "common.def"
+    include "macros.m68"
+    xdef fx,sound,quiet,start_tune,start_fade,sounds_used
+sounds_used: equ 0
+    section text,code
+fx:
+    tst audio_resetting
+    bne .return
+    cmp.w #sfx_hyperspace,d0
+    bne .enabled
+    move.w #465,warp_ticks      ; hyperspace duration in PAL vertical blanks
+    st end_hyperspace(a6)
+.enabled:
+    btst #f_fx,user(a6)
+    beq .return
+    cmp.w #16,d0
+    bhi .return
+    tst music_playing
+    bne .return
+    move.l a0,-(sp)
+    lea effect_requests,a0
+    st (a0,d0.w)                ; publish atomically; Paula is serviced in VBL
+    move.l (sp)+,a0
+.return:
+    rts
+
+play_effect:
+    movem.l d0-d7/a0-a5,-(sp)
+    lea effect_ids,a0
+    lea effect_ticks,a1
+    moveq #3,d7
+.same:
+    cmp.b (a0)+,d0
+    bne .next
+    tst.w (a1)
+    bne .done                   ; do not restart a held laser/alert every frame
+.next:
+    addq.l #2,a1
+    dbra d7,.same
+    move.w next_channel,d6
+    addq.w #1,next_channel
+    and.w #3,next_channel
+    lea effect_ids,a0
+    move.b d0,(a0,d6.w)
+    lea effect_map(pc),a0
+    move.b (a0,d0.w),d0
+    and.w #255,d0
+    move.w d0,d5                ; original Amiga effect/sample number
+    lsl.w #3,d0
+    lea amiga_effect_descriptors(pc),a2
+    adda.w d0,a2
+    moveq #0,d0
+    move.b 1(a2),d0
+    add.w d0,d0
+    lea amiga_effect_periods(pc),a0
+    move.w (a0,d0.w),d7
+    move.w d5,d0
+    lsl.w #2,d0
+    lea amiga_sample_offsets(pc),a0
+    move.l (a0,d0.w),d1
+    lea amiga_samples,a0
+    adda.l d1,a0
+    add.w d5,d5
+    lea amiga_sample_lengths(pc),a1
+    moveq #0,d2
+    move.w (a1,d5.w),d2
+    moveq #0,d3
+    move.b 5(a2),d3
+    addq.w #2,d3
+    cmp.b #255,7(a2)
+    bne .finite
+    moveq #40,d3                ; bounded alert/drive loop; game logic retriggers alerts
+.finite:
+    move.w d6,d0
+    lsl.w #4,d0
+    lea effect_envelopes,a4
+    adda.w d0,a4
+    move.w d7,(a4)
+    moveq #0,d0
+    move.b 2(a2),d0
+    move.w d0,6(a4)
+    add.w d0,d0
+    lea amiga_effect_periods(pc),a1
+    move.w (a1,d0.w),2(a4)
+    moveq #0,d0
+    move.b 4(a2),d0
+    move.w d0,4(a4)
+    move.b 3(a2),d0
+    move.w d0,8(a4)
+    move.b 6(a2),d0
+    move.w d0,10(a4)
+    beq .duration
+    add.w #64,d3
+.duration:
+    move.w d6,d4
+    add.w d4,d4
+    lea effect_ticks,a1
+    move.w d3,(a1,d4.w)
+    moveq #1,d4
+    lsl.w d6,d4
+    lsl.w #4,d6
+    lea $dff0a0,a1
+    adda.w d6,a1
+    move.w #0,8(a1)             ; do not expose the previous held DAC sample
+    moveq #4,d1
+    bsr audio_settle            ; latch zero volume before stopping an old effect
+    move.w d4,$dff096
+    move.w d7,6(a1)
+    move.w #0,10(a1)            ; replace the stopped channel's data with silence
+    move.l a0,(a1)
+    lsr.w #1,d2
+    move.w d2,4(a1)
+    moveq #4,d1                 ; at least four full scanlines (>2 periods at 428)
+    bsr audio_settle
+    or.w #$8200,d4
+    move.w d4,$dff096
+    move.w #64,8(a1)
+.done:
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; Paula applies volume at a sample-period boundary. Stopping DMA immediately
+; after AUDxVOL can freeze the previous sample/gain. Wait before DMA-off:
+; five line transitions for effects (period <=428), seventeen for music (<=3389).
+; D1 = line transitions minus one; D0/D1 are scratch. No OS calls from VBL.
+audio_settle:
+.line:
+    move.b $dff006,d0           ; VHPOSR high byte: vertical line, not horizontal ticks
+.wait:
+    cmp.b $dff006,d0
+    beq .wait
+    dbra d1,.line
+    rts
+
+quiet:
+    st audio_resetting         ; the main task may be interrupted by sound's VBL
+    clr music_playing
+    clr fade_ticks
+    clr warp_ticks
+    clr end_hyperspace(a6)
+    clr.l effect_ticks
+    clr.l effect_ticks+4
+    lea effect_requests,a0
+    moveq #16,d0
+.requests:
+    clr.b (a0)+
+    dbra d0,.requests
+    clr alert_fx(a6)
+    move.w #0,$dff0a8           ; DMA-off alone leaves the last sample at the DAC
+    move.w #0,$dff0b8
+    move.w #0,$dff0c8
+    move.w #0,$dff0d8
+    move.l d1,-(sp)
+    moveq #16,d1                ; let all four channels latch the muted volume
+    bsr audio_settle
+    move.l (sp)+,d1
+    move.w #15,$dff096
+    clr audio_resetting
+    rts
+
+start_tune:
+    movem.l d0-d7/a0-a5,-(sp)
+    move.l a0,-(sp)
+    bsr quiet
+    move.l (sp)+,a0
+    move.l a0,score_start
+    addq.l #2,a0
+    lea music_channels,a1
+    moveq #2,d7
+.channel:
+    move.l (a0)+,a2
+    move.l (a2)+,(a1)
+    move.l a2,4(a1)
+    clr.w 8(a1)
+    clr.w 10(a1)
+    clr.w 14(a1)               ; channel sounding (rests must stay muted)
+    move.w (a0)+,12(a1)
+    lea 16(a1),a1
+    dbra d7,.channel
+    st music_playing
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+start_fade:
+    tst music_playing
+    beq .done
+    move.w #32,fade_ticks
+.done:
+    rts
+
+sound:
+    tst audio_resetting
+    bne .return
+    tst warp_ticks
+    beq .music
+    subq.w #1,warp_ticks
+    bne .music
+    clr end_hyperspace(a6)
+.music:
+    tst music_playing
+    bne play_music
+    lea effect_ticks,a0
+    lea effect_envelopes,a2
+    lea $dff0a0,a3
+    moveq #1,d0
+    moveq #3,d7
+.effects:
+    tst.w (a0)
+    beq .next
+    subq.w #1,(a0)
+    bne .envelope
+    move.w #0,8(a3)            ; fully mute an expired effect, including held data
+    move.l d0,-(sp)
+    moveq #4,d1
+    bsr audio_settle
+    move.l (sp)+,d0
+    move.w d0,$dff096
+    bra .next
+.envelope:
+    move.w (a2),d1
+    cmp.w #1,4(a2)
+    bne .down
+    sub.w 6(a2),d1
+    cmp.w #180,d1
+    bhs .period
+    move.w #180,d1
+    bra .period
+.down:
+    cmp.w #2,4(a2)
+    bne .alternate
+    add.w 6(a2),d1
+    cmp.w #428,d1
+    bls .period
+    move.w #428,d1
+    bra .period
+.alternate:
+    cmp.w #4,4(a2)
+    bne .period
+    move.w 2(a2),d2
+    move.w d1,2(a2)
+    move.w d2,d1
+.period:
+    move.w d1,(a2)
+    move.w d1,6(a3)
+    cmp.w #64,(a0)
+    bhi .next
+    move.w 8(a2),d1
+    sub.w 10(a2),d1
+    bpl .volume
+    moveq #0,d1
+.volume:
+    move.w d1,8(a2)
+    move.w d1,8(a3)
+.next:
+    addq.l #2,a0
+    lea 16(a2),a2
+    lea 16(a3),a3
+    add.w d0,d0
+    dbra d7,.effects
+    lea effect_requests,a0
+    moveq #0,d0
+.request:
+    tst.b (a0)
+    beq .advance
+    clr.b (a0)
+    bsr play_effect
+.advance:
+    addq.l #1,a0
+    addq.w #1,d0
+    cmp.w #17,d0
+    bne .request
+.return:
+    rts
+
+play_music:
+    tst fade_ticks
+    beq .play
+    subq.w #1,fade_ticks
+    beq quiet
+.play:
+    lea music_channels,a4
+    lea $dff0a0,a3
+    moveq #1,d6
+    moveq #2,d7
+.channel:
+    tst.w 10(a4)
+    bne .next
+    tst.w 8(a4)
+    beq .note
+    subq.w #1,8(a4)
+    bra .next
+.note:
+    move.l (a4),a0
+.read:
+    moveq #0,d0
+    move.b (a0)+,d0
+    cmp.w #73,d0
+    bne .duration
+    move.l 4(a4),a1
+    move.l (a1)+,d0
+    beq .end_channel
+    move.l a1,4(a4)
+    move.l d0,a0
+    bra .read
+.duration:
+    moveq #0,d1
+    move.b (a0)+,d1
+    and.w #127,d1
+    add.w d1,d1
+    subq.w #1,d1
+    move.w d1,8(a4)
+    move.l a0,(a4)
+    cmp.w #72,d0
+    beq .rest
+    add.w d0,d0
+    lea music_periods(pc),a0
+    move.w (a0,d0.w),6(a3)
+    move.l #music_wave,(a3)
+    move.w #16,4(a3)
+    move.w #28,8(a3)
+    st 14(a4)
+    move.w d6,d0
+    or.w #$8200,d0
+    move.w d0,$dff096
+    bra .next
+.end_channel:
+    st 10(a4)
+.rest:
+    clr.w 14(a4)
+    move.w #0,8(a3)
+    moveq #16,d1
+    bsr audio_settle
+    move.w d6,$dff096
+.next:
+    tst.w 14(a4)
+    beq .advance               ; a music fade must not unmute a rest/ended voice
+    tst fade_ticks
+    beq .advance
+    move.w fade_ticks,8(a3)
+.advance:
+    lea 16(a4),a4
+    lea 16(a3),a3
+    add.w d6,d6
+    dbra d7,.channel
+    tst.w music_channels+10
+    beq .return
+    tst.w music_channels+26
+    beq .return
+    tst.w music_channels+42
+    beq .return
+    move.l score_start,a0
+    bra start_tune
+.return:
+    rts
+    include "amiga-samples.inc"
+; Shared ST events -> corresponding effects in the supplied Amiga player.
+effect_map:
+    dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
+    even
+music_periods:
+    include "amiga-periods.inc"
+    section amiga_audio,data
+amiga_samples:
+    incbin "amiga-samples.bin"
+music_wave:
+    dc.b 0,20,39,56,71,83,92,98,100,98,92,83,71,56,39,20
+    dc.b 0,-20,-39,-56,-71,-83,-92,-98,-100,-98,-92,-83,-71,-56,-39,-20
+    section audio_vars,bss
+effect_ticks: ds.w 4
+effect_ids: ds.b 4
+effect_requests: ds.b 18
+effect_envelopes: ds.b 64
+next_channel: ds.w 1
+music_playing: ds.w 1
+fade_ticks: ds.w 1
+warp_ticks: ds.w 1
+score_start: ds.l 1
+music_channels: ds.b 48
+audio_resetting: ds.w 1

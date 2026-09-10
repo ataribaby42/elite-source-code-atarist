@@ -1,0 +1,9 @@
+	include "common.def"
+; Ported from src-orig/CHKSTART_M68; edit this copy.
+* Label start of checksum area.
+
+	section text,code
+
+	xdef checksum_start
+
+checksum_start:

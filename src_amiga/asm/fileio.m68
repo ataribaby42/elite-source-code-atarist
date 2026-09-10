@@ -1,0 +1,175 @@
+; Native AmigaDOS I/O. Handles are full 32-bit BPTRs, not TOS handle numbers.
+; D1 = filename/handle, D2 = buffer, D3 = length; only D0 changes on return.
+fileio_implementation: equ 1
+    include "common.def"
+    xref dos_base
+    xdef file_open,file_create,file_close,file_read,file_write,file_first,file_next
+    xdef console_write,active_files,directory_lock
+    section text,code
+file_open:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l #1005,d2
+    bra open_file
+file_create:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l #1006,d2
+open_file:
+    move.l dos_base,a6
+    jsr -30(a6)
+    tst.l d0
+    beq missing_file
+    lea active_files,a0
+    moveq #7,d7
+.slot:
+    tst.l (a0)+
+    beq .store
+    dbra d7,.slot
+    move.l d0,d1
+    jsr -36(a6)
+    moveq #-35,d0
+    bra io_done
+.store:
+    move.l d0,-4(a0)
+    bra io_done
+missing_file:
+    moveq #-33,d0              ; game message: file could not be opened
+    bra io_done
+file_close:
+    movem.l d1-d7/a0-a6,-(sp)
+    lea active_files,a0
+    moveq #7,d7
+.find:
+    cmp.l (a0)+,d1
+    beq .found
+    dbra d7,.find
+    moveq #-37,d0
+    bra io_done
+.found:
+    clr.l -4(a0)
+    move.l dos_base,a6
+    jsr -36(a6)
+    tst.l d0
+    beq io_error
+    moveq #0,d0
+    bra io_done
+file_read:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l dos_base,a6
+    jsr -42(a6)
+    tst.l d0
+    bmi io_error
+    bra io_done
+file_write:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l dos_base,a6
+    jsr -48(a6)
+    tst.l d0
+    bmi io_error
+    bra io_done
+io_error:
+    moveq #-36,d0              ; game message: I/O error
+io_done:
+    movem.l (sp)+,d1-d7/a0-a6
+    rts
+
+; Directory API returns only a commander filename, not a GEMDOS DTA structure.
+; file_first: D1 points at a caller-owned 14-byte filename buffer.
+file_first:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l d1,catalog_name
+    move.l dos_base,a6
+    move.l directory_lock,d1
+    beq .lock
+    jsr -90(a6)
+.lock:
+    lea current_directory(pc),a0
+    move.l a0,d1
+    moveq #-2,d2
+    jsr -84(a6)
+    move.l d0,directory_lock
+    beq missing_file
+    move.l d0,d1
+    lea file_info,a0
+    move.l a0,d2
+    jsr -102(a6)
+    tst.l d0
+    beq missing_file
+    bsr next_name
+    cmp.w #-49,d0
+    bne io_done
+    moveq #-33,d0
+    bra io_done
+file_next:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l dos_base,a6
+    bsr next_name
+    bra io_done
+next_name:
+    move.l directory_lock,d1
+    beq .end
+    lea file_info,a0
+    move.l a0,d2
+    jsr -108(a6)
+    tst.l d0
+    beq .unlock
+    tst.l file_info+4
+    bpl next_name
+    lea file_info+8,a0
+    move.l a0,a1
+.length:
+    tst.b (a1)+
+    bne .length
+    subq.l #1,a1
+    move.l a1,d0
+    sub.l a0,d0
+    cmp.l #5,d0
+    blo next_name
+    cmp.l #12,d0
+    bhi next_name
+    moveq #0,d0
+    move.b -4(a1),d0
+    lsl.l #8,d0
+    move.b -3(a1),d0
+    lsl.l #8,d0
+    move.b -2(a1),d0
+    lsl.l #8,d0
+    move.b -1(a1),d0
+    and.l #$ffdfdfdf,d0
+    cmp.l #$2e434452,d0
+    bne next_name
+    move.l catalog_name,a1
+.copy:
+    move.b (a0)+,(a1)+
+    bne .copy
+    moveq #0,d0
+    rts
+.unlock:
+    move.l directory_lock,d1
+    jsr -90(a6)
+    clr.l directory_lock
+.end:
+    moveq #-49,d0
+    rts
+console_write:
+    movem.l d1-d7/a0-a6,-(sp)
+    move.l d1,d2
+    move.l d1,a0
+    moveq #0,d3
+.length:
+    tst.b (a0)+
+    beq .write
+    addq.l #1,d3
+    bra .length
+.write:
+    move.l dos_base,a6
+    jsr -60(a6)
+    move.l d0,d1
+    jsr -48(a6)
+    bra io_done
+current_directory: dc.b 0
+    even
+    section file_vars,bss
+active_files: ds.l 8
+directory_lock: ds.l 1
+catalog_name: ds.l 1
+file_info: ds.b 260

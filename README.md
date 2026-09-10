@@ -1,6 +1,6 @@
 # Elite Atari ST
 
-A buildable version of the original Elite for Atari ST and the **MC68000** processor. All 39 game modules are assembled from sources in `src/asm` using **vasm 2.0f and vlink 0.18a**. The original sources in `src-orig` remain unchanged; the normal build does not use them or reuse the old `.LTX` object files.
+A buildable version of the original Elite for Atari ST and the **MC68000** processor, with a separate native Amiga port under `src_amiga`. The Atari game modules are assembled from sources in `src/asm` using **vasm 2.0f and vlink 0.18a**. The original sources in `src-orig` remain unchanged; the normal build does not use them or reuse the old `.LTX` object files.
 
 ## Building on Windows
 
@@ -12,13 +12,29 @@ Run this from the project root:
 .\build.bat
 ```
 
+The Atari and Amiga builds have independent source trees and entry points. No platform option is used.
+
+```powershell
+.\build.bat
+.\build_amiga.bat
+```
+
+To skip the novella protection question at startup, add `noprotect=yes`:
+
+```powershell
+.\build.bat noprotect=yes
+.\build_amiga.bat noprotect=yes
+```
+
+The default is `noprotect=no`, which keeps the question enabled. Each build applies the selected option to its own output files; it is not a runtime setting. If repeated, the last `noprotect` option wins. Other game protection checks remain unchanged.
+
 If the script cannot find Python, provide its path:
 
 ```powershell
 .\build.bat -Python "C:\path\python.exe"
 ```
 
-[build.bat](build.bat) calls [src/build.bat](src/build.bat) and forwards all command-line arguments. Add persistent default options directly to the root script's `call` line, before `%*`. Use `-Vasm` and `-Vlink` to select custom assembler and linker executables. The wrappers also pass through arguments such as `option1=yes`; each such option needs corresponding support in `src/build.py`.
+[build.bat](build.bat) calls [src/build.bat](src/build.bat) and forwards all command-line arguments. Add persistent default options directly to the root script's `call` line, before `%*`. Use `-Vasm` and `-Vlink` to select custom assembler and linker executables. Unrecognized build arguments are rejected.
 
 Alternatively, run `python src/build.py` directly. The scripts resolve project paths relative to their own location, so you can also invoke the build from another working directory.
 
@@ -28,15 +44,30 @@ Alternatively, run `python src/build.py` directly. The scripts resolve project p
 | --- | --- |
 | `output/ELITE.ST` | 720 KB FAT12 floppy image containing all game files |
 | `output/ELITE/` | Game directory containing the `ELITE.TOS` launcher and all data files |
+| `output_amiga/ELITE.ADF` | Amiga build: bootable 880 KB OFS floppy image |
+| `output_amiga/ELITE/` | Amiga build: native `ELITE` executable and data files |
 | `src/build/` | Intermediate files, logs, link map, and verification report |
+| `src_amiga/build/` | Independent Amiga intermediate files, logs, link map, and verification report |
 
 Mount `output/ELITE.ST` in your emulator, open drive A:, and run `ELITE.TOS`. The floppy does not boot automatically.
 
 To run from C:, copy the entire contents of `output/ELITE` to a directory such as `C:\ELITE`, then run `C:\ELITE\ELITE.TOS`. **All files must be in the same directory as `ELITE.TOS`, with no separate data subdirectory.** When updating, replace every file, including `LOADER.IMG`, or replace the entire floppy image.
 
-The default target is a standard Atari ST with a colour monitor, at least 512 KB RAM, and a plain TOS desktop without resident accessories. The original novella protection questions remain enabled.
+The default target is a standard Atari ST with a colour monitor, at least 512 KB RAM, and a plain TOS desktop without resident accessories. The original novella protection questions are enabled unless built with `noprotect=yes`.
 
 Startup from both A: and C: has been verified in Hatari 2.6.1 with TOS 1.04 DE and 1 MB RAM, as far as the novella question screen. Startup has also been confirmed in Steem SSE. Full gameplay and real hardware have not yet been tested.
+
+## Independent Amiga version
+
+The Amiga game is developed in [src_amiga](src_amiga/README.md), separately from the Atari sources in `src`. Both started from the corrected Atari game, including the starfield fixes. Amiga changes no longer require platform conditionals in the Atari tree.
+
+Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
+
+The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original samples extracted from `resources/amiga/Elite 2.0.adf`. Music and effect envelopes remain simplified compared with the original Amiga release.
+
+The independent version has been checked in WinUAE 6.0.3 through startup, launch, all flight views, pitch controls, charts, commander save/load and catalog, and return to AmigaDOS. Audio register setup was inspected; audible sound quality, physical input devices, extended gameplay and real hardware remain untested.
+
+See [Amiga development and testing notes](src_amiga/README.md) for the current validation scope and limitations. The independent build does not modify Atari sources or outputs.
 
 ## Project structure
 
@@ -45,12 +76,15 @@ Startup from both A: and C: has been verified in Hatari 2.6.1 with TOS 1.04 DE a
 | `src-orig/` | Original source code, read-only |
 | [src/](src/README.md) | Working sources, assets, build scripts, and tests |
 | [tools/](tools/README.md) | Bundled Windows assembler and linker executables and license information |
-| `output/` | Built game and floppy image |
+| `output/` | Atari game and floppy image |
+| [src_amiga/](src_amiga/README.md) | Independent Amiga sources, assets, build and tests |
+| `output_amiga/` | Amiga game and bootable ADF |
+| [build_amiga.bat](build_amiga.bat) | Amiga build entry point |
 | [build.bat](build.bat) | Main build entry point and place for default parameters |
 
-All game source changes belong in `src`. Project rules are in [AGENTS.md](AGENTS.md).
+Atari source changes belong in `src`; Amiga source changes belong in `src_amiga`. Project rules are in [AGENTS.md](AGENTS.md).
 
-Sources, documentation, and bundled tools belong in Git. `output`, `src/build`, and Python caches are ignored. The emulator and TOS ROM are not included in the repository. Original sources retain their exact encoding and line endings; run `python src/tools/verify_original.py` to verify all 307 files.
+Sources, documentation, and bundled tools belong in Git. Generated files stay in `output`, `output_amiga`, `src/build`, and `src_amiga/build`. The emulator and TOS ROM are not included in the repository. Original sources retain their exact encoding and line endings; run `python src/tools/verify_original.py` to verify all 307 files.
 
 See [src/README.md](src/README.md) for development, testing, and optional tool rebuilding. [src/ANALYSIS.md](src/ANALYSIS.md) describes the original architecture and dialect conversion.
 
@@ -65,6 +99,8 @@ The Atari ST version credits the following contributors in its [in-game credits]
 - **James McDermott** — graphics.
 
 The [original source header](src/asm/elite.m68) identifies the Atari ST conversion as derived from the MSX version and carries **Copyright (c) 1988 Mr. Micro and Firebird Software**. The [title-screen code](src/asm/attract.m68) also credits **Bell & Braben**.
+
+The experimental Amiga port reuses sound samples from the supplied Amiga release, whose music and sound are credited to **Wally Beben**. This port derives its artwork and game logic from the Atari source tree; it is not a source reconstruction of the original Amiga executable.
 
 This repository maintains a buildable version of the Atari ST sources with fixes and modern build tooling. It does not claim ownership of the original game, code, graphics, or other assets. Their copyrights remain with their respective rights holders; inclusion in this repository does not place them in the public domain or grant additional rights to use or redistribute them.
 

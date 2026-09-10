@@ -6,6 +6,7 @@
 *.m68 text eol=lf
 *.s text eol=lf
 *.def text eol=lf
+*.inc text eol=lf
 *.ld text eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
@@ -14,5 +15,8 @@
 # Preserve original bytes, including historic text encodings and line endings.
 src-orig/** -text linguist-vendored
 src/assets/** binary
+src_amiga/assets/** binary
 src/vendor/** binary linguist-vendored
 tools/*.exe binary
+*.adf binary
+*.ADF binary
