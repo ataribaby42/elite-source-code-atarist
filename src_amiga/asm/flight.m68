@@ -469,14 +469,14 @@ q_flight_m68_49:
 	beq.s q_flight_m68_57
 ; Quelo: 				if <pl> then.s
 	bmi.s q_flight_m68_59
-	subq #8,roll_angle(a6)
+	subq #2,roll_angle(a6)
 ; Quelo: 					if <lt> then.s
 	bge.s q_flight_m68_61
 	clr roll_angle(a6)
 q_flight_m68_61:
 	bra.s q_flight_m68_60
 q_flight_m68_59:
-	addq #8,roll_angle(a6)
+	addq #2,roll_angle(a6)
 ; Quelo: 					if <gt> then.s
 	ble.s q_flight_m68_63
 	clr roll_angle(a6)
@@ -494,14 +494,14 @@ q_flight_m68_55:
 	beq.s q_flight_m68_67
 ; Quelo: 				if <pl> then.s
 	bmi.s q_flight_m68_69
-	subq #8,climb_angle(a6)
+	subq #2,climb_angle(a6)
 ; Quelo: 					if <lt> then.s
 	bge.s q_flight_m68_71
 	clr climb_angle(a6)
 q_flight_m68_71:
 	bra.s q_flight_m68_70
 q_flight_m68_69:
-	addq #8,climb_angle(a6)
+	addq #2,climb_angle(a6)
 ; Quelo: 					if <gt> then.s
 	ble.s q_flight_m68_73
 	clr climb_angle(a6)
