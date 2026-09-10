@@ -1,0 +1,849 @@
+	include "common.def"
+; Ported from src-orig/EXCEPT_M68; edit this copy.
+* @@@@@@@ @@   @@	@@@@  @@@@@@@ @@@@@@   @@@@@@
+*  @@	@  @@ @@   @@  @@  @@	@  @@  @@  @ @@ @
+*  @@ @ 	@@@   @@	   @@ @    @@  @@	 @@
+*  @@@@ 	@@@   @@	   @@@@    @@@@@	 @@
+*  @@ @    @@ @@  @@	   @@ @    @@		 @@
+*  @@	@ @@   @@  @@  @@  @@	@  @@		 @@
+* @@@@@@@ @@   @@	@@@@  @@@@@@@ @@@@		@@@@
+
+* 68000 exception handlers for VBLANK and keyboard interrupts.
+
+* Version 1.0 1st April 1988 Copyright (c) 1988 Mr. Micro Ltd.
+* Designed and coded by Rob Nicholson. Adapted from the MSX verison.
+
+	include "macros.m68"
+	include "bitlist.m68"
+
+	xref sound,vars,locate,text_colour,print_string,print_number,print_char
+	xref build_time,draw_sprite,fx,store_key,single_click
+	xref double_click,remove_sprite,find_bitmap
+
+* ---- LOCAL CONSTANTS ----
+
+pulse_rate: equ 4 ; rate of colour pulse
+min_x: equ 0-10 ; limits of cursor movement
+max_x: equ 320-10
+min_y: equ 0-8
+max_y: equ 200-9
+first_col: equ 7 ; cycling colours
+last_col: equ 11
+
+* ---- LOCAL VARIABLES ----
+
+	q_vars except
+
+csr_state: rs.w 1 ; state (colour) of text cursor
+csr_clock: rs.w 1 ; cursor flash clock
+engine_port: rs.w 1 ; colour of engine port (cycle)
+engine_dir: rs.w 1 ; direction of colour (0 or !0)
+packet: rs.b 8 ; buffer for special packet data
+packet_idx: rs.w 1 ; index for next byte into above
+packet_ctr: rs.w 1 ; no. bytes to store in buffer
+last_joy: rs.w 1 ; state of joystick last time
+click_clock: rs.w 1 ; clock used for mouse clicking
+which_click: rs.w 1 ; flag: 1st or 2nd click
+
+	q_end_vars except
+
+	q_module except
+
+* *************************************
+* **								 **
+* ** VBLANK - VERTICAL BLANK ROUTINE **
+* **								 **
+* *************************************
+
+* This routine is called every flyback and performs functions.
+
+* Entry: None
+* Exit:  None
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr vblank,global
+
+	lea vars,a6 ; point to variables
+	st flyback(a6) ; flyback has occured
+	q_inc frame_count(a6) ; increment frame counter
+	cmp #2,condition(a6) ; condition red ?
+; Quelo: 	if <eq> then.s
+	bne.s q_except_m68_1
+	tst alert_fx(a6) ; effect running ?
+; Quelo: 		if <eq> then.s					no
+	bne.s q_except_m68_3
+	q_sfx alert
+q_except_m68_3:
+q_except_m68_1:
+	bsr clock ; process game clock
+	tst count_down(a6) ; countdown running ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_5
+	tst game_frozen(a6) ; game frozen ?
+; Quelo: 		if <eq> then.s					no
+	bne.s q_except_m68_7
+	q_dec count_jiffy(a6) ; process countdown
+; Quelo: 			if <eq> then.s
+	bne.s q_except_m68_9
+	move #50,count_jiffy(a6)
+	q_sfx locked
+	q_dec count_down(a6)
+; Quelo: 				if <eq> then.s
+	bne.s q_except_m68_11
+	st jump_trigger(a6)
+q_except_m68_11:
+q_except_m68_9:
+q_except_m68_7:
+	bra.s q_except_m68_6
+q_except_m68_5:
+	jsr drive_cursor ; draw cross-hair cursor
+q_except_m68_6:
+	jsr sound ; execute sound
+	bsr colour_cycle ; cycle colours
+
+	q_ret
+
+
+* ********************************************
+* **										**
+* ** KEY_MIDI_IRQ - KEYBOARD/MIDI INTERRUPT **
+* **										**
+* ********************************************
+
+* Process an interrupt the keyboard or midi interface and take appropriate
+* action.
+
+* Entry: None
+* Exit:  None
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr key_midi_irq,global
+
+	movem.l d0-d2/a0-a1/a6,-(sp) ; save registers
+	lea vars,a6 ; point to variables
+q_except_m68_13:
+	move.b key_status,d0 ; get keyboard ACIA status
+	btst #7,d0 ; interrupt ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_except_m68_15
+	bsr key_irq ; process keyboard interrupt
+q_except_m68_15:
+	move.b midi_status,d0 ; key midi ACIA status
+	btst #7,d0 ; interrupt ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_except_m68_17
+	move.b midi_rx,d0 ; read and ignore byte
+q_except_m68_17:
+	btst #4,mfp_io ; until no more interrupts
+	beq q_except_m68_13
+q_except_m68_14:
+	bclr #6,mfp_service_b ; clear interrupt service bit
+	movem.l (sp)+,d0-d2/a0-a1/a6 ; restore registers
+
+	rte ; return from exception
+
+
+* **********************************
+* **							  **
+* ** KEY_IRQ - KEYBOARD INTERRUPT **
+* **							  **
+* **********************************
+
+* Process a keyboard interrupt.
+
+* Entry: D0.B = keyboard ACIA status register
+* Exit:  None
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr key_irq
+
+	move.b key_rx,d1 ; read byte from ACIA
+	and #255,d1
+	btst #0,d0 ; RX buffer full ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_19
+	tst packet_ctr(a6) ; special packet bytes ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_except_m68_21
+	move packet_idx(a6),d0 ; store in the buffer
+	lea packet(a6),a0
+	move.b d1,(a0,d0)
+	q_inc packet_idx(a6) ; increment index
+	q_dec packet_ctr(a6) ; decrement counter
+; Quelo: 			if <eq> then.s				all bytes received
+	bne.s q_except_m68_23
+	bsr process_packet
+q_except_m68_23:
+	bra.s q_except_m68_22
+q_except_m68_21:
+; Quelo: 			if d1 <lo> #$f6 then.s		not special packet
+	cmp #$f6,d1
+	bhs.s q_except_m68_25
+	bsr key_change ; process change of a key
+	bra.s q_except_m68_26
+q_except_m68_25:
+	bsr special_packet ; process special packet
+q_except_m68_26:
+q_except_m68_22:
+q_except_m68_19:
+
+	q_ret
+
+
+* ******************************************
+* **									  **
+* ** KEY_CHANGE - PROCESS CHANGE OF A KEY **
+* **									  **
+* ******************************************
+
+* Process a change of key state.
+
+* Entry: D1 = byte read from keyboard
+* Exit:  None
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr key_change
+
+	lea key_states(a6),a0 ; point to key state array
+	tst.b d1 ; key press ?
+; Quelo: 	if <pl> then.s						yes
+	bmi.s q_except_m68_27
+	st (a0,d1) ; set state to $FF
+	lea key_table(pc),a1 ; fetch ASCII value of key press
+	move.b (a1,d1),d0
+	q_call ne,store_key ; store in keyboard buffer
+	bra.s q_except_m68_28
+q_except_m68_27:
+	bclr #7,d1 ; set state to $00
+	sf (a0,d1)
+q_except_m68_28:
+
+	q_ret return
+
+
+* ******************************************************
+* **												  **
+* ** SPECIAL_PACKET - PROCESS SPECIAL KEYBOARD PACKET **
+* **												  **
+* ******************************************************
+
+* Process a packet of bytes from the keyboard. Stores the byte in the packet
+* buffer and initialise the buffer for subsequent bytes.
+
+* Entry: D1 = packet byte ($F6..$FF)
+* Exit:  None
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr special_packet
+
+	move.b d1,packet(a6) ; store byte in buffer
+	move.w #1,packet_idx(a6) ; store from bytes #1 onwards
+	sub #$f6,d1 ; set packet count depending on the
+	lea packet_sizes(pc),a0 ; packet type
+	move.b (a0,d1),packet_ctr+1(a6)
+
+	q_ret
+
+
+* ********************************************************
+* **													**
+* ** PROCESS_PACKET - PROCESS A SPECIAL KEYBOARD PACKET **
+* **													**
+* ********************************************************
+
+* This routine is called after a special packet has been received from the
+* keyboard controller.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr process_packet
+
+	move.b packet(a6),d0 ; execute packet handler
+	sub.b #$f6,d0
+	and #255,d0
+	asl #2,d0
+	lea packet_handlers(pc),a0
+	move.l (a0,d0),a0
+	jmp (a0)
+
+
+* ********************************************
+* **										**
+* ** PROCESS_MOUSE - PROCESS A MOUSE PACKET **
+* **										**
+* ********************************************
+
+* Processes a special mouse packet from the keyboard controller.
+
+* Entry: None
+* Exit:  None
+
+* Regs: D0 corrupt.
+* Subr: ?
+
+	q_subr process_mouse
+
+	move.b packet(a6),d0 ; fetch button state
+	clr.b key_states+$77(a6) ; assume no buttons
+	clr.b key_states+$78(a6)
+	btst #1,d0 ; left button pressed ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_29
+	st key_states+$77(a6)
+q_except_m68_29:
+	btst #0,d0 ; right button pressed ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_31
+	st key_states+$78(a6)
+q_except_m68_31:
+	move.b packet+1(a6),d0 ; fetch x movement
+	ext d0 ; add to total x movememt
+	add d0,move_x(a6)
+	move.b packet+2(a6),d0 ; fetch y movement
+	ext d0 ; add to total y movement
+	add d0,move_y(a6)
+
+	q_ret return
+
+
+* **************************************************
+* **											  **
+* ** PROCESS_JOYSTICK - PROCESS A JOYSTICK PACKET **
+* **											  **
+* **************************************************
+
+* Processes a special joystick packet from the keyboard controller. Joystick
+* movements are converted to key presses and stored in the key states array
+* using at the following positions:
+
+*		key_states+$73 - up
+*				   $74 - down
+*				   $75 - left
+*				   $76 - right
+
+* Entry: None
+* Exit:  None
+
+* Regs: D0/D1/A0 corrupt.
+* Subr: None
+
+	q_subr process_joystick
+
+	st device(a6) ; input device = joystick
+	move.b packet+1(a6),d0 ; fetch joystick bits
+	lea key_states+$73(a6),a0 ; convert bits to key state values
+	q_loop 1,d1,4
+	ror.b #1,d0
+; Quelo: 		if <cc> then.s
+	bcs.s q_except_m68_33
+	clr.b (a0)+
+	bra.s q_except_m68_34
+q_except_m68_33:
+	st (a0)+
+q_except_m68_34:
+	q_next 1,d1
+
+	q_ret return
+
+
+* *************************************
+* **								 **
+* ** JOYSTICK - BUILD JOYSTICK STATE **
+* **								 **
+* *************************************
+
+* Checks the Key_States array and builds up the joystick direction word.
+
+* Entry: A0 = ptr: key states array
+* Exit:  D0 = joystick state word (active high)
+
+* Regs:  D0-D2 and A1 corrupt.
+* Subr:  None
+
+	q_subr joystick,global
+
+	clr d0 ; clear all bits
+	lea key_states(a6),a1 ; point to keyboard state table
+q_except_m68_35:
+	move (a0)+,d1 ; get bit no.
+	bmi q_except_m68_36
+q_except_m68_37:
+	move (a0)+,d2 ; get scan code
+	bmi q_except_m68_38
+	tst.b (a1,d2) ; key pressed ?
+; Quelo: 			if <ne> then.s				yes
+	beq.s q_except_m68_39
+	bset d1,d0 ; set bit
+q_except_m68_39:
+	bra q_except_m68_37
+q_except_m68_38:
+	bra q_except_m68_35
+q_except_m68_36:
+
+	q_ret
+
+
+* ********************************
+* **							**
+* ** CLOCK - PROCESS GAME CLOCK **
+* **							**
+* ********************************
+
+* Advance the game clock.
+
+* Entry:  None
+* Exit:   None
+
+* Regs:   ?
+* Subr:   ?
+
+	q_subr clock
+
+	q_dec fast_ticker(a6) ; next second ?
+	q_ret ne ; no
+	move #50,fast_ticker(a6) ; re-load counter
+	tst game_frozen(a6) ; game frozen ?
+	q_ret ne ; yes
+	q_inc game_time+0(a6) ; advance seconds
+	cmp #60,game_time+0(a6) ; next minute ?
+; Quelo: 	if <eq> then.s						yes
+	bne.s q_except_m68_41
+	clr game_time+0(a6) ; reset seconds
+	q_inc game_time+2(a6) ; advance minutes
+	cmp #60,game_time+2(a6) ; next hour ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_except_m68_43
+	clr game_time+2(a6) ; reset seconds
+	q_inc game_time+4(a6) ; advance hour
+	cmp #24,game_time+4(a6) ; next day ?
+; Quelo: 			if <eq> then.s				yes
+	bne.s q_except_m68_45
+	clr game_time+4(a6) ; reset hours
+	q_inc game_time+6(a6) ; advance days
+	cmp #24,game_time+6(a6) ; reset clock ?
+; Quelo: 				if <eq> then.s			yes
+	bne.s q_except_m68_47
+	clr game_time+0(a6)
+	clr game_time+2(a6)
+	clr game_time+4(a6)
+	clr game_time+6(a6)
+q_except_m68_47:
+q_except_m68_45:
+q_except_m68_43:
+q_except_m68_41:
+	tst display_clock(a6) ; display the clock ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_49
+	lea cursor_spr(a6),a4 ; cursor below middle ?
+	cmp #100,sp_ypos(a4)
+	q_call hi,remove_sprite ; yes, remove it
+	move #clock_x,d0 ; position and colour for clock
+	move #clock_y+8,d1
+	jsr locate
+	moveq #white,d0
+	moveq #black,d1
+	jsr text_colour
+	lea game_time(a6),a0 ; build time
+	lea input(a6),a1
+	jsr build_time
+	lea input(a6),a0 ; print time (days/hours/mins)
+	jsr print_string
+	move.b #':',d0 ; print seconds
+	jsr print_char
+	q_push pad_char(a6)
+	move #'0',pad_char(a6)
+	move game_time+0(a6),d0
+	q_hclr d0
+	move #$8002,d1
+	jsr print_number
+	q_pop pad_char(a6)
+q_except_m68_49:
+
+	q_ret
+
+
+* ******************************************
+* **									  **
+* ** HOLD_CLOCK - HOLD CLOCK FOR PRINTING **
+* **									  **
+* ******************************************
+
+* Pushes the current DISPLAY_CLOCK status on the stack and stops the clock
+* running. Used for routines that need to print on the bottom line.
+
+* Entry: None
+* Exit:  0(SP).W = current clock status (pop display_clock(a6) to restart)
+
+* Regs: A0 corrupt.
+* Subr: None
+
+	q_subr hold_clock,global
+
+	q_pop.l a0 ; fetch return address
+	q_push display_clock(a6) ; save current clock state
+	clr display_clock(a6) ; stop the clock
+	jmp (a0) ; exit to caller
+
+
+* ********************************************
+* **										**
+* ** DRIVE_CURSOR - DRIVE CROSS-HAIR CURSOR **
+* **										**
+* ********************************************
+
+* Drives the cross-hair cursor around the screen under joystick control.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr drive_cursor
+
+	tst csr_on(a6) ; cursor on ?
+	q_ret eq ; no, return
+	lea cursor_codes(pc),a0 ; build joystick word
+	bsr joystick
+	q_push d0 ; attempt to move cursor ?
+; Quelo: 	if <eq> then.s						no
+	bne.s q_except_m68_51
+	move #1,csr_speed(a6) ; set speed to 1
+	bra.s q_except_m68_52
+q_except_m68_51:
+	lea move_data(pc),a0 ; point to move data table
+	move csr_speed(a6),d1 ; fetch cursor speed
+	q_loop 1,4 ; four directions to check
+	ror #1,d0 ; move in this direction ?
+; Quelo: 			if <cs> then.s				yes
+	bcc.s q_except_m68_53
+	move (a0)+,d2 ; fetch record offset (x or y)
+	tst (a0)+ ; positive movement ?
+; Quelo: 				if <pl> then.s			yes
+	bmi.s q_except_m68_55
+	add d1,(a6,d2)
+	bra.s q_except_m68_56
+q_except_m68_55:
+	sub d1,(a6,d2)
+q_except_m68_56:
+	bra.s q_except_m68_54
+q_except_m68_53:
+	addq.l #4,a0 ; skip past data
+q_except_m68_54:
+	q_next 1 ; next direction
+	q_dec csr_clk(a6) ; allow speed up ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_except_m68_57
+	move #csr_acc,csr_clk(a6) ; reset clock
+	cmp #max_csr,csr_speed(a6) ; at maximum speed ?
+; Quelo: 			if <ne> then.s				no
+	beq.s q_except_m68_59
+	q_inc csr_speed(a6) ; increase speed
+q_except_m68_59:
+q_except_m68_57:
+q_except_m68_52:
+	lea cursor_spr(a6),a4 ; point to cursor sprite record
+	move move_x(a6),d0 ; any x movement ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_61
+	move sp_xpos(a4),d1 ; add movement to x coord and clamp
+	add d0,d1
+	cmp #min_x,d1
+; Quelo: 		if <lt> then.s
+	bge.s q_except_m68_63
+	move #min_x,d1
+	bra.s q_except_m68_64
+q_except_m68_63:
+	cmp #max_x,d1
+; Quelo: 			if <gt> then.s
+	ble.s q_except_m68_65
+	move #max_x,d1
+q_except_m68_65:
+q_except_m68_64:
+	move d1,sp_xpos(a4) ; update x coord
+	clr move_x(a6) ; clear x movement
+q_except_m68_61:
+	move move_y(a6),d0 ; any y movement ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_67
+	move sp_ypos(a4),d1 ; add movement to y coord and clamp
+	add d0,d1
+	cmp #min_y,d1
+; Quelo: 		if <lt> then.s
+	bge.s q_except_m68_69
+	move #min_y,d1
+	bra.s q_except_m68_70
+q_except_m68_69:
+	cmp #max_y,d1
+; Quelo: 			if <gt> then.s
+	ble.s q_except_m68_71
+	move #max_y,d1
+q_except_m68_71:
+q_except_m68_70:
+	move d1,sp_ypos(a4) ; update y coord
+	clr move_y(a6) ; clear y movement
+q_except_m68_67:
+	move cursor_type(a6),d0 ; find cursor's bit map
+; Quelo: 	if <pl> then.s						type is positive, draw the sprite
+	bmi.s q_except_m68_73
+	add #bit_cursors,d0
+	jsr find_bitmap
+	move.l a0,data_ptr(a4)
+	jsr draw_sprite ; draw the sprite
+q_except_m68_73:
+	q_pop d0 ; button pressed ?
+	btst #trigger,d0
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_75
+	btst #trigger,last_joy(a6) ; pressed last time ?
+; Quelo: 		if <eq> then.s					no
+	bne.s q_except_m68_77
+	tst which_click(a6) ; 1st click ?
+; Quelo: 			if <eq> then.s				yes
+	bne.s q_except_m68_79
+	clr click_clock(a6) ; reset the mouse clock
+	q_inc which_click(a6) ; on 2nd click
+	bra.s q_except_m68_80
+q_except_m68_79:
+	cmp #2,click_clock(a6) ; 2nd click within 2 frames ?
+; Quelo: 				if <hi> then.s			no
+	bls.s q_except_m68_81
+	q_push d0 ; process double click
+	jsr double_click
+	clr which_click(a6)
+	q_pop d0
+q_except_m68_81:
+q_except_m68_80:
+q_except_m68_77:
+q_except_m68_75:
+	move.b d0,last_joy(a6) ; save current joystick state
+	tst which_click(a6) ; timing click ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_except_m68_83
+	q_inc click_clock(a6) ; timeout ?
+	move click_clock(a6),d0
+	cmp click_rate(a6),d0
+; Quelo: 		if <hs> then.s					yes
+	blo.s q_except_m68_85
+	jsr single_click ; process single click
+	clr which_click(a6) ; stop timing
+q_except_m68_85:
+q_except_m68_83:
+
+	q_ret return
+
+
+* ********************************************
+* **										**
+* ** COLOUR_CYCLE - CYCLE COLOURS ON VBLANK **
+* **										**
+* ********************************************
+
+* Cycle certain colours every VBLANK.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr colour_cycle
+
+	tst stop_cycle(a6) ; cycling stopped ?
+	q_ret ne ; yes, return
+	move cycle_type(a6),d0 ; execute relevant colour cycle
+	asl #2,d0 ; routine
+	lea cycle_list(pc),a0
+	move.l (a0,d0),a0
+	jmp (a0)
+
+
+* **************************************
+* **								  **
+* ** ENGINE_PULSE - PULSE THE ENGINES **
+* **								  **
+* **************************************
+
+* Pulses the colour used for the engines (different reds). This is colour
+* cycle type #0
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr engine_pulse
+
+	btst #0,fast_ticker+1(a6) ; cycle every 1/25th second
+; Quelo: 	if <eq> then.s
+	bne.s q_except_m68_87
+	move engine_port(a6),d0 ; fetch current colour
+	tst engine_dir(a6) ; increase/decrease red
+; Quelo: 		if <pl> then.s
+	bmi.s q_except_m68_89
+	add #$100,d0
+	cmp #$700,d0
+; Quelo: 			if <eq> then.s
+	bne.s q_except_m68_91
+	not engine_dir(a6)
+q_except_m68_91:
+	bra.s q_except_m68_90
+q_except_m68_89:
+	sub #$100,d0
+	cmp #$200,d0
+; Quelo: 			if <eq> then.s
+	bne.s q_except_m68_93
+	not engine_dir(a6)
+q_except_m68_93:
+q_except_m68_90:
+	move d0,engine_port(a6)
+	move d0,palette+pulse*2 ; set cycling colour
+q_except_m68_87:
+
+	q_ret
+
+
+* *******************************************
+* **									   **
+* ** FLASH_COLOUR - FLASH COLOUR RED/WHITE **
+* **									   **
+* *******************************************
+
+* Routine to flash red/white - used for cursor etc. on text screens. This is
+* colour cycle type #1.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr flash_colour
+
+	q_inc csr_clock(a6) ; ready for change of colour ?
+	cmp #csr_rate,csr_clock(a6)
+; Quelo: 	if <eq> then.s						yes
+	bne.s q_except_m68_95
+	clr csr_clock(a6) ; reset clock
+	not csr_state(a6) ; change colour
+; Quelo: 		if <eq> then.s
+	bne.s q_except_m68_97
+	move #$700,d0 ; red
+	bra.s q_except_m68_98
+q_except_m68_97:
+	move #$777,d0 ; white
+q_except_m68_98:
+	move d0,palette+pulse*2 ; change palette
+q_except_m68_95:
+
+	q_ret return
+
+
+* *********************************************
+* **										 **
+* ** STROBE_COLOURS - STROBE COLOURS ON LOGO **
+* **										 **
+* *********************************************
+
+* Strobes the colours on the 'well done' logo screen. This is colour cycle
+* type #2
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr strobe_colours
+
+	btst #0,fast_ticker+1(a6) ; strobe every 1/25th second
+	q_ret eq
+	lea palette+first_col*2,a0 ; save 1st colour
+	q_push (a0)
+	q_loop 1,(last_col-first_col) ; loop for each colour
+	move 2(a0),(a0)+ ; move colour
+	q_next 1
+	q_pop (a0) ; wrap 1st colour round
+
+	q_ret return
+
+
+* ---- LOCAL DATA ----
+
+* Length of each packet for the codes $F6 to $FF.
+
+packet_sizes:
+
+	dc.b 7,5,2,2,2,2,6,2,1,1
+
+* Keyboard table for scan codes to ASCII translation.
+
+key_table:
+
+	dc.b 0,27,'1234567890-=',127,9 ; 00-0F
+	dc.b 'QWERTYUIOP[]',13,0,'AS' ; 10-1F
+	dc.b 'DFGHJKL',0,0,0,0,'#ZXCV' ; 20-2F
+	dc.b 'BNM',0,0,0,0,0,0,0,0,128,129,130,131,132 ; 30-3F
+	dc.b 133,134,135,136,137,0,0,0,0,0,0,0,0,0,0,0 ; 40-4F
+	dc.b 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ; 50-5F
+	dc.b 0,0,138,0,0,0,'*789456123' ; 60-6F
+	dc.b '0',0,13,0,0,0,0,0,0,0,0,0,0,0,0,0 ; 70-7F
+
+* Drive cursor keyboard scan codes.
+
+	q_even
+
+cursor_codes:
+
+	dc up,$48,$73,-1 ; up	  - csr_up, joy_up
+	dc down,$50,$74,-1 ; down  - csr_down, joy_down
+	dc left,$4b,$75,-1 ; left  - csr_left, joy_left
+	dc right,$4d,$76,-1 ; right - csr_right, joy_right
+	dc trigger,$77,$78,$39,-1 ; fire  - left/right button,space
+	dc -1
+
+* Movement table for cross-hair cursor.
+
+move_data:
+
+	dc.w move_y,-1 ; cursor up
+	dc.w move_y,+1 ; cursor down
+	dc.w move_x,-1 ; cursor left
+	dc.w move_x,+1 ; cursor right
+
+* Special keyboard packet handlers.
+
+packet_handlers:
+
+	dc.l return ; $f6 	 - status package
+	dc.l return ; $f7 	 - absolute mouse position
+	dc.l process_mouse ; $f8->$fb - mouse movement
+	dc.l process_mouse
+	dc.l process_mouse
+	dc.l process_mouse
+	dc.l return ; $fc 	 - unknown ?
+	dc.l return ; $fd 	 - unknown ?
+	dc.l process_joystick ; $fe 	 - joystick #0 movement
+	dc.l process_joystick ; $ff 	 - joystick #1 movement
+
+* Table of colour cycle routines.
+
+cycle_list:
+
+	dc.l engine_pulse,flash_colour,strobe_colours
+

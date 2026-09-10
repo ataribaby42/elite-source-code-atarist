@@ -1,0 +1,205 @@
+	include "common.def"
+; Ported from src-orig/LOADER_M68; edit this copy.
+* @@@@		@@@ 	 @@   @@@@@   @@@@@@@ @@@@@@
+*  @@	   @@ @@	@@@@   @@ @@   @@	@  @@  @@
+*  @@	  @@   @@  @@  @@  @@  @@  @@ @    @@  @@
+*  @@	  @@   @@  @@  @@  @@  @@  @@@@    @@@@@
+*  @@	@ @@   @@  @@@@@@  @@  @@  @@ @    @@ @@
+*  @@  @@  @@ @@   @@  @@  @@ @@   @@	@  @@  @@
+* @@@@@@@	@@@    @@  @@ @@@@@   @@@@@@@ @@@  @@
+
+* Atari ST Elite loader program.
+* Version 1.0 27th June 1988 Copyright (c) 1988 Mr. Micro Ltd.
+* Designed and coded by Rob Nicholson.
+
+	include "macros.m68"
+
+* ---- CONSTANTS ----
+
+main_load: equ $12000 ; main program load address
+main_run: equ main_load ; main program run address
+
+	section text,code
+
+* *************************
+* **					 **
+* ** MAIN - MAIN PROGRAM **
+* **					 **
+* *************************
+
+	q_subr main
+
+	q_push.l #1 ; in user mode ?
+	q_bdos s_mode,6
+	tst.l d0
+; Quelo: 	if <eq> then.s						yes
+	bne.s q_loader_m68_1
+	clr.l -(sp) ; switch to supervisor mode
+	q_bdos s_mode,6
+q_loader_m68_1:
+	bclr #0,conterm ; disable keyclick
+	clr.l -(sp) ; disable cursor
+	q_ext_bios cursconf,6
+	lea title_screen(pc),a0 ; load title screen
+	lea free(pc),a1
+	bsr read_file
+	pea blank(pc) ; blank out the screen
+	q_ext_bios setpalette,6
+	q_ext_bios physbase,2 ; fetch screen address
+	move.l d0,d1 ; on 32k boundary ?
+	and.l #$7fff,d1
+; Quelo: 	if <ne> then.s						no
+	beq.s q_loader_m68_3
+	move.l a7,d0 ; move screen to 64k under stack
+	sub.l #$10000,d0
+	and.l #$ffff8000,d0 ; clamp on 32k boundary
+q_loader_m68_3:
+	clr -(sp) ; set low res and screen address
+	q_push.l d0
+	q_push.l d0
+	q_ext_bios setscreen,12
+	q_ext_bios physbase,2 ; draw the screen
+	move.l d0,a1
+	lea free(pc),a0
+	bsr draw_screen
+	lea main_program(pc),a0 ; load main program
+	move.l #main_load,a1
+	bsr read_file
+	jmp main_run ; run main program
+
+
+* ***************************************
+* **								   **
+* ** READ_FILE - READ FILE INTO MEMORY **
+* **								   **
+* ***************************************
+
+* Reads a file into memory from the disk.
+
+* Entry: A0 = ptr: file name
+*		 A1 = address to load file
+* Exit:  IF D0.L negative THEN
+*			Error during load D0.L = -error
+*		 ELSE
+*			D0.L = no. bytes read from file
+*		 ENDIF
+
+* Regs:  ?
+* Subr:  ?
+
+	q_subr read_file
+
+	q_push.l a1 ; save load address
+	clr -(sp) ; attempt to open file
+	q_push.l a0
+	q_bdos f_open,8
+	tst.l d0 ; error ?
+; Quelo: 	if <mi> then.s				yes
+	bpl.s q_loader_m68_5
+	addq.l #4,sp ; clean up stack
+	bra q_loader_m68_6
+q_loader_m68_5:
+	move d0,d7 ; D7 = file handle
+	q_push.l #$7fffffff ; attempt to read all of file
+	q_push d7
+	q_bdos f_read,12
+	q_push.l d0 ; save error/no. bytes read
+	q_push d7 ; close file
+	q_bdos f_close,4
+	q_pop.l d0 ; fetch error/no. bytes read
+q_loader_m68_6:
+
+	q_ret
+
+
+* *************************************
+* **								 **
+* ** DRAW_SCREEN - DRAW DEGAS SCREEN **
+* **								 **
+* *************************************
+
+* Draws a compacted Degas Elite screen.
+
+* Entry: A0 = ptr: Degas Elite screen
+*		 A1 = ptr: screen address
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr draw_screen,global
+
+	cmp.b #$80,(a0) ; make sure it's a Degas screen
+	q_ret ne ; no, ignore draw
+	q_push.l a0 ; save pointer to data
+	lea 34(a0),a0 ; start of compacted data
+	clr d0 ; pixel line = 0
+	clr d1 ; plane = 0
+	clr d2 ; byte = 0
+	moveq #1,d3 ; step = 1
+q_loader_m68_7:
+	move.b (a0)+,d4 ; fetch next byte
+; Quelo: 		if <pl> then.s					positive, copy bytes
+	bmi.s q_loader_m68_9
+	ext d4
+	add d4,d2
+	q_loop 1
+	move.b (a0)+,(a1)
+	lea (a1,d3),a1
+	eor #6,d3
+	q_next 1,d4
+	bra.s q_loader_m68_10
+q_loader_m68_9:
+	neg.b d4 ; copy duplicated bytes
+	ext d4
+	add d4,d2
+	move.b (a0)+,d5
+	q_loop 1
+	move.b d5,(a1)
+	lea (a1,d3),a1
+	eor #6,d3
+	q_next 1,d4
+q_loader_m68_10:
+	q_inc d2
+	cmp #40,d2 ; reached end of line ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_loader_m68_11
+	clr d2 ; move to next plane
+	lea -160+2(a1),a1
+	q_inc d1
+	cmp #4,d1 ; next pixel line ?
+; Quelo: 			if <eq> then.s				yes
+	bne.s q_loader_m68_13
+	clr d1 ; move to next pixel line
+	lea 160-8(a1),a1
+	q_inc d0
+q_loader_m68_13:
+q_loader_m68_11:
+	cmp #200,d0
+	bne q_loader_m68_7
+q_loader_m68_8:
+	q_pop.l a0 ; set palette
+	addq.l #2,a0
+	q_push.l a0
+	q_ext_bios setpalette,6
+
+	q_ret return
+
+* ---- DATA ----
+
+blank:
+
+	dc 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+
+main_program:
+
+	dc.b 'elite.img',0
+
+title_screen:
+
+	dc.b 'title.pc1',0
+
+	q_even
+
+free:
+

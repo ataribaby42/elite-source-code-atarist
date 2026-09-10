@@ -1,0 +1,6 @@
+; Anchor the NOLOAD workspace as a real BSS section for vlink relocations.
+; The remaining layout is in elite.ld, matching the original ELITE.LNK.
+    include "common.def"
+    xdef var_size
+    section workspace,bss
+    ds.b 2

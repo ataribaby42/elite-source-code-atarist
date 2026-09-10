@@ -1,0 +1,5 @@
+# Generated game files and local build/test output.
+/output/
+/src/build/
+/src/**/__pycache__/
+/src/**/*.py[cod]
