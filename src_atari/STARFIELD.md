@@ -12,19 +12,22 @@ The original algorithms are by Ian Bell and David Braben. The implementation was
 
 Each of the existing 15 particles per view has signed 16.16 screen offsets and an unsigned 8.8 depth. The four views retain independent particle arrays. Near particles move faster than distant ones.
 
-Normal translation uses the game's speed, bounded to 0..22:
+Normal translation maps the game's speed, bounded to 0..22, linearly to a visual speed of 1..33 in all four views. Zero throttle retains a slow drift, restoring the original ST starfield's nonzero-minimum behavior within the depth-dependent BBC/C64 model. Full throttle advances depth and sideways travel at 150% of the previous maximum rate. The increase is spread over the whole throttle range; there is no special boost at full throttle.
 
-- Forward/rear depth changes by `speed * 64` in 8.8 units. Radial displacement uses the original `q = (64 * speed / depth_high_byte) | 1`, multiplied by the signed integer screen offset. The subpixel remainder is retained.
+The shared depth step is `64 + floor(speed * 2048 / 22)`, ranging from 64 to 2112 in 8.8 units. Fractional visual speed is retained instead of rounding to whole speed units. This changes only starfield translation; ship speed, steering and object movement are unchanged.
+
+- Forward/rear depth changes by the shared step. Radial displacement uses the original `q = (step / depth_high_byte) | 1`, multiplied by the signed integer screen offset. The subpixel remainder and the BBC odd-quotient rounding are retained.
 - Forward particles that leave the viewport or become nearer than depth 16 respawn at a random distant position. The depth byte uses the original `random | 144`; the new position avoids the immediate centre.
-- Rear particles that leave the viewport or reach depth 160 respawn on one of the four borders, with depth 10..137.
-- Side particles travel by `8 * speed / depth_high_byte` pixels per update. Horizontal departures respawn at the incoming edge: right edge in the left view, left edge in the right view. Vertical departures wrap to the opposite edge while retaining the complete 16.16 boundary overshoot; horizontal position and depth are randomized. Preserving the distance travelled past the edge prevents steady roll from synchronizing replacement stars into horizontal rows. Their depth byte uses the original `random | 8`.
+- Rear particles that reach depth 160 respawn on one of the four borders, with depth 10..137. Particles that leave through the top or bottom instead wrap to the opposite vertical edge, retaining their complete 16.16 overshoot and receiving a random horizontal position and a new rear-view depth. Sending these pitch-driven departures to random side edges accumulated stars into vertical columns during steady climbing or diving. Horizontal-only departures still use the four-border replacement.
+- Side particles travel by `step / (8 * depth_high_byte)` pixels per update, retaining 1/256-pixel precision. Horizontal departures respawn at the incoming edge: right edge in the left view, left edge in the right view. Vertical departures wrap to the opposite edge while retaining the complete 16.16 boundary overshoot; horizontal position and depth are randomized. Preserving the distance travelled past the edge prevents steady roll from synchronizing replacement stars into horizontal rows. Their depth byte uses the original `random | 8`.
 - Retro rockets reverse translation and incoming edges, while steering keeps the signs of the actual view.
+- Coloured torus/hyperspace trails retain their separate depth step of 128 and their existing repeated drawing, duration and growth.
 
 All coordinates use the complete 256 x 112 viewport. Every star is always **one pixel**, at every depth. Normal stars retain the existing yellow colour. The original BBC/C64 distance-based point sizes are deliberately omitted at the user's request.
 
 ## Adaptation to this game
 
-The BBC/C64 routines are a behavioral basis, not a byte-for-byte reproduction of 6502 arithmetic. Signed 16.16 positions preserve fractional movement without sign-magnitude arithmetic or byte overflow. A stopped ship has no translational drift.
+The BBC/C64 routines are a behavioral basis, not a byte-for-byte reproduction of 6502 arithmetic. Signed 16.16 positions preserve fractional movement without sign-magnitude arithmetic or byte overflow. The minimum visual drift does not change the ship's physical minimum speed of zero.
 
 Roll and pitch use the game's own sine/cosine values, converted to Q14. In-plane rotation accumulates subpixel deltas. Vertical rotation uses the 512-pixel object projection scale, including the perspective denominator, so stars follow the scene during steering. The old constant vertical translation and the BBC front-view pitch approximation's horizontal bias are not used.
 
@@ -45,7 +48,9 @@ The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-by
 
 ## Validation
 
-`tests/test_starfield.py` assembles the actual game routines and runs them with Unicorn 2.1.4. Tests cover the BBC depth/radial laws, sideways parallax, stopped motion, incoming edges, vertical recycling with fractional overshoot, rear recycling, retro rockets, steering against a geometric projection reference, subpixel movement, and one-pixel drawing at every depth. Sustained full-roll tests cover both side views, both roll directions, and stopped/full-speed flight to catch stars collapsing into horizontal rows.
+`tests/test_starfield.py` assembles the actual game routines and runs them with Unicorn 2.1.4. Tests cover the BBC depth/radial laws, sideways parallax, minimum drift, gradual throttle scaling and maximum limits in all four views, unchanged jump-trail translation, incoming edges, vertical recycling with fractional overshoot, rear recycling, retro rockets, steering against a geometric projection reference, subpixel movement, and one-pixel drawing at every depth. Sustained full-roll tests cover both side views, both roll directions, and zero/full throttle to catch stars collapsing into horizontal rows.
+
+Sustained rear-view pitch tests cover both directions, several angular speeds, zero/half/full throttle and multiple random seeds. They measure edge-column concentration and horizontal row clustering over hundreds of frames. Boundary tests verify exact fractional overshoot, horizontal spread and valid depths, including corner departures and front-view retro rockets.
 
 The complete cloud is exercised over hundreds of frames on MC68000 and MC68020 CPU models with executable memory write-protected. Guarded buffers check that no drawing reaches the cockpit. The separate `tests/test_layering.py` suite executes the scene traversal and raster routines with overlapping fixture objects, checking celestial/star/object occlusion, depth order, empty lists and the unfiltered renderer. These are CPU-level checks; they do not establish emulator gameplay quality or a frame-rate measurement.
 

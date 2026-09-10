@@ -38,7 +38,7 @@ class StarfieldTests(unittest.TestCase):
         names = re.findall(r'^\s*q_subr (\w+)', dust, re.M)
         reset_names = ['reset_system', 'set_roll_angles', 'set_climb_angles', 'get_trig']
         constants = ['dust_front', 'dust_store', 'dust_len', 'no_dust', 'dust_used',
-                     'dust_motion', 'dust_step', 'dust_speed', 'dust_plane_sin',
+                     'dust_motion', 'dust_step', 'dust_plane_sin',
                      'dust_plane_cos', 'dust_vertical_sin', 'dust_vertical_cos',
                      'dust_x', 'dust_y', 'dust_z', 'view', 'speed', 'max_speed',
                      'roll_sin', 'roll_cos', 'climb_sin', 'climb_cos', 'retro_count',
@@ -129,18 +129,19 @@ class StarfieldTests(unittest.TestCase):
 
     def test_front_and_rear_follow_bbc_depth_and_radial_laws(self):
         for view, sign in ((0, 1), (1, -1)):
-            for speed in (1, 11, 22):
+            for speed in (0, 1, 11, 21, 22):
                 for depth in (40, 80, 150):
                     with self.subTest(view=view, speed=speed, depth=depth):
                         self.prepare(view, speed)
                         self.set_star(-40.25, 10.5, depth)
                         before = self.get_star()
                         self.call('update_dust')
-                        q = (speed*64 // depth) | 1
+                        step = 64 + speed*2048//22
+                        q = (step // depth) | 1
                         self.assertEqual(self.get_star(), (
                             before[0] + sign*(-40)*q*256,
                             before[1] + sign*10*q*256,
-                            before[2] - sign*speed*64))
+                            before[2] - sign*step))
 
     def test_radial_motion_is_symmetric_across_the_centre(self):
         for view in (0, 1):
@@ -160,16 +161,95 @@ class StarfieldTests(unittest.TestCase):
                 self.set_star(0.25, 3.5, depth)
                 self.call('update_dust')
                 self.assertEqual(self.get_star(), (
-                    UNIT//4 + direction*(22*2048//depth)*256, 7*UNIT//2, depth*256))
+                    UNIT//4 + direction*(33*2048//depth)*256, 7*UNIT//2, depth*256))
 
-    def test_stopped_stars_keep_all_subpixel_coordinates(self):
-        for view in range(4):
-            self.prepare(view)
-            self.set_star(-40.25, 10.5, 80)
-            before = self.get_star()
-            for _ in range(40):
-                self.call('update_dust')
-            self.assertEqual(self.get_star(), before)
+    def test_zero_throttle_keeps_slow_drift_in_every_view(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                with self.subTest(cpu=model, view=view):
+                    self.prepare(view, speed=0, model=model)
+                    self.set_star(-40.25, 10.5, 80)
+                    before = self.get_star()
+                    for _ in range(40):
+                        self.call('update_dust')
+                        self.assert_visible()
+                    x, y, z = self.get_star()
+                    dx = x - before[0]
+                    self.assertGreater(abs(dx), UNIT)
+                    self.assertLess(abs(dx), 12*UNIT)
+                    self.assertEqual(dx < 0, view in (0, 2))
+                    if view < 2:
+                        self.assertEqual(z - before[2], (-1 if view == 0 else 1)*40*64)
+                        self.assertEqual(y > before[1], view == 0)
+                    else:
+                        self.assertEqual((y, z), before[1:])
+                    self.assertEqual(self.cpu.mem_read(VARIABLES+self.symbols['speed'], 2),
+                                     b'\x00\x00')
+
+    def test_throttle_curve_is_gradual_and_clamped_in_every_view(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                with self.subTest(cpu=model, view=view):
+                    self.prepare(view, model=model)
+                    rates = []
+                    for speed in range(23):
+                        self.variable('speed', speed)
+                        self.call('setup_dust')
+                        rates.append(int.from_bytes(self.cpu.mem_read(
+                            VARIABLES+self.symbols['dust_step'], 2), 'big'))
+                    self.assertEqual(rates[0], 64)
+                    self.assertEqual(rates[-1], 22*64*3//2)
+                    increments = [b-a for a, b in zip(rates, rates[1:])]
+                    self.assertGreater(min(increments), 0)
+                    self.assertLessEqual(max(increments)-min(increments), 1)
+                    for speed in (23, 32767, 65535):
+                        self.variable('speed', speed)
+                        self.call('setup_dust')
+                        self.assertEqual(int.from_bytes(self.cpu.mem_read(
+                            VARIABLES+self.symbols['dust_step'], 2), 'big'), rates[-1])
+
+    def test_full_speed_scales_translation_including_retros(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                for retro in (False, True):
+                    with self.subTest(cpu=model, view=view, retro=retro):
+                        self.prepare(view, speed=22, retro=retro, model=model)
+                        motion = view ^ retro
+                        self.set_star(40, 10, 128)
+                        self.call('update_dust')
+                        x, y, z = self.get_star()
+                        if motion < 2:
+                            sign = 1 if motion == 0 else -1
+                            # Depth travel is exactly 150% of the former 22*64.
+                            self.assertEqual(z-128*256, -sign*22*64*3//2)
+                            self.assertEqual(x > 40*UNIT, sign > 0)
+                        else:
+                            # At this depth the old side speed was 1.375 px.
+                            sign = -1 if motion == 2 else 1
+                            self.assertEqual(x-40*UNIT, sign*11*UNIT*3//16)
+                            self.assertEqual((y, z), (10*UNIT, 128*256))
+
+    def test_coloured_jump_trails_keep_their_translation_rate(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                for kind in (1, 2):
+                    for speed in (0, 11, 22):
+                        with self.subTest(cpu=model, view=view, kind=kind, speed=speed):
+                            self.prepare(view, speed=speed, model=model)
+                            self.variable('dust_type', kind)
+                            self.call('setup_dust')
+                            self.set_star(40, 10, 80)
+                            self.call('update_dust')
+                            x, y, z = self.get_star()
+                            if view < 2:
+                                sign = 1 if view == 0 else -1
+                                self.assertEqual((x, y, z), (
+                                    40*UNIT+sign*40*256, 10*UNIT+sign*10*256,
+                                    80*256-sign*128))
+                            else:
+                                sign = -1 if view == 2 else 1
+                                self.assertEqual((x, y, z), (
+                                    40*UNIT+sign*(4096//80)*256, 10*UNIT, 80*256))
 
     def test_front_respawns_far_and_rear_respawns_on_borders(self):
         for view in (0, 1):
@@ -186,6 +266,74 @@ class StarfieldTests(unittest.TestCase):
                 else:
                     self.assertTrue(x//UNIT in (-128, 127) or y//UNIT in (-56, 55))
                     self.assertTrue(10*256 <= z <= 137*256)
+
+    def test_rear_vertical_recycling_preserves_overshoot_and_spreads_stars(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            # Retros also use rearward translation in the front view.
+            for view, retro in ((1, False), (0, True)):
+                self.prepare(view, speed=22, retro=retro, model=model)
+                for x in (-129, 0, 128):
+                    for y in (-91.5, -57, -56.25, 56, 56.75, 91.5):
+                        with self.subTest(cpu=model, view=view, x=x, y=y):
+                            xs = []
+                            for _ in range(40):
+                                self.set_star(x, y, 80)
+                                self.call('update_dust')
+                                self.assert_visible()
+                                actual_x, actual_y, depth = self.get_star()
+                                xs.append(actual_x//UNIT)
+                                self.assertEqual(actual_y, round(
+                                    (y + (112 if y < 0 else -112))*UNIT))
+                                self.assertTrue(10*256 <= depth <= 137*256)
+                            self.assertLess(min(xs), -80)
+                            self.assertGreater(max(xs), 80)
+                            self.assertGreater(len(set(xs)), 25)
+                for y in (-10000, 10000):
+                    self.set_star(0, y, 80)
+                    self.call('update_dust')
+                    self.assert_visible()
+
+    def test_steady_rear_pitch_does_not_accumulate_edge_columns(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for speed in (0, 11, 22):
+                for degrees in (-4, -1, -0.25, 0.25, 1, 4):
+                    for seed in (0x347ac9, 1, 0xa5f013):
+                        with self.subTest(cpu=model, speed=speed, pitch=degrees, seed=seed):
+                            self.prepare(view=1, speed=speed,
+                                         pitch=math.radians(degrees), model=model)
+                            self.variable('random_seed', seed, 4)
+                            self.call('init_dust')
+                            start = VARIABLES+self.symbols['dust_front']+self.symbols['dust_store']
+                            edge_counts, row_peaks = [], []
+                            for frame in range(600):
+                                self.call('draw_dust')
+                                stars = list(struct.iter_unpack('>iiH', self.cpu.mem_read(
+                                    start, self.symbols['dust_store'])))
+                                for x, y, z in stars:
+                                    self.assertTrue(-128 <= x//UNIT <= 127)
+                                    self.assertTrue(-56 <= y//UNIT <= 55)
+                                    self.assertTrue(8*256 <= z <= 65535)
+                                if frame >= 100:
+                                    edge_counts.append(sum(x//UNIT < -124 or x//UNIT >= 124
+                                                           for x, y, z in stars))
+                                    ys = [y//UNIT for x, y, z in stars]
+                                    row_peaks.append(max(ys.count(y) for y in ys))
+                            # These eight edge columns previously held more than
+                            # six of the fifteen stars at full pitch and low speed.
+                            self.assertLess(sum(edge_counts)/len(edge_counts), 1.6)
+                            # Keeping fractional overshoot must not replace the
+                            # vertical columns with synchronized horizontal rows.
+                            self.assertLess(sum(row_peaks)/len(row_peaks), 3.5)
+
+    def test_forward_depth_underflow_respawns_instead_of_wrapping(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            self.prepare(speed=22, model=model)
+            for depth in (8, 8.125, 8.25, 16, 24):
+                with self.subTest(cpu=model, depth=depth):
+                    self.set_star(40, 10, depth)
+                    self.call('update_dust')
+                    self.assert_visible()
+                    self.assertGreaterEqual(self.get_star()[2], 144*256)
 
     def test_side_respawns_at_incoming_edges_including_retros(self):
         for view in (2, 3):
