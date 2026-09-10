@@ -1,6 +1,6 @@
 """One-time, read-only import of the 1988/1990 Quelo sources to vasm syntax.
 
-The converted files in src/asm are the editable source of the modern build.
+The converted files in src_atari/asm are the editable source of the modern build.
 This converter is retained for provenance; the normal build never imports
 src-orig or overwrites the edited assembly files.
 """
@@ -223,7 +223,7 @@ class Converter:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--overwrite', action='store_true', help='explicitly replace all converted files (destroys edits in src/asm)')
+    parser.add_argument('--overwrite', action='store_true', help='explicitly replace all converted files (destroys edits in src_atari/asm)')
     args = parser.parse_args()
     modules = re.findall(r'^\s+link (\w+)', (ORIGINAL / 'ELITE.LNK').read_text(), re.M)
     out = ROOT / 'asm'

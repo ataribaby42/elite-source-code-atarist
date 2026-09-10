@@ -1,6 +1,6 @@
 # Independent native Amiga version
 
-This source tree started as a copy of the corrected Atari sources before the combined Amiga build was introduced. It retains the game logic and starfield fixes, with Amiga-specific rendering, sound, input, startup and file handling developed here. It builds independently of `src`; neither target uses a platform switch or imports the other target's build script.
+This source tree started as a copy of the corrected Atari sources before the combined Amiga build was introduced. It retains the game logic and starfield fixes, with Amiga-specific rendering, sound, input, startup and file handling developed here. It builds independently of `src_atari`; neither target uses a platform switch or imports the other target's build script.
 
 ## Build and run
 
@@ -56,7 +56,7 @@ Viewport clearing writes each 32-byte plane span with one MC68000 `MOVEM.L`. Ver
 | `tools/` | Original sound extraction, Hunk validation and OFS disk creation |
 | `tests/` | Asset, Hunk and OFS regression tests |
 
-The root `build_amiga.bat` forwards arguments here. Atari development and optional assembler/linker rebuilding remain under `src`; normal Amiga builds only use the bundled executables in the root `tools` directory.
+The root `build_amiga.bat` forwards arguments here. Atari development and optional assembler/linker rebuilding remain under `src_atari`; normal Amiga builds only use the bundled executables in the root `tools` directory.
 
 ## Validation
 

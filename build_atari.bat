@@ -1,1 +1,1 @@
-call "%~dp0src\build.bat" noprotect=yes
+call "%~dp0src_atari\build.bat" noprotect=yes %*

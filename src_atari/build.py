@@ -16,7 +16,7 @@ from tools.make_disk import make_disk, verify_disk
 ROOT = Path(__file__).resolve().parent
 TOOLS = ROOT.parent / 'tools'
 BUILD = ROOT / 'build'
-OUTPUT = ROOT.parent / 'output'
+OUTPUT = ROOT.parent / 'output_atari'
 GAME = OUTPUT / 'ELITE'
 ORIGIN = 0x12000
 LOADER_ORIGIN = 0x11e00
@@ -75,7 +75,7 @@ def main():
     args.vasm, args.vlink = args.vasm.resolve(), args.vlink.resolve()
     for tool in (args.vasm, args.vlink):
         check(tool.is_file(), f'Tool not found: {tool}. Restore the bundled root tools folder '
-              'or rebuild it with src/tools/setup-toolchain.ps1.')
+              'or rebuild it with src_atari/tools/setup-toolchain.ps1.')
     for directory in (BUILD, OUTPUT, GAME):
         directory.mkdir(parents=True, exist_ok=True)
     modules = (ROOT / 'modules.txt').read_text().split()

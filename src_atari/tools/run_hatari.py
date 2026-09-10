@@ -1,4 +1,4 @@
-"""Headless Hatari diagnostic run; all output stays in src/build/hatari-test."""
+"""Headless Hatari diagnostic run; all output stays in src_atari/build/hatari-test."""
 import argparse
 import os
 from pathlib import Path
@@ -37,7 +37,7 @@ command = [str(exe), '--tos', str(args.rom.resolve()), '--machine', 'st', '--mem
     '--trace', 'gemdos', '--trace-file', str(out / 'gemdos.log'),
     '--log-file', str(out / 'hatari.log'), '--screenshot-dir', str(out),
     '--auto', 'A:\\ELITE.TOS' if args.floppy else 'C:\\ELITE.TOS']
-command += ['--disk-a', str(ROOT.parent / 'output/ELITE.ST')] if args.floppy else ['--harddrive', str(ROOT.parent / 'output/ELITE')]
+command += ['--disk-a', str(ROOT.parent / 'output_atari/ELITE.ST')] if args.floppy else ['--harddrive', str(ROOT.parent / 'output_atari/ELITE')]
 result = subprocess.run(command, cwd=out, env=env, capture_output=True, text=True,
     creationflags=subprocess.CREATE_NO_WINDOW, timeout=55)
 (out / 'console.log').write_text(result.stdout + result.stderr)

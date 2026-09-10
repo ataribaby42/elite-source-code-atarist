@@ -1,9 +1,9 @@
 # Generated game files and local build/test output.
-/output/
+/output_atari/
 /output_amiga/
-/src/build/
+/src_atari/build/
 /src_amiga/build/
-/src/**/__pycache__/
+/src_atari/**/__pycache__/
 /src_amiga/**/__pycache__/
-/src/**/*.py[cod]
+/src_atari/**/*.py[cod]
 /src_amiga/**/*.py[cod]

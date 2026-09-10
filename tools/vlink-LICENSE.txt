@@ -1,4 +1,4 @@
-Upstream Legal section from src/vendor/vlink/vlink.texi
+Upstream Legal section from src_atari/vendor/vlink/vlink.texi
 
 vlink is copyright 1995-2025 by Frank Wille.
 

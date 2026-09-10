@@ -14,9 +14,9 @@
 
 # Preserve original bytes, including historic text encodings and line endings.
 src-orig/** -text linguist-vendored
-src/assets/** binary
+src_atari/assets/** binary
 src_amiga/assets/** binary
-src/vendor/** binary linguist-vendored
+src_atari/vendor/** binary linguist-vendored
 tools/*.exe binary
 *.adf binary
 *.ADF binary

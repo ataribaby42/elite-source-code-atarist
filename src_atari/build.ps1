@@ -28,7 +28,7 @@ if (-not $Python) {
         }
     }
 }
-if (-not $Python) { throw 'Python 3.10+ is required. Run build.bat -Python C:\path\python.exe.' }
+if (-not $Python) { throw 'Python 3.10+ is required. Run build_atari.bat -Python C:\path\python.exe.' }
 $eliteArguments = $elitePythonOptions + @("$PSScriptRoot\build.py")
 if ($Vasm) { $eliteArguments += @('--vasm', $Vasm) }
 if ($Vlink) { $eliteArguments += @('--vlink', $Vlink) }

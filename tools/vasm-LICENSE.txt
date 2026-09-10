@@ -1,4 +1,4 @@
-Upstream Legal section from src/vendor/vasm/doc/vasm.texi
+Upstream Legal section from src_atari/vendor/vasm/doc/vasm.texi
 
 vasm is copyright in 2002-2026 by Volker Barthelmann.
 
