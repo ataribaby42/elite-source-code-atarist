@@ -21,8 +21,8 @@ SECTIONS
     texture = .;       . = . + 24358;
     obj_data = .;      . = . + 20156;
     logo = .;          . = . + 16276;
-    dust_cos = .;      . = . + 57 * 128 * 2;
-    dust_sin = .;      . = . + 57 * 128 * 2;
+    dust_cos = .;      . = . + 57 * 129 * 2;
+    dust_sin = .;      . = . + 57 * 129 * 2;
     cockpit = .;       . = . + 13386;
     vars = .;
     . = . + var_size;

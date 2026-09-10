@@ -613,9 +613,8 @@ q_graphics_m68_40:
 * ********************************************
 
 * Draws a horizontal line from one side of the circle to the other. Draws the
-* line in the upper and lower quadrants. NOTE - the left and right limits of
-* the window (X_MIN and X_MAX) are brought in by one to allow for the flare of
-* the sun (this is added AFTER clipping).
+* line in the upper and lower quadrants. Keep signed 32-bit horizontal ends
+* until CIRCLE_HORIZ adds any sun flare and clips to the full viewport.
 
 * Entry: (D5,D6) = x,y offset
 * Exit:  None
@@ -625,24 +624,17 @@ q_graphics_m68_40:
 
 	q_subr circle_plotxy
 
-	move poly_x(a6),d0 ; calculate right x
-	add d5,d0
-	cmp #x_min,d0 ; outside left edge ?
-	q_ret lt ; yes, don't draw
-; Quelo: 	if d0 <gt> #x_max-1 then.s			clamp on right edge if required
-	cmp #x_max-1,d0
-	ble.s q_graphics_m68_43
-	move #x_max-1,d0
-q_graphics_m68_43:
-	move poly_x(a6),d2 ; calculate left x
-	sub d5,d2
-	cmp #x_max-1,d2 ; outside right edge ?
-	q_ret gt ; yes, don't draw
-; Quelo: 	if d2 <lt> #x_min+1 then.s			clamp on left edge if required
-	cmp #x_min+1,d2
-	bge.s q_graphics_m68_45
-	move #x_min+1,d2
-q_graphics_m68_45:
+	move d5,d4 ; signed 32-bit ends also handle circles crossing far off-screen
+	ext.l d4
+	move poly_x(a6),d0
+	ext.l d0
+	move.l d0,d2
+	add.l d4,d0 ; right end
+	sub.l d4,d2 ; left end
+	cmp.l #x_min-1,d0 ; allow a one-pixel flare to enter the viewport
+	q_ret lt
+	cmp.l #x_max+1,d2
+	q_ret gt
 	move poly_y(a6),d1 ; calculate top y
 	add d6,d1
 	cmp #y_min,d1 ; outside bottom edge ?
@@ -650,9 +642,9 @@ q_graphics_m68_45:
 ; Quelo: 	if d1 <le> #y_max then.s			if inside top edge
 	cmp #y_max,d1
 	bgt.s q_graphics_m68_47
-	movem d0/d2,-(sp) ; draw line
+	movem.l d0/d2,-(sp) ; retain unclipped horizontal ends
 	bsr circle_horiz
-	movem (sp)+,d0/d2
+	movem.l (sp)+,d0/d2
 q_graphics_m68_47:
 	move poly_y(a6),d1 ; calculate bottom y
 	sub d6,d1
@@ -672,8 +664,8 @@ q_graphics_m68_47:
 
 * Draws a horizontal line between two points.
 
-* Entry: D0 = x coord of right edge
-*		 D2 = x coord of left edge
+* Entry: D0.L = x coord of right edge (unclipped)
+*		 D2.L = x coord of left edge (unclipped)
 *		 D1 = y coord of line
 * Exit:  None
 
@@ -689,23 +681,35 @@ q_graphics_m68_47:
 	q_dec flare_count(a6) ; need new flare byte ?
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_graphics_m68_51
-	movem d0/d1,-(sp) ; generate new flare
+	movem.l d0/d1,-(sp) ; generate new flare, preserving the unclipped right end
 	jsr random
 	move d0,flare(a6)
 	move #4,flare_count(a6)
-	movem (sp)+,d0/d1
+	movem.l (sp)+,d0/d1
 q_graphics_m68_51:
 	ror flare(a6)
 ; Quelo: 		if <cs> then.s
 	bcc.s q_graphics_m68_53
-	q_inc d0
+	q_inc.l d0
 q_graphics_m68_53:
 	ror flare(a6)
 ; Quelo: 		if <cs> then.s
 	bcc.s q_graphics_m68_55
-	q_dec d2
+	q_dec.l d2
 q_graphics_m68_55:
 q_graphics_m68_49:
+	cmp.l #x_min,d0 ; final clipping includes the flare and both edge columns
+	blt circle_horiz_done
+	cmp.l #x_max,d2
+	bgt circle_horiz_done
+	cmp.l #x_max,d0
+	ble circle_right_inside
+	move.l #x_max,d0
+circle_right_inside:
+	cmp.l #x_min,d2
+	bge circle_left_inside
+	move.l #x_min,d2
+circle_left_inside:
 	add #x_left-x_min,d0 ; convert from view to screen coords
 	add #x_left-x_min,d2
 	neg d1
@@ -714,6 +718,7 @@ q_graphics_m68_49:
 	bsr dot_to_addr ; calculate screen address
 	move.l colour_ptr(a6),a1 ; fetch pointer to colour masks
 	bsr horiz_line ; draw horizontal line
+circle_horiz_done:
 	movem (sp)+,d5-d7 ; restore circle parameters
 
 	q_ret return

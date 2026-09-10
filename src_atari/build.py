@@ -11,6 +11,7 @@ import struct
 import subprocess
 import sys
 
+from tools.dust_tables import expand_dust_tables
 from tools.make_disk import make_disk, verify_disk
 
 ROOT = Path(__file__).resolve().parent
@@ -147,6 +148,11 @@ def main():
     assemble('elitechr', 'bin', GAME / 'ELITECHR.IMG')
     for name in ASSET_NAMES:
         shutil.copyfile(ROOT / 'assets' / name, GAME / name)
+    # Runtime tables include abs(x) == 128; keep the source assets unchanged.
+    dust_cos, dust_sin = expand_dust_tables(
+        (ROOT/'assets/DCOS.DAT').read_bytes(), (ROOT/'assets/DSIN.DAT').read_bytes())
+    (GAME/'DCOS.DAT').write_bytes(dust_cos)
+    (GAME/'DSIN.DAT').write_bytes(dust_sin)
     # Each buffer length follows the absolute layout in elite.ld.
     capacities = {'TEXTSCR.PC1': syms['hyper_buffer']-syms['textscr'],
                   'TEXTURE.PC1': syms['obj_data']-syms['texture'],

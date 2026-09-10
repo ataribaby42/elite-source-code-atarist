@@ -260,7 +260,7 @@ no_cols: equ 32 ; no. columns across (8x8)
 no_rows: equ 14 ; no. rows down (8x8)
 x_size: equ no_cols<<3 ; width in pixels
 y_size: equ no_rows<<3 ; depth in pixels
-x_min: equ -(x_size>>1)+1
+x_min: equ -(x_size>>1) ; inclusive bounds cover all 256 viewport columns
 x_max: equ (x_size>>1)-1
 y_min: equ -(y_size>>1)
 y_max: equ (y_size>>1)-1

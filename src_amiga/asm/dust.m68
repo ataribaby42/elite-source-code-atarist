@@ -118,6 +118,14 @@ q_dust_m68_7\@:
 
 	q_subr move_forward
 
+	move dust_x(a5),d0 ; rotation may have moved the star outside the tables
+	move dust_y(a5),d1
+	outcodes d0,d1,d2
+	tst d2
+	beq.s dust_forward_in_view
+	bsr new_coords
+	bra q_dust_m68_18
+dust_forward_in_view:
 	move dust_x(a5),d2 ; abs(x)
 ; Quelo: 	if <mi> then.s
 	bpl.s q_dust_m68_9
@@ -128,7 +136,9 @@ q_dust_m68_9:
 	bpl.s q_dust_m68_11
 	neg d3
 q_dust_m68_11:
-	asl #7,d3 ; index into trig tables (x128)
+	move d3,d4 ; each expanded table row has 129 columns
+	asl #7,d3
+	add d4,d3
 	add d2,d3
 	add d3,d3
 	move (a3,d3),d2 ; fetch cos(a)
@@ -222,7 +232,9 @@ q_dust_m68_27:
 	neg d3
 q_dust_m68_29:
 q_dust_m68_25:
-	asl #7,d3 ; index into trig tables
+	move d3,d4 ; index into the expanded 129-column tables
+	asl #7,d3
+	add d4,d3
 	add d2,d3
 	add d3,d3
 	move (a3,d3),d2 ; fetch cos(a)

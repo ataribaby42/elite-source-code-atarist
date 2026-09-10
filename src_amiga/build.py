@@ -15,6 +15,7 @@ sys.dont_write_bytecode = True
 from tools.amiga_assets import extract_assets
 from tools.make_adf import make_adf
 from tools.amiga_hunk import verify_hunk
+from tools.dust_tables import expand_dust_tables
 
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / 'build'
@@ -81,6 +82,11 @@ def build_amiga(vasm, vlink, noprotect=False):
     assemble('elitechr','bin',OUTPUT/'ELITECHR.IMG')
     for name in ASSET_NAMES:
         shutil.copyfile(ROOT/'assets'/name, OUTPUT/name)
+    # Runtime tables include abs(x) == 128; keep the source assets unchanged.
+    dust_cos, dust_sin = expand_dust_tables(
+        (ROOT/'assets/DCOS.DAT').read_bytes(), (ROOT/'assets/DSIN.DAT').read_bytes())
+    (OUTPUT/'DCOS.DAT').write_bytes(dust_cos)
+    (OUTPUT/'DSIN.DAT').write_bytes(dust_sin)
     capacities = {'TEXTSCR.PC1': ('textscr', 'hyper_buffer'),
                   'TEXTURE.PC1': ('texture', 'obj_data'),
                   'OBJECTS.IMG': ('obj_data', 'logo'),

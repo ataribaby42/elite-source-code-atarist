@@ -19,8 +19,8 @@ bitmaps: ds.b 146862
 texture: ds.b 24358
 obj_data: ds.b 20156
 logo: ds.b 16276
-dust_cos: ds.b 14592
-dust_sin: ds.b 14592
+dust_cos: ds.w 57*129
+dust_sin: ds.w 57*129
 cockpit: ds.b 13386
 vars: ds.b var_size
 ram_end:
