@@ -1,6 +1,6 @@
 """Check full viewport coverage and clipping in the actual MC68000 routines.
 
-The optional CPU tests require unicorn==2.1.4; the asset tests use stdlib only.
+The optional CPU tests require unicorn==2.1.4.
 """
 from pathlib import Path
 import re
@@ -13,11 +13,10 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.dust_tables import expand_dust_tables
 from test_raster import BACKGROUND, GUARD, SCREEN, OTHER, paint, pixels, routine
 
 try:
-    from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_HOOK_MEM_READ
+    from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN
     from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_M68K_REG_A0,
         UC_M68K_REG_A3, UC_M68K_REG_A4, UC_M68K_REG_A5, UC_M68K_REG_A6,
         UC_M68K_REG_A7, UC_M68K_REG_D0, UC_M68K_REG_PC, UC_M68K_REG_SR)
@@ -25,7 +24,6 @@ except ImportError:
     Uc = None
 
 CODE, STOP, VARIABLES, COLOUR, NODES, STACK = 0x10000, 0x1000, 0x30000, 0x32000, 0x68000, 0x90000
-COSINE, SINE, STAR = 0xa0000, 0xa4000, 0xb0000
 SOLID = (65535,) * 4
 
 
@@ -73,27 +71,6 @@ def circle_pixels(cx, cy, radius, flare):
             y -= 1
         x += 1
     return points
-
-
-class DustTableTests(unittest.TestCase):
-    def test_preserves_original_cells_and_extends_every_row(self):
-        originals = [(ROOT / 'assets' / name).read_bytes() for name in ('DCOS.DAT', 'DSIN.DAT')]
-        for index, expanded in enumerate(expand_dust_tables(*originals)):
-            self.assertEqual(len(expanded), 57 * 129 * 2)
-            for y in range(57):
-                self.assertEqual(expanded[y * 258:y * 258 + 256],
-                                 originals[index][y * 256:(y + 1) * 256])
-                value, = struct.unpack_from('>H', expanded, y * 258 + 256)
-                squared = (30000 * (128 if index == 0 else y)) ** 2
-                distance = 128 * 128 + y * y
-                self.assertLessEqual(value * value * distance, squared)
-                self.assertGreater((value + 1) ** 2 * distance, squared)
-
-    def test_rejects_incorrect_asset_sizes(self):
-        valid = bytes(57 * 128 * 2)
-        for arguments in ((valid[:-2], valid), (valid, valid + b'\0\0')):
-            with self.assertRaises(ValueError):
-                expand_dust_tables(*arguments)
 
 
 @unittest.skipIf(Uc is None, 'optional viewport tests require unicorn==2.1.4')
@@ -238,91 +215,6 @@ class ViewportTests(unittest.TestCase):
                                 min(127, center+offset+int(sun))+1))
                 self.assertEqual(self.call('circle_plotxy', (0, 0, 0, 0, 0, offset, 5)),
                                  self.expected(points))
-
-
-@unittest.skipIf(Uc is None, 'optional starfield tests require unicorn==2.1.4')
-class DustMovementTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        source = (ROOT / 'asm/dust.m68').read_text()
-        names = ['move_forward', 'move_rear', 'move_left', 'move_right', 'new_coords']
-        constants = ['dust_x', 'dust_y', 'dust_rate', 'random_edge']
-        assembly = preamble()
-        assembly += source[source.index('\trsset 0'):source.index('\tq_module dust')]
-        assembly += re.search(r'^outcodes macro.*?^\s*endm', source, re.M | re.S).group(0) + '\n'
-        assembly += '\torg $10000\n\tdc.l ' + ','.join(names + constants) + '\n'
-        assembly += '\n'.join(routine(source, name) for name in names)
-        # Choose either endpoint of RAND's [0, range) contract.
-        assembly += ('\nrand:\n\tmoveq #0,d0\n\ttst random_edge\n\tbeq.s rand_done\n'
-                     '\tmove d2,d0\n\tsubq #1,d0\nrand_done:\n\trts\n'
-                     'random_edge:\n\tdc.w 0\n')
-        cls.code, cls.symbols = assemble(assembly, names + constants)
-        cls.cosine, cls.sine = expand_dust_tables(*[
-            (ROOT / 'assets' / name).read_bytes() for name in ('DCOS.DAT', 'DSIN.DAT')])
-
-    def setUp(self):
-        self.cpu = Uc(UC_ARCH_M68K, UC_MODE_BIG_ENDIAN)
-        self.cpu.ctl_set_cpu_model(UC_CPU_M68K_M68000)
-        self.cpu.mem_map(0, 0xc0000)
-        self.cpu.mem_write(CODE, self.code)
-        self.cpu.mem_write(COSINE, self.cosine)
-        self.cpu.mem_write(SINE, self.sine)
-        self.reads = []
-        self.cpu.hook_add(UC_HOOK_MEM_READ, lambda cpu, access, address, size, value, data:
-                          self.reads.append((address, size)), begin=COSINE-2, end=SINE+0x4000)
-
-    def run_star(self, name, x, y, rate=1, edge=0):
-        self.reads.clear()
-        self.cpu.mem_write(STAR, struct.pack('>ii', x * 65536, y * 65536))
-        self.cpu.mem_write(VARIABLES + self.symbols['dust_rate'], struct.pack('>H', rate))
-        self.cpu.mem_write(self.symbols['random_edge'], struct.pack('>H', edge))
-        for register, value in [(UC_M68K_REG_SR, 0x2700), (UC_M68K_REG_A3, COSINE),
-                                (UC_M68K_REG_A4, SINE), (UC_M68K_REG_A5, STAR),
-                                (UC_M68K_REG_A6, VARIABLES), (UC_M68K_REG_A7, STACK-4)]:
-            self.cpu.reg_write(register, value)
-        self.cpu.mem_write(STACK-4, struct.pack('>I', STOP))
-        self.cpu.emu_start(self.symbols[name], STOP, count=10000)
-        self.assertEqual(self.cpu.reg_read(UC_M68K_REG_PC), STOP)
-        self.assertEqual(self.cpu.reg_read(UC_M68K_REG_A7), STACK)
-        for address, size in self.reads:
-            self.assertTrue(any(start <= address and address+size <= start+len(table)
-                                for start, table in ((COSINE, self.cosine), (SINE, self.sine))))
-        return struct.unpack('>ii', self.cpu.mem_read(STAR, 8))
-
-    def test_radial_movement_uses_correct_edge_table_cells(self):
-        for x in (-128, -127, 127):
-            for y in (-56, 0, 55):
-                offset = (abs(y) * 129 + abs(x)) * 2
-                cosine, = struct.unpack_from('>H', self.cosine, offset)
-                sine, = struct.unpack_from('>H', self.sine, offset)
-                for name, direction in (('move_forward', 1), ('move_rear', -1)):
-                    with self.subTest(star=(x, y), routine=name):
-                        expected = (x*65536 + (1 if x >= 0 else -1)*cosine*direction,
-                                    y*65536 + (1 if y >= 0 else -1)*sine*direction)
-                        if name == 'move_forward' and not (
-                                -128 <= expected[0]//65536 <= 127 and -56 <= expected[1]//65536 <= 55):
-                            expected = (-128*65536, -56*65536)
-                        self.assertEqual(self.run_star(name, x, y), expected)
-                        self.assertEqual(self.reads, [(COSINE+offset, 2), (SINE+offset, 2)])
-
-    def test_offscreen_rotation_respawns_before_radial_lookup(self):
-        for x, y in ((-129, 0), (128, 0), (0, -57), (0, 56), (-500, 500)):
-            for name in ('move_forward', 'move_rear'):
-                for edge in (0, 1):
-                    with self.subTest(star=(x, y), routine=name, edge=edge):
-                        expected = (127*65536, 55*65536) if edge else (-128*65536, -56*65536)
-                        self.assertEqual(self.run_star(name, x, y, rate=0, edge=edge), expected)
-                        if name == 'move_forward':
-                            self.assertEqual(self.reads, [])
-
-    def test_side_views_and_random_generation_include_both_edges(self):
-        for name in ('move_left', 'move_right'):
-            for edge in (0, 1):
-                expected = (127*65536, 55*65536) if edge else (-128*65536, -56*65536)
-                self.assertEqual(self.run_star(name, 500, 500, rate=0, edge=edge), expected)
-                for x, y in ((-128, -56), (127, 55)):
-                    self.assertEqual(self.run_star(name, x, y, rate=0, edge=edge),
-                                     (x*65536, y*65536))
 
 
 if __name__ == '__main__':

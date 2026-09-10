@@ -15,14 +15,13 @@ sys.dont_write_bytecode = True
 from tools.amiga_assets import extract_assets
 from tools.make_adf import make_adf
 from tools.amiga_hunk import verify_hunk
-from tools.dust_tables import expand_dust_tables
 
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / 'build'
 OUTPUT = ROOT.parent / 'output_amiga/ELITE'
 TOOLS = ROOT.parent / 'tools'
 FLAGS = ['-m68000', '-no-opt', '-align', '-allmp', '-spaces', '-nocase', '-nowarn=40', '-nowarn=41', '-nowarn=62']
-ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'DCOS.DAT', 'DSIN.DAT', 'LOGO.PC1', 'TITLE.PC1')
+ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO.PC1', 'TITLE.PC1')
 
 
 def build_amiga(vasm, vlink, noprotect=False):
@@ -82,17 +81,13 @@ def build_amiga(vasm, vlink, noprotect=False):
     assemble('elitechr','bin',OUTPUT/'ELITECHR.IMG')
     for name in ASSET_NAMES:
         shutil.copyfile(ROOT/'assets'/name, OUTPUT/name)
-    # Runtime tables include abs(x) == 128; keep the source assets unchanged.
-    dust_cos, dust_sin = expand_dust_tables(
-        (ROOT/'assets/DCOS.DAT').read_bytes(), (ROOT/'assets/DSIN.DAT').read_bytes())
-    (OUTPUT/'DCOS.DAT').write_bytes(dust_cos)
-    (OUTPUT/'DSIN.DAT').write_bytes(dust_sin)
+    # The depth-based starfield no longer loads direction lookup files.
+    for name in ('DCOS.DAT', 'DSIN.DAT'):
+        (OUTPUT / name).unlink(missing_ok=True)
     capacities = {'TEXTSCR.PC1': ('textscr', 'hyper_buffer'),
                   'TEXTURE.PC1': ('texture', 'obj_data'),
                   'OBJECTS.IMG': ('obj_data', 'logo'),
-                  'LOGO.PC1': ('logo', 'dust_cos'),
-                  'DCOS.DAT': ('dust_cos', 'dust_sin'),
-                  'DSIN.DAT': ('dust_sin', 'cockpit'),
+                  'LOGO.PC1': ('logo', 'cockpit'),
                   'COCKPIT.PC1': ('cockpit', 'vars')}
     for name, (start, end) in capacities.items():
         if (OUTPUT/name).stat().st_size > symbols[end]-symbols[start]:

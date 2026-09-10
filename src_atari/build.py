@@ -11,7 +11,6 @@ import struct
 import subprocess
 import sys
 
-from tools.dust_tables import expand_dust_tables
 from tools.make_disk import make_disk, verify_disk
 
 ROOT = Path(__file__).resolve().parent
@@ -22,7 +21,7 @@ GAME = OUTPUT / 'ELITE'
 ORIGIN = 0x12000
 LOADER_ORIGIN = 0x11e00
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1',
-               'DCOS.DAT', 'DSIN.DAT', 'LOGO.PC1', 'TITLE.PC1')
+               'LOGO.PC1', 'TITLE.PC1')
 FLAGS = ['-m68000', '-no-opt', '-align', '-allmp', '-spaces', '-nocase',
          '-nowarn=40', '-nowarn=41', '-nowarn=62']
 
@@ -148,18 +147,14 @@ def main():
     assemble('elitechr', 'bin', GAME / 'ELITECHR.IMG')
     for name in ASSET_NAMES:
         shutil.copyfile(ROOT / 'assets' / name, GAME / name)
-    # Runtime tables include abs(x) == 128; keep the source assets unchanged.
-    dust_cos, dust_sin = expand_dust_tables(
-        (ROOT/'assets/DCOS.DAT').read_bytes(), (ROOT/'assets/DSIN.DAT').read_bytes())
-    (GAME/'DCOS.DAT').write_bytes(dust_cos)
-    (GAME/'DSIN.DAT').write_bytes(dust_sin)
+    # The depth-based starfield no longer loads direction lookup files.
+    for name in ('DCOS.DAT', 'DSIN.DAT'):
+        (GAME / name).unlink(missing_ok=True)
     # Each buffer length follows the absolute layout in elite.ld.
     capacities = {'TEXTSCR.PC1': syms['hyper_buffer']-syms['textscr'],
                   'TEXTURE.PC1': syms['obj_data']-syms['texture'],
                   'OBJECTS.IMG': syms['logo']-syms['obj_data'],
-                  'LOGO.PC1': syms['dust_cos']-syms['logo'],
-                  'DCOS.DAT': syms['dust_sin']-syms['dust_cos'],
-                  'DSIN.DAT': syms['cockpit']-syms['dust_sin'],
+                  'LOGO.PC1': syms['cockpit']-syms['logo'],
                   'COCKPIT.PC1': syms['vars']-syms['cockpit']}
     for name, capacity in capacities.items():
         check((GAME / name).stat().st_size <= capacity, f'{name} exceeds its reserved buffer')

@@ -3,7 +3,7 @@ amiga_workspace_implementation: equ 1
     include "common.def"
     xdef var_size,textscr,hyper_buffer,left_arm,right_arm
     xdef save1_buffer,max1,save2_buffer,max2,bitmaps,texture,obj_data
-    xdef logo,dust_cos,dust_sin,cockpit,vars,ram_end,other_screen
+    xdef logo,cockpit,vars,ram_end,other_screen
     section workspace,bss
 textscr: ds.b 3590
 hyper_buffer: ds.b 360
@@ -19,8 +19,6 @@ bitmaps: ds.b 146862
 texture: ds.b 24358
 obj_data: ds.b 20156
 logo: ds.b 16276
-dust_cos: ds.w 57*129
-dust_sin: ds.w 57*129
 cockpit: ds.b 13386
 vars: ds.b var_size
 ram_end:

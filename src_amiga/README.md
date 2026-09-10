@@ -47,7 +47,7 @@ Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_
 
 The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matching the full cleared screen area `x=32..287`, `y=8..119` (256 x 112 pixels). Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping, so they cannot overwrite the cockpit border.
 
-The build expands the original 57 x 128 dust lookup tables to 57 x 129, preserving every original cell and adding the direction at `abs(x)=128`. Each generated `DCOS.DAT` and `DSIN.DAT` is 14,706 bytes. Use the newly built disk image or copy the complete output directory, including these tables, when updating the game. The forward starfield rejects coordinates moved outside the viewport by rotation before looking up a direction.
+The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
 
 ## Source layout
 
@@ -70,7 +70,7 @@ The root `build_amiga.bat` forwards arguments here. Atari development and option
 
 The optional `tests/test_sprites.py` suite also uses `unicorn==2.1.4`. It executes the actual sprite routines on MC68000 and MC68020 CPU models with executable memory write-protected. Tests cover the original options icons and missile indicators, all sixteen horizontal shifts, clipped edges, both screen buffers and background restoration. Unicorn does not emulate instruction-cache coherency; write protection verifies that drawing no longer modifies code.
 
-The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, large unclipped circle spans, and starfield table reads at both edges. Entire guarded screen buffers are compared with a pixel reference. The table size and original-cell preservation tests run without Unicorn.
+The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, and large unclipped circle spans. Entire guarded screen buffers are compared with a pixel reference. `tests/test_starfield.py` verifies depth-based motion, all four views, retro rockets, rotation, recycling, and one-pixel stars on MC68000 and MC68020 CPU models.
 
 The build checks assembly/link diagnostics, relocations, required Chip RAM allocations, BSS sizes, module variable capacities, asset buffer capacities, the two-screen layout, original PCM checksums, and OFS disk contents read back byte for byte. Run the automated tests after building:
 

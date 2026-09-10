@@ -19,7 +19,7 @@
 	xref vars,other_screen,amstrad_8x8,vblank,critical_error,texture
 	xref key_midi_irq,display_char,default_game,find_bitmap,novella
 	xref init_dust,traps,rand,monst,checksum,logo
-	xref dust_cos,dust_sin,cockpit,textscr,obj_data,bitmaps
+	xref cockpit,textscr,obj_data,bitmaps
 	xref hyper_buffer,quiet,blank_screen
 
 * ---- LOCAL CONSTANTS ----
@@ -128,8 +128,6 @@ size macro
 	load_file texture,texture_file
 	load_file obj_data,obj_data_file
 	bsr read_bitmaps
-	load_file dust_cos,dust_cos_file
-	load_file dust_sin,dust_sin_file
 	load_file logo,logo_file
 	bsr relocate ; relocate object data
 	bsr check_vars ; check variable areas
@@ -935,9 +933,5 @@ obj_data_file:
 	dc.b "objects.img",0
 bitmaps_file:
 	dc.b "bitmaps.img",0
-dust_cos_file:
-	dc.b "dcos.dat",0
-dust_sin_file:
-	dc.b "dsin.dat",0
 logo_file:
 	dc.b "logo.pc1",0

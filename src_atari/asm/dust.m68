@@ -1,803 +1,483 @@
-	include "common.def"
-; Ported from src-orig/DUST_M68; edit this copy.
-* @@@@@    @@  @@	@@@@   @@@@@@
-*  @@ @@   @@  @@  @@  @@  @ @@ @
-*  @@  @@  @@  @@  @@		 @@
-*  @@  @@  @@  @@	@@@@	 @@
-*  @@  @@  @@  @@	   @@	 @@
-*  @@ @@   @@  @@  @@  @@	 @@
-* @@@@@ 	@@@@	@@@@	@@@@
+; Native MC68000 adaptation of BBC/C64 Elite's STARS1, STARS6, STARS2
+; depth, motion and recycling model by Ian Bell and David Braben.
+; Source annotations: Mark Moxon, https://elite.bbcelite.com/c64/
+; See ../STARFIELD.md for source links, scaling and deliberate adaptations.
+    include "common.def"
+    include "macros.m68"
+    xref random,rand,set_colour,c_plotxy
 
-* Routines to process the dust particles.
+; Screen offsets retain subpixel motion. Depth has the original 8.8 scale.
+    rsset 0
+dust_x: rs.l 1
+dust_y: rs.l 1
+dust_z: rs.w 1
+dust_len: equ __RS
+dust_store: equ no_dust*dust_len
 
-* Atari ST Version 1.0 5th May 1988 Copyright (c) 1988 Mr. Micro Ltd.
-* Designed and coded by Rob Nicholson. Adapted from the MSX version.
-
-	include "macros.m68"
-
-	xref random,rand,sqrt,fx,set_colour,plotxy,monst,dust_cos,dust_sin
-
-* ---- LOCAL CONSTANTS ----
-
-max_dust_speed: equ 18 ; maximum dust speed
-mag: equ 30000 ; dust trig magnification factor
-
-* ---- LOCAL RECORDS ----
-
-* Dust record definition.
-
-	rsset 0
-
-dust_x: rs.l 1 ; x coordinate
-dust_y: rs.l 1 ; y coordinate
-
-dust_len: equ __RS ; size of one record
-dust_store: equ no_dust*dust_len ; size of all records
-
-* ---- LOCAL VARIABLES ----
-
-	q_vars dust
-
-dust_front: rs.b dust_store ; dust records (four views)
+    q_vars dust
+dust_front: rs.b dust_store
 dust_rear: rs.b dust_store
 dust_left: rs.b dust_store
 dust_right: rs.b dust_store
-dust_ptr: rs.l 1 ; ptr: dust records to use
-move_ptr: rs.l 1 ; ptr: routine for new particle
-roll_pars: rs.l 3 ; parameters for dust roll
-climb_pars: rs.l 3 ; parameters for dust climb
-dust_count: rs.w 1 ; counter for each particle of dust
-dust_rate: rs.w 1 ; dust movement rate
-
-	q_end_vars dust
-
-	q_module dust
-
-* *******************************************
-* **									   **
-* ** OUTCODES - DETERMINE OUTCODES (MACRO) **
-* **									   **
-* *******************************************
-
-* This macro builds up the 'outcodes' flags for the 'Cohen-Sutherland' line
-* clipping algorithm. The bits in the outcodes are defined as follows:
-
-*	Bit 0 - outside left edge		$01
-*	Bit 1 - outside right edge		$02
-*	Bit 2 - outside bottom edge 	$04
-*	Bit 3 - outside top edge		$08
-
-* Syntax: OUTCODES xreg,yreg,flag_reg
-* Exit:   \3 = outcodes flags
-
-* Regs:   \3 corrupt.
-* Subr:   None
-
-outcodes macro
-
-	clr \3 ; clear flags
-; Quelo: 	if \1 <lt> #x_min then.s			left edge check
-	cmp #x_min,\1
-	bge.s q_dust_m68_1\@
-	bset #0,\3
-q_dust_m68_1\@:
-; Quelo: 	if \1 <gt> #x_max then.s			right edge check
-	cmp #x_max,\1
-	ble.s q_dust_m68_3\@
-	bset #1,\3
-q_dust_m68_3\@:
-; Quelo: 	if \2 <lt> #y_min then.s			bottom edge check
-	cmp #y_min,\2
-	bge.s q_dust_m68_5\@
-	bset #2,\3
-q_dust_m68_5\@:
-; Quelo: 	if \2 <gt> #y_max then.s			top edge check
-	cmp #y_max,\2
-	ble.s q_dust_m68_7\@
-	bset #3,\3
-q_dust_m68_7\@:
-
-	endm
-
-
-* *******************************************
-* **									   **
-* ** MOVE_FRONT - MOVE DUST FOR FRONT VIEW **
-* **									   **
-* *******************************************
-
-* Moves the current dust particle for the front view.
-
-* Entry: A5 = ptr: dust record
-*		 A3 = ptr: dust cosine table
-*		 A4 = ptr: dust sine table
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr move_forward
-
-	move dust_x(a5),d0 ; rotation may have moved the star outside the tables
-	move dust_y(a5),d1
-	outcodes d0,d1,d2
-	tst d2
-	beq.s dust_forward_in_view
-	bsr new_coords
-	bra q_dust_m68_18
-dust_forward_in_view:
-	move dust_x(a5),d2 ; abs(x)
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_9
-	neg d2
-q_dust_m68_9:
-	move dust_y(a5),d3 ; abs(y)
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_11
-	neg d3
-q_dust_m68_11:
-	move d3,d4 ; each expanded table row has 129 columns
-	asl #7,d3
-	add d4,d3
-	add d2,d3
-	add d3,d3
-	move (a3,d3),d2 ; fetch cos(a)
-	move (a4,d3),d3 ; fetch sin(a)
-	mulu dust_rate(a6),d2 ; multiply by dust's speed
-	mulu dust_rate(a6),d3
-	move.l dust_x(a5),d0 ; adjust sign
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_13
-	neg.l d2
-q_dust_m68_13:
-	move.l dust_y(a5),d1
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_15
-	neg.l d3
-q_dust_m68_15:
-	add.l d2,d0
-	add.l d3,d1
-	swap d0 ; off screen ?
-	swap d1
-	outcodes d0,d1,d2
-	tst d2
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_17
-	bsr new_coords ; generate new coords
-	bra.s q_dust_m68_18
-q_dust_m68_17:
-	swap d0
-	swap d1
-q_dust_m68_18:
-	movem.l d0/d1,dust_x(a5) ; update dust record
-
-	q_ret
-
-
-* *****************************************
-* **									 **
-* ** MOVE_REAR - MOVE DUST FOR REAR VIEW **
-* **									 **
-* *****************************************
-
-* Moves the current dust particle for the rear view.
-
-* Entry: A5 = ptr: dust record
-*		 A3 = ptr: dust cosine table
-*		 A4 = ptr: dust sine table
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr move_rear
-
-	movem.l dust_x(a5),d0/d1 ; fetch coords
-	swap d0 ; abs(x)
-	move d0,d2
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_19
-	neg d2
-q_dust_m68_19:
-	swap d1 ; abs(y)
-	move d1,d3
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_21
-	neg d3
-q_dust_m68_21:
-; Quelo: 	if d2 <lo> #30 then.s				check for reaching centre
-	cmp #30,d2
-	bhs.s q_dust_m68_23
-	cmp #30,d3
-	blo.s new_rear
-q_dust_m68_23:
-	outcodes d0,d1,d4 ; check if off screen
-	tst d4
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_25
-
-new_rear:
-
-	bsr new_coords ; generates new coordinates
-	swap d0 ; calculate new abs(x) and abs(y)
-	swap d1
-	move d0,d2
-; Quelo: 		if <mi> then.s
-	bpl.s q_dust_m68_27
-	neg d2
-q_dust_m68_27:
-	move d1,d3
-; Quelo: 		if <mi> then.s
-	bpl.s q_dust_m68_29
-	neg d3
-q_dust_m68_29:
-q_dust_m68_25:
-	move d3,d4 ; index into the expanded 129-column tables
-	asl #7,d3
-	add d4,d3
-	add d2,d3
-	add d3,d3
-	move (a3,d3),d2 ; fetch cos(a)
-	move (a4,d3),d3 ; fetch sin(a)
-	mulu dust_rate(a6),d2 ; multiply by dust's speed
-	mulu dust_rate(a6),d3
-	swap d0 ; adjust sign
-; Quelo: 	if <pl> then.s
-	bmi.s q_dust_m68_31
-	neg.l d2
-q_dust_m68_31:
-	swap d1
-; Quelo: 	if <pl> then.s
-	bmi.s q_dust_m68_33
-	neg.l d3
-q_dust_m68_33:
-	add.l d2,d0 ; move dust
-	add.l d3,d1
-	movem.l d0/d1,dust_x(a5) ; update dust record
-
-	q_ret
-
-
-* *****************************************
-* **									 **
-* ** MOVE_LEFT - MOVE DUST FOR LEFT VIEW **
-* **									 **
-* *****************************************
-
-* Moves the current dust particle for the left view.
-
-* Entry: A5 = ptr: dust record
-*		 A3 = ptr: dust cosine table
-*		 A4 = ptr: dust sine table
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr move_left
-
-	movem.l dust_x(a5),d0/d1 ; fetch coords
-	move dust_rate(a6),d2 ; calculate movement
-	mulu #20000,d2
-	sub.l d2,d0 ; move dust (x only)
-	swap d0 ; off screen ?
-	swap d1
-	outcodes d0,d1,d2
-	tst d2
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_35
-	bsr new_coords ; generate new coords
-	bra.s q_dust_m68_36
-q_dust_m68_35:
-	swap d0
-	swap d1
-q_dust_m68_36:
-	movem.l d0/d1,dust_x(a5) ; update dust record
-
-	q_ret
-
-
-* *******************************************
-* **									   **
-* ** MOVE_RIGHT - MOVE DUST FOR RIGHT VIEW **
-* **									   **
-* *******************************************
-
-* Moves the current dust particle for the right view.
-
-* Entry: A5 = ptr: dust record
-*		 A3 = ptr: dust cosine table
-*		 A4 = ptr: dust sine table
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr move_right
-
-	movem.l dust_x(a5),d0/d1 ; fetch coords
-	move dust_rate(a6),d2 ; calculate movement
-	mulu #20000,d2
-	add.l d2,d0 ; move dust (x only)
-	swap d0 ; off screen ?
-	swap d1
-	outcodes d0,d1,d2
-	tst d2
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_37
-	bsr new_coords ; generate new coords
-	bra.s q_dust_m68_38
-q_dust_m68_37:
-	swap d0
-	swap d1
-q_dust_m68_38:
-	movem.l d0/d1,dust_x(a5) ; update dust record
-
-	q_ret
-
-
-* **************************************
-* **								  **
-* ** NEW_COORDS - GENERATE NEW COORDS **
-* **								  **
-* **************************************
-
-* Generate new dust coords and speed.
-
-* Entry: A5 	 = ptr: dust record
-* Exit:  (D0,D1) = new dust coords
-
-* Regs: ?
-* Subr: ?
-
-	q_subr new_coords
-
-q_dust_m68_39:
-	move #x_size,d2 ; x = rand(x_size)+x_min
-	jsr rand
-	add #x_min,d0
-	q_push d0
-	move #y_size,d2 ; y = rand(y_size)+y_min
-	jsr rand
-	add #y_min,d0
-	move d0,d1
-	move d0,d2
-	q_pop d0 ; until x<>0 and y<>0
-	or d0,d2
-	beq q_dust_m68_39
-q_dust_m68_40:
-	swap d0 ; move coords to high word
-	swap d1
-	clr d0
-	clr d1
-
-	q_ret return
-
-
-* ***************************************
-* **								   **
-* ** INIT_DUST - INITIALISE DUST CLOUD **
-* **								   **
-* ***************************************
-
-* Initialise dust cloud on all four views. Calculates the dust sine and
-* cosine tables.
-
-* Entry: None
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr init_dust,global
-
-	lea dust_front(a6),a5 ; point to 1st record
-	q_loop 1,no_dust*4 ; loop for each record
-	bsr new_coords ; generate new coords
-	movem.l d0/d1,dust_x(a5)
-	lea dust_len(a5),a5 ; next record
-	q_next 1
-
-	q_ret
-
-
-* *************************************
-* **								 **
-* ** DRAW_DUST - DRAW THE DUST CLOUD **
-* **								 **
-* *************************************
-
-* Draws the dust cloud (and moves it).
-
-* Entry: None
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr draw_dust
-
-	tst witch_space(a6) ; in witch space ?
-	q_ret ne ; yes, no dust
-	move view(a6),d0 ; fetch current view
-	tst retro_count(a6) ; retros active ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_41
-	bchg #0,d0 ; flip view
-q_dust_m68_41:
-	asl #3,d0
-	lea setup_vectors(pc),a0
-	move.l 0(a0,d0),move_ptr(a6) ; set move vector
-	move view(a6),d0 ; set dust base pointer
-	asl #3,d0
-	move.l 4(a0,d0),d0
-	lea (a6,d0),a0
-	move.l a0,dust_ptr(a6)
-	tst roll_angle(a6) ; rolling left/right ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_43
-	lea dust_roll_ptrs(pc),a0 ; setup dust rotation
-	bsr setup_rotate
-	movem.l d0/d1/a0,roll_pars(a6)
-q_dust_m68_43:
-	tst climb_angle(a6) ; climb/diving ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_dust_m68_45
-	lea dust_climb_ptrs(pc),a0 ; setup dust rotation
-	bsr setup_rotate
-	movem.l d0/d1/a0,climb_pars(a6)
-q_dust_m68_45:
-	tst dust_type(a6) ; normal dust ?
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_dust_m68_47
-	moveq #yellow,d0 ; set dust colour to yellow
-	jsr set_colour
-	move retro_count(a6),d0 ; retro's active ?
-; Quelo: 		if <eq> then.s					no
-	bne.s q_dust_m68_49
-	move speed(a6),d0
-; Quelo: 			if d0 <hi> #max_speed then.s
-	cmp #max_speed,d0
-	bls.s q_dust_m68_51
-	moveq #max_speed,d0
-q_dust_m68_51:
-	bra.s q_dust_m68_50
-q_dust_m68_49:
-	mulu #max_speed,d0
-	divu #retro_life,d0
-q_dust_m68_50:
-	bra.s q_dust_m68_48
-q_dust_m68_47:
-	move #max_speed/8,d0
-q_dust_m68_48:
-	cmp #1,view(a6) ; rear view ? 	** FUDGE **
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_dust_m68_53
-	tst climb_angle(a6) ; climb/dive ?
-; Quelo: 		if <ne> then.s					yes
-	beq.s q_dust_m68_55
-	cmp #max_speed/2,d0 ; clamp at half maximum speed
-; Quelo: 			if <hi> then.s
-	bls.s q_dust_m68_57
-	moveq #max_speed/2,d0
-q_dust_m68_57:
-q_dust_m68_55:
-q_dust_m68_53:
-	mulu #max_dust_speed,d0 ; calculate dust speed
-	divu #max_speed,d0
-	q_inc d0
-	move d0,dust_rate(a6)
-	lea dust_cos,a3 ; point to trig tables
-	lea dust_sin,a4
-	move.l dust_ptr(a6),a5 ; point to 1st record
-	move #no_dust,dust_count(a6) ; loop for each particle
-q_dust_m68_59:
-	tst dust_type(a6) ; normal dust ?
-; Quelo: 		if <ne> then.s					no
-	beq.s q_dust_m68_61
-	move dust_count(a6),d0 ; set the dust colour
-	and #7,d0
-	add d0,d0
-	lea dust_colours(pc),a0
-	move (a0,d0),d0
-	jsr set_colour
-q_dust_m68_61:
-	move.l move_ptr(a6),a0 ; move the dust
-	jsr (a0)
-	swap d0 ; convert to physical screen coords
-	swap d1
-	add #x_left-x_min,d0
-	neg d1
-	add #y_top+y_max,d1
-	jsr plotxy ; plot pixel
-	tst roll_angle(a6) ; rolling ?
-; Quelo: 		if <ne> then.s					yes
-	beq.s q_dust_m68_63
-	movem.l roll_pars(a6),d0/d1/a0
-	jsr (a0)
-q_dust_m68_63:
-	tst climb_angle(a6) ; climbing ?
-; Quelo: 		if <ne> then.s					yes
-	beq.s q_dust_m68_65
-	movem.l climb_pars(a6),d0/d1/a0
-	jsr (a0)
-q_dust_m68_65:
-	lea dust_len(a5),a5 ; next particle
-	q_dec dust_count(a6)
-	bne q_dust_m68_59
-q_dust_m68_60:
-
-	q_ret
-
-
-* **********************************
-* **							  **
-* ** DUST_CLOUD - DRAW DUST CLOUD **
-* **							  **
-* **********************************
-
-* Draws the cloud of dust with special checks for hyperspace and torus
-* jump drive.
-
-* Entry: None
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr dust_cloud,global
-
-	tst dust_type(a6) ; normal dust ?
-	beq draw_dust ; yes, draw the dust
-	move dust_size(a6),d7 ; draw the dust
-	q_loop 1
-	q_push d7
-	jsr draw_dust
-	q_pop d7
-	q_next 1
-	q_dec dust_ctr(a6) ; ready for change in length ?
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_dust_m68_67
-	move latch(a6),dust_ctr(a6) ; re-load counter
-	move dust_size(a6),d0 ; fetch length of dust
-	cmp max_len(a6),d0 ; already at maximum length ?
-; Quelo: 		if <lo> then.s					no
-	bhs.s q_dust_m68_69
-	q_inc dust_size(a6)
-q_dust_m68_69:
-q_dust_m68_67:
-
-	q_ret return
-
-
-* *************************************************
-* **											 **
-* ** SETUP_ROTATE - SETUP DUST ROTATE PARAMETERS **
-* **											 **
-* *************************************************
-
-* Sets up the parameters for the dust rotation depending upon the view.
-
-* Entry: A0 = ptr: table of pointers
-* Exit:  D0 = parameter #1	(trig value)
-*		 D1 = parameter #2	(only if rotate)
-*		 A0 = ptr: rotate routine (Rotate_Dust or Dust_Vert)
-
-* Regs: ?
-* Subr: ?
-
-	q_subr setup_rotate
-
-	move view(a6),d0 ; fetch current view
-	asl #2,d0 ; index into table
-	move.l (a0,d0),a0 ; execute routine and return
-	jmp (a0)
-
-
-* ************************
-* **					**
-* ** ROTATE SUBROUTINES **
-* **					**
-* ************************
-
-* The 8 subroutines below are called by ROTATE_VIEW to rotate the dust
-* cloud in response the player climbing or rolling. The routines are
-* split into two halves: rolling and climbing. There are four routines in
-* each section (four views).
-
-* Entry: A0 = ptr: rotate vector table (i.e. rotate or climb)
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr rview_front
-
-	move.l roll_cos(a6),d0 ; cos = cos(roll)
-	move.l roll_sin(a6),d1 ; sin = sin(roll)
-	asl.l #6,d0 ; scale trig values to 16 bit
-	swap d0
-	asl.l #6,d1
-	swap d1
-	lea rotate_dust(pc),a0 ; using Rotate_Dust routine
-
-	q_ret
-
-	q_subr rview_rear
-
-	move.l roll_cos(a6),d0 ; cos = cos(roll)
-	move.l roll_sin(a6),d1 ; sin = -sin(roll)
-	neg.l d1
-	asl.l #6,d0 ; scale trig values to 16 bit
-	swap d0
-	asl.l #6,d1
-	swap d1
-	lea rotate_dust(pc),a0 ; using Rotate_Dust routine
-
-	q_ret
-
-	q_subr rview_left
-
-	move.l roll_sin(a6),d0 ; Left view has negative world x: y -= sin(roll)
-	neg.l d0
-	asl.l #1,d0 ; sin*2^24 -> 512*sin pixels in 16.16 format
-	lea dust_vert(pc),a0 ; using Dust_Vert routine
-
-	q_ret
-
-	q_subr rview_right
-
-	move.l roll_sin(a6),d0 ; Right view has positive world x: y += sin(roll)
-	asl.l #1,d0 ; match the 512-pixel object projection scale
-	lea dust_vert(pc),a0 ; using Dust_Vert routine
-
-	q_ret
-
-	q_subr cview_front
-
-	move.l climb_sin(a6),d0 ; Move vertically using -sin(climb)
-	neg.l d0
-	asl.l #1,d0 ; match the 512-pixel object projection scale
-	lea dust_vert(pc),a0 ; using Dust_Vert routine
-
-	q_ret
-
-	q_subr cview_rear
-
-	move.l climb_sin(a6),d0 ; Move vertically using sin(climb)
-	asl.l #1,d0 ; match the 512-pixel object projection scale
-	lea dust_vert(pc),a0 ; using Dust_Vert routine
-
-	q_ret
-
-	q_subr cview_left
-
-	move.l climb_cos(a6),d0 ; cos = cos(climb)
-	move.l climb_sin(a6),d1 ; sin = -sin(climb)
-	neg.l d1
-	asl.l #6,d0 ; scale trig values to 16 bit
-	swap d0
-	asl.l #6,d1
-	swap d1
-	lea rotate_dust(pc),a0 ; using Rotate_Dust routine
-
-	q_ret
-
-	q_subr cview_right
-
-	move.l climb_cos(a6),d0 ; cos = cos(climb)
-	move.l climb_sin(a6),d1 ; sin = sin(climb)
-	asl.l #6,d0 ; scale trig values to 16 bit
-	swap d0
-	asl.l #6,d1
-	swap d1
-	lea rotate_dust(pc),a0 ; using Rotate_Dust routine
-
-	q_ret
-
-
-* **************************************
-* **								  **
-* ** ROTATE_DUST - ROTATE DUST AROUND **
-* **								  **
-* **************************************
-
-* Rotates the current particle of dust using the rotation equation:
-
-*		x' = x*cos(a)-y*sin(a)
-*		y' = x*sin(a)+y*cos(a)
-
-* The screen coords of each particle of dust is stored in the top 16 bits
-* of the dusts coordinates. It is these values that are rotated around.
-
-* Entry: D0 = cosine value
-*		 D1 = sine value
-*		 A5 = ptr: dust record
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr rotate_dust
-
-	move dust_x(a5),d2 ; fetch x and y coords (high word)
-	move dust_y(a5),d3
-	move d2,d4 ; x*cos(a)
-	muls d0,d4
-	move d3,d5 ; y*sin(a)
-	muls d1,d5
-	sub.l d5,d4 ; x*cos(a)-y*sin(a)
-	asl.l #2,d4
-	swap d4
-	move d2,d5 ; x*sin(a)
-	muls d1,d5
-	move d3,d6 ; y*cos(a)
-	muls d0,d6
-	add.l d6,d5 ; x*sin(a)+y*cos(a)
-	asl.l #2,d5
-	swap d5
-	move d4,dust_x(a5) ; store new coords and adjust the
-	eor d2,d4 ; sign of the low words if changed
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_71
-	neg dust_x+2(a5)
-q_dust_m68_71:
-	move d5,dust_y(a5)
-	eor d3,d5
-; Quelo: 	if <mi> then.s
-	bpl.s q_dust_m68_73
-	neg dust_y+2(a5)
-q_dust_m68_73:
-
-	q_ret
-
-
-* **************************************
-* **								  **
-* ** DUST_VERT - MOVE DUST VERTICALLY **
-* **								  **
-* **************************************
-
-* Moves the dust particle vertically at the object projection scale.
-* This is the small-angle approximation 512*sin(angle); preserve fractional
-* pixels so slow turns accumulate smoothly in either direction.
-
-* Entry: D0.L = signed 16.16 pixel displacement
-* Exit:  None
-
-* Regs: ?
-* Subr: ?
-
-	q_subr dust_vert
-
-	add.l d0,dust_y(a5) ; retain fractional pixels, including across zero
-
-	q_ret
-
-
-* ---- LOCAL DATA ----
-
-* Vectors for setup routine for eaxh view.
-
-setup_vectors:
-
-	dc.l move_forward,dust_front
-	dc.l move_rear,dust_rear
-	dc.l move_left,dust_left
-	dc.l move_right,dust_right
-
-* List of colours for the dust.
-
+dust_ptr: rs.l 1
+move_ptr: rs.l 1
+dust_motion: rs.w 1            ; front/rear/left/right, including retro reversal
+dust_step: rs.w 1              ; speed*64 in depth's 8.8 units
+dust_speed: rs.w 1
+dust_count: rs.w 1
+dust_exit_edge: rs.w 1
+dust_plane_sin: rs.w 1         ; signed Q14 angles at the host projection scale
+dust_plane_cos: rs.w 1
+dust_vertical_sin: rs.w 1
+dust_vertical_cos: rs.w 1
+    q_end_vars dust
+    q_module dust
+
+; Uniform initial coordinates, including both extreme viewport columns.
+    q_subr new_coords
+    move.w #x_size,d2
+    jsr rand
+    add.w #x_min,d0
+    move.w d0,-(sp)
+    move.w #y_size,d2
+    jsr rand
+    add.w #y_min,d0
+    swap d0
+    clr.w d0
+    move.l d0,dust_y(a5)
+    move.w (sp)+,d0
+    swap d0
+    clr.w d0
+    move.l d0,dust_x(a5)
+    rts
+
+; STARS1: replace departed dust with distant particles spread over the view.
+    q_subr new_front
+    bsr new_coords
+    move.w dust_x(a5),d0
+    bpl.s .positive_x
+    cmp.w #-8,d0
+    ble.s .y
+    move.l #-8*65536,dust_x(a5)
+    bra.s .y
+.positive_x:
+    cmp.w #8,d0
+    bge.s .y
+    move.l #8*65536,dust_x(a5)
+.y:
+    move.w dust_y(a5),d0
+    bpl.s .positive_y
+    cmp.w #-4,d0
+    ble.s .depth
+    move.l #-4*65536,dust_y(a5)
+    bra.s .depth
+.positive_y:
+    cmp.w #4,d0
+    bge.s .depth
+    move.l #4*65536,dust_y(a5)
+.depth:
+    jsr random
+    or.w #144,d0
+    lsl.w #8,d0
+    move.w d0,dust_z(a5)
+    rts
+
+; STARS6: new rear-view particles enter on any of the four borders.
+    q_subr new_rear
+    bsr new_coords
+    jsr random
+    and.w #3,d0
+    add.w d0,d0
+    lea rear_edges(pc),a0
+    move.w (a0,d0.w),d1
+    cmp.w #4,d0
+    bge.s .horizontal
+    swap d1
+    clr.w d1
+    move.l d1,dust_x(a5)
+    bra.s .depth
+.horizontal:
+    swap d1
+    clr.w d1
+    move.l d1,dust_y(a5)
+.depth:
+    jsr random
+    and.w #127,d0
+    add.w #10,d0
+    lsl.w #8,d0
+    move.w d0,dust_z(a5)
+    rts
+
+; STARS2: use the incoming side, or the opposite vertical edge after a turn.
+; D2 = outcodes, bit 0/1 horizontal, bit 2/3 vertical.
+    q_subr new_side
+    move.w d2,-(sp)
+    bsr new_coords
+    move.w (sp)+,d2
+    and.w #3,d2
+    beq.s .vertical
+    move.w #x_max,d0
+    cmp.w #2,dust_motion(a6)
+    beq.s .x
+    move.w #x_min,d0
+.x:
+    swap d0
+    clr.w d0
+    move.l d0,dust_x(a5)
+    bra.s .depth
+.vertical:
+    ; The caller saved the exited edge before random coordinates replaced it.
+    move.w dust_exit_edge(a6),d0
+    swap d0
+    clr.w d0
+    move.l d0,dust_y(a5)
+.depth:
+    jsr random
+    or.w #8,d0
+    lsl.w #8,d0
+    move.w d0,dust_z(a5)
+    rts
+
+    q_subr init_dust,global
+    lea dust_front(a6),a5
+    move.w #no_dust*4-1,d7
+.loop:
+    bsr new_front
+    lea dust_len(a5),a5
+    dbra d7,.loop
+    rts
+
+; Native speed units feed the original speed*64 depth step. Stopping the
+; engines really stops translation; the BBC's minimum quotient applies only
+; while moving. No direction lookup files are needed.
+    q_subr setup_dust
+    move.w view(a6),d0
+    and.w #3,d0
+    move.w d0,d1
+    mulu #dust_store,d0
+    lea dust_front(a6),a5
+    adda.w d0,a5
+    move.l a5,dust_ptr(a6)
+    move.w d1,dust_motion(a6)
+    tst.w retro_count(a6)
+    beq.s .speed
+    eor.w #1,dust_motion(a6)
+.speed:
+    move.w speed(a6),d0
+    cmp.w #max_speed,d0
+    bls.s .retro
+    move.w #max_speed,d0
+.retro:
+    tst.w retro_count(a6)
+    beq.s .special
+    move.w retro_count(a6),d0
+    mulu #max_speed,d0
+    divu #retro_life,d0
+.special:
+    tst.w dust_type(a6)
+    beq.s .step
+    move.w #max_speed/8,d0
+.step:
+    move.w d0,dust_speed(a6)
+    lsl.w #6,d0
+    move.w d0,dust_step(a6)
+    move.w dust_motion(a6),d0
+    lsl.w #2,d0
+    lea movement_vectors(pc),a0
+    move.l (a0,d0.w),move_ptr(a6)
+
+    ; Q24 game angles -> Q14. A positive vertical sine moves dust up.
+    move.l roll_sin(a6),d0
+    move.l roll_cos(a6),d1
+    move.l climb_sin(a6),d2
+    move.l climb_cos(a6),d3
+    moveq #10,d4
+    asr.l d4,d0
+    asr.l d4,d1
+    asr.l d4,d2
+    asr.l d4,d3
+    move.w view(a6),d4
+    cmp.w #2,d4
+    blo.s .front_rear
+    exg d0,d2
+    exg d1,d3
+    cmp.w #2,d4
+    bne.s .angles
+    neg.w d0                   ; left: inverse pitch, inverse roll
+    neg.w d2
+    bra.s .angles
+.front_rear:
+    tst.w d4
+    beq.s .front
+    neg.w d0                   ; rear: inverse roll, positive pitch
+    bra.s .angles
+.front:
+    neg.w d2
+.angles:
+    move.w d0,dust_plane_sin(a6)
+    move.w d1,dust_plane_cos(a6)
+    move.w d2,dust_vertical_sin(a6)
+    move.w d3,dust_vertical_cos(a6)
+    rts
+
+; STARS1/STARS6 radial expansion/contraction: q=(64*speed/z_hi)|1.
+    q_subr move_forward
+    tst.w dust_step(a6)
+    beq.s .done
+    moveq #0,d6
+    move.w dust_z(a5),d6
+    sub.w dust_step(a6),d6
+    cmp.w #16*256,d6
+    blo new_front
+    bsr radial_delta
+    add.l d2,dust_x(a5)
+    add.l d3,dust_y(a5)
+    move.w d6,dust_z(a5)
+.done:
+    rts
+
+    q_subr move_rear
+    moveq #0,d6
+    move.w dust_z(a5),d6
+    moveq #0,d0
+    move.w dust_step(a6),d0
+    add.l d0,d6
+    cmp.l #160*256,d6
+    bhs new_rear
+    tst.w d0
+    beq.s .done
+    bsr radial_delta
+    sub.l d2,dust_x(a5)
+    sub.l d3,dust_y(a5)
+    move.w d6,dust_z(a5)
+.done:
+    rts
+
+; Returns Q16 pixel deltas in D2/D3. D6 keeps the updated depth.
+    q_subr radial_delta
+    moveq #0,d7
+    move.w dust_step(a6),d7
+    move.w dust_z(a5),d4
+    lsr.w #8,d4
+    divu d4,d7
+    or.w #1,d7
+    move.w dust_x(a5),d2
+    ; The BBC magnitude byte truncates towards zero, also left/below centre.
+    bpl.s .y
+    tst.w dust_x+2(a5)
+    beq.s .y
+    addq.w #1,d2
+.y:
+    move.w dust_y(a5),d3
+    bpl.s .multiply
+    tst.w dust_y+2(a5)
+    beq.s .multiply
+    addq.w #1,d3
+.multiply:
+    muls d7,d2
+    muls d7,d3
+    asl.l #8,d2
+    asl.l #8,d3
+    rts
+
+    q_subr move_left
+    moveq #-1,d7
+    bra move_side
+
+    q_subr move_right
+    moveq #1,d7
+
+; STARS2's 8*speed/z_hi pixels, retaining fractional motion at all depths.
+    q_subr move_side
+    moveq #0,d2
+    move.w dust_speed(a6),d2
+    beq.s .done
+    lsl.l #8,d2
+    lsl.l #3,d2
+    move.w dust_z(a5),d3
+    lsr.w #8,d3
+    divu d3,d2
+    and.l #$ffff,d2
+    lsl.l #8,d2
+    tst.w d7
+    bpl.s .add
+    neg.l d2
+.add:
+    add.l d2,dust_x(a5)
+.done:
+    rts
+
+; Apply the two view-dependent rotations using this game's focal length 512.
+; Plane rotation accumulates deltas rather than throwing away subpixel bits.
+; Vertical rotation projects (x, y*cos + 512*sin, cos - y*sin/512), avoiding
+; the BBC front-view approximation's sideways bias during pitch.
+    q_subr rotate_dust
+    move.w dust_plane_sin(a6),d0
+    move.w dust_plane_cos(a6),d1
+    sub.w #16384,d1
+    move.w d0,d4
+    or.w d1,d4
+    beq.s .vertical
+    move.w dust_x(a5),d2
+    move.w dust_y(a5),d3
+    move.w d2,d4
+    muls d1,d4
+    move.w d3,d5
+    muls d0,d5
+    sub.l d5,d4
+    muls d0,d2
+    muls d1,d3
+    add.l d3,d2
+    asl.l #2,d4
+    asl.l #2,d2
+    add.l d4,dust_x(a5)
+    add.l d2,dust_y(a5)
+.vertical:
+    move.w dust_vertical_sin(a6),d0
+    beq .done
+    move.w dust_vertical_cos(a6),d1
+    move.w dust_y(a5),d3
+    move.w d3,d4
+    muls d0,d4
+    asr.l #8,d4
+    asr.l #1,d4
+    move.w d1,d6
+    sub.w d4,d6               ; denominator = cos - y*sin/512, in Q14
+    ble.s .outside
+    move.w #16384,d4
+    sub.w d6,d4
+    move.w dust_x(a5),d2
+    muls d4,d2
+    asl.l #8,d2
+    divs d6,d2               ; delta x in signed 8.8
+    bvs.s .outside
+    ext.l d2
+    asl.l #8,d2
+    add.l d2,dust_x(a5)
+    sub.w d6,d1
+    muls d1,d3
+    ext.l d0
+    asl.l #8,d0
+    asl.l #1,d0
+    add.l d0,d3
+    asl.l #8,d3
+    divs d6,d3               ; delta y in signed 8.8
+    bvs.s .outside
+    ext.l d3
+    asl.l #8,d3
+    add.l d3,dust_y(a5)
+.done:
+    rts
+.outside:
+    move.l #(y_max+256)*65536,dust_y(a5)
+    rts
+
+; Return outcodes in D2 and remember the incoming vertical edge for STARS2.
+    q_subr dust_bounds
+    clr.w d2
+    move.w dust_x(a5),d0
+    cmp.w #x_min,d0
+    bge.s .right
+    bset #0,d2
+.right:
+    cmp.w #x_max,d0
+    ble.s .bottom
+    bset #1,d2
+.bottom:
+    move.w dust_y(a5),d1
+    move.w #y_max,dust_exit_edge(a6)
+    cmp.w #y_min,d1
+    bge.s .top
+    bset #2,d2
+.top:
+    cmp.w #y_max,d1
+    ble.s .done
+    bset #3,d2
+    move.w #y_min,dust_exit_edge(a6)
+.done:
+    tst.w d2
+    rts
+
+    q_subr recycle_dust
+    cmp.w #1,dust_motion(a6)
+    beq new_rear
+    blo new_front
+    bra new_side
+
+    q_subr update_dust
+    bsr dust_bounds
+    bne recycle_dust
+    cmp.w #8*256,dust_z(a5)    ; valid denominator before any depth division
+    bhs.s .rotate
+    moveq #3,d2
+    bra recycle_dust
+.rotate:
+    bsr rotate_dust
+    bsr dust_bounds
+    bne recycle_dust
+    move.l move_ptr(a6),a0
+    jsr (a0)
+    bsr dust_bounds
+    bne recycle_dust
+    rts
+
+; Keep every star exactly one pixel, regardless of depth.
+    q_subr plot_dust
+    move.w dust_x(a5),d0
+    move.w dust_y(a5),d1
+    jmp c_plotxy
+
+    q_subr draw_dust
+    tst.w witch_space(a6)
+    bne.s .done
+    bsr setup_dust
+    moveq #yellow,d0
+    jsr set_colour
+    move.l dust_ptr(a6),a5
+    move.w #no_dust,dust_count(a6)
+.loop:
+    tst.w dust_type(a6)
+    beq.s .draw
+    move.w dust_count(a6),d0
+    and.w #7,d0
+    add.w d0,d0
+    lea dust_colours(pc),a0
+    move.w (a0,d0.w),d0
+    jsr set_colour
+.draw:
+    ; Like objects, display the current state then advance it for next frame.
+    bsr plot_dust
+    bsr update_dust
+    lea dust_len(a5),a5
+    subq.w #1,dust_count(a6)
+    bne.s .loop
+.done:
+    rts
+
+; Preserve the game's coloured torus/hyperspace trail duration and growth.
+    q_subr dust_cloud,global
+    tst.w dust_type(a6)
+    beq draw_dust
+    move.w dust_size(a6),d7
+    q_loop 1
+    q_push d7
+    bsr draw_dust
+    q_pop d7
+    q_next 1
+    subq.w #1,dust_ctr(a6)
+    bne.s .done
+    move.w latch(a6),dust_ctr(a6)
+    move.w dust_size(a6),d0
+    cmp.w max_len(a6),d0
+    bhs.s .done
+    addq.w #1,dust_size(a6)
+.done:
+    rts
+
+; ---- LOCAL DATA ----
+movement_vectors:
+    dc.l move_forward,move_rear,move_left,move_right
+rear_edges:
+    dc.w x_min,x_max,y_min,y_max
 dust_colours:
-
-	dc.w red,lgt_green,mid_blue,magenta,white,yellow,lgt_blue,lgt_grey
-
-* Table of pointers for dust rotation.
-
-dust_roll_ptrs:
-
-	dc.l rview_front,rview_rear,rview_left,rview_right
-
-dust_climb_ptrs:
-
-	dc.l cview_front,cview_rear,cview_left,cview_right
+    dc.w red,lgt_green,mid_blue,magenta,white,yellow,lgt_blue,lgt_grey

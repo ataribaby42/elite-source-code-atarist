@@ -56,7 +56,7 @@ Viewport clearing uses three `MOVEM.L` stores per row (11 + 11 + 10 longwords), 
 
 The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matching the full cleared screen area `x=32..287`, `y=8..119` (256 x 112 pixels). Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping, so they cannot overwrite the cockpit border.
 
-The build expands the original 57 x 128 dust lookup tables to 57 x 129, preserving every original cell and adding the direction at `abs(x)=128`. Each generated `DCOS.DAT` and `DSIN.DAT` is 14,706 bytes. Use the newly built disk image or copy the complete output directory, including these tables, when updating the game. The forward starfield rejects coordinates moved outside the viewport by rotation before looking up a direction.
+The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
 
@@ -64,7 +64,7 @@ The optional `tests/test_sprites.py` suite uses `unicorn==2.1.4`. It executes th
 
 The optional `tests/test_raster.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 raster routines and compare guarded buffers against a pixel reference, covering viewport clearing, the flyback wait, preserved registers, all line directions, 120 panel colour patterns, 16 solid colours, word boundaries and both screens. These checks do not measure gameplay frame rate. The normal game build has no new package dependency.
 
-The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, large unclipped circle spans, and starfield table reads at both edges. Entire guarded screen buffers are compared with a pixel reference. The table size and original-cell preservation tests run without Unicorn.
+The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, and large unclipped circle spans. Entire guarded screen buffers are compared with a pixel reference. `tests/test_starfield.py` verifies depth-based motion, all four views, retro rockets, rotation, recycling, and one-pixel stars on MC68000 and MC68020 CPU models.
 
 Use `src_atari/tools/run_hatari.py` to repeat the startup diagnostic. It requires a separately installed Windows [Hatari 2.6.1](https://www.hatari-emu.org/download.html) and your own TOS ROM. Supply their paths as arguments; the emulator is not copied into the repository:
 
