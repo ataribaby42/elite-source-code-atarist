@@ -160,7 +160,7 @@ q_flight_m68_18:
 ; Quelo: 	if <lo> then.s						no
 	bhs.s q_flight_m68_19
 	move speed(a6),d0 ; increase speed
-	addq #2,d0
+	addq #1,d0
 ; Quelo: 		if d0 <hi> #max_speed then.s
 	cmp #max_speed,d0
 	bls.s q_flight_m68_21
@@ -194,7 +194,7 @@ q_flight_m68_19:
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_flight_m68_23
 	move speed(a6),d0 ; decrease speed
-	subq #2,d0
+	subq #1,d0
 ; Quelo: 		if <mi> then.s
 	bpl.s q_flight_m68_25
 	clr d0
