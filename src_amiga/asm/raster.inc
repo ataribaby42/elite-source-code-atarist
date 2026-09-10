@@ -23,16 +23,37 @@ native_plot macro
     or.w \4,120(\3)
     endm
 
+native_plot_cached macro
+    ; Mask, two cached pairs of plane words, destination, temporary data register.
+    not.w \1
+    and.w \1,(\4)
+    and.w \1,40(\4)
+    and.w \1,80(\4)
+    and.w \1,120(\4)
+    not.w \1
+    move.l \2,\5
+    swap \5
+    and.w \1,\5
+    or.w \5,(\4)
+    move.w \2,\5
+    and.w \1,\5
+    or.w \5,40(\4)
+    move.l \3,\5
+    swap \5
+    and.w \1,\5
+    or.w \5,80(\4)
+    move.w \3,\5
+    and.w \1,\5
+    or.w \5,120(\4)
+    endm
+
 native_fill macro
-    swap \1
-    move.w \1,0(\3)
-    swap \1
-    move.w \1,40(\3)
-    swap \2
-    move.w \2,80(\3)
-    swap \2
-    move.w \2,120(\3)
-    addq.l #2,\3
+    ; Four cached plane words, followed by the destination address register.
+    move.w \1,(\5)
+    move.w \2,40(\5)
+    move.w \3,80(\5)
+    move.w \4,120(\5)
+    addq.l #2,\5
     endm
 
 native_copy macro

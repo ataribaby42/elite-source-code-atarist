@@ -158,17 +158,20 @@ q_graphics_m68_6\@:
     move.l scr_base(a6),a0
     lea y_top*160+x_left/8(a0),a0
     moveq #0,d0
+    moveq #0,d1
+    moveq #0,d2
+    moveq #0,d3
+    moveq #0,d4
+    moveq #0,d5
+    moveq #0,d6
+    move.l d0,a1
     move #y_size-1,d7
 .row:
-    move.l a0,a1
-    moveq #3,d6
-.plane:
-    move #(x_size/8)/4-1,d5
-.words:
-    move.l d0,(a1)+
-    dbra d5,.words
-    lea 40-x_size/8(a1),a1
-    dbra d6,.plane
+    ; The 256-pixel viewport occupies 32 bytes in each 40-byte plane row.
+    movem.l d0-d6/a1,(a0)
+    movem.l d0-d6/a1,40(a0)
+    movem.l d0-d6/a1,80(a0)
+    movem.l d0-d6/a1,120(a0)
     lea 160(a0),a0
     dbra d7,.row
     clr.l next_record(a6)
@@ -767,13 +770,12 @@ q_graphics_m68_57:
 	movem.l d4/a0,-(sp) ; save depth and addresses
 	and #15,d3 ; adjust no. pixels left to draw
 	q_dec d5 ; adjust counter for DBRA
-	move.l 0(a2),d0 ; get line colour
-	move.l 4(a2),d1
+	movem.w (a2),d0/d1/d7/a4 ; cache the four plane words for the whole block
 	q_loop 1 ; loop for each pixel line
 	move.l a0,a1 ; fill words
 	move.w d5,d6
 	q_loop 2
-	native_fill d0,d1,a1
+	native_fill d0,d1,d7,a4,a1
 	q_next 2,d6
 	lea 160(a0),a0 ; next pixel line
 	q_next 1,d4
@@ -1158,7 +1160,7 @@ q_graphics_m68_81:
 *		 (D2,D3) = x,y coord of point #2
 * Exit:  None
 
-* Regs:  D0-D6 and A0-A2 corrupt.
+* Regs:  D0-D6 and A0-A3 corrupt; D7 is preserved.
 * Subr:  DOT_TO_ADDR
 
 	q_subr line,global
@@ -1196,6 +1198,7 @@ q_graphics_m68_89:
 	asl #2,d0
 	lea bit_masks(pc),a3
 	move.l (a3,d0),d0
+	move.l d7,-(sp) ; preserve the caller's loop counter while caching colours
 ; Quelo: 	if d2 <hs> d3 then					if x diff >= y diff
 	cmp d3,d2
 	blo q_graphics_m68_91
@@ -1205,8 +1208,9 @@ q_graphics_m68_89:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_93
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1
-	native_plot d0,a1,a0,d5
+	native_plot_cached d0,d4,d7,a0,d5
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_95
@@ -1221,8 +1225,9 @@ q_graphics_m68_97:
 	q_next 1,d6 ; next point
 	bra q_graphics_m68_94
 q_graphics_m68_93:
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1
-	native_plot d0,a1,a0,d5
+	native_plot_cached d0,d4,d7,a0,d5
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_99
@@ -1244,8 +1249,9 @@ q_graphics_m68_91:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_103
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot d0,a1,a0,d5
+	native_plot_cached d0,d4,d7,a0,d5
 	lea 160(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
@@ -1260,8 +1266,9 @@ q_graphics_m68_105:
 	q_next 1,d6 ; next pixel
 	bra q_graphics_m68_104
 q_graphics_m68_103:
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot d0,a1,a0,d5
+	native_plot_cached d0,d4,d7,a0,d5
 	lea 160(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
@@ -1277,6 +1284,7 @@ q_graphics_m68_109:
 q_graphics_m68_104:
 q_graphics_m68_92:
 
+	move.l (sp)+,d7
 	q_ret
 
 
@@ -1327,10 +1335,9 @@ q_graphics_m68_113:
 	beq q_graphics_m68_117
 	and #15,d2 ; adjust no. pixels left to draw
 	q_dec d5 ; adjust counter for DBRA
-	move.l 0(a1),d0 ; get line colour
-	move.l 4(a1),d1
+	movem.w (a1),d0/d1/d4/d6 ; cache the four plane words before filling
 	q_loop 1 ; fill words
-	native_fill d0,d1,a0
+	native_fill d0,d1,d4,d6,a0
 	q_next 1,d5
 q_graphics_m68_117:
 	tst d2 ; any pixels left to draw ?
@@ -1370,8 +1377,21 @@ q_graphics_m68_117:
     moveq #1,d2
     lsl.w d0,d2
     move.w d2,d0
+    movem.w (a1),d1/d2/d4/d5
+    and.w d0,d1
+    and.w d0,d2
+    and.w d0,d4
+    and.w d0,d5
+    not.w d0 ; the pixel mask and all four colours are constant down the column
 .row:
-    native_plot d0,a1,a0,d5
+    and.w d0,(a0)
+    or.w d1,(a0)
+    and.w d0,40(a0)
+    or.w d2,40(a0)
+    and.w d0,80(a0)
+    or.w d4,80(a0)
+    and.w d0,120(a0)
+    or.w d5,120(a0)
     lea 160(a0),a0
     dbra d3,.row
     rts

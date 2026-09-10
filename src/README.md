@@ -16,7 +16,7 @@ Run all commands below from the project root. Paths in the tables and text are a
 | `src/build.bat` | Windows build entry point called by the root `build.bat`; forwards all arguments |
 | `src/build.ps1` | Python discovery and argument forwarding to `src/build.py` |
 | `src/tools/` | Original dialect converter, floppy image builder, original-file verification, and helper scripts |
-| `src/tests/` | Regression tests for the conversion and launcher |
+| `src/tests/` | Regression tests for the conversion, launcher and raster routines |
 | `src/vendor/` | Two original vasm/vlink source archives for optional tool rebuilding |
 | `src/original-sha256.json` | Baseline SHA-256 hashes of all 307 files in `src-orig` |
 | `src/build/` | Generated objects, logs, maps, and diagnostics |
@@ -51,6 +51,10 @@ python src/tools/verify_original.py
 ```
 
 The build checks all external symbols, the embedded checksum, A6 relocation to the variable area, RAM and local-variable bounds, control-key ASCII values, data buffer capacities, the TOS header, and a full readback of the FAT12 floppy image. Tests also cover sensitive Quelo conversion details, including reused labels, the tenth macro argument, and OR conditions, as well as launcher placement under TOS 1.04 and error-message termination.
+
+Viewport clearing uses three `MOVEM.L` stores per row (11 + 11 + 10 longwords), saving and restoring A2-A4 once per call. It clears the same 256 x 112 viewport and keeps the original VBL wait. Diagonal lines cache their two colour pairs in registers and preserve the caller's D7 counter. The original pixel selection, patterned colours and frame synchronization are retained.
+
+The optional `tests/test_raster.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 raster routines and compare guarded buffers against a pixel reference, covering viewport clearing, the flyback wait, preserved registers, all line directions, 120 panel colour patterns, 16 solid colours, word boundaries and both screens. These checks do not measure gameplay frame rate. The normal game build has no new package dependency.
 
 Use `src/tools/run_hatari.py` to repeat the startup diagnostic. It requires a separately installed Windows [Hatari 2.6.1](https://www.hatari-emu.org/download.html) and your own TOS ROM. Supply their paths as arguments; the emulator is not copied into the repository:
 

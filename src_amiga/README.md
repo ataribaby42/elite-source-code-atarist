@@ -39,6 +39,8 @@ Screen swapping waits for the VBL handler to accept the rendered screen before r
 - **Files:** `fileio.m68` calls AmigaDOS Open, Read, Write and Close with full 32-bit BPTR handles. Directory enumeration uses Lock, Examine and ExNext and returns commander filenames directly. It does not simulate GEMDOS traps, handle numbers or a DTA. The existing 256-byte commander format is retained.
 - **Lifecycle:** Exec remains running for input and disk I/O. Startup saves the OS View and installs the handlers; exit removes them, closes open files, releases the directory lock and restores the OS display and Copper list. Relocatable Hunk sections replace the fixed Atari memory map. Each BSS Hunk stays below the Kickstart 1.x clearing limit.
 
+Viewport clearing writes each 32-byte plane span with one MC68000 `MOVEM.L`. Vertical lines cache their masked plane colours; horizontal spans and block fills cache all four plane words. Diagonal lines cache both colour pairs and preserve the caller's D7 counter. These CPU optimizations retain patterned colours, inclusive line endpoints, viewport borders and the existing frame limiter.
+
 ## Source layout
 
 | Path within this directory | Purpose |
@@ -63,6 +65,8 @@ The build checks assembly/link diagnostics, relocations, required Chip RAM alloc
 ```powershell
 python -B -m unittest discover -s src_amiga/tests -v
 ```
+
+The optional `tests/test_raster.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 drawing routines, comparing entire guarded screen buffers with a pixel reference. Coverage includes all line directions, the 120 panel colour patterns, all 16 solid colours, horizontal word boundaries, both buffers, viewport clearing, block fills and preserved registers. This is CPU-level correctness coverage, not a WinUAE gameplay or frame-rate measurement. The normal game build has no new package dependency.
 
 Runtime checks use an isolated WinUAE 6.0.3 instance with Kickstart 1.3, PAL OCS, a real-speed MC68000, 512 KB Chip RAM and 512 KB slow RAM. Evidence and the exact executable hash are recorded locally in `build/qa/runtime-verification.json`; screenshots are in the same generated directory. `build/verification.json` reports structural checks only and does not claim emulator coverage automatically.
 

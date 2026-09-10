@@ -145,8 +145,8 @@ q_graphics_m68_6\@:
 * Entry: None
 * Exit:  None
 
-* Regs:  ?
-* Subr:  ?
+* Regs:  D0-D7 and A0-A1 corrupt; A2-A6 preserved.
+* Subr:  None
 
 	q_subr clear_image,global
 
@@ -157,7 +157,7 @@ q_graphics_m68_10:
 	clr frame_count(a6) ; clear frame counter
 	move.l scr_base(a6),a0 ; get address of window in screen RAM
 	add #(x_size+x_left)/2+y_top*160,a0
-	move #(x_size/2)+160,a1 ; offset between lines
+	movem.l a2-a4,-(sp) ; borrow three more registers for wider zero stores
 	moveq #0,d0 ; clear registers
 	move.l d0,d1
 	move.l d0,d2
@@ -165,14 +165,17 @@ q_graphics_m68_10:
 	move.l d0,d4
 	move.l d0,d5
 	move.l d0,d6
+	move.l d0,a1
+	move.l d0,a2
+	move.l d0,a3
+	move.l d0,a4
 	q_loop 1,y_size ; loop for each pixel line
-	movem.l d0-d6,-(a0) ; clear pixel line
-	movem.l d0-d6,-(a0)
-	movem.l d0-d6,-(a0)
-	movem.l d0-d6,-(a0)
-	movem.l d0-d3,-(a0)
-	add a1,a0 ; next pixel line
+	movem.l d0-d6/a1-a4,-(a0) ; 11 + 11 + 10 longs = 256 pixels in four planes
+	movem.l d0-d6/a1-a4,-(a0)
+	movem.l d0-d6/a1-a3,-(a0)
+	lea (x_size/2)+160(a0),a0 ; next pixel line
 	q_next 1
+	movem.l (sp)+,a2-a4
 	clr.l next_record(a6) ; no objects stored for drawing
 
 	q_ret
@@ -1176,7 +1179,7 @@ q_graphics_m68_81:
 *		 (D2,D3) = x,y coord of point #2
 * Exit:  None
 
-* Regs:  D0-D6 and A0-A2 corrupt.
+* Regs:  D0-D6 and A0-A3 corrupt; D7 is preserved.
 * Subr:  DOT_TO_ADDR
 
 	q_subr line,global
@@ -1214,6 +1217,7 @@ q_graphics_m68_89:
 	asl #2,d0
 	lea bit_masks(pc),a3
 	move.l (a3,d0),d0
+	move.l d7,-(sp) ; preserve the caller's loop counter while caching colours
 ; Quelo: 	if d2 <hs> d3 then					if x diff >= y diff
 	cmp d3,d2
 	blo q_graphics_m68_91
@@ -1223,16 +1227,17 @@ q_graphics_m68_89:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi.s q_graphics_m68_93
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1
 	not.l d0 ; mask out current setting
-	and.l d0,0(a0)
+	and.l d0,(a0)
 	and.l d0,4(a0)
 	not.l d0 ; plot pixel
 	move.l d0,d5
-	and.l 0(a1),d5
-	or.l d5,0(a0)
+	and.l d4,d5
+	or.l d5,(a0)
 	move.l d0,d5
-	and.l 4(a1),d5
+	and.l d7,d5
 	or.l d5,4(a0)
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 				if <cs> then.s			carry, move to new word
@@ -1248,16 +1253,17 @@ q_graphics_m68_97:
 	q_next 1,d6 ; next point
 	bra.s q_graphics_m68_94
 q_graphics_m68_93:
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1
 	not.l d0 ; mask out current setting
-	and.l d0,0(a0)
+	and.l d0,(a0)
 	and.l d0,4(a0)
 	not.l d0 ; plot pixel
 	move.l d0,d5
-	and.l 0(a1),d5
-	or.l d5,0(a0)
+	and.l d4,d5
+	or.l d5,(a0)
 	move.l d0,d5
-	and.l 4(a1),d5
+	and.l d7,d5
 	or.l d5,4(a0)
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 				if <cs> then.s			carry, move to new word
@@ -1280,16 +1286,17 @@ q_graphics_m68_91:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi.s q_graphics_m68_103
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
 	not.l d0 ; mask out current setting
-	and.l d0,0(a0)
+	and.l d0,(a0)
 	and.l d0,4(a0)
 	not.l d0 ; plot pixel
 	move.l d0,d5
-	and.l 0(a1),d5
-	or.l d5,0(a0)
+	and.l d4,d5
+	or.l d5,(a0)
 	move.l d0,d5
-	and.l 4(a1),d5
+	and.l d7,d5
 	or.l d5,4(a0)
 	lea 160(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
@@ -1305,16 +1312,17 @@ q_graphics_m68_105:
 	q_next 1,d6 ; next pixel
 	bra.s q_graphics_m68_104
 q_graphics_m68_103:
+	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
 	not.l d0 ; mask out current setting
-	and.l d0,0(a0)
+	and.l d0,(a0)
 	and.l d0,4(a0)
 	not.l d0 ; plot pixel
 	move.l d0,d5
-	and.l 0(a1),d5
-	or.l d5,0(a0)
+	and.l d4,d5
+	or.l d5,(a0)
 	move.l d0,d5
-	and.l 4(a1),d5
+	and.l d7,d5
 	or.l d5,4(a0)
 	lea 160(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
@@ -1331,6 +1339,7 @@ q_graphics_m68_109:
 q_graphics_m68_104:
 q_graphics_m68_92:
 
+	move.l (sp)+,d7
 	q_ret
 
 
