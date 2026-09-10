@@ -1,8 +1,11 @@
 ; Paula sample playback. Original Amiga effects are extracted at build time.
-; The existing Blue Danube score is played with a small looped waveform.
+; Native Amiga music decoding and instruments are provided by music.m68.
     include "common.def"
     include "macros.m68"
     xdef fx,sound,quiet,start_tune,start_fade,sounds_used
+    xref amiga_music_init,amiga_music_tick,amiga_music_periods
+    xref amiga_music_volumes,amiga_music_mute,amiga_music_retrigger
+    xref amiga_music_attack,amiga_music_loops
 sounds_used: equ 0
     section text,code
 fx:
@@ -123,7 +126,7 @@ play_effect:
 
 ; Paula applies volume at a sample-period boundary. Stopping DMA immediately
 ; after AUDxVOL can freeze the previous sample/gain. Wait before DMA-off:
-; five line transitions for effects (period <=428), seventeen for music (<=3389).
+; five line transitions for effects (period <=428), seventeen conservatively cover music periods (<=1712).
 ; D1 = line transitions minus one; D0/D1 are scratch. No OS calls from VBL.
 audio_settle:
 .line:
@@ -137,6 +140,7 @@ audio_settle:
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
     clr music_playing
+    clr music_dma
     clr fade_ticks
     clr warp_ticks
     clr end_hyperspace(a6)
@@ -162,23 +166,8 @@ quiet:
 
 start_tune:
     movem.l d0-d7/a0-a5,-(sp)
-    move.l a0,-(sp)
     bsr quiet
-    move.l (sp)+,a0
-    move.l a0,score_start
-    addq.l #2,a0
-    lea music_channels,a1
-    moveq #2,d7
-.channel:
-    move.l (a0)+,a2
-    move.l (a2)+,(a1)
-    move.l a2,4(a1)
-    clr.w 8(a1)
-    clr.w 10(a1)
-    clr.w 14(a1)               ; channel sounding (rests must stay muted)
-    move.w (a0)+,12(a1)
-    lea 16(a1),a1
-    dbra d7,.channel
+    jsr amiga_music_init
     st music_playing
     movem.l (sp)+,d0-d7/a0-a5
     rts
@@ -279,93 +268,113 @@ play_music:
     subq.w #1,fade_ticks
     beq quiet
 .play:
-    lea music_channels,a4
+    jsr amiga_music_tick
+    moveq #0,d7
+    move.b amiga_music_mute,d7
+    not.w d7
+    and.w #15,d7               ; channels requested by the original envelopes
+    move.w music_dma,d6
+    not.w d6
+    or.w amiga_music_retrigger,d6
+    and.w d7,d6                ; channels needing a fresh sample attack
+    move.w d7,d5
+    not.w d5
+    and.w music_dma,d5
+    or.w d6,d5                 ; old channels to stop or restart
+    beq .program
     lea $dff0a0,a3
-    moveq #1,d6
-    moveq #2,d7
+    moveq #0,d4
+.mute:
+    btst d4,d5
+    beq .next_mute
+    move.w #0,8(a3)
+.next_mute:
+    lea 16(a3),a3
+    addq.w #1,d4
+    cmp.w #4,d4
+    bne .mute
+    moveq #16,d1
+    bsr audio_settle           ; retain the click-free held-DAC shutdown
+    move.w d5,$dff096
+.program:
+    lea amiga_music_periods,a0
+    lea amiga_music_attack,a1
+    lea $dff0a0,a3
+    moveq #0,d4
 .channel:
-    tst.w 10(a4)
-    bne .next
-    tst.w 8(a4)
-    beq .note
-    subq.w #1,8(a4)
-    bra .next
-.note:
-    move.l (a4),a0
-.read:
-    moveq #0,d0
-    move.b (a0)+,d0
-    cmp.w #73,d0
-    bne .duration
-    move.l 4(a4),a1
-    move.l (a1)+,d0
-    beq .end_channel
-    move.l a1,4(a4)
-    move.l d0,a0
-    bra .read
-.duration:
-    moveq #0,d1
-    move.b (a0)+,d1
-    and.w #127,d1
-    add.w d1,d1
-    subq.w #1,d1
-    move.w d1,8(a4)
-    move.l a0,(a4)
-    cmp.w #72,d0
-    beq .rest
-    add.w d0,d0
-    lea music_periods(pc),a0
-    move.w (a0,d0.w),6(a3)
-    move.l #music_wave,(a3)
-    move.w #16,4(a3)
-    move.w #28,8(a3)
-    st 14(a4)
+    move.w (a0)+,6(a3)
+    btst d4,d6
+    beq .next
+    move.w #0,8(a3)
+    move.w #0,10(a3)
+    move.l (a1),(a3)
+    move.w 4(a1),4(a3)
+.next:
+    lea 16(a1),a1
+    lea 16(a3),a3
+    addq.w #1,d4
+    cmp.w #4,d4
+    bne .channel
+    tst.w d6
+    beq .volumes
+    moveq #16,d1
+    bsr audio_settle           ; let stopped channels consume silent AUDxDAT
     move.w d6,d0
     or.w #$8200,d0
     move.w d0,$dff096
-    bra .next
-.end_channel:
-    st 10(a4)
-.rest:
-    clr.w 14(a4)
-    move.w #0,8(a3)
-    moveq #16,d1
-    bsr audio_settle
-    move.w d6,$dff096
-.next:
-    tst.w 14(a4)
-    beq .advance               ; a music fade must not unmute a rest/ended voice
+.volumes:
+    moveq #32,d5
     tst fade_ticks
-    beq .advance
-    move.w fade_ticks,8(a3)
-.advance:
-    lea 16(a4),a4
+    beq .gain
+    move.w fade_ticks,d5       ; scale each envelope, including silent rests
+.gain:
+    lea amiga_music_volumes,a0
+    lea $dff0a8,a3
+    moveq #0,d4
+.volume:
+    moveq #0,d0
+    move.b (a0)+,d0
+    btst d4,d7
+    bne .scale
+    moveq #0,d0
+.scale:
+    mulu.w d5,d0
+    lsr.l #5,d0
+    move.w d0,(a3)
     lea 16(a3),a3
-    add.w d6,d6
-    dbra d7,.channel
-    tst.w music_channels+10
-    beq .return
-    tst.w music_channels+26
-    beq .return
-    tst.w music_channels+42
-    beq .return
-    move.l score_start,a0
-    bra start_tune
-.return:
+    addq.w #1,d4
+    cmp.w #4,d4
+    bne .volume
+    tst.w d6
+    beq .done
+    moveq #2,d1
+    bsr audio_settle           ; Paula must fetch the attack before loop reloads
+    lea amiga_music_loops,a0
+    lea $dff0a0,a3
+    moveq #0,d4
+.loop:
+    btst d4,d6
+    beq .next_loop
+    move.l (a0),(a3)
+    move.w 4(a0),4(a3)
+.next_loop:
+    lea 16(a0),a0
+    lea 16(a3),a3
+    addq.w #1,d4
+    cmp.w #4,d4
+    bne .loop
+.done:
+    move.w d7,music_dma
     rts
+
     include "amiga-samples.inc"
 ; Shared ST events -> corresponding effects in the supplied Amiga player.
 effect_map:
     dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
     even
-music_periods:
-    include "amiga-periods.inc"
     section amiga_audio,data
 amiga_samples:
     incbin "amiga-samples.bin"
-music_wave:
-    dc.b 0,20,39,56,71,83,92,98,100,98,92,83,71,56,39,20
-    dc.b 0,-20,-39,-56,-71,-83,-92,-98,-100,-98,-92,-83,-71,-56,-39,-20
     section audio_vars,bss
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
@@ -375,6 +384,5 @@ next_channel: ds.w 1
 music_playing: ds.w 1
 fade_ticks: ds.w 1
 warp_ticks: ds.w 1
-score_start: ds.l 1
-music_channels: ds.b 48
+music_dma: ds.w 1
 audio_resetting: ds.w 1

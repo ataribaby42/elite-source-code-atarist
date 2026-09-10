@@ -75,6 +75,17 @@ class AmigaTests(unittest.TestCase):
         self.assertEqual(report['sample_sha256'],
                          'caf263a98a7ed9222851f31df9c5a0cc4f2b4125d50e89fcc71e9fbcec101680')
 
+    def test_original_music_assets(self):
+        _, report = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', self.temp)
+        music = report['music']
+        self.assertEqual((music['track_count'], music['channels'],
+                          music['instrument_count'], music['pattern_count']), (1, 4, 7, 40))
+        self.assertEqual(music['sample_bytes'], 60350)
+        self.assertEqual(music['sample_sha256'],
+                         '98560c1cc7ad3bbd58a7c02c0ea7fc80a0cc5d23373800bb23b8621cbc275cff')
+        self.assertEqual(music['score_sha256'],
+                         'de21d507e3dc4d0282522277f54be690f6da1d75789483d18539e6730fa806e8')
+
 
 if __name__ == '__main__':
     unittest.main()

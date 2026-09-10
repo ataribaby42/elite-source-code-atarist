@@ -651,7 +651,11 @@ reset_table:
 	dc.w $5a4a,$0248,$b753 ; galactic seed
 	dc.w 7 ; current planet (Lave)
 	dc.b %100111,0 ; user flags
+	ifne commander_max
+	dc.l 10000000 ; cash: 1,000,000 Cr, stored in tenths
+	else
 	dc.l 100000 ; cash
+	endc
 	dc.w 0 ; fluctuation
 	dc.w 70 ; fuel
 	dc.w 3 ; missiles
@@ -694,7 +698,11 @@ reset_table:
 	dc.w $5a4a,$0248,$b753 ; galactic seed
 	dc.w 7 ; current planet (Lave)
 	dc.b %100111,0 ; user flags
-	dc.l 1000 ; cash
+	ifne commander_max
+	dc.l 10000000 ; cash: 1,000,000 Cr, stored in tenths
+	else
+	dc.l 1000 ; cash: 100 Cr, stored in tenths
+	endc
 	dc.w 0 ; fluctuation
 	dc.w 70 ; fuel
 	dc.w 3 ; missiles

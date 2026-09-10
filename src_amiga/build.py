@@ -24,15 +24,13 @@ FLAGS = ['-m68000', '-no-opt', '-align', '-allmp', '-spaces', '-nocase', '-nowar
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO.PC1', 'TITLE.PC1')
 
 
-def build_amiga(vasm, vlink, noprotect=False):
+def build_amiga(vasm, vlink, noprotect=False, commander='default'):
     BUILD.mkdir(parents=True, exist_ok=True)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for tool in (vasm, vlink):
         if not tool.is_file():
             raise ValueError('Missing build tool: ' + str(tool))
     boot, audio = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', BUILD)
-    periods = [round(3546895/(32*32.70319566*2**(n/12))) for n in range(72)]
-    (BUILD/'amiga-periods.inc').write_text('    dc.w '+','.join(map(str,periods))+'\n')
     def run(command, name):
         result = subprocess.run(list(map(str,command)), cwd=BUILD, capture_output=True, text=True)
         (BUILD/name).write_text(result.stdout+result.stderr)
@@ -43,12 +41,14 @@ def build_amiga(vasm, vlink, noprotect=False):
         return result.stdout+result.stderr
     def assemble(name, fmt='vobj', output=None):
         output = output or BUILD/(name+'.o')
-        run([vasm,*FLAGS,f'-Dnoprotect={int(noprotect)}','-F'+fmt,'-I'+str(BUILD),
+        run([vasm,*FLAGS,f'-Dnoprotect={int(noprotect)}',
+             f'-Dcommander_max={int(commander == "max")}','-F'+fmt,'-I'+str(BUILD),
              '-I'+str(ROOT/'asm'),'-o',output,ROOT/'asm'/(name+'.m68')], name+'.log')
     modules = (ROOT/'modules.txt').read_text().split()
     modules = ['system', 'fileio', *modules, 'workspace']
     print('Assembling independent native Amiga game modules for MC68000...')
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
+    print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
     for module in modules:
         assemble(module)
     executable = OUTPUT/'ELITE'
@@ -99,13 +99,14 @@ def build_amiga(vasm, vlink, noprotect=False):
     disk = OUTPUT.parent/'ELITE.ADF'
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC68000','minimum_kickstart':'1.3',
-              'build_options':{'noprotect':noprotect},
+              'build_options':{'noprotect':noprotect,'commander':commander},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,
               'checks':['MC68000 assembly and linking', 'Hunk relocations and Chip RAM attributes',
                         'Kickstart 1.x BSS limits', 'per-module variable capacities',
                         'asset buffer capacities', 'two native Chip RAM screens',
-                        'original sample bank checksum', 'OFS checksums and byte-for-byte readback'],
+                   'original effect and music assets; instrument loop bounds',
+                   'OFS checksums and byte-for-byte readback'],
               'artifacts':{p.name:{'bytes':p.stat().st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
                            for p in (executable,disk)}}
     (BUILD/'verification.json').write_text(json.dumps(report,indent=2)+'\n')
@@ -117,14 +118,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm', type=Path, default=TOOLS/'vasmm68k_mot.exe')
     parser.add_argument('--vlink', type=Path, default=TOOLS/'vlink.exe')
-    parser.add_argument('options', nargs='*', metavar='noprotect=yes|no',
-                        help='skip the novella question with noprotect=yes (default: no)')
+    parser.add_argument('options', nargs='*', metavar='OPTION',
+                        help='noprotect=yes|no (default: no); commander=max|default '
+                             '(default: default, max starts with 1,000,000 Cr)')
     args = parser.parse_intermixed_args()
+    noprotect, commander = False, 'default'
     for option in args.options:
-        if option not in ('noprotect=yes', 'noprotect=no'):
-            parser.error(f'Unknown build option: {option}; expected noprotect=yes or noprotect=no')
-    noprotect = bool(args.options and args.options[-1] == 'noprotect=yes')
-    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect)
+        if option in ('noprotect=yes', 'noprotect=no'):
+            noprotect = option == 'noprotect=yes'
+        elif option in ('commander=max', 'commander=default'):
+            commander = option.split('=', 1)[1]
+        else:
+            parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
+                         'or commander=max|default')
+    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect, commander)
 
 
 if __name__ == '__main__':

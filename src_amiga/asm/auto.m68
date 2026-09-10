@@ -22,7 +22,7 @@
 
 	xref calc_distance,magnitude_table,sqrt,local_z_rotate,quiet
 	xref calc_yvector,local_x_rotate,set_roll_angles,set_climb_angles
-	xref flash_message,disp_message,fx,start_tune,blue_danube,start_fade
+	xref flash_message,disp_message,fx,start_tune,start_fade
 	xref check_inflight
 
 ; ---- LOCAL CONSTANTS ----
@@ -661,7 +661,6 @@ q_auto_m68_101:
 q_auto_m68_103:
 	st just_docked(a6) ; instant dock
 q_auto_m68_104:
-	lea blue_danube,a0 ; start tune playing
 	jmp start_tune
 
 

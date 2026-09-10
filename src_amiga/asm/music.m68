@@ -1,468 +1,936 @@
-	include "common.def"
-; Ported from src-orig/MUSIC_M68; edit this copy.
-* @@   @@  @@  @@	@@@@   @@@@@@	@@@@
-* @@@ @@@  @@  @@  @@  @@	 @@    @@  @@
-* @@@@@@@  @@  @@  @@		 @@   @@
-* @@@@@@@  @@  @@	@@@@	 @@   @@
-* @@ @ @@  @@  @@	   @@	 @@   @@
-* @@   @@  @@  @@  @@  @@	 @@    @@  @@
-* @@   @@	@@@@	@@@@   @@@@@@	@@@@
+; Native four-channel replay of Wally Beben's Amiga Elite arrangement.
+; Transcribed from the supplied Elite 2.0 ADF, original addresses $5f36..$6952.
+; Pattern decoding, envelopes, vibrato, chords and sample loops are retained.
+; Fixed addresses and three patched immediates have become relocatable data.
+; This module prepares audio state; sounds.m68 safely commits it to Paula.
+    xdef amiga_music_init,amiga_music_tick
+    xdef amiga_music_periods,amiga_music_volumes,amiga_music_mute
+    xdef amiga_music_attack,amiga_music_loops,amiga_music_retrigger
+    section text,code
 
-* Sound data file for Elite (Blue Danube).
+amiga_music_init:
+    movem.l d0-d7/a0-a6,-(sp)
+    lea wb_initial_state,a0
+    lea wb_state,a1
+    move.w #(wb_state_end-wb_state)/2-1,d0
+.copy:
+    move.w (a0)+,(a1)+
+    dbra d0,.copy
+    lea amiga_music_attack,a0
+    moveq #31,d0
+.clear:
+    clr.l (a0)+
+    dbra d0,.clear
+    clr.w amiga_music_retrigger
+    clr.b wb_slide_target
+    clr.b wb_slide_speed
+    move.b #1,wb_request
+    bsr wb_step
+    movem.l (sp)+,d0-d7/a0-a6
+    rts
 
-	include "macros.m68"
-	include "notes.m68"
+amiga_music_tick:
+    movem.l d0-d7/a0-a6,-(sp)
+    clr.w amiga_music_retrigger
+    bsr wb_step
+    movem.l (sp)+,d0-d7/a0-a6
+    rts
 
-	section text,code
+; Channel state uses four-byte arrays, one byte per Paula channel.
 
-	q_global blue_danube
+wb_register: equ $00
+wb_chord_base: equ $04
+wb_note: equ $08
+wb_order: equ $0c
+wb_duration: equ $10
+wb_remaining: equ $14
+wb_pitch_mode: equ $18
+wb_chord: equ $1c
+wb_transpose: equ $20
+wb_target: equ $24
+wb_slide: equ $28
+wb_falling: equ $2c
+wb_rising: equ $30
+wb_detune: equ $34
+wb_chord_pos: equ $38
+wb_vibrato_direction: equ $3c
+wb_vibrato_pos: equ $40
+wb_vibrato_delay: equ $44
+wb_vibrato_wait: equ $48
+wb_instrument: equ $4c
+wb_envelope_id: equ $50
+wb_peak: equ $54
+wb_attack: equ $58
+wb_release: equ $5c
+wb_volume: equ $60
+wb_dma_bit: equ $64
+wb_vibrato_param: equ $68
+wb_releasing: equ $6c
+wb_sustain: equ $70
+wb_unused: equ $74
+wb_sample_looping: equ $78
+wb_unused2: equ $7c
+wb_delayed_vibrato: equ $80
 
-	dc.w 3 ; No. channels
-	dc.l theme_1 ; Pointer to data
-	dc.w 8 ; Volume
-	dc.l theme_2
-	dc.w 8
-	dc.l theme_3
-	dc.w 7
+wb_step:
+    bsr.w wb_clear_registers
+    move.b wb_request, d0
+    bne.w wb_5f52
+    move.b d0, wb_running
+    bsr.w wb_mute
 
-theme_1:
+wb_5f4e:
+    bra.w wb_done
 
-	dc.l section_0a,section_1a,section_2a,section_3a,section_2a,delay,0
+wb_5f52:
+    moveq #1, d1              ; the supplied score has one song
+    cmp.b d0, d1
+    bcs.w wb_channels
+    subq.l #$1, d0
+    asl.w #$4, d0
+    moveq #$0, d1
+    lea wb_orders, a0
+    adda.l d0, a0
+    lea wb_order_lists, a1
+    move.l (a0)+, (a1)+
+    move.l (a0)+, (a1)+
+    move.l (a0)+, (a1)+
+    move.l (a0), (a1)
+    moveq #$3, d1
 
-theme_2:
+wb_5f78:
+    lea wb_voice_state, a0
+    adda.l d1, a0
+    clr.b wb_remaining(a0)
+    clr.b wb_pitch_mode(a0)
+    clr.b wb_order(a0)
+    bsr.w wb_next_pattern
+    dbra d1, wb_5f78
+    bsr.w wb_stop
+    move.b #$1, wb_running
+    move.b #$f, wb_mute_mask
+    bra.w wb_done
 
-	dc.l section_0b,section_1b,section_2b,section_3b,section_2b,delay,0
+wb_next_pattern:
+    lea wb_order_lists, a1
+    move.l d1, d2
+    asl.l #$2, d2
+    adda.l d2, a1
+    move.l (a1), wb_current_order
 
-theme_3:
+wb_5fbe:
+    lea wb_current_order, a1
+    movea.l (a1), a1
+    moveq #$0, d0
+    move.b wb_order(a0), d0
+    addq.b #$1, wb_order(a0)
+    adda.l d0, a1
+    move.b (a1), d0
+    tst.b d0
+    cmp.b #$c0, d0
+    bls.w wb_5ffe
+    cmp.b #$ff, d0
+    bne.w wb_5fec
+    clr.b wb_order(a0)
+    bra.w wb_5fbe
 
-	dc.l section_0c,section_1c,section_2c,section_3c,section_2c,delay,0
+wb_5fec:
+    add.l #$20, d0
+    and.l #$ff, d0
+    move.b d0, wb_transpose(a0)
+    bra.w wb_5fbe
 
-section_0a:
-* a1.4
-	dc.b rest,4,b3,4,a3,4,gs3,4,a3,8
-	dc.b rest,4,cs4,4,b3,4,as3,4,b3,8
-	dc.b rest,4,d4,4,cs4,4,b3,4,cs4,8
-	dc.b d4,8,e4,8,fs4,8
-	dc.b rest,4,fs4,4,e4,4,ds4,4,e4,8
-	dc.b rest,4,g4,4,fs4,4,f4,4,fs4,8
-* a1.5
-	dc.b rest,4,g4,4,fs4,4,f4,4,fs4,8
-	dc.b g4,8,a4,8,b4,8
-	dc.b rest,8,g4,4,a4,4,b4,4,a3,4
-	dc.b g4,24
-	dc.b g4,8+128,g4,4,a4,4,b4,4,a3,4
-	dc.b fs4,24
-	dc.b fs4,8+128,fs4,4,g4,4,a4,4,a3,4
-	dc.b e4,4,rest,4,g4,4,rest,4,a3,4,rest,4
-* a1.6
-	dc.b d4,4,rest,4,g4,4,rest,4,a3,4,rest,4
-	dc.b cs4,4,rest,4,g4,4,rest,4,a3,4,rest,4
-	dc.b b3,4,rest,4,e4,4,rest,4,g3,4,rest,4
-	dc.b a3,4,rest,4,d4,4,rest,4,fs3,4,rest,4
-	dc.b g3,4,rest,4,cs4,4,rest,4,e3,4,rest,4
-	dc.b rest,24
-	dc.b rest,24
-	dc.b rest,24
+wb_5ffe:
+    asl.l #$2, d0
+    lea wb_patterns, a1
+    adda.l d0, a1
+    lea wb_pattern_positions, a2
+    adda.l d2, a2
+    move.l (a1), (a2)
+    move.l (a1), wb_current_pattern
+    moveq #$0, d0
+    rts 
 
-	dc.b end_sect
+wb_channels:
+    tst.b wb_running
+    beq.w wb_5f4e
+    move.b #$3, wb_channel_index
 
-section_1a:
-* if 0
-* a1.1
-*	 dc.b e4,6,a3,6,e4,6,a3,6,e4,6,a3,6,e4,6,a3,6
-*	 dc.b e4,6,gs3,6,e4,6,gs3,6
-*	 dc.b end_sect
-* a2.1
-	dc.b d3,8+128
-	dc.b d3,8,fs3,8,a3,8+128,rest,16,a4,8+128
-	dc.b a4,8,rest,8,fs4,8+128,fs4,8,rest,8,d3,8+128
-	dc.b d3,8,fs3,8,a3,8,rest,16,a4,8+128
-	dc.b a4,8,rest,8,g4,8+128,g4,8,rest,8,cs3,8
-* a2.2
-	dc.b cs3,8,e3,8,b3,8
-	dc.b rest,16,b4,8+128
-	dc.b b4,8,rest,8,g4,8+128
-	dc.b g4,8,rest,8,cs3,8+128
-	dc.b cs3,8,e3,8,b3,8
-	dc.b rest,16,b4,8+128
-	dc.b b4,8,rest,8,fs4,8+128
-	dc.b fs4,8,rest,8,d3,8+128
-	dc.b d3,8,fs3,8,a3,8
-* a2.3
-	dc.b rest,16,d5,8+128
-	dc.b d5,8,rest,8,a4,8+128
-	dc.b a4,8,rest,8,d3,8+128
-	dc.b d3,8,fs3,8,a3,8
-	dc.b rest,16,d5,8+128
-	dc.b d5,8,rest,8,b4,8+128
-	dc.b b4,8,rest,8,e4,8+128
-	dc.b e4,8,g4,8,b4,8+128
-* a2.4
-	dc.b b4,24
-	dc.b b4,8,gs4,8,a4,8
-	dc.b fs5,24
-	dc.b fs5,8,d5,8,fs4,8+128
-	dc.b fs4,16,e4,8
-	dc.b b4,16,a4,8
-	dc.b d4,8,rest,4,d4,4+128,d4,8
-*
-	dc.b rest,8,d5,4,rest,4,cs5,4,rest,4
-*
-	dc.b cs5,4,rest,4,b4,4,rest,4,b4,4,rest,4
-	dc.b rest,8,b4,4,rest,4,as4,4,rest,4
-* a2.5
-	dc.b as4,4,rest,4,b4,4,rest,4,b4,4,rest,4
-	dc.b rest,8,e4,4,rest,4,e4,4,rest,4
-	dc.b fs4,16,e4,8
-	dc.b rest,8,e4,4,rest,4,e4,4,rest,4
-	dc.b b4,16,b4,8
-	dc.b rest,8,d5,4,rest,4,cs5,4,rest,4
-	dc.b cs5,4,rest,4,b4,4,rest,4,b4,4,rest,4
-	dc.b rest,8,b4,4,rest,4,cs5,4,rest,4
-* a2.6
-	dc.b e5,4,rest,4,d5,4,rest,4,d5,4,rest,4
-	dc.b rest,8,gs4,4,rest,4,b4,4,rest,4
-	dc.b b4,16,a4,8
-	dc.b gs4,12,fs4,4,d4,4,b3,4
-	dc.b fs4,4+128,fs4,4+128,fs4,8,e4,8
-	dc.b a3,8 ; * ,d5,4,rest,4,cs5,4,rest,4
-	dc.b end_sect
-*
-section_2a:
-* a2.7
-	dc.b rest,8,a4,8
-	dc.b g4,8,rest,8,a4,8
-	dc.b g4,8,rest,8,a4,8
-	dc.b fs5,24
-	dc.b fs5,8,e5,8,a4,8
-	dc.b fs4,8,rest,8,a4,8
-	dc.b fs4,8,rest,8,a4,8
-	dc.b e5,24
-	dc.b e5,8,d5,8,a4,8
-	dc.b g4,8,rest,8,a4,8
-* endif
-* a3.1
-	dc.b g4,8,rest,8,a4,8
-	dc.b fs5,24
-	dc.b fs5,8,e5,8,a4,8
-	dc.b d5,8,e5,8,fs5,8
-	dc.b a5,16,g5,8
-	dc.b fs5,4+128,fs5,4+128,fs5,8,e5,2,a4,2,rest,4
-	dc.b d5,8
-	dc.b end_sect
-*
-section_3a:
-	dc.b rest,8,f4,8
-* a3.2
-	dc.b d5,24
-	dc.b d5,8,ds5,8,d5,8
-	dc.b c5,8,as4,8,a4,8
-	dc.b g4,24
-	dc.b c5,4,rest,12,c5,8
-	dc.b c5,4,f4,4,g4,12,f4,4
-	dc.b f4,8,d4,8,f4,8
-	dc.b f4,8,rest,8,f4,8
-* a3.3
-	dc.b d5,24
-	dc.b d5,8,ds5,8,d5,8
-	dc.b c5,8,as4,8,a4,8
-	dc.b g4,24
-	dc.b fs4,8,rest,8,fs4,8
-	dc.b rest,8,g4,12,as4,4
-	dc.b a4,24
-	dc.b a4,8 ; * ,rest,8,a4,8
-* a end
+wb_602e:
+    lea wb_voice_state, a0
+    move.b wb_channel_index, d1
+    move.l d1, d2
+    asl.b #$2, d2
+    move.l d2, wb_long_offset
+    move.l d1, d2
+    asl.b #$1, d2
+    move.l d2, wb_word_offset
+    adda.l d1, a0
+    move.b (a0), wb_register_offset
+    tst.b wb_tick
+    bne.w wb_60b0
+    subq.b #$1, wb_remaining(a0)
+    tst.b wb_sustain(a0)
+    bne.w wb_6082
+    tst.b wb_remaining(a0)
+    beq.w wb_6078
+    bra.w wb_6082
 
+wb_6078:
+    bset.b d1, wb_mute_mask
+    bra.w wb_608a
 
+wb_6082:
+    tst.b wb_remaining(a0)
+    bmi.w wb_read_event
 
-	dc.b end_sect
+wb_608a:
+    tst.b wb_falling(a0)
+    bne.w wb_609e
+    tst.b wb_rising(a0)
+    bne.w wb_60aa
+    bra.w wb_60c2
 
-section_0b:
-* b1.4
-	dc.b cs3,4,e3,4,cs3,4,e3,4,cs3,4,e3,4
-	dc.b d3,4,fs3,4,d3,4,fs3,4,d3,4,fs3,4
-	dc.b e3,4,g3,4,e3,4,g3,4,e3,4,g3,4
-	dc.b fs3,4,a3,4,fs3,4,a3,4,fs3,4,a3,4
-	dc.b g3,4,a3,4,g3,4,a3,4,g3,4,a3,4
-	dc.b fs3,4,a3,4,fs3,4,a3,4,fs3,4,a3,4
-* b1.5
-	dc.b fs3,4,a3,4,fs3,4,a3,4,fs3,4,a3,4
-	dc.b g3,8,rest,16
-	dc.b rest,24
-	dc.b rest,8,g3,8+128,g3,8+128
-	dc.b g3,8,rest,16
-	dc.b rest,8,fs3,8+128,fs3,8+128
-	dc.b fs3,8,rest,16
-	dc.b g3,24
-* b1.6
-	dc.b g3,24+128
-	dc.b g3,24+128
-	dc.b g3,24
-	dc.b fs3,24
-	dc.b e3,24
-*
-	dc.b a2,8,rest,16
-	dc.b g2,8,rest,16
-	dc.b e2,8,rest,16
+wb_609e:
+    subq.b #$1, wb_note(a0)
 
-	dc.b end_sect
+wb_60a2:
+    bsr.w wb_set_period
+    bra.w wb_envelope
 
-section_1b:
-* if 0
-* b1.1
- *	 dc.b cs4,6,rest,6,cs4,6,rest,6,cs4,6,rest,6,cs4,6,rest,6
- *	 dc.b end_sect
+wb_60aa:
+    addq.b #$1, wb_note(a0)
+    bra.w wb_60a2
 
-* b2.1
-	dc.b rest,8
-	dc.b rest,24
-	dc.b a3,24,a3,24,a3,8,rest,16
-	dc.b rest,24,a3,24,a3,24,a3,8,rest,16
-* b2.2
-	dc.b rest,24
-	dc.b b3,24
-	dc.b b3,24
-	dc.b b3,8,rest,16
-	dc.b rest,24
-	dc.b b3,24
-	dc.b b3,24
-	dc.b b3,8,rest,16
-	dc.b rest,24
-* b2.3
-	dc.b d4,24
-	dc.b d4,24
-	dc.b d4,8,rest,16
-	dc.b rest,24
-	dc.b d4,24
-	dc.b d4,16,d4,8
-	dc.b d4,8,rest,8,e3,8+128
-	dc.b e3,8,g3,8,b3,4,rest,4
-* b2.4
-	dc.b b4,24
-	dc.b b4,8,gs3,8,a3,8
-	dc.b fs4,24
-	dc.b fs4,8,d4,8,fs4,8
-	dc.b b3,24
-	dc.b cs4,24
-	dc.b d4,8,rest,4,d4,4+128,d4,8
-*
-	dc.b rest,8,fs4,4,rest,4,e4,4,rest,4
-*
-	dc.b e4,4,rest,4,d4,4,rest,4,d4,4,rest,4
-	dc.b rest,8,d4,4,rest,4,cs4,4,rest,4
-* b2.5
-	dc.b cs4,4,rest,4,d4,4,rest,4,d4,4,rest,4
-	dc.b rest,8,e4,4,rest,4,e4,4,rest,4
-	dc.b fs4,16,e4,8
-	dc.b rest,8,e4,4,rest,4,e4,4,rest,4
-	dc.b b3,16,a3,8
-	dc.b rest,8,fs4,4,rest,4,e4,4,rest,4
-	dc.b e4,4,rest,4,d4,4,rest,4,d4,4,rest,4
-	dc.b rest,8,d4,4,rest,4,cs4,4,rest,4
-* b2.6
-	dc.b e4,4,rest,4,d4,4,rest,4,d4,4,rest,4
-	dc.b rest,8,gs3,4,rest,4,b3,4,rest,4
-	dc.b b3,16,a3,8
-	dc.b gs3,12,rest,12
-	dc.b gs3,4+128,gs3,4+128,gs3,8+128,gs3,8
-	dc.b cs3,8 ; * ,fs4,4,rest,4,e4,4,rest,4
-	dc.b end_sect
-*
-section_2b:
-* b2.7
-	dc.b rest,8,a3,8
-	dc.b g3,8,rest,8,a3,8
-	dc.b g3,8,rest,8,a3,8
-	dc.b fs4,24
-	dc.b fs4,8,e4,8,a3,8
-	dc.b fs3,8,rest,8,a3,8
-	dc.b fs3,8,rest,8,a3,8
-	dc.b e4,24
-	dc.b e4,8,d4,8,a3,8
-	dc.b g3,8,rest,8,a3,8
-* endif
-* b3.1
-	dc.b g3,8,rest,8,a3,8
-	dc.b fs4,24
-	dc.b fs4,8,e4,8,a4,8
-	dc.b d4,8,e4,8,fs4,8
-	dc.b rest,16,rest,8
-	dc.b fs4,4+128,fs4,4+128,fs4,8,g4,4,rest,4
-	dc.b fs4,8
-	dc.b end_sect
-*
-section_3b:
-	dc.b rest,8,a3,8
-*
-* b3.2
-	dc.b d4,24
-	dc.b d4,8,ds4,8,d4,8
-	dc.b c4,8,as3,8,a3,8
-	dc.b g3,24
-	dc.b c4,4,rest,12,c4,8
-	dc.b c4,4,f4,4,g4,12,f4,4
-	dc.b f4,8,as3,8,d4,8
-	dc.b c4,8,as4,8,a3,8
-* b3.3
-	dc.b d4,24
-	dc.b d4,8,ds4,8,d4,8
-	dc.b c4,8,as3,8,a3,8
-	dc.b g3,24
-	dc.b fs3,8,rest,8,fs3,8
-	dc.b rest,8,g3,12,as3,4
-	dc.b a3,24
-	dc.b a3,8 ; * ,rest,8,a3,8
-* b end
+wb_60b0:
+    tst.b wb_detune(a0)
+    beq.w wb_60c2
+    clr.b wb_detune(a0)
+    subq.b #$2, wb_note(a0)
+    bra.w wb_60a2
 
+wb_60c2:
+    bra.w wb_6300
 
+wb_read_event:
+    cmpi.b #$2, wb_pitch_mode(a0)
+    beq.w wb_60d8
+    clr.b wb_pitch_mode(a0)
+    clr.b wb_chord(a0)
 
+wb_60d8:
+    clr.b wb_event_bytes
+    clr.b wb_target(a0)
+    clr.b wb_falling(a0)
+    clr.b wb_rising(a0)
+    clr.b wb_releasing(a0)
+    lea wb_pattern_positions, a1
+    adda.l wb_long_offset, a1
+    move.l (a1), wb_current_pattern
 
+wb_6100:
+    moveq #$0, d4
+    moveq #$0, d0
+    move.b wb_event_bytes, d4
+    addq.b #$1, wb_event_bytes
+    movea.l wb_current_pattern, a3
+    move.b (a3)+, d0
+    addq.b #$1, d4
+    cmp.b #$ff, d0
+    bne.w wb_6130
+    moveq #$0, d0
 
-	dc.b end_sect
+wb_6124:
+    bsr.w wb_next_pattern
+    clr.b wb_event_bytes
+    bra.w wb_6100
 
-section_0c:
-* c1.4
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8+128,a2,8+128,a2,8+128
-* c1.5
-	dc.b a2,8+128,a2,8+128,a2,8+128
-	dc.b a2,8,rest,16
-	dc.b rest,24
-	dc.b rest,8,a2,8+128,a2,8+128
-	dc.b a2,8,rest,16
-	dc.b rest,8,a2,8+128,a2,8+128
-	dc.b a2,8,rest,16
-	dc.b a2,24+128
-* c1.6
-	dc.b a2,24+128
-	dc.b a2,24+128
-	dc.b a2,24
-	dc.b a2,24
-	dc.b a2,24
-*
-	dc.b a1,8,rest,16
-	dc.b g1,8,rest,16
-	dc.b e1,8,rest,16
+wb_6130:
+    cmp.b #$fe, d0
+    bne.w wb_6144
+    clr.b wb_request
 
-	dc.b end_sect
+wb_613e:
+    moveq #$0, d0
+    bra.w wb_step
 
+wb_6144:
+    cmp.b #$fc, d0
+    bne.w wb_6154
+    move.b (a3), wb_request
+    bra.w wb_613e
 
-section_1c:
-* if 0
-* c1.1
-*	 dc.b rest,12,rest,6,b2,2,c3,2,e3,2,e3,12,e3,6
-*	 dc.b end_sect
+wb_6154:
+    cmp.b #$ef, d0
+    bls.w wb_616a
+    and.b #$f, d0
+    move.b d0, wb_speed
+    move.b (a3)+, d0
+    addq.b #$1, d4
 
+wb_616a:
+    cmp.b #$df, d0
+    bls.w wb_618c
+    and.b #$f, d0
+    asl.b #$3, d0
+    move.b d0, wb_instrument(a0)
+    move.b (a3)+, d0
+    addq.b #$1, d4
+    cmp.b #$ff, d0
+    bne.w wb_618c
+    moveq #$0, d0
+    bra.w wb_6124
 
-* c2.1
-	dc.b rest,8
-	dc.b rest,24
-	dc.b d2,8,a2,8+128,a2,8,d2,8,a2,8+128,a2,8
-	dc.b d2,8,fs2,8+128,fs2,8
-	dc.b d2,8,a2,8+128,a2,8,e2,8,a2,8+128,a2,8
-	dc.b e2,8,a2,8+128,a2,8,e2,8,g2,8+128,g2,8
-* c2.2
-	dc.b e2,8,g2,8+128,g2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a1,8,g2,8+128,g2,8
-	dc.b a1,8,g2,8+128,g2,8
-	dc.b d1,8,a2,8+128,a2,8
-	dc.b d1,8,a2,8+128,a2,8
-	dc.b d1,8,fs1,8+128,fs1,8
-	dc.b d1,8,a2,8+128,a2,8
-* c2.3
-	dc.b fs2,8,a2,8+128,a2,8
-	dc.b fs2,8,a2,8+128,a2,8
-	dc.b fs1,8,a1,8+128,a1,8
-	dc.b fs1,8,a1,8+128,a1,8
-	dc.b g1,8,b1,8+128,b1,8
-	dc.b g1,8,b1,8+128,b1,8
-	dc.b g1,8,rest,8,e2,8+128
-	dc.b e2,8,g2,8,b2,8
-* c2.4
-	dc.b e2,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b d2,8,a2,8+128,a2,8
-	dc.b fs2,8,a2,8+128,a2,8
-	dc.b g1,24
-	dc.b a1,24
-	dc.b d2,8,rest,8,d2,8
-*
-	dc.b rest,24
-*
-	dc.b e2,8,gs2,8+128,gs2,8
-	dc.b e2,8,gs2,8,g2,8
-* c2.5
-	dc.b e2,8,a2,8+128,as2,8
-	dc.b e2,8,gs2,8+128,gs2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b e2,8,gs2,8+128,gs2,8
-	dc.b e2,8,gs2,8,g2,8
-* c2.6
-	dc.b e2,8,a2,8+128,a2,8
-	dc.b e2,8,b2,8,f2,8
-	dc.b fs2,24
-	dc.b d2,16,rest,8
-	dc.b e1,8,g1,8,e1,8
-	dc.b a1,8 ; * ,rest,16
-	dc.b end_sect
-*
-section_2c:
-* c2.7
-	dc.b rest,8,rest,8
-	dc.b e2,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b a2,8,cs3,8+128,cs3,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b d2,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b d2,8,a2,8+128,a2,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b e2,8,a2,8+128,a2,8
-* endif
-* c3.1
-	dc.b a1,8,a2,8+128,a2,8+128
-	dc.b a2,8,cs3,8+128,cs3,8
-	dc.b a1,8,a2,8+128,a2,8
-	dc.b d2,24
-	dc.b g1,24
-	dc.b a1,8,a2,8+128,a1,8
-	dc.b d2,8
-	dc.b end_sect
-*
-section_3c:
-	dc.b rest,16
-* c3.2
-	dc.b as1,8,as2,8+128,as2,8
-	dc.b as1,8,as2,8+128,as2,8
-	dc.b ds2,8,g2,8+128,g2,8
-	dc.b ds2,8,g2,8+128,g2,8
-	dc.b a2,8,c3,8+128,c3,8
-	dc.b f2,8,a2,8+128,a2,8
-	dc.b as2,8,d3,8+128,d3,8
-	dc.b f2,8,f3,8+128,f3,8
-* c3.3
-	dc.b as1,8,as2,8+128,as2,8
-	dc.b as1,8,as2,8+128,as2,8
-	dc.b ds2,8,g2,8+128,g2,8
-	dc.b e2,8,g2,8+128,g2,8
-	dc.b d2,8,fs2,8+128,fs2,8
-	dc.b d2,8,g2,8+128,g2,8
-	dc.b d2,8,a2,8+128,a2,8
-	dc.b a2,8+128 ; * ,a2,8+128,a2,8
-*
-* c end
+wb_618c:
+    cmp.b #$bf, d0
+    bls.w wb_61b0
+    and.b #$1f, d0
+    asl.b #$3, d0
+    move.b d0, wb_envelope_id(a0)
+    move.b (a3)+, d0
+    addq.b #$1, d4
+    cmp.b #$ff, d0
+    bne.w wb_61b0
+    moveq #$0, d0
+    bra.w wb_6124
 
-	dc.b end_sect
+wb_61b0:
+    cmp.b #$7f, d0
+    bls.w wb_61c4
+    and.b #$3f, d0
+    move.b d0, wb_duration(a0)
+    move.b (a3)+, d0
+    addq.b #$1, d4
 
-delay:
+wb_61c4:
+    cmp.b #$5f, d0
+    bls.w wb_61e8
+    cmp.b #$7f, d0
+    bne.w wb_61ec
+    move.b #$1, wb_falling(a0)
+    clr.b wb_rising(a0)
 
-	dc.b rest,127,end_sect
+wb_61de:
+    move.b #$1, wb_pitch_mode(a0)
+
+wb_61e4:
+    move.b (a3)+, d0
+    addq.b #$1, d4
+
+wb_61e8:
+    bra.w wb_6266
+
+wb_61ec:
+    cmp.b #$7e, d0
+    bne.w wb_6200
+    move.b #$1, wb_rising(a0)
+    clr.b wb_falling(a0)
+    bra.w wb_61de
+
+wb_6200:
+    cmp.b #$7d, d0
+    bne.w wb_6224
+    move.b #$1, d0
+
+wb_620c:
+    move.b d0, wb_pitch_mode(a0)
+    move.b (a3)+, d0
+    addq.b #$1, d4
+    move.b d0, wb_chord(a0)
+    move.b d0, wb_chord_mask
+    bsr.w wb_build_arpeggio
+    bra.w wb_61e4
+
+wb_6224:
+    cmp.b #$7c, d0
+    bne.w wb_6232
+    move.b #$2, d0
+    bra.w wb_620c
+
+wb_6232:
+    cmp.b #$7b, d0
+    bne.w wb_6256
+    clr.b wb_chord(a0)
+    move.b #$1, wb_pitch_mode(a0)
+    move.b (a3)+, d0
+    add.b wb_transpose(a0), d0
+    move.b d0, wb_target(a0)
+    move.b (a3)+, wb_slide(a0)
+    addq.b #$2, d4
+    bra.w wb_61e4
+
+wb_6256:
+    cmp.b #$7a, d0
+    bne.w wb_6266
+    move.b (a3)+, wb_vibrato_delay(a0)
+    move.b (a3), d0
+    addq.l #$2, d4
+
+wb_6266:
+    bclr.b d1, wb_mute_mask
+    move.b wb_dma_bit(a0), d5
+    and.l #$ff, d5
+    or.w d5, amiga_music_retrigger
+    move.b d4, wb_event_bytes
+    movem.l d0-d7/a0-a6, -(a7)
+    bsr.w wb_set_sample
+    bsr.w wb_set_envelope
+    movem.l (a7)+, d0-d7/a0-a6
+    add.b wb_transpose(a0), d0
+    move.b d0, wb_note(a0)
+    tst.b d0
+    beq.w wb_62c6
+    tst.b wb_chord(a0)
+    bne.w wb_62c6
+    move.b wb_envelope_id(a0), d4
+    and.l #$ff, d4
+    lea wb_envelopes, a1
+    adda.l d4, a1
+    tst.b wb_detune(a0)
+    beq.w wb_62c6
+    addq.b #$2, wb_note(a0)
+
+wb_62c6:
+    bsr.w wb_set_period
+    lea wb_pattern_positions, a1
+    adda.l wb_long_offset, a1
+    move.b wb_event_bytes, d0
+    and.l #$ff, d0
+    add.l d0, (a1)
+    moveq #$0, d0
+    move.b wb_duration(a0), wb_remaining(a0)
+    move.b wb_vibrato_delay(a0), wb_vibrato_wait(a0)
+    move.b wb_chord_base(a0), wb_chord_pos(a0)
+    addq.b #$1, wb_chord_pos(a0)
+
+wb_62fc:
+    bra.w wb_envelope
+
+wb_6300:
+    tst.b wb_note(a0)
+    beq.w wb_62fc
+    tst.b wb_pitch_mode(a0)
+    bne.w wb_631c
+    tst.b wb_vibrato_param(a0)
+    bne.w wb_vibrato
+    move.b $4e(a0), wb_delayed_vibrato(a0)
+
+wb_631c:
+    bra.w wb_arpeggio
+
+wb_vibrato:
+    movem.l d0-d7/a0-a6, -(a7)
+    move.b wb_vibrato_param(a0), d0
+    move.b d0, wb_vibrato_shift
+    andi.b #$f, wb_vibrato_shift
+    lsr.b #$4, d0
+    move.b d0, wb_vibrato_extent
+    move.b wb_note(a0), d0
+    and.l #$ff, d0
+    asl.b #$1, d0
+    lea wb_period_table, a1
+    adda.l d0, a1
+    move.w (a1)+, d0
+    sub.w (a1), d0
+    move.w d0, wb_vibrato_step
+
+wb_635c:
+    subq.b #$1, wb_vibrato_shift
+    tst.b wb_vibrato_shift
+    bmi.w wb_637c
+    lsr.w wb_vibrato_step
+    ori.w #$1, wb_vibrato_step
+    bra.w wb_635c
+
+wb_637c:
+    tst.b wb_vibrato_direction(a0)
+    bpl.w wb_6398
+    subq.b #$1, wb_vibrato_pos(a0)
+    tst.b wb_vibrato_pos(a0)
+    bne.w wb_63b4
+    addq.b #$1, wb_vibrato_direction(a0)
+    bpl.w wb_63b4
+
+wb_6398:
+    addq.b #$1, wb_vibrato_pos(a0)
+    move.b wb_vibrato_pos(a0), d0
+    and.l #$ff, d0
+    cmp.b wb_vibrato_extent, d0
+    bls.w wb_63b4
+    subq.b #$1, wb_vibrato_direction(a0)
+
+wb_63b4:
+    tst.b wb_vibrato_wait(a0)
+    beq.w wb_63c4
+    subq.b #$1, wb_vibrato_wait(a0)
+    bra.w wb_643a
+
+wb_63c4:
+    lea wb_base_periods, a1
+    adda.l wb_word_offset, a1
+    move.w (a1), wb_vibrato_period
+    move.b wb_vibrato_extent, d0
+    and.l #$ff, d0
+    lsr.b #$1, d0
+    move.b d0, d4
+
+wb_63e6:
+    subq.l #$1, d4
+    bmi.w wb_6400
+    move.w wb_vibrato_period, d0
+    add.w wb_vibrato_step, d0
+    move.w d0, wb_vibrato_period
+    bra.w wb_63e6
+
+wb_6400:
+    move.b wb_vibrato_pos(a0), d4
+    and.l #$ff, d4
+
+wb_640a:
+    subq.l #$1, d4
+    tst.b d4
+    bmi.w wb_6426
+    move.w wb_vibrato_period, d0
+    sub.w wb_vibrato_step, d0
+    move.w d0, wb_vibrato_period
+    bra.w wb_640a
+
+wb_6426:
+    move.w wb_vibrato_period, d0
+    lea wb_output_periods, a1
+    adda.l wb_word_offset, a1
+    move.w d0, (a1)
+
+wb_643a:
+    movem.l (a7)+, d0-d7/a0-a6
+    bra.w wb_envelope
+
+wb_arpeggio:
+    tst.b wb_chord(a0)
+    beq.w wb_portamento
+    movem.l d0-d7/a0-a6, -(a7)
+
+wb_644e:
+    move.b wb_chord_pos(a0), d4
+    and.l #$ff, d4
+    lea wb_chord_sequences, a1
+    adda.l d4, a1
+    move.b (a1), d0
+    and.l #$ff, d0
+    cmp.b #$ff, d0
+    bne.w wb_6478
+    move.b wb_chord_base(a0), wb_chord_pos(a0)
+    bra.w wb_644e
+
+wb_6478:
+    add.b wb_note(a0), d0
+    lea wb_period_table, a1
+    asl.b #$1, d0
+    adda.l d0, a1
+    move.w (a1), d0
+    lea wb_output_periods, a1
+    adda.l wb_word_offset, a1
+    move.w d0, (a1)
+    addq.b #$1, wb_chord_pos(a0)
+    movem.l (a7)+, d0-d7/a0-a6
+    bra.w wb_envelope
+
+wb_portamento:
+    tst.b wb_target(a0)
+    beq.w wb_envelope
+    move.b wb_target(a0), wb_slide_target
+    move.b wb_slide(a0), d0
+    and.b #$f, d0
+    move.b d0, wb_slide_speed
+    move.b d0, wb_slide_speed
+    move.b wb_slide(a0), d0
+    lsr.b #$4, d0
+    add.b wb_remaining(a0), d0
+    cmp.b wb_duration(a0), d0
+    bgt.w wb_6542
+    add.b wb_slide_speed,d0
+    cmp.b wb_order(a0), d0
+    bls.w wb_6528
+    move.b wb_note(a0), d5
+    bsr.w wb_slide_delta
+    lea wb_base_periods, a1
+    adda.l wb_word_offset, a1
+    move.w (a1), d0
+    lea wb_slide_step, a2
+    tst.b wb_slide_direction
+    beq.w wb_6512
+    sub.w (a2), d0
+    move.w d0, (a1)
+    bra.w wb_6516
+
+wb_6512:
+    add.w (a2), d0
+    move.w d0, (a1)
+
+wb_6516:
+    lea wb_output_periods, a2
+    adda.l wb_word_offset, a2
+    move.w (a1), (a2)
+    bra.w wb_6542
+
+wb_6528:
+    lea wb_base_periods, a1
+    adda.l wb_word_offset, a1
+    lea wb_target_periods, a6
+    adda.l wb_word_offset, a6
+    move.w (a6), (a1)
+
+wb_6542:
+    tst.b wb_delayed_vibrato(a0)
+    beq.w wb_envelope
+    bra.w wb_vibrato
+
+wb_envelope:
+    moveq #$0, d4
+    tst.b wb_remaining(a0)
+    beq.w wb_65d2
+    tst.b wb_releasing(a0)
+    bne.w wb_65a8
+    move.b wb_remaining(a0), d7
+    move.b wb_sustain(a0), d4
+    tst.b d4
+    bne.w wb_6578
+    move.b #$1, wb_releasing(a0)
+    bra.w wb_65d2
+
+wb_6578:
+    cmp.b #$ff, d4
+    beq.w wb_65d2
+    move.b wb_duration(a0), d5
+    lsr.b d4, d5
+    sub.b d7, d5
+    tst.b d5
+    beq.w wb_65a8
+    move.b wb_volume(a0), d0
+    move.b wb_peak(a0), d4
+    cmp.b d0, d4
+    beq.w wb_65d2
+    add.b wb_attack(a0), d0
+    move.b d0, wb_volume(a0)
+    bra.w wb_65d2
+
+wb_65a8:
+    move.b #$1, wb_releasing(a0)
+    moveq #$0, d0
+    move.b wb_volume(a0), d0
+    move.b wb_release(a0), d4
+    sub.b d4, d0
+    tst.b d0
+    bmi.w wb_65c8
+    move.b d0, wb_volume(a0)
+    bra.w wb_65d2
+
+wb_65c8:
+    clr.b wb_volume(a0)
+    bset.b d1, wb_mute_mask
+
+wb_65d2:
+    subq.b #$1, wb_channel_index
+    bmi.w wb_65e0
+    bra.w wb_602e
+
+wb_65e0:
+
+wb_set_loops:
+    moveq #$3, d1
+    moveq #$c, d2
+    moveq #$6, d3
+    moveq #$30, d4
+
+wb_65f4:
+    moveq #$0, d0
+    moveq #$0, d6
+    moveq #$0, d5
+    lea wb_loop_lengths, a6
+    adda.l d3, a6
+    move.w (a6), d0
+    lsr.w #$1, d0
+    lea amiga_music_loops+$4, a5
+    adda.l d4, a5
+    move.w d0, (a5)
+    lea wb_loop_offsets, a6
+    adda.l d3, a6
+    move.w (a6), d6
+    and.l #$fff, d6
+    lea wb_sample_starts, a6
+    adda.l d2, a6
+    add.l (a6), d6
+    lea amiga_music_loops+$0, a5
+    adda.l d4, a5
+    move.l d6, (a5)
+    subq.l #$4, d2
+    subq.l #$2, d3
+    sub.l #$10, d4
+    dbra d1, wb_65f4
+    subq.b #$1, wb_tick
+    bpl.w wb_done
+    move.b wb_speed, wb_tick
+
+wb_done:
+    move.b #$ff, wb_request
+    rts 
+
+wb_mute:
+    moveq #$0, d0
+    movea.l #amiga_music_attack+8,a5
+    move.w d0, (a5)
+    move.w d0, $10(a5)
+    move.w d0, $20(a5)
+    move.w d0, $30(a5)
+    lea wb_voice_volumes, a5
+    move.b d0, (a5)
+    move.b d0, $1(a5)
+    move.b d0, $2(a5)
+    move.b d0, $3(a5)
+    rts 
+
+wb_stop:
+    bsr.w wb_mute
+    clr.b wb_tick
+    clr.b wb_running
+    rts 
+
+wb_build_arpeggio:
+    movem.l d0-d7/a0-a6, -(a7)
+    moveq #$0, d4
+    move.b wb_chord_base(a0), d4
+    addq.b #$1, d4
+    moveq #$0, d5
+
+wb_66aa:
+    move.b wb_chord_mask, d0
+    and.l #$ff, d0
+    btst #$0, d0
+    beq.w wb_66da
+    lea wb_chord_notes, a1
+    adda.l d5, a1
+    move.b (a1), d0
+    lea wb_chord_sequences, a1
+    adda.l d4, a1
+    move.b d0, (a1)
+    addq.l #$1, d4
+    move.b wb_chord_mask, d0
+
+wb_66da:
+    lsr.b #$1, d0
+    move.b d0, wb_chord_mask
+    addq.l #$1, d5
+    cmp.b #$8, d5
+    bne.w wb_66aa
+    lea wb_chord_sequences, a1
+    adda.l d4, a1
+    move.b #$ff, (a1)
+    clr.b wb_target(a0)
+    movem.l (a7)+, d0-d7/a0-a6
+    rts 
+
+wb_slide_delta:
+    move.b wb_slide_target,d4
+    cmp.b d4, d5
+    bcc.w wb_6748
+    move.b #$1, wb_slide_direction
+    lea wb_period_table, a1
+    asl.b #$1, d4
+    adda.l d4, a1
+    move.w (a1), d4
+    move.l a6, -(a7)
+    lea wb_target_periods, a6
+    adda.l wb_word_offset, a6
+    move.w d4, (a6)
+    movea.l (a7)+, a6
+    asl.b #$1, d5
+    lea wb_period_table, a1
+    adda.l d5, a1
+    move.w (a1), d5
+    sub.w d4, d5
+    move.w d5, wb_slide_step
+    bra.w wb_6780
+
+wb_6748:
+    clr.b wb_slide_direction
+    lea wb_period_table, a1
+    asl.b #$1, d4
+    adda.l d4, a1
+    move.w (a1), d4
+    move.l a6, -(a7)
+    lea wb_target_periods, a6
+    adda.l wb_word_offset, a6
+    move.w d4, (a6)
+    movea.l (a7)+, a6
+    asl.b #$1, d5
+    lea wb_period_table, a1
+    adda.l d5, a1
+    move.w (a1), d5
+    sub.w d5, d4
+    move.w d4, wb_slide_step
+
+wb_6780:
+    moveq #$0, d4
+    move.b wb_speed, d4
+    moveq #$0, d0
+
+wb_678a:
+    add.b wb_slide_speed,d0
+    dbra d4, wb_678a
+    move.b d0, wb_slide_divisor
+    moveq #$0, d4
+    move.w wb_slide_step, d4
+    divu.w d0, d4
+    move.w d4, wb_slide_step
+    rts 
+
+wb_set_envelope:
+    moveq #$0, d0
+    move.b wb_envelope_id(a0), d0
+    lea wb_envelopes, a2
+    adda.l d0, a2
+    move.b (a2), wb_volume(a0)
+    move.b $1(a2), wb_peak(a0)
+    move.b $2(a2), wb_attack(a0)
+    move.b $3(a2), wb_release(a0)
+    move.b $4(a2), wb_sustain(a0)
+    move.b $5(a2), wb_vibrato_param(a0)
+    tst.b $6(a2)
+    beq.w wb_67fa
+    move.b $6(a2), wb_chord(a0)
+    move.b #$7c, wb_pitch_mode(a0)
+    move.b $6(a2), wb_chord_mask
+    bsr.w wb_build_arpeggio
+
+wb_67fa:
+    tst.b $7(a2)
+    beq.w wb_6816
+    move.b $7(a2), d0
+    btst #$3, d0
+    beq.w wb_6816
+    move.b #$1, $27(a0)
+    rts 
+
+wb_6816:
+    rts 
+
+wb_set_sample:
+    moveq #$0, d0
+    move.b wb_instrument(a0), d0
+    lea wb_sample_defs, a1
+    adda.l d0, a1
+    move.b (a1), d4
+    move.b $1(a1), wb_sample_looping(a0)
+    tst.b wb_sample_looping(a0)
+    beq.w wb_6842
+    move.w $4(a1), d0
+    add.w $6(a1), d0
+    bra.w wb_6846
+
+wb_6842:
+    move.w $2(a1), d0
+
+wb_6846:
+    lea wb_loop_lengths, a6
+    adda.l wb_word_offset, a6
+    move.w $6(a1), (a6)
+    lea wb_loop_offsets, a6
+    adda.l wb_word_offset, a6
+    move.w $4(a1), (a6)
+    lea amiga_music_attack+$4, a5
+    move.b wb_register_offset, d6
+    and.l #$ff, d6
+    adda.l d6, a5
+    lsr.w #$1, d0
+    move.w d0, (a5)
+    lea wb_sample_pointers, a1
+    asl.l #$2, d4
+    adda.l d4, a1
+    lea amiga_music_attack+$0, a5
+    adda.l d6, a5
+    move.l (a1), (a5)
+    lea wb_sample_starts, a5
+    adda.l wb_long_offset, a5
+    move.l (a1), (a5)
+    rts 
+
+wb_set_period:
+    move.b wb_note(a0), d0
+    asl.b #$1, d0
+    lea wb_period_table, a1
+    adda.l d0, a1
+    move.w (a1), d0
+    lea wb_base_periods, a1
+    adda.l wb_word_offset, a1
+    move.w d0, (a1)
+    lea wb_output_periods, a1
+    adda.l wb_word_offset, a1
+    move.w d0, (a1)
+    rts 
+
+wb_clear_registers:
+    moveq #$0, d0
+    moveq #$0, d1
+    moveq #$0, d2
+    moveq #$0, d3
+    moveq #$0, d4
+    moveq #$0, d5
+    moveq #$0, d6
+    moveq #$0, d7
+    rts 
+
+    section music_data,data
+    include "amiga-music.inc"
+
+; Named offsets preserve the original interleaved state layout for comparison.
+wb_output_periods: equ wb_state+$0
+wb_voice_state: equ wb_state+$8
+wb_voice_volumes: equ wb_state+$68
+wb_channel_index: equ wb_state+$8c
+wb_running: equ wb_state+$8d
+wb_speed: equ wb_state+$8e
+wb_tick: equ wb_state+$8f
+wb_vibrato_extent: equ wb_state+$90
+wb_vibrato_shift: equ wb_state+$91
+wb_chord_mask: equ wb_state+$92
+wb_event_bytes: equ wb_state+$93
+wb_register_offset: equ wb_state+$94
+wb_slide_divisor: equ wb_state+$95
+wb_slide_direction: equ wb_state+$96
+wb_mute_mask: equ wb_state+$97
+wb_base_periods: equ wb_state+$98
+wb_target_periods: equ wb_state+$a0
+wb_slide_step: equ wb_state+$a8
+wb_sample_starts: equ wb_state+$aa
+wb_loop_lengths: equ wb_state+$ba
+wb_loop_offsets: equ wb_state+$c2
+wb_pattern_positions: equ wb_state+$ca
+wb_order_lists: equ wb_state+$da
+wb_current_order: equ wb_state+$ea
+wb_current_pattern: equ wb_state+$ee
+wb_vibrato_step: equ wb_state+$f2
+wb_vibrato_period: equ wb_state+$f6
+wb_long_offset: equ wb_state+$fa
+wb_word_offset: equ wb_state+$fe
+wb_chord_sequences: equ wb_state+$102
+
+    section audio_vars,bss
+wb_state:
+    ds.b $6ae0-$69b6
+wb_state_end:
+wb_request: ds.b 1
+wb_slide_target: ds.b 1
+wb_slide_speed: ds.b 1
+    even
+amiga_music_retrigger: ds.w 1
+amiga_music_attack: ds.b 64
+amiga_music_loops: ds.b 64
+amiga_music_periods: equ wb_state
+amiga_music_volumes: equ wb_voice_volumes
+amiga_music_mute: equ wb_mute_mask
+
+    section amiga_audio,data
+wb_samples:
+    incbin "amiga-music-samples.bin"
+wb_silence:
+    dc.w 0

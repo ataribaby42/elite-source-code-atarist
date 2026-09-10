@@ -20,6 +20,9 @@ use_novella: equ -1 ; flag  use novella protection
 	ifnd noprotect
 noprotect: equ 0 ; build option: skip only the novella question
 	endc
+	ifnd commander_max
+commander_max: equ 0 ; build option: default commander starts with 1,000,000 Cr
+	endc
 calc_checksum: equ -0 ; flag  calculate and display checksum
 	ifnd valid
 valid equ $5123

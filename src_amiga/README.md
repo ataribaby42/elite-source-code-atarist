@@ -12,11 +12,15 @@ Run from the project root:
 .\build_amiga.bat -Python "C:\path\python.exe"
 ```
 
-`noprotect=yes` skips the novella question at startup. The default, `noprotect=no`, keeps it enabled. Other protection checks are unaffected. The last occurrence wins if the option is repeated; `python src_amiga/build.py` accepts the same options.
+`noprotect=yes` skips the novella question at startup. The Python build default, `noprotect=no`, keeps it enabled. Other protection checks are unaffected. `python src_amiga/build.py` accepts the same options.
+
+`commander=max` gives the default Jameson commander **1,000,000 Cr** when starting or resetting a game. `commander=default` keeps the original **100 Cr** balance and is the Python build default. Only the starting cash changes; saved commanders retain their saved balances.
+
+The root `build_amiga.bat` currently supplies `noprotect=yes commander=max`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=default` to build with the original starting balance.
 
 Python 3.10+ and Windows x64 are required. The build uses the root `tools/vasmm68k_mot.exe` (vasm 2.0f, Motorola syntax, MC68000) and `tools/vlink.exe` (vlink 0.18a). No additional Python packages are needed. `-Vasm` and `-Vlink` select alternative tool paths. `python src_amiga/build.py` is also supported. Unknown arguments, including `platform=amiga`, are rejected.
 
-The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checksum is validated before extracting the original boot block and 19 PCM sound samples. It produces:
+The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checksum is validated before extracting the original boot block, 19 effect samples, and the four-channel Blue Danube score with seven music instruments. It produces:
 
 | Path from the project root | Contents |
 | --- | --- |
@@ -37,7 +41,7 @@ Screen swapping waits for the VBL handler to accept the rendered screen before r
 - **Display:** 320 x 200, four planes, 16 colours. Each row contains four consecutive 40-byte plane rows. Pixel word addresses are `screen + y*160 + (x>>4)*2`, with plane offsets 0, 40, 80 and 120. Copper uses a bitplane modulo of 120. Two 32 KB Chip RAM buffers provide double buffering; a VERTB handler publishes the completed screen.
 - **Drawing:** lines, polygons, text, sprites and their saved backgrounds, radar, scrolling text, chart circles and planet shading use the native plane addresses. DEGAS RLE artwork decodes directly into this row-interleaved layout. The asset palette is imported once into native 12-bit OCS colours. Game artwork and compact sprite assets remain derived from the Atari release.
 - **Input:** an `input.device` handler supplies native Amiga raw keys and mouse movement. The keyboard tables and steering bindings use Amiga key codes directly. The vertical blank handler reads the joystick port and fire button. There is no ST scancode translation or IKBD packet emulation.
-- **Sound:** `sounds.m68` drives Paula DMA using the 19 original Amiga samples. Audio samples and Copper data are allocated in Chip RAM. Music uses the existing Blue Danube note sequence with a simple looped waveform; effect timing and envelopes are simplified. This is not the original Amiga music replay engine.
+- **Sound:** `sounds.m68` drives Paula DMA using the 19 original Amiga effect samples. Music uses the original four-channel Amiga Blue Danube score and seven sampled instruments, with a relocatable adaptation of Wally Beben's replay in `music.m68`. The title, docking computer and Elite congratulations screen use this arrangement. Audio samples and Copper data are allocated in Chip RAM. Effect timing and envelopes remain simplified. See [MUSIC.md](MUSIC.md) for extraction, playback and validation details.
 - **Files:** `fileio.m68` calls AmigaDOS Open, Read, Write and Close with full 32-bit BPTR handles. Directory enumeration uses Lock, Examine and ExNext and returns commander filenames directly. It does not simulate GEMDOS traps, handle numbers or a DTA. The existing 256-byte commander format is retained.
 - **Lifecycle:** Exec remains running for input and disk I/O. Startup saves the OS View and installs the handlers; exit removes them, closes open files, releases the directory lock and restores the OS display and Copper list. Relocatable Hunk sections replace the fixed Atari memory map. Each BSS Hunk stays below the Kickstart 1.x clearing limit.
 
@@ -57,7 +61,7 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 | `asm/fileio.m68` | Native AmigaDOS file and directory operations |
 | `asm/raster.inc` | Native bitplane drawing and background save/restore primitives |
 | `asm/graphics.m68`, `asm/bios.m68`, `asm/sprites.m68` | Raster geometry, text, sprites and cursor |
-| `asm/sounds.m68`, `asm/workspace.m68` | Paula playback and relocatable game/Chip RAM storage |
+| `asm/sounds.m68`, `asm/music.m68`, `asm/workspace.m68` | Paula effects, original Amiga music replay and relocatable storage |
 | `asm/` | Independent game modules, definitions, font and ship data |
 | `assets/` | Game artwork and lookup tables |
 | `build.py`, `build.ps1`, `build.bat` | Build owned by this target |
@@ -72,7 +76,7 @@ The optional `tests/test_sprites.py` suite also uses `unicorn==2.1.4`. It execut
 
 The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, and large unclipped circle spans. Entire guarded screen buffers are compared with a pixel reference. `tests/test_starfield.py` verifies depth-based motion, all four views, retro rockets, rotation, recycling, and one-pixel stars on MC68000 and MC68020 CPU models.
 
-The build checks assembly/link diagnostics, relocations, required Chip RAM allocations, BSS sizes, module variable capacities, asset buffer capacities, the two-screen layout, original PCM checksums, and OFS disk contents read back byte for byte. Run the automated tests after building:
+The build checks assembly/link diagnostics, relocations, required Chip RAM allocations, BSS sizes, module variable capacities, asset buffer capacities, the two-screen layout, original effect/music assets and sample loop bounds, and OFS disk contents read back byte for byte. Run the automated tests after building:
 
 ```powershell
 python -B -m unittest discover -s src_amiga/tests -v
@@ -86,6 +90,8 @@ The new native renderer has been exercised through the novella screen, title ani
 
 The audio shutdown fix was separately checked with WinUAE PCM recording at 48 kHz, stereo, 16-bit. Keyclick, laser, error and alert effects returned every channel to zero volume with audio DMA disabled; the following 14.69 seconds of recorded output contained only zero samples. Music fade and exit also produced a silent recorded tail. Evidence and the tested executable hash are in `build/audio-qa/audio-verification.json`. Playback mutes a channel and allows its sample clock to latch the change before disabling DMA. The delay observes the vertical byte of VHPOSR; comparing the complete register would count horizontal positions and end the wait too soon. Music rests remain muted during a fade.
 
-Real hardware, extended gameplay, audible sound quality and the original Amiga music arrangements are not validated. The test configuration disables host audio, so Paula playback setup is distinct from a listening test. Mouse/joystick bindings need a physical-device play test.
+The current Amiga music replay is separately checked by `tests/test_music.py`: 18,000 ticks of replay state match the original ADF code on both MC68000 and MC68020. Register tests cover the complete arrangement, sample attacks and loops, fades, restart, silent shutdown and effects after music. Native executable pages are write-protected during these tests. The earlier WinUAE recordings above predate this music replacement.
+
+Real hardware, extended gameplay and audible quality of the new music replay remain unvalidated. CPU/register checks are distinct from a listening test. Mouse/joystick bindings need a physical-device play test.
 
 Original game and asset credits and bundled tool licences are documented in the [main README](../README.md#legal-information-and-credits).

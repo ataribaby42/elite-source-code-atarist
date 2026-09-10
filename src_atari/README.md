@@ -30,7 +30,11 @@ Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for 
 .\build_atari.bat noprotect=yes
 ```
 
-`noprotect=no` restores the default behavior. The last occurrence wins when the option is repeated. The same options are accepted by `python src_atari/build.py`.
+`noprotect=no` restores the default behavior. The same options are accepted by `python src_atari/build.py`.
+
+`commander=max` gives the default Jameson commander **1,000,000 Cr** when starting or resetting a game. `commander=default` keeps the original **100 Cr** balance and is the Python build default. Only the starting cash changes; saved commanders retain their saved balances.
+
+The root `build_atari.bat` currently supplies `noprotect=yes commander=max`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
 
 The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src-orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
 

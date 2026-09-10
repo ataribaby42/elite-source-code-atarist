@@ -65,13 +65,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm', type=Path, default=TOOLS / 'vasmm68k_mot.exe')
     parser.add_argument('--vlink', type=Path, default=TOOLS / 'vlink.exe')
-    parser.add_argument('options', nargs='*', metavar='noprotect=yes|no',
-                        help='skip the novella question with noprotect=yes (default: no)')
+    parser.add_argument('options', nargs='*', metavar='OPTION',
+                        help='noprotect=yes|no (default: no); commander=max|default '
+                             '(default: default, max starts with 1,000,000 Cr)')
     args = parser.parse_intermixed_args()
+    noprotect, commander = False, 'default'
     for option in args.options:
-        if option not in ('noprotect=yes', 'noprotect=no'):
-            parser.error(f'Unknown build option: {option}; expected noprotect=yes or noprotect=no')
-    noprotect = bool(args.options and args.options[-1] == 'noprotect=yes')
+        if option in ('noprotect=yes', 'noprotect=no'):
+            noprotect = option == 'noprotect=yes'
+        elif option in ('commander=max', 'commander=default'):
+            commander = option.split('=', 1)[1]
+        else:
+            parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
+                         'or commander=max|default')
     args.vasm, args.vlink = args.vasm.resolve(), args.vlink.resolve()
     for tool in (args.vasm, args.vlink):
         check(tool.is_file(), f'Tool not found: {tool}. Restore the bundled root tools folder '
@@ -82,7 +88,8 @@ def main():
 
     def assemble(name, fmt='vobj', output=None, extra=(), extension='.m68'):
         output = output or BUILD / (name + '.o')
-        run([args.vasm, *FLAGS, f'-Dnoprotect={int(noprotect)}', '-F' + fmt, *extra,
+        run([args.vasm, *FLAGS, f'-Dnoprotect={int(noprotect)}',
+             f'-Dcommander_max={int(commander == "max")}', '-F' + fmt, *extra,
              '-I' + str(BUILD), '-I' + str(ROOT / 'asm'),
              '-o', output, ROOT / 'asm' / (name + extension)], name + '.log')
 
@@ -93,6 +100,7 @@ def main():
 
     print(f'Assembling {len(modules)} game modules for MC68000...')
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
+    print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
     for name in modules + ['workspace', 'loader']:
         assemble(name)
     first_map = link_game('elite-pass1.map')
@@ -167,7 +175,7 @@ def main():
     baseline = json.loads((ROOT / 'original-sha256.json').read_text())
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
-        'build_options': {'noprotect': noprotect},
+        'build_options': {'noprotect': noprotect, 'commander': commander},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',
         'ram_end': f'{syms["ram_end"]:08X}',

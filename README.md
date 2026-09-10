@@ -26,7 +26,18 @@ To skip the novella protection question at startup, add `noprotect=yes`:
 .\build_amiga.bat noprotect=yes
 ```
 
-The default is `noprotect=no`, which keeps the question enabled. Each build applies the selected option to its own output files; it is not a runtime setting. If repeated, the last `noprotect` option wins. Other game protection checks remain unchanged.
+The Python builds default to `noprotect=no`, which keeps the question enabled. Each build applies the selected option to its own output files; it is not a runtime setting. Other game protection checks remain unchanged.
+
+Use `commander=max` to give the default Jameson commander **1,000,000 Cr** at the start of a new game or after resetting the game:
+
+```powershell
+.\build_atari.bat commander=max
+.\build_amiga.bat commander=max
+```
+
+`commander=default` restores the original **100 Cr** starting balance. This option changes cash only; loading a saved commander uses the balance stored in that save. The Python builds default to `commander=default`.
+
+The root build scripts currently supply `noprotect=yes commander=max` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 If the script cannot find Python, provide its path:
 
@@ -63,7 +74,7 @@ The Amiga game is developed in [src_amiga](src_amiga/README.md), separately from
 
 Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
 
-The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original samples extracted from `resources/amiga/Elite 2.0.adf`. Music and effect envelopes remain simplified compared with the original Amiga release.
+The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original effect samples extracted from `resources/amiga/Elite 2.0.adf`. Music uses the original four-channel Amiga arrangement of Blue Danube, with its seven sampled instruments and native replay, for the title, docking computer and Elite congratulations screen. Effect timing and envelopes remain simplified. See [Amiga music notes](src_amiga/MUSIC.md) for extraction and validation details.
 
 The independent version has been checked in WinUAE 6.0.3 through startup, launch, all flight views, pitch controls, charts, commander save/load and catalog, and return to AmigaDOS. Audio register setup was inspected; audible sound quality, physical input devices, extended gameplay and real hardware remain untested.
 
@@ -100,7 +111,7 @@ The Atari ST version credits the following contributors in its [in-game credits]
 
 The [original source header](src_atari/asm/elite.m68) identifies the Atari ST conversion as derived from the MSX version and carries **Copyright (c) 1988 Mr. Micro and Firebird Software**. The [title-screen code](src_atari/asm/attract.m68) also credits **Bell & Braben**.
 
-The experimental Amiga port reuses sound samples from the supplied Amiga release, whose music and sound are credited to **Wally Beben**. This port derives its artwork and game logic from the Atari source tree; it is not a source reconstruction of the original Amiga executable.
+The experimental Amiga port reuses the music, instruments and sound samples from the supplied Amiga release, whose music and sound are credited to **Wally Beben**. Its native music replay is adapted from that release's replay code. Blue Danube was composed by **Johann Strauss II**. The port's artwork and game logic derive from the Atari source tree; the full original Amiga game executable is not reconstructed.
 
 This repository maintains a buildable version of the Atari ST sources with fixes and modern build tooling. It does not claim ownership of the original game, code, graphics, or other assets. Their copyrights remain with their respective rights holders; inclusion in this repository does not place them in the public domain or grant additional rights to use or redistribute them.
 

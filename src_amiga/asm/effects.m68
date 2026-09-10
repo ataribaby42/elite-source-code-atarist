@@ -25,7 +25,7 @@
 	xref disp_message,text_blatt,copy_object,move,read_key,remove_objects
 	xref flush_keyboard,rand,flash_message,update_inst,flash_message
 	xref draw_sight,disp_debug,reset_system,block,remove_radar,instruments
-	xref find_nodes,monst,logo,draw_screen,swap_screen,blue_danube
+	xref find_nodes,monst,logo,draw_screen,swap_screen
 
 ; ---- LOCAL CONSTANTS ----
 
@@ -1402,7 +1402,6 @@ q_effects_m68_88:
 
 	q_subr well_done,global
 
-	lea blue_danube,a0 ; start tune playing
 	jsr start_tune
 	lea logo,a0 ; draw the logo screen
 	move.l scr_base(a6),a1

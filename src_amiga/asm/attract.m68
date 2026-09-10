@@ -15,7 +15,7 @@
 
 	include "macros.m68"
 
-	xref reset_system,front_view,init_cursor,blue_danube,start_tune,orthogonal
+	xref reset_system,front_view,init_cursor,start_tune,orthogonal
 	xref create_object,clear_image,disp_message,text_blatt,get_range,draw_all
 	xref draw_object,update_inst,swap_screen,local_x_rotate,local_z_rotate
 	xref joystick,set_climb_angles,world_x_rotate,set_roll_angles,read_key
@@ -117,7 +117,6 @@ q_attract_m68_1\@:
 	cmp #$10,mission(a6) ; 1st mission ?
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_attract_m68_5
-	lea blue_danube,a0 ; start theme tune
 	jsr start_tune
 
 display_title:
