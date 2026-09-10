@@ -21,6 +21,7 @@
 	xref init_dust,rand,monst,checksum,logo
 	xref dust_cos,dust_sin,cockpit,textscr,obj_data,bitmaps
 	xref hyper_buffer,quiet,blank_screen
+	xref draw_screen,amiga_start_display
 
 * ---- LOCAL CONSTANTS ----
 
@@ -114,6 +115,7 @@ size macro
 	q_push.l a0
 	lea var_size(a6),a0 ; set top of memory pointer
 	move.l a0,top_memory(a6)
+	bsr show_title ; keep the loading picture visible while reading game assets
 	load_file cockpit,cockpit_file ; load data files
 	load_file textscr,textscr_file
 	load_file texture,texture_file
@@ -185,11 +187,31 @@ size macro
 	jsr random_seed_value
 	move.l d0,random_seed(a6)
 	jsr init_dust ; initialise dust clouds
-	jsr amiga_install ; enable input and display after variables and assets are ready
+	jsr amiga_install ; enable input and game VBL work after initialization
 *	 move.l #trace_it,$24
 *	 or #$8000,sr
 
 	q_ret
+
+
+; The compressed title fits in the secondary screen's disk buffer. Decode it
+; into the primary Chip RAM screen before read_bitmaps reuses that buffer.
+
+	q_subr show_title
+
+	load_file other_screen,title_file
+	cmp.l #34,d0
+	blt .done ; missing or unreadable optional loading picture
+	lea other_screen,a0
+	cmp.w #$8000,(a0)
+	bne .done
+	lea amiga_primary,a1
+	jsr draw_screen
+	lea other_screen+2,a0
+	jsr set_palette
+	jsr amiga_start_display ; display-only VBL; game variables are not ready yet
+.done:
+	rts
 
 
 * ***************************************
@@ -748,6 +770,8 @@ text2: dc.b 10,13,0
 
 * Disk file names
 
+title_file:
+	dc.b "title.pc1",0
 cockpit_file:
 	dc.b "cockpit.pc1",0
 textscr_file:

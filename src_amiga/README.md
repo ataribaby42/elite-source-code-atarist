@@ -30,6 +30,8 @@ Target: **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion
 
 The raster routines write directly to the two screens used by Amiga display DMA. The original Atari word-interleaved framebuffer and the former frame conversion wrapper are absent.
 
+Startup displays the Atari release's `TITLE.PC1` artwork while loading the game assets. It decodes directly into the primary Amiga screen with a native OCS palette. The secondary screen temporarily holds the compressed picture, then becomes the bitmap loader's disk buffer. Display refresh runs during loading; game clock, cursor and sound updates begin only after initialization. The game continues automatically when loading finishes, without requiring a key press. A missing or unreadable title file is skipped.
+
 Screen swapping waits for the VBL handler to accept the rendered screen before reusing the previous display buffer. It preserves that VBL acknowledgement, so the next viewport clear does not wait for an extra refresh. The existing three-VBL gameplay frame limiter remains in effect.
 
 - **Display:** 320 x 200, four planes, 16 colours. Each row contains four consecutive 40-byte plane rows. Pixel word addresses are `screen + y*160 + (x>>4)*2`, with plane offsets 0, 40, 80 and 120. Copper uses a bitplane modulo of 120. Two 32 KB Chip RAM buffers provide double buffering; a VERTB handler publishes the completed screen.
@@ -66,7 +68,7 @@ The build checks assembly/link diagnostics, relocations, required Chip RAM alloc
 python -B -m unittest discover -s src_amiga/tests -v
 ```
 
-The optional `tests/test_raster.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 drawing routines, comparing entire guarded screen buffers with a pixel reference. Coverage includes all line directions, the 120 panel colour patterns, all 16 solid colours, horizontal word boundaries, both buffers, viewport clearing, block fills and preserved registers. This is CPU-level correctness coverage, not a WinUAE gameplay or frame-rate measurement. The normal game build has no new package dependency.
+The optional `tests/test_raster.py` and `tests/test_startup.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 routines. Drawing tests compare entire guarded screen buffers with a pixel reference, covering all line directions, the 120 panel colour patterns, all 16 solid colours, horizontal word boundaries, both buffers, viewport clearing, block fills and preserved registers. Startup tests check the title pixels and palette, disk-buffer reuse, display-only refresh during loading, transition to game refresh, and startup without a readable title. OS services are stubbed in the startup tests. This is CPU-level correctness coverage, not a WinUAE gameplay or frame-rate measurement. The normal game build has no new package dependency.
 
 Runtime checks use an isolated WinUAE 6.0.3 instance with Kickstart 1.3, PAL OCS, a real-speed MC68000, 512 KB Chip RAM and 512 KB slow RAM. Evidence and the exact executable hash are recorded locally in `build/qa/runtime-verification.json`; screenshots are in the same generated directory. `build/verification.json` reports structural checks only and does not claim emulator coverage automatically.
 

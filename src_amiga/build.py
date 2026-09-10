@@ -91,6 +91,8 @@ def build_amiga(vasm, vlink, noprotect=False):
     for name, (start, end) in capacities.items():
         if (OUTPUT/name).stat().st_size > symbols[end]-symbols[start]:
             raise ValueError('Asset exceeds its workspace buffer: ' + name)
+    if (OUTPUT/'TITLE.PC1').stat().st_size > hunks['amiga_video']['bytes']//2:
+        raise ValueError('TITLE.PC1 exceeds the secondary screen loading buffer')
     files = {'ELITE': data, 's/startup-sequence': b'ELITE\n'}
     files.update({name:(OUTPUT/name).read_bytes() for name in (*ASSET_NAMES,'OBJECTS.IMG','ELITECHR.IMG')})
     disk = OUTPUT.parent/'ELITE.ADF'

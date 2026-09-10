@@ -5,6 +5,7 @@ amiga_implementation: equ 1
     include "macros.m68"
     xref elite,vars,vblank,key_change,other_screen,quiet
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
+    xdef amiga_start_display
     xdef palette,frclock,dos_base,set_palette,random_seed_value
     xref active_files,directory_lock
     xdef amiga_flip_address
@@ -114,10 +115,24 @@ startup_failed:
     moveq #0,d0
     rts
 
-amiga_install:
+; Display-only startup also serves the loading picture, before game init.
+amiga_start_display:
     movem.l d0-d7/a0-a6,-(sp)
+    tst vblank_added
+    bne .done
     lea amiga_primary,a0
     move.l a0,display_front
+    move.l exec_base,a6
+    lea vblank_server,a1
+    moveq #5,d0
+    jsr -168(a6)                 ; AddIntServer
+    st vblank_added
+.done:
+    movem.l (sp)+,d0-d7/a0-a6
+    rts
+
+amiga_install:
+    movem.l d0-d7/a0-a6,-(sp)
     move.l exec_base,a6
     moveq #-1,d0
     jsr -330(a6)                 ; AllocSignal
@@ -148,10 +163,7 @@ amiga_install:
     tst.b input_request+31
     bne .failed
     st input_added
-    lea vblank_server,a1
-    moveq #5,d0
-    jsr -168(a6)                 ; AddIntServer
-    st vblank_added
+    bsr amiga_start_display     ; install once, including when TITLE.PC1 is absent
     st amiga_active
     movem.l (sp)+,d0-d7/a0-a6
     rts
@@ -195,8 +207,6 @@ amiga_poll:
 amiga_vblank:
     movem.l d0-d7/a0-a6,-(sp)
     addq.l #1,frclock
-    tst amiga_active
-    beq .end
     tst ready
     beq .same
     move.l display_pending,display_front
@@ -223,6 +233,8 @@ amiga_vblank:
     move.l #copper,$dff080
     ; Copper restarts itself each frame. Do not strobe COPJMP1 while a blit runs.
     move.w #$83c0,$dff096        ; master, bitplane, Copper and blitter DMA
+    tst amiga_active
+    beq .end                    ; loading: no cursor, sound or game clock work
     lea vars,a6
     bsr poll_joystick
     jsr vblank                  ; cursor/sound work must follow display setup
