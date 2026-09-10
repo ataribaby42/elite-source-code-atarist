@@ -4,7 +4,7 @@ A buildable version of the original Elite for Atari ST and the **MC68000** proce
 
 ## Building on Windows
 
-You need **Windows x64 and Python 3.10 or later**, with no additional Python packages. Compiled assembler and linker executables are bundled in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
+You need **Windows x64 and Python 3.10 or later**, with no additional Python packages. The **vasm 2.0f assembler** (`vasmm68k_mot.exe`, MC68000 with Motorola syntax) and **vlink 0.18a linker** (`vlink.exe`) are bundled as compiled Windows executables in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
 
 Run this from the project root:
 
@@ -53,3 +53,19 @@ All game source changes belong in `src`. Project rules are in [AGENTS.md](AGENTS
 Sources, documentation, and bundled tools belong in Git. `output`, `src/build`, and Python caches are ignored. The emulator and TOS ROM are not included in the repository. Original sources retain their exact encoding and line endings; run `python src/tools/verify_original.py` to verify all 307 files.
 
 See [src/README.md](src/README.md) for development, testing, and optional tool rebuilding. [src/ANALYSIS.md](src/ANALYSIS.md) describes the original architecture and dialect conversion.
+
+## Legal information and credits
+
+**Elite** was originally created by **Ian Bell and David Braben** for the BBC Micro in 1984. See [Ian Bell's Elite website](https://www.elitehomepage.org/) for the original authors' credits and historical material.
+
+The Atari ST version credits the following contributors in its [in-game credits](src/asm/action.m68):
+
+- **Rob Nicholson of Mr. Micro Ltd.** — Atari ST conversion and programming.
+- **Gary Patchen** — assistance with the conversion.
+- **James McDermott** — graphics.
+
+The [original source header](src/asm/elite.m68) identifies the Atari ST conversion as derived from the MSX version and carries **Copyright (c) 1988 Mr. Micro and Firebird Software**. The [title-screen code](src/asm/attract.m68) also credits **Bell & Braben**.
+
+This repository maintains a buildable version of the Atari ST sources with fixes and modern build tooling. It does not claim ownership of the original game, code, graphics, or other assets. Their copyrights remain with their respective rights holders; inclusion in this repository does not place them in the public domain or grant additional rights to use or redistribute them.
+
+The build uses the bundled **vasm 2.0f assembler** and **vlink 0.18a linker**. These tools have separate license terms: [vasm license](tools/vasm-LICENSE.txt) and [vlink license](tools/vlink-LICENSE.txt).
