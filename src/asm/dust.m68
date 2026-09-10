@@ -626,34 +626,34 @@ q_dust_m68_67:
 
 	q_subr rview_left
 
-	move roll_sin(a6),d0 ; Left view has negative world x: y -= sin(roll)
-	neg d0
-	asr #1,d0
+	move.l roll_sin(a6),d0 ; Left view has negative world x: y -= sin(roll)
+	neg.l d0
+	asl.l #1,d0 ; sin*2^24 -> 512*sin pixels in 16.16 format
 	lea dust_vert(pc),a0 ; using Dust_Vert routine
 
 	q_ret
 
 	q_subr rview_right
 
-	move roll_sin(a6),d0 ; Right view has positive world x: y += sin(roll)
-	asr #1,d0
+	move.l roll_sin(a6),d0 ; Right view has positive world x: y += sin(roll)
+	asl.l #1,d0 ; match the 512-pixel object projection scale
 	lea dust_vert(pc),a0 ; using Dust_Vert routine
 
 	q_ret
 
 	q_subr cview_front
 
-	move climb_sin(a6),d0 ; Move vertically using -sin(climb)
-	neg d0
-	asr #1,d0
+	move.l climb_sin(a6),d0 ; Move vertically using -sin(climb)
+	neg.l d0
+	asl.l #1,d0 ; match the 512-pixel object projection scale
 	lea dust_vert(pc),a0 ; using Dust_Vert routine
 
 	q_ret
 
 	q_subr cview_rear
 
-	move climb_sin(a6),d0 ; Move vertically using sin(climb)
-	asr #1,d0
+	move.l climb_sin(a6),d0 ; Move vertically using sin(climb)
+	asl.l #1,d0 ; match the 512-pixel object projection scale
 	lea dust_vert(pc),a0 ; using Dust_Vert routine
 
 	q_ret
@@ -746,9 +746,11 @@ q_dust_m68_73:
 * **								  **
 * **************************************
 
-* Moves the dust particle vertically.
+* Moves the dust particle vertically at the object projection scale.
+* This is the small-angle approximation 512*sin(angle); preserve fractional
+* pixels so slow turns accumulate smoothly in either direction.
 
-* Entry: D0 = amount to move
+* Entry: D0.L = signed 16.16 pixel displacement
 * Exit:  None
 
 * Regs: ?
@@ -756,13 +758,7 @@ q_dust_m68_73:
 
 	q_subr dust_vert
 
-	move dust_y(a5),d1 ; fetch current y coord
-	add d0,dust_y(a5) ; add offset to y coord
-	eor d1,d0 ; sign changed ?
-; Quelo: 	if <mi> then.s						yes
-	bpl.s q_dust_m68_75
-	neg dust_y+2(a5) ; negate low word and step
-q_dust_m68_75:
+	add.l d0,dust_y(a5) ; retain fractional pixels, including across zero
 
 	q_ret
 
