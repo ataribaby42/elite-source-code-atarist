@@ -1,0 +1,103 @@
+	include "common.def"
+; Converted from CHECKSUM.M68 in resources/elite_atarist_source.zip.
+*	@@@@   @@  @@ @@@@@@@	@@@@  @@@  @@	@@@@   @@  @@ @@   @@
+*  @@  @@  @@  @@  @@	@  @@  @@  @@  @@  @@  @@  @@  @@ @@@ @@@
+* @@	   @@  @@  @@ @   @@	   @@ @@   @@	   @@  @@ @@@@@@@
+* @@	   @@@@@@  @@@@   @@	   @@@@ 	@@@@   @@  @@ @@@@@@@
+* @@	   @@  @@  @@ @   @@	   @@ @@	   @@  @@  @@ @@ @ @@
+*  @@  @@  @@  @@  @@	@  @@  @@  @@  @@  @@  @@  @@  @@ @@   @@
+*	@@@@   @@  @@ @@@@@@@	@@@@  @@@  @@	@@@@	@@@@  @@   @@
+
+* Calculate and check for hacking routines.
+
+	include "macros.m68"
+
+	xref checksum_start,checksum_end,disp_debug,shut_down,cockpit
+
+	q_module checksum
+
+start:
+
+* Jump table to checksum routines (so that the JSR's never change).
+
+	q_subr checksum,global
+
+	bra _checksum
+
+	q_subr check_hack,global
+
+	bra _check_hack
+
+
+* ***********************************
+* **							   **
+* ** CHECKSUM - CALCULATE CHECKSUM **
+* **							   **
+* ***********************************
+
+* Calculates the checksum and stores in down in memory.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr _checksum,global
+
+	lea checksum_start,a0 ; start of memory to check
+	clr d0 ; checksum = 0
+	clr d1 ; high byte = 0 (always)
+q_checksum_m68_1:
+	move.b (a0)+,d1 ; add byte to checksum
+	add d1,d0
+	cmp.l #checksum_end,a0
+	bne q_checksum_m68_1
+q_checksum_m68_2:
+	move d0,prog_checksum(a6) ; store checksum
+	ifne use_novella
+	xdef checksum_expected
+checksum_expected:
+	move #valid,ok_checksum(a6) ; set correct checksum
+	endc
+	ifeq use_novella
+	move d0,ok_checksum(a6) ; fudge checksum
+	endc
+	ifne calc_checksum
+	pea cockpit+2 ; setup palette
+	q_ext_bios setpalette,6
+	jsr disp_debug ; display checksum
+q_checksum_m68_3:
+	bra q_checksum_m68_3
+q_checksum_m68_4:
+	endc
+
+	q_ret return
+
+
+* ***************************************************
+* **											   **
+* ** CHECK_HACK - CHECK IF PROGRAM HAS BEEN HACKED **
+* **											   **
+* ***************************************************
+
+* Checks if the program has been hacked and bombing out if required.
+
+* Entry: None
+* Exit:  None
+
+* Regs: ?
+* Subr: ?
+
+	q_subr _check_hack
+
+	lea prog_checksum-1234(a6),a0 ; checksum ok ?
+	lea ok_checksum-4321(a6),a1
+	move 1234(a0),d0
+	cmp 4321(a1),d0
+	q_ret eq ; yes, return
+	jmp shut_down ; shut down the program
+
+end:
+
+	ds.b 512-(end-start) ; pad out to 1k

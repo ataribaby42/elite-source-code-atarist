@@ -1,0 +1,1515 @@
+	include "common.def"
+; Converted from EFFECTS.M68 in resources/elite_atarist_source.zip.
+; @@@@@@@ @@@@@@@ @@@@@@@ @@@@@@@	@@@@   @@@@@@	@@@@
+;  @@	@  @@	@  @@	@  @@	@  @@  @@  @ @@ @  @@  @@
+;  @@ @    @@ @    @@ @    @@ @   @@		 @@    @@
+;  @@@@    @@@@    @@@@    @@@@   @@		 @@ 	@@@@
+;  @@ @    @@ @    @@ @    @@ @   @@		 @@ 	   @@
+;  @@	@  @@	   @@	   @@	@  @@  @@	 @@    @@  @@
+; @@@@@@@ @@@@	  @@@@	  @@@@@@@	@@@@	@@@@	@@@@
+
+; Special graphical effects:
+
+;	End game explosion
+;	Launch from space station
+;	Hyperspace sequence
+
+; Version 1.0 31st August 1988 Copyright (c) 1988 Mr. Micro Ltd.
+; Designed and coded by Rob Nicholson.
+
+	include "macros.m68"
+
+	xref front_view,create_object,orthogonal,clear_image,get_range,start_tune
+	xref draw_object,draw_all,swap_screen,local_x_rotate,fx,move,wait
+	xref local_z_rotate,wait_key,clear_objects,alloc_object,do_logic
+	xref disp_message,text_blatt,copy_object,move,read_key,remove_objects
+	xref flush_keyboard,rand,flash_message,update_inst,flash_message
+	xref draw_sight,disp_debug,reset_system,block,remove_radar,instruments
+	xref find_nodes,monst,logo,draw_screen,swap_screen,blue_danube
+
+; ---- LOCAL CONSTANTS ----
+
+max_distance: equ 300 ; maximum explosion distance
+length1: equ 30 ; length of stage #1
+speed1: equ 40 ; forwards movement stage #1
+speed2: equ 5 ; vertical movement stage #2
+speed3: equ 100 ; forwards movement stage #3
+speed4: equ 300 ; forwards movement stage #4
+speed5: equ 8 ; vertical speed of the doors
+length2: equ 17 ; length of stage #2
+length3: equ 17 ; length of stage #3
+length4: equ 42 ; length of stage #4
+circle_rate: equ 7 ; generate rate of circles
+circle_speed: equ 150 ; rate at which circles move forwards
+circle_dist: equ 10000 ; starting distance for circles
+circle_rad: equ 195 ; radius of circle
+circle_min: equ 500 ; minimum z coord of circle
+black_dur: equ 20 ; length of blackout
+speed6: equ 200 ; forward speed in docking #1
+speed7: equ 6 ; speed of main doors in docking #1
+speed8: equ 100 ; normal tunnel speed
+length5: equ 9 ; length of main doors opening
+length6: equ $28 ; length of tunnel section before doors
+length7: equ 14 ; length of red doors opening
+length8: equ $11 ; length of dropping to floor
+length9: equ $20 ; length of approaching arrow
+
+; Launch sub-logics.
+
+	rsset log_takeoff
+
+launch1a: rs.b 1
+launch1b: rs.b 1
+launch2a: rs.b 1
+launch2b: rs.b 1
+launch3a: rs.b 1
+launch3b: rs.b 1
+launch4a: rs.b 1
+launch4b: rs.b 1
+
+; Docking sub-logics.
+
+	rsset log_docking
+
+dock1a: rs.b 1
+dock1b: rs.b 1
+dock1c: rs.b 1
+dock2a: rs.b 1
+dock2b: rs.b 1
+dock3a: rs.b 1
+dock3b: rs.b 1
+dock3c: rs.b 1
+dock3d: rs.b 1
+dock4a: rs.b 1
+dock4b: rs.b 1
+dock5a: rs.b 1
+
+; Panel types.
+
+	rsset panels
+
+panel1: rs.b 1 ; side panel
+panel2: rs.b 1 ; top panel
+panel3: rs.b 1 ; back panel
+panel4: rs.b 1 ; side thin white panel
+panel5: rs.b 1 ; side launch tunnel
+panel6: rs.b 1 ; top launch tunnel
+panel7: rs.b 1 ; top launch panel
+panel8: rs.b 1 ; red sliding door
+panel9: rs.b 1 ; vertical red pulsing strips
+panel10: rs.b 1 ; docking red door panels
+panel11: rs.b 1 ; docking end wall
+
+; ---- LOCAL VARIABLES ----
+
+	q_vars effects
+
+state: rs.w 1 ; current state of explosion sequence
+create_tunnel: rs.w 1 ; flag: create launch tunnel
+launch_over: rs.w 1 ; flag: launch sequence over
+hanger_used: rs.w 1 ; used hanger positions
+colour_idx: rs.w 1 ; index into colour table
+circle_count: rs.w 1 ; counter to next circle
+hyperspace_over: rs.w 1 ; flag: hyperspace effect over
+black_count: rs.w 1 ; counter for blackout stage
+docking_over: rs.w 1 ; flag: docking sequence over
+panel5_ptr: rs.l 1 ; ptr: panel#5 nodes
+panel5_nodes: rs.w 1 ; # nodes in panel #5 (-1)
+panel6_ptr: rs.l 1 ; ptr: panel#6 nodes
+panel6_nodes: rs.w 1 ; # nodes in panel #6 (-1)
+shrinkage: rs.w 1 ; amount to shrink a panel
+create_bay: rs.w 1 ; flag: create cargo bay
+
+	q_end_vars effects
+
+	q_module effects
+
+
+; ****************************************
+; **									**
+; ** END_GAME - DRAW END GAME EXPLOSION **
+; **									**
+; ****************************************
+
+; Draws the explosing Cobra at the end of the game.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr end_game,global
+
+	tst view(a6) ; front view displayed ?
+	q_call ne,front_view ; no, display front view
+	jsr reset_system ; reset all variables
+	jsr instruments ; force update for all instruments
+	jsr clear_objects ; clear all objects
+	jsr alloc_object ; create Cobra in the distance
+	move.b #%00100001,flags(a4)
+	move #cobra,type(a4)
+	lea end_game_data(pc),a0
+	lea xpos(a4),a1
+	q_loop 1,30
+	move.b (a0)+,(a1)+
+	q_next 1
+	move #log_endgame1,logic(a4)
+	jsr create_object ; create the objects
+	clr speed(a6) ; we are not moving
+q_effects_m68_1:
+	jsr clear_image ; clear screen image
+	jsr remove_radar ; remove any radar trace
+	lea objects(a6),a5 ; point to 1st object
+	clr this_obj(a6)
+q_effects_m68_3:
+	btst #in_use,flags(a5) ; object in use ?
+; Quelo: 			if <ne> then				yes
+	beq q_effects_m68_5
+	jsr get_range ; compute range
+	jsr draw_object ; draw object
+	jsr do_logic ; perform logic
+	jsr move ; move in space
+	jsr orthogonal ; make vectors orthogonal
+q_effects_m68_5:
+	lea obj_len(a5),a5 ; next object
+	q_inc this_obj(a6)
+	cmp #max_objects,this_obj(a6)
+	bne q_effects_m68_3
+q_effects_m68_4:
+	jsr draw_all ; draw all objects
+	lea text1(pc),a0 ; print 'Game Over'
+	jsr disp_message
+	moveq #magenta,d0
+	jsr text_blatt
+	jsr update_inst ; update any instruments
+	jsr swap_screen ; swap to other screen
+	jsr remove_objects ; remove any flagged objects
+	btst #in_use,objects+flags(a6) ; until explosion over
+	bne q_effects_m68_1
+q_effects_m68_2:
+	jmp flush_keyboard
+
+
+; ***************************************************
+; **											   **
+; ** LAUNCH_SEQUENCE - DISPLAY THE LAUNCH SEQUENCE **
+; **											   **
+; ***************************************************
+
+; Displays the pretty launch sequence.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr launch_sequence,global
+
+	clr docked(a6) ; display front view
+	jsr front_view
+	jsr clear_objects ; clear all object records
+	btst #f_sequence,user(a6) ; launch sequence on ?
+; Quelo: 	if <ne> then						yes
+	beq q_effects_m68_7
+	jsr alloc_object ; create left side panel
+	lea side(pc),a0
+	bsr init_object
+	move #panel1,type(a4)
+	move #launch1a,logic(a4)
+	move #length1,counter(a4)
+	jsr create_object
+	move.l a4,a5 ; create right side panel
+	jsr alloc_object
+	jsr copy_object
+	neg.l xpos(a4)
+	jsr create_object
+	jsr alloc_object ; create top side panel
+	lea top(pc),a0
+	bsr init_object
+	move #panel2,type(a4)
+	move #launch1a,logic(a4)
+	move #length1,counter(a4)
+	jsr create_object
+	move.l a4,a5 ; create bottom panel
+	jsr alloc_object
+	jsr copy_object
+	move.l #-175,ypos(a4)
+	jsr create_object
+	jsr alloc_object ; create back panel
+	lea back(pc),a0
+	bsr init_object
+	move #panel3,type(a4)
+	move #launch1b,logic(a4)
+	move #length1,counter(a4)
+	jsr create_object
+	jsr alloc_object ; create top door panel
+	lea top_door(pc),a0
+	bsr init_object
+	move #panel8,type(a4)
+	move #launch1b,logic(a4)
+	move #length1,counter(a4)
+	move #+speed5,force(a4) ; (move up)
+	jsr create_object
+	jsr alloc_object ; create bottom door panel
+	lea bottom_door(pc),a0
+	bsr init_object
+	move #panel8,type(a4)
+	move #launch1b,logic(a4)
+	move #length1,counter(a4)
+	move #-speed5,force(a4)
+	jsr create_object
+	move.l #3850,d5 ; create thin side panels
+	q_loop 1,3
+	jsr alloc_object ; (left)
+	lea thin_side(pc),a0
+	bsr init_object
+	move.l d5,zpos(a4)
+	move #panel4,type(a4)
+	move #launch1b,logic(a4)
+	move #length1,counter(a4)
+	jsr create_object
+	move.l a4,a5 ; (right)
+	jsr alloc_object
+	jsr copy_object
+	neg.l xpos(a4)
+	jsr create_object
+	sub.l #1000,d5
+	q_next 1
+	lea launch_pos(pc),a5 ; create ships
+	moveq #launch1b,d4
+	moveq #length1,d5
+	moveq #0,d6
+	bsr create_ships
+	clr create_tunnel(a6) ; don't create tunnel
+	bra.s q_effects_m68_8
+q_effects_m68_7:
+	st create_tunnel(a6) ; create tunnel
+q_effects_m68_8:
+	clr launch_over(a6) ; clear launch over flag
+	clr text_frames(a6) ; clear current message
+q_effects_m68_9:
+	jsr clear_image ; clear screen image
+	lea objects(a6),a5 ; loop for each object
+	q_loop 1,max_objects
+	btst #in_use,flags(a5) ; record in use ?
+; Quelo: 			if <ne> then.s				yes
+	beq.s q_effects_m68_11
+	q_push d7
+	jsr get_range ; calculate range to object
+	jsr draw_object ; draw (queue) the object
+	jsr do_logic ; perform objects logic
+	q_pop d7
+q_effects_m68_11:
+	lea obj_len(a5),a5 ; next object
+	q_next 1
+	jsr draw_all ; draw all queued objects
+	jsr update_inst ; update any instruments
+	lea text2(pc),a0 ; flash 'Launch Active'
+	jsr flash_message
+	moveq #white,d0
+	jsr text_blatt
+	jsr draw_sight ; draw laser sight
+	jsr swap_screen ; swap screens
+	jsr remove_objects ; remove flagged objects
+	tst create_tunnel(a6) ; leaving docking bay over ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_effects_m68_13
+	clr create_tunnel(a6) ; end launch tunnel stage
+	bsr launch_tunnel
+q_effects_m68_13:
+	tst launch_over(a6) ; until launch over
+	beq q_effects_m68_9
+q_effects_m68_10:
+	jmp flush_keyboard
+
+
+; ***********************************************
+; **										   **
+; ** CREATE_SHIPS - CREATE SHIPS IN HANGER BAY **
+; **										   **
+; ***********************************************
+
+; Creates some random ships in the hanger bay at launch and docking.
+
+; Entry: A5 = ptr: position vector table
+;		 D4 = logic type
+;		 D5 = value for counter
+;		 D6 = velocity
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr create_ships
+
+	move.b #%1111,hanger_used(a6) ; all positions free
+	moveq #4,d2 ; # ships in hanger = 0..3
+	jsr rand
+	tst d0 ; any ships ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_effects_m68_15
+	move d0,d7 ; loop for each object
+	q_dec d7
+	q_loop 1
+	jsr alloc_object ; allocate record
+	move.b #1,flags(a4)
+q_effects_m68_17:
+	moveq #4,d2
+	jsr rand
+	bclr d0,hanger_used(a6)
+	beq q_effects_m68_17
+q_effects_m68_18:
+	asl #2,d0 ; fetch pointer to data
+	move.l (a5,d0),a0
+	lea xpos(a4),a1 ; position and direction object
+	q_loop 2,d0,(3*2+9)
+	move (a0)+,(a1)+
+	q_next 2,d0
+	moveq #no_ships,d2 ; choose random ship type
+	jsr rand
+	add d0,d0
+	lea hanger_ships(pc),a0
+	move (a0,d0),type(a4)
+	move d4,logic(a4)
+	move d5,counter(a4)
+	jsr create_object
+	move d6,velocity(a4)
+	q_next 1
+q_effects_m68_15:
+
+	q_ret
+
+
+; *********************************************
+; **										 **
+; ** LAUNCH_TUNNEL - ENTER THE LAUNCH TUNNEL **
+; **										 **
+; *********************************************
+
+; Initialise the 3D world for the launch tunnel sequence.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr launch_tunnel
+
+	jsr alloc_object ; create left tunnel panel
+	lea side_tunnel(pc),a0
+	bsr init_object
+	move #panel5,type(a4)
+	jsr create_object
+	move.l a4,a5 ; create right tunnel panel
+	jsr alloc_object
+	jsr copy_object
+	neg.l xpos(a4)
+	jsr create_object
+	jsr alloc_object ; create top tunnel panel
+	lea top_tunnel(pc),a0
+	bsr init_object
+	move #panel6,type(a4)
+	jsr create_object
+	move.l a4,a5 ; create bottom tunnel panel
+	jsr alloc_object
+	jsr copy_object
+	neg.l ypos(a4)
+	jsr create_object
+	jsr alloc_object ; create end tunnel panel
+	lea end_tunnel(pc),a0
+	bsr init_object
+	move #panel7,type(a4)
+	move #launch4a,logic(a4)
+	move #length4,counter(a4)
+	jsr create_object
+	move #speed3,velocity(a4)
+	move.l #10400-1000,d5 ; create pulsing lines
+	q_loop 1,4
+	jsr alloc_object
+	move.b #1,flags(a4)
+	lea pulsing(pc),a0
+	bsr init_object
+	move.l d5,zpos(a4)
+	move #panel9,type(a4)
+	move #launch4a,logic(a4)
+	move #length4,counter(a4)
+	jsr create_object
+	move #speed3,velocity(a4)
+	sub.l #2000,d5
+	q_next 1
+
+	q_ret return
+
+
+
+; *************************************
+; **								 **
+; ** INIT_OBJECT - INITIALISE OBJECT **
+; **								 **
+; *************************************
+
+; Initialises the current's object position and direction vectors. The
+; vectors are setup to point to object straight forward (away from us).
+; Also sets the flags to 1 (in use).
+
+; Entry: A4 = ptr: current object
+;		 A0 = ptr: position coords (3 long words)
+; Exit:  None
+
+; Regs: D6/A0/A1 corrupt.
+; Subr: None
+
+	q_subr init_object
+
+	move.b #1,flags(a4) ; object in use
+	lea xpos(a4),a1 ; copy coords into record
+	q_loop 1,d6,3
+	move.l (a0)+,(a1)+
+	q_next 1,d6
+	lea vector_data(pc),a0 ; copy vector data (straight forwards)
+	q_loop 1,d6,9
+	move (a0)+,(a1)+
+	q_next 1,d6
+
+	q_ret return
+
+
+; ***************************
+; **					   **
+; ** LAUNCH LOGIC ROUTINES **
+; **					   **
+; ***************************
+
+; A collection of launch logic routines.
+
+;	launch 1  -   move forward out of the cargo bay.
+
+;					1a - logic for side walls, roof and floor. These don't
+;						 actually move - the logic just waits until the next
+;						 stage.
+;					1b - logic for ships, end wall and doors. Accelerates
+;						 forwards to maximum velocity
+
+;	launch 2  -   move forward and rise upto door level
+
+;					2a - moves up at constant velocity.
+;					2b - moves up and forwards at constant velocity
+
+;	launch 3  -   move forwards towards to doors.
+
+;					3a - logic waits until reached doors then removes the
+;						 object from the world.
+;					3b - Accelerate to maximum velocity and move forwards
+;						 towards the door. If the object goes behind use, then
+;						 it is removed from the world. Triggers the doors to
+;						 open and the tunnel to be created.
+
+;	launch 4  -   open doors and fly down the tunnel.
+
+;					4a - accelerate to maximum velocity and move forwards
+;						 towards the end of the launch tunnel. If the object
+;						 goes behind us, it is removed from the world. Logic
+;						 also triggers the end of the launch sequence.
+;					4b - logic for the opening doors. Performs launch 4a logic
+;						 and also moves the doors up/down. When they reach
+;						 their limits, their are removed from the world.
+
+; Entry: None
+; Exit:  None
+
+; Regs: Not important
+; Subr: Not important
+
+	q_subr do_launch1a,global
+
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #launch2a,logic(a5) ; move to next stage
+	move #length2,counter(a5)
+
+	q_ret
+
+	q_subr do_launch1b,global
+
+	moveq #speed1,d1 ; speed up
+	moveq #4,d2
+	bsr speed_up
+	sub.l d0,zpos(a5) ; move closer
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #launch2b,logic(a5) ; move to next stage
+	move #length2,counter(a5)
+
+	q_ret
+
+	q_subr do_launch2a,global
+
+	sub.l #speed2,ypos(a5) ; move down
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #launch3a,logic(a5) ; move to next stage
+	move #length3,counter(a5)
+
+	q_ret
+
+	q_subr do_launch2b,global
+
+	sub.l #speed2,ypos(a5) ; move down and closer
+	sub.l #speed1,zpos(a5)
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #launch3b,logic(a5) ; move to next stage
+	move #length3,counter(a5)
+
+	q_ret
+
+	q_subr do_launch3a,global
+
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	bset #remove,flags(a5) ; remove object from world
+
+	q_ret
+
+	q_subr do_launch3b,global
+
+	moveq #speed3,d1 ; speed up
+	moveq #8,d2
+	bsr speed_up
+	sub.l d0,zpos(a5) ; move closer
+; Quelo: 	if <mi> then.s						moved behind us
+	bpl.s q_effects_m68_19
+	bset #remove,flags(a5) ; remove object from world
+	q_ret
+q_effects_m68_19:
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	st create_tunnel(a6) ; flag the tunnel creation
+	move #length4,counter(a5) ; set logic timer
+	cmp #panel8,type(a5) ; door panel ?
+; Quelo: 	if <ne> then.s						no
+	beq.s q_effects_m68_21
+	move #launch4a,logic(a5) ; keep moving forwards
+	bra.s q_effects_m68_22
+q_effects_m68_21:
+	move #launch4b,logic(a5) ; start moving the doors
+;		sfx doors						trigger effect
+q_effects_m68_22:
+
+	q_ret
+
+	q_subr do_launch4a,global
+
+	move #speed4,d1 ; speed up
+	moveq #8,d2
+	bsr speed_up
+	sub.l d0,zpos(a5) ; move closer
+; Quelo: 	if <mi> then.s						behind us
+	bpl.s q_effects_m68_23
+	bset #remove,flags(a5)
+	q_ret
+q_effects_m68_23:
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	st launch_over(a6) ; flag end of stage #1
+
+	q_ret
+
+	q_subr do_launch4b,global
+
+	bsr do_launch4a ; move forwards as launch4a
+	move.l ypos(a5),d0 ; fetch y coordinate
+	movem force(a5),d1 ; add vertical velocity (y)
+	add.l d1,d0
+; Quelo: 	if <pl> then.s						moving up
+	bmi.s q_effects_m68_25
+; Quelo: 		if.l d0 <gt> #55 then.s 		off the top
+	cmp.l #55,d0
+	ble.s q_effects_m68_27
+	bset #remove,flags(a5)
+	st fx_off(a6)
+q_effects_m68_27:
+	bra.s q_effects_m68_26
+q_effects_m68_25:
+; Quelo: 		if.l d0 <lt> #-25 then.s		off bottom
+	cmp.l #-25,d0
+	bge.s q_effects_m68_29
+	bset #remove,flags(a5)
+	st fx_off(a6)
+q_effects_m68_29:
+q_effects_m68_26:
+	move.l d0,ypos(a5) ; update y coordinate
+
+	q_ret return
+
+
+; ******************************************
+; **									  **
+; ** SPEED_UP - INCREASE SPEED TO MAXIMUM **
+; **									  **
+; ******************************************
+
+; Increases the speed of the current object to maximum speed.
+
+; Entry: A5   = ptr: object record
+;		 D1   = maximum speed
+;		 D2   = acceleration speed
+; Exit:  D0.L = current speed (sign extended to 32 bits)
+
+; Regs: ?
+; Subr: ?
+
+	q_subr speed_up
+
+	move velocity(a5),d0 ; fetch current speed
+; Quelo: 	if d0 <lo> d1 then.s				not maximum speed
+	cmp d1,d0
+	bhs.s q_effects_m68_31
+	add d2,d0 ; add acceleration speed
+; Quelo: 		if d0 <hi> d1 then.s			clamp at maximum
+	cmp d1,d0
+	bls.s q_effects_m68_33
+	move d1,d0
+q_effects_m68_33:
+q_effects_m68_31:
+	move d0,velocity(a5) ; update velocity record
+	ext.l d0 ; extend to 32 bits
+
+	q_ret return
+
+
+; **********************************
+; **							  **
+; ** SLOW_DOWN - SLOW OBJECT DOWN **
+; **							  **
+; **********************************
+
+; Slows object down to minimum speed.
+
+; Entry: D1 = minimum speed
+;		 D2 = deceleration
+; Exit:  D0.L = current velocity
+
+; Regs: ?
+; Subr: ?
+
+	q_subr slow_down
+
+	move velocity(a5),d0 ; fetch current speed
+; Quelo: 	if d0 <hi> d1 then.s				not minimum speed
+	cmp d1,d0
+	bls.s q_effects_m68_35
+	sub d2,d0 ; slow down
+; Quelo: 		if d0 <lo> d1 then.s			clamp at minimum
+	cmp d1,d0
+	bhs.s q_effects_m68_37
+	move d1,d0
+q_effects_m68_37:
+q_effects_m68_35:
+	move d0,velocity(a5) ; update velocity record
+	ext.l d0 ; extend to 32 bits
+
+	q_ret return
+
+
+; *******************************************************
+; **												   **
+; ** HYPERSPACE_EFFECT - DISPLAY THE HYPERSPACE EFFECT **
+; **												   **
+; *******************************************************
+
+; Displays the nice hyperspace effect.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr hyperspace_effect,global
+
+	tst view(a6) ; front view displayed ?
+	q_call ne,front_view ; no, force front view
+	jsr reset_system ; reset variables
+	jsr instruments ; force update of all instruments
+	jsr clear_objects ; clear all objects
+	moveq #x_left,d0 ; clear window
+	moveq #y_top,d1
+	moveq #-1,d2
+	move #x_size,d3
+	move #y_size,d4
+	moveq #trans,d5
+	jsr block
+	clr text_frames(a6) ; clear current message
+	clr colour_idx(a6) ; start at first colour
+	clr hyperspace_over(a6) ; clear over flag
+	st reverse_draw(a6) ; draw backwards
+	move #1,circle_count(a6) ; force new circle
+	q_sfx hyperspace ; trigger hyperspace effect
+	lea text3(pc),a0 ; print "Entering Hyperspace"
+	jsr disp_message
+q_effects_m68_39:
+q_effects_m68_41:
+	tst flyback(a6)
+	beq q_effects_m68_41
+q_effects_m68_42:
+	jsr remove_radar ; remove any radar from screen
+	clr frame_count(a6) ; clear frame counter
+	clr.l next_record(a6) ; no objects stored for drawing
+	lea objects(a6),a5 ; loop for each object
+	q_loop 1,max_objects
+	btst #in_use,flags(a5) ; record in use ?
+; Quelo: 			if <ne> then.s				yes
+	beq.s q_effects_m68_43
+	q_push d7
+	jsr get_range ; calculate range to object
+	jsr draw_object ; draw (queue) the object
+	jsr do_logic ; perform logic
+	q_pop d7
+q_effects_m68_43:
+	lea obj_len(a5),a5 ; next object
+	q_next 1
+	jsr draw_all ; draw all queued objects
+	jsr update_inst ; update any instruments
+	jsr draw_sight ; draw laser sight
+	moveq #pulse,d0 ; display any text messages
+	jsr text_blatt
+	jsr swap_screen ; swap screens
+	jsr remove_objects ; remove flagged objects
+	q_dec circle_count(a6) ; ready for new circle ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_effects_m68_45
+	bsr new_circle ; create a new circle
+q_effects_m68_45:
+	ifne 0
+q_effects_m68_47:
+	cmp #3,frame_count(a6)
+	blo q_effects_m68_47
+q_effects_m68_48:
+	endc
+	tst hyperspace_over(a6) ; until effect over
+	beq q_effects_m68_39
+q_effects_m68_40:
+	clr reverse_draw(a6) ; back to normal draw
+	jmp flush_keyboard
+
+
+; **************************************
+; **								  **
+; ** NEW_CIRCLE - CREATE A NEW CIRCLE **
+; **								  **
+; **************************************
+
+; Creates a new circle in the distance.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr new_circle
+
+	jsr alloc_object ; allocate a record
+	q_ret cc ; none left
+	move.b #%10000111,flags(a4) ; setup flags
+	move.l #circle_dist,zpos(a4) ; position circle
+	clr.l xpos(a4)
+	clr.l ypos(a4)
+	move #hyp_circle,type(a4) ; it's a circle
+	move #circle_rad,obj_rad(a4) ; set radius of circle
+	move #log_circle,logic(a4) ; perform circle logic
+	jsr create_object ; create object and return
+	tst end_hyperspace(a6) ; effect over ?
+; Quelo: 	if <ne> then.s						no
+	beq.s q_effects_m68_49
+	move colour_idx(a6),d0 ; set colour
+	lea circle_colours(pc),a0
+	move (a0,d0),obj_colour(a4)
+	addq #2,d0 ; advance index (and wrap)
+	tst (a0,d0)
+; Quelo: 		if <mi> then.s
+	bpl.s q_effects_m68_51
+	clr d0
+q_effects_m68_51:
+	move d0,colour_idx(a6)
+	moveq #circle_rate,d0 ; re-load counter
+	bra.s q_effects_m68_50
+q_effects_m68_49:
+	move #black,obj_colour(a4) ; release final black circle
+	moveq #-1,d0 ; stop any more circles
+q_effects_m68_50:
+	move d0,circle_count(a6)
+
+	q_ret
+
+
+; **************************************
+; **								  **
+; ** DO_CIRCLE - PERFORM CIRCLE LOGIC **
+; **								  **
+; **************************************
+
+; Performs the logic for the circle.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr do_circle,global
+
+	sub.l #circle_speed,zpos(a5) ; move closer
+	cmp.l #circle_min,zpos(a5) ; reached front ?
+; Quelo: 	if <lt> then.s						yes
+	bge.s q_effects_m68_53
+	bset #remove,flags(a5) ; remove me
+	cmp #black,obj_colour(a5) ; final black circle ?
+; Quelo: 		if <eq> then.s					yes
+	bne.s q_effects_m68_55
+	st hyperspace_over(a6) ; effect is over
+q_effects_m68_55:
+q_effects_m68_53:
+
+	q_ret return
+
+
+; *************************************************
+; **											 **
+; ** DOCKING_SEQUENCE - RUN THE DOCKING SEQUENCE **
+; **											 **
+; *************************************************
+
+; Displays the special effect when docking.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr docking_sequence,global
+
+	tst view(a6) ; force front view
+	q_call ne,front_view
+	clr missile_state(a6) ; clear missile state
+	clr f_missiles(a6)
+	clr id_trigger(a6) ; clear id flag
+	st stop_cycle(a6) ; stop colour cycling
+	moveq #panel5,d0 ; save panel#5 z nodes
+	jsr find_nodes
+	move.l a0,panel5_ptr(a6)
+	move.w d0,panel5_nodes(a6)
+	move d0,d7
+	q_loop 1
+	q_push 4(a0)
+	addq.l #8,a0
+	q_next 1
+	q_push.l a0
+	q_push.w d0
+	moveq #panel6,d0 ; save panel#6 z nodes
+	jsr find_nodes
+	move.l a0,panel6_ptr(a6)
+	move.w d0,panel6_nodes(a6)
+	move d0,d7
+	q_loop 1
+	q_push 4(a0)
+	addq.l #8,a0
+	q_next 1
+	q_push.l a0
+	q_push.w d0
+	jsr clear_objects ; clear all objects
+	clr docking_over(a6) ; sequence not over
+	clr create_bay(a6) ; don't create cargo bay yet
+	clr shrinkage(a6) ; don't shrink yet
+	move #black_dur,black_count(a6) ; initialise blackout counter
+q_effects_m68_57:
+	jsr clear_image ; clear screen image
+	jsr remove_radar ; remove radar image
+	lea objects(a6),a5 ; loop for each object
+	q_loop 1,max_objects
+	btst #in_use,flags(a5) ; record in use ?
+; Quelo: 			if <ne> then.s				yes
+	beq.s q_effects_m68_59
+	q_push d7
+	jsr get_range ; calculate range to object
+	jsr draw_object ; draw (queue) the object
+	jsr do_logic ; perform objects logic
+	q_pop d7
+q_effects_m68_59:
+	lea obj_len(a5),a5 ; next object
+	q_next 1
+	jsr draw_all ; draw all queued objects
+	jsr update_inst ; update any instruments
+	lea text4(pc),a0 ; flash 'Docking Sequence'
+	jsr flash_message
+	moveq #white,d0
+	jsr text_blatt
+	jsr draw_sight ; draw laser sight
+	jsr swap_screen ; swap screens
+	jsr remove_objects ; remove flagged objects
+	tst black_count(a6) ; in initial black stage ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_effects_m68_61
+	q_dec black_count(a6) ; ready for tunnel ?
+; Quelo: 			if <eq> then.s				yes
+	bne.s q_effects_m68_63
+	bsr dock_tunnel ; create dock tunnel
+q_effects_m68_63:
+q_effects_m68_61:
+	bsr shrink ; shrink tunnel panels
+	tst create_bay(a6) ; create cargo bay ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_effects_m68_65
+	clr create_bay(a6)
+	bsr enter_bay
+q_effects_m68_65:
+	tst docking_over(a6) ; until sequence over
+	beq q_effects_m68_57
+q_effects_m68_58:
+	q_loop 1,2 ; restore panel #6 and #7 nodes
+	q_pop.w d6
+	q_pop.l a0
+	q_loop 2
+	subq.l #8,a0
+	q_pop.w 4(a0)
+	q_next 2,d6
+	q_next 1
+	btst #f_sequence,user(a6) ; docking sequence on ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_effects_m68_67
+	moveq #50*2,d0 ; wait 2 seconds
+	jsr wait
+q_effects_m68_67:
+	clr stop_cycle(a6) ; allow colour cycle
+	jmp flush_keyboard ; flush keyboard and exit
+
+
+; ***********************************
+; **							   **
+; ** SHRINK - SHRINK TUNNEL PANELS **
+; **							   **
+; ***********************************
+
+; This is a real bodge routines that shinks the tunnels panels by changing
+; the z coordinate of each node (if nonzero). This is to overcome the
+; problem that if 3d drawing routines don't perform any viewing plane
+; intersection calculations.
+
+; Entry: SHRINKAGE = amount to shrink
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr shrink
+
+	move shrinkage(a6),d0 ; any shrinkage ?
+	q_ret eq ; no, return
+	move.l panel5_ptr(a6),a0 ; shrink panel #5
+	move.w panel5_nodes(a6),d7
+	q_loop 1
+	tst 4(a0) ; z != 0 ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_effects_m68_69
+	add d0,4(a0) ; add shrinkage
+q_effects_m68_69:
+	addq.l #8,a0 ; next node
+	q_next 1
+	move.l panel6_ptr(a6),a0 ; shrink panel #6
+	move.w panel6_nodes(a6),d7
+	q_loop 1
+	tst 4(a0) ; z != 0 ?
+; Quelo: 		if <ne> then.s					yes
+	beq.s q_effects_m68_71
+	add d0,4(a0) ; add shrinkage
+q_effects_m68_71:
+	addq.l #8,a0 ; next node
+	q_next 1
+	clr shrinkage(a6) ; clear shrinkage
+
+	q_ret return
+
+
+; *****************************
+; **						 **
+; ** DOCKING LOGIC SEQUENCES **
+; **						 **
+; *****************************
+
+; A collection of docking logic routines.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr do_dock1a,global
+
+	sub.l #speed6,zpos(a5) ; move closer
+	q_dec counter(a5) ; ready for next stage ?
+	q_ret ne ; no
+	move #dock2a,logic(a5) ; move to next stage
+	move #length6,counter(a5)
+
+	q_ret
+
+	q_subr do_dock1b,global
+
+	sub.l #speed6,zpos(a5) ; move closer
+	q_dec counter(a5) ; ready for next stage ?
+	q_ret ne ; no
+	move #dock2b,logic(a5) ; move to next stage
+	move #length6,counter(a5)
+
+	q_ret
+
+	q_subr do_dock1c,global
+
+	sub.l #speed6,zpos(a5) ; move closer
+	move.l ypos(a5),d0 ; fetch y coordinate
+	movem force(a5),d1 ; add vertical velocity (y)
+	add.l d1,d0
+; Quelo: 	if <pl> then.s						moving up
+	bmi.s q_effects_m68_73
+; Quelo: 		if.l d0 <gt> #95 then.s 		off the top
+	cmp.l #95,d0
+	ble.s q_effects_m68_75
+	bset #remove,flags(a5)
+q_effects_m68_75:
+	bra.s q_effects_m68_74
+q_effects_m68_73:
+; Quelo: 		if.l d0 <lt> #-45 then.s		off bottom
+	cmp.l #-45,d0
+	bge.s q_effects_m68_77
+	bset #remove,flags(a5)
+q_effects_m68_77:
+q_effects_m68_74:
+	move.l d0,ypos(a5) ; update y coordinate
+
+	q_ret return
+
+	q_subr do_dock2a,global
+
+	move #speed6,d0 ; move closer
+	sub.l d0,zpos(a5)
+	move d0,shrinkage(a6) ; flag panel shrink
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #dock3a,logic(a5) ; move to next stage
+	move #length7,counter(a5)
+	move #speed6,velocity(a5)
+	btst #f_sequence,user(a6) ; launch sequence on ?
+; Quelo: 	if <ne> then.s						yes
+	beq.s q_effects_m68_79
+	st create_bay(a6) ; create docking bay
+q_effects_m68_79:
+
+	q_ret
+
+	q_subr do_dock2b,global
+
+	sub.l #speed6,zpos(a5) ; move closer
+; Quelo: 	if <mi> then.s						behind us, remove object
+	bpl.s q_effects_m68_81
+	bset #remove,flags(a5)
+q_effects_m68_81:
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #dock3b,logic(a5) ; move to next stage
+	move #speed6,velocity(a5)
+
+	q_ret return
+
+	q_subr do_dock3a,global
+
+	moveq #speed8,d1 ; slow down
+	moveq #8,d2
+	bsr slow_down
+	sub.l d0,zpos(a5) ; move closer
+	move d0,shrinkage(a6)
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	bset #remove,flags(a5) ; remove object from the world
+	btst #f_sequence,user(a6) ; launch sequence off ?
+; Quelo: 	if <eq> then.s						yes
+	bne.s q_effects_m68_83
+	st docking_over(a6)
+q_effects_m68_83:
+
+	q_ret
+
+	q_subr do_dock3b,global
+
+	moveq #speed8,d1 ; slow down
+	moveq #8,d2
+	bsr slow_down
+	sub.l d0,zpos(a5) ; move closer
+; Quelo: 	if <mi> then.s
+	bpl.s q_effects_m68_85
+	bset #remove,flags(a5)
+q_effects_m68_85:
+	movem force(a5),d1 ; add vertical velocity (y)
+	move.l ypos(a5),d0
+	add.l d1,d0
+; Quelo: 	if <pl> then.s						moving up
+	bmi.s q_effects_m68_87
+; Quelo: 		if.l d0 <gt> #90 then.s 		off the top
+	cmp.l #90,d0
+	ble.s q_effects_m68_89
+	bset #remove,flags(a5)
+q_effects_m68_89:
+	bra.s q_effects_m68_88
+q_effects_m68_87:
+; Quelo: 		if.l d0 <lt> #-45 then.s		off bottom
+	cmp.l #-45,d0
+	bge.s q_effects_m68_91
+	bset #remove,flags(a5)
+q_effects_m68_91:
+q_effects_m68_88:
+	move.l d0,ypos(a5) ; update y coordinate
+
+	q_ret
+
+	q_subr do_dock3c,global
+
+	moveq #speed8,d1 ; slow down
+	moveq #8,d2
+	bsr slow_down
+	sub.l d0,zpos(a5) ; move closer
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #dock4a,logic(a5) ; move to next stage
+	move #length8,counter(a5)
+
+	q_ret
+
+	q_subr do_dock3d,global
+
+	moveq #speed8,d1 ; slow down
+	moveq #8,d2
+	bsr slow_down
+	sub.l d0,zpos(a5) ; move closer
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #dock4b,logic(a5) ; move to next stage
+	move #length8,counter(a5)
+
+	q_ret
+
+	q_subr do_dock4a,global
+
+	add.l #speed2,ypos(a5) ; move up
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #log_none,logic(a5) ; docking over
+
+	q_ret
+
+	q_subr do_dock4b,global
+
+	add.l #speed2,ypos(a5) ; move up
+	moveq #speed1,d1 ; slow down
+	moveq #4,d2
+	bsr slow_down
+	sub.l d0,zpos(a5) ; move closer
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	move #dock5a,logic(a5) ; move to next stage
+	move #length9,counter(a5)
+
+	q_ret
+
+	q_subr do_dock5a,global
+
+	sub.l #speed1,zpos(a5) ; move closer
+	q_dec counter(a5) ; stage over ?
+	q_ret ne ; no
+	st docking_over(a6) ; section over
+
+	q_ret
+
+
+; ********************************************
+; **										**
+; ** DOCK_TUNNEL - ENTER THE DOCKING TUNNEL **
+; **										**
+; ********************************************
+
+; Initialise the 3D world for the docking tunnel sequence.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr dock_tunnel
+
+	jsr alloc_object ; create left tunnel panel
+	lea d_side_tunnel(pc),a0
+	bsr init_object
+	move #panel5,type(a4)
+	move #dock1a,logic(a4)
+	move #length5,counter(a4)
+	jsr create_object
+	move.l a4,a5 ; create right tunnel panel
+	jsr alloc_object
+	jsr copy_object
+	neg.l xpos(a4)
+	jsr create_object
+	jsr alloc_object ; create top tunnel panel
+	lea d_top_tunnel(pc),a0
+	bsr init_object
+	move #panel6,type(a4)
+	move #dock1a,logic(a4)
+	move #length5,counter(a4)
+	jsr create_object
+	move.l a4,a5 ; create bottom tunnel panel
+	jsr alloc_object
+	jsr copy_object
+	neg.l ypos(a4)
+	jsr create_object
+	jsr alloc_object ; create top door panel
+	lea d_top_door(pc),a0
+	bsr init_object
+	move #panel10,type(a4)
+	move #dock1b,logic(a4)
+	move #length5,counter(a4)
+	move #+speed7,force(a4)
+	jsr create_object
+	jsr alloc_object ; create bottom door panel
+	lea d_bottom_door(pc),a0
+	bsr init_object
+	move #panel10,type(a4)
+	move #dock1b,logic(a4)
+	move #length5,counter(a4)
+	move #-speed7,force(a4)
+	jsr create_object
+	move.l #12000-2000,d5 ; create pulsing lines
+	q_loop 1,4
+	jsr alloc_object
+	lea d_pulsing(pc),a0
+	bsr init_object
+	move.l d5,zpos(a4)
+	move #panel9,type(a4)
+	move #dock1b,logic(a4)
+	move #length5,counter(a4)
+	jsr create_object
+	sub.l #2000,d5
+	q_next 1
+	jsr alloc_object ; create upper black main door
+	lea d_black_upper(pc),a0
+	bsr init_object
+	move #panel10,type(a4)
+	move #dock1c,logic(a4)
+	move #+speed7,force(a4)
+	jsr create_object
+	clr obj_colour(a4) ; (draw in black)
+	jsr alloc_object ; create lower black main door
+	lea d_black_lower(pc),a0
+	bsr init_object
+	move #panel10,type(a4)
+	move #dock1c,logic(a4)
+	move #-speed7,force(a4)
+	jsr create_object
+	clr obj_colour(a4) ; (draw in black)
+
+	q_ret return
+
+
+; **************************************
+; **								  **
+; ** ENTER_BAY - CREATE THE CARGO BAY **
+; **								  **
+; **************************************
+
+; Creates the cargo bay behind the red doors.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr enter_bay
+
+	jsr alloc_object ; create left side wall
+	lea d_side(pc),a0
+	bsr init_object
+	move #panel1,type(a4)
+	move #dock3c,logic(a4)
+	move #length7,counter(a4)
+	jsr create_object
+	move #speed6,velocity(a4)
+	move.l a4,a5 ; create right side wall
+	jsr alloc_object
+	jsr copy_object
+	neg.l xpos(a4)
+	jsr create_object
+	move #speed6,velocity(a4)
+	jsr alloc_object ; create top wall
+	lea d_top(pc),a0
+	bsr init_object
+	move #panel2,type(a4)
+	move #dock3c,logic(a4)
+	move #length7,counter(a4)
+	jsr create_object
+	move #speed6,velocity(a4)
+	jsr alloc_object ; create bottom wall
+	lea d_bottom(pc),a0
+	bsr init_object
+	move #panel2,type(a4)
+	move #dock3c,logic(a4)
+	move #length7,counter(a4)
+	jsr create_object
+	move #speed6,velocity(a4)
+	jsr alloc_object ; create end wall
+	lea d_end(pc),a0
+	bsr init_object
+	move #panel11,type(a4)
+	move #dock3d,logic(a4)
+	move #length7,counter(a4)
+	jsr create_object
+	move #speed6,velocity(a4)
+	lea docking_pos(pc),a5 ; create ships
+	moveq #dock3d,d4
+	moveq #length7,d5
+	move #speed6,d6
+	bsr create_ships
+
+	q_ret return
+
+
+; ****************************************
+; **									**
+; ** WELL_DONE - DISPLAY WELL DONE LOGO **
+; **									**
+; ****************************************
+
+; Displays the screen when you reach the status of Elite!
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ?
+
+	q_subr well_done,global
+
+	lea blue_danube,a0 ; start tune playing
+	jsr start_tune
+	lea logo,a0 ; draw the logo screen
+	move.l scr_base(a6),a1
+	jsr draw_screen
+	jsr swap_screen
+	pea logo+2 ; define palette
+	q_ext_bios setpalette,6
+	move #2,cycle_type(a6) ; strobe colours
+	jsr flush_keyboard ; wait for key press
+q_effects_m68_93:
+	jsr read_key
+	tst d0
+	beq q_effects_m68_93
+q_effects_m68_94:
+	st logo_shown(a6) ; don't show logo again
+
+	q_ret
+
+
+; ---- LOCAL DATA ----
+
+; Position and vectors of the Cobra.
+
+end_game_data: dc.l 0,0,8000
+	dc.w -unit,0,0
+	dc.w 0,unit,0
+	dc.w 0,0,-unit
+side: dc.l -400,0,4600
+top: dc.l 0,275,4600
+back: dc.l 0,0,4600
+thin_side: dc.l -400,0,0
+top_door: dc.l 0,110,4601
+bottom_door: dc.l 0,90,4601
+vector_data: dc.w unit,0,0
+	dc.w 0,unit,0
+	dc.w 0,0,unit
+side_tunnel: dc.l -100,0,10400
+top_tunnel: dc.l 0,45,10400
+end_tunnel: dc.l 0,0,10400
+pulsing: dc.l 0,0,10400
+d_side_tunnel: dc.l -100,0,12000
+d_top_tunnel: dc.l 0,45,12000
+d_pulsing: dc.l 0,0,12000
+d_pulsing2: dc.l 0,45,12000
+d_top_door: dc.l 0,45,12010 ; end tunnel top red door
+d_bottom_door: dc.l 0,0,12010 ; end tunnel bottom red door
+d_black_upper: dc.l 0,45,2000 ; upper main black door
+d_black_lower: dc.l 0,0,2000 ; lower main black door
+d_side: dc.l -400,-85,$866+3000 ; bay side panels
+d_top: dc.l 0,190,$866+3000 ; bay top panel
+d_bottom: dc.l 0,-260,$866+3000 ; bay bottom panel
+d_end: dc.l 0,-85,$866+3000 ; bay end wall
+launch_pos: dc.l position1,position2,position3,position4
+position1: dc.l -200,-80,1500
+	dc.w -unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,-unit
+position2: dc.l -200,-80,2000
+	dc.w -unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,-unit
+position3: dc.l 200,-80,1500
+	dc.w -unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,-unit
+position4: dc.l 200,-80,2000
+	dc.w -unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,-unit
+docking_pos: dc.l position5,position6,position7,position8
+position5: dc.l -200,-165,5150-500
+	dc.w unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,unit
+position6: dc.l -200,-165,5150-1000
+	dc.w unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,unit
+position7: dc.l 200,-165,5150-500
+	dc.w unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,unit
+position8: dc.l 200,-165,5150-1000
+	dc.w unit,0,0
+	dc.w 0,0,0
+	dc.w 0,0,unit
+
+; List of possible ships in the hanger.
+
+hanger_ships:
+
+	dc viper,cobra,cobra_mk1,gecko,moray,adder,mamba,asp,sidewinder
+	dc wolf,shuttle,transporter
+
+no_ships: equ (*-hanger_ships)/2
+
+; Circle colour list.
+
+circle_colours:
+
+	dc drk_grey,lgt_grey
+	dc drk_blue,mid_blue,lgt_blue,mid_blue,-1
+	dc drk_blue,lgt_green,magenta,red,lgt_blue,yellow,white,-1
+
+; Misc. text messages.
+
+text1: dc.b 'Game Over',0
+text2: dc.b 'Automatic Launch Sequence',0
+text3: dc.b 'Entering Hyperspace',0
+text4: dc.b 'Automatic Docking Sequence',0

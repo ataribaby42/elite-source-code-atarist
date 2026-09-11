@@ -12,8 +12,11 @@
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
-# Preserve original bytes, including historic text encodings and line endings.
-src-orig/** -text linguist-vendored
+# Original-version converted sources use the text rules above.
+src-orig/asm/** text eol=lf linguist-vendored
+src-orig/assets/** binary
+# Preserve historical archives and binary assets byte for byte.
+*.zip binary
 src_atari/assets/** binary
 src_amiga/assets/** binary
 src_atari/vendor/** binary linguist-vendored

@@ -1,0 +1,9 @@
+	include "common.def"
+; Converted from CHKEND.M68 in resources/elite_atarist_source.zip.
+* Label end of checksum area.
+
+	section text,code
+
+	xdef checksum_end
+
+checksum_end:

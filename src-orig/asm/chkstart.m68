@@ -1,0 +1,9 @@
+	include "common.def"
+; Converted from CHKSTART.M68 in resources/elite_atarist_source.zip.
+* Label start of checksum area.
+
+	section text,code
+
+	xdef checksum_start
+
+checksum_start:

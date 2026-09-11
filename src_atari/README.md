@@ -1,6 +1,6 @@
 # Source code and development
 
-See the [main README in the project root](../README.md) for building and running the game. This directory contains the working sources and development tools. `src-orig` is read-only; make source changes only under `src_atari`.
+See the [main README in the project root](../README.md) for building and running the game. This directory contains the working sources and development tools. `src-orig` now contains an independent build of the preserved original game; enhanced Atari gameplay changes belong only under `src_atari`. The untouched historical source archive is `resources/elite_atarist_source.zip`.
 
 Run all commands below from the project root. Paths in the tables and text are also relative to the root.
 
@@ -18,7 +18,7 @@ Run all commands below from the project root. Paths in the tables and text are a
 | `src_atari/tools/` | Original dialect converter, floppy image builder, original-file verification, and helper scripts |
 | `src_atari/tests/` | Regression tests for the conversion, launcher and raster routines |
 | `src_atari/vendor/` | Two original vasm/vlink source archives for optional tool rebuilding |
-| `src_atari/original-sha256.json` | Baseline SHA-256 hashes of all 307 files in `src-orig` |
+| `src_atari/original-sha256.json` | Baseline SHA-256 hashes of all 307 files in the historical ZIP |
 | `src_atari/build/` | Generated objects, logs, maps, and diagnostics |
 
 ## Editing and building
@@ -60,7 +60,7 @@ The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the
 
 The floppy contains `AUTO/ELITE.PRG` for automatic startup when booting from drive A:. This variant of `boot.s` selects the current drive root before opening `LOADER.IMG`; all data and the manual `ELITE.TOS` launcher remain in the root. The directory distribution remains flat for manual startup from a hard-drive folder. The FAT12 verifier checks both the root files and the AUTO directory, including its dot entries and launcher bytes.
 
-`src_atari/tools/convert_quelo.py` documents the one-time import of the original dialect. **The normal build does not run it.** By default, it refuses to overwrite existing files. Its `--overwrite` option discards edits to converted files in `src_atari/asm` and is intended only for deliberately repeating the import.
+`src_atari/tools/convert_quelo.py` documents the one-time import of the original dialect. It now requires `--source-dir` pointing to a separately extracted copy of `resources/elite_atarist_source.zip`. **The normal build does not run it.** By default, it refuses to overwrite existing files. Its `--overwrite` option discards edits to converted files in `src_atari/asm` and is intended only for deliberately repeating the import.
 
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
 

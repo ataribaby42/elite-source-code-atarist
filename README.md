@@ -1,6 +1,6 @@
 # Elite Atari ST
 
-A buildable version of the original Elite for Atari ST and the **MC68000** processor, with a separate native Amiga port under `src_amiga`. The Atari game modules are assembled from sources in `src_atari/asm` using **vasm 2.0f and vlink 0.18a**. The original sources in `src-orig` remain unchanged; the normal build does not use them or reuse the old `.LTX` object files.
+Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `src_atari`, a separate native Amiga port in `src_amiga`, and the preserved original Atari ST version in `src-orig`. All three use **vasm 2.0f and vlink 0.18a** with independent source trees and build scripts. The untouched historical sources remain in `resources/elite_atarist_source.zip`; no build uses the old `.LTX` object files.
 
 ## Building on Windows
 
@@ -12,12 +12,15 @@ Run this from the project root:
 .\build_atari.bat
 ```
 
-The Atari and Amiga builds have independent source trees and entry points. No platform option is used.
+The enhanced Atari, Amiga and preserved original builds have independent source trees and entry points. No platform option is used.
 
 ```powershell
 .\build_atari.bat
 .\build_amiga.bat
+.\build_orig.bat
 ```
+
+`build_orig.bat` builds the preserved original Atari ST game into `output_orig/ELITE` and `output_orig/ELITE.ST`. Run `ELITE.TOS` from its folder on a floppy or hard drive. It retains the original projectile weapons, starfield, controls, sounds, graphics, 100 Cr / Harmless commander and novella question. It accepts tool-path overrides, but no enhanced gameplay build options. See [original-version build notes](src-orig/README.md). The options below apply to the enhanced Atari and Amiga versions.
 
 To skip the novella protection question at startup, add `noprotect=yes`:
 
@@ -131,7 +134,10 @@ See [Amiga development and testing notes](src_amiga/README.md) for the current v
 
 | Path | Purpose |
 | --- | --- |
-| `src-orig/` | Original source code, read-only |
+| [src-orig/](src-orig/README.md) | Independently buildable original Atari ST version |
+| `resources/elite_atarist_source.zip` | Untouched historical archive (307 files) |
+| `output_orig/` | Preserved original game and floppy image |
+| [build_orig.bat](build_orig.bat) | Original-version build entry point |
 | [src_atari/](src_atari/README.md) | Working sources, assets, build scripts, and tests |
 | [tools/](tools/README.md) | Bundled Windows assembler and linker executables and license information |
 | `output_atari/` | Atari game and floppy image |
@@ -142,7 +148,7 @@ See [Amiga development and testing notes](src_amiga/README.md) for the current v
 
 Atari source changes belong in `src_atari`; Amiga source changes belong in `src_amiga`. Project rules are in [AGENTS.md](AGENTS.md).
 
-Sources, documentation, and bundled tools belong in Git. Generated files stay in `output_atari`, `output_amiga`, `src_atari/build`, and `src_amiga/build`. The emulator and TOS ROM are not included in the repository. Original sources retain their exact encoding and line endings; run `python src_atari/tools/verify_original.py` to verify all 307 files.
+Sources, documentation, and bundled tools belong in Git. Generated files stay in `output_atari`, `output_amiga`, `output_orig`, and each source tree's `build` directory. The emulator and TOS ROM are not included in the repository. The historical ZIP retains the original files, encodings and line endings; run `python src-orig/tools/verify_original.py` to verify that archive. Converted assembly is stored as text; assets and the ZIP are kept binary.
 
 See [src_atari/README.md](src_atari/README.md) for development, testing, and optional tool rebuilding. [src_atari/ANALYSIS.md](src_atari/ANALYSIS.md) describes the original architecture and dialect conversion.
 

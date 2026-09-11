@@ -1,7 +1,7 @@
 # Bundled Windows build tools
 
-These native Windows x64 executables are used automatically by root `build_atari.bat`
-and `python src_atari/build.py`:
+These native Windows x64 executables are used automatically by root `build_atari.bat`,
+`build_amiga.bat`, `build_orig.bat` and the corresponding source-tree Python builds:
 
 | Executable | Version | Purpose |
 | --- | --- | --- |
@@ -10,9 +10,9 @@ and `python src_atari/build.py`:
 
 They were built with MSVC using `/MT`, so no separate Visual C++ runtime package
 is needed. A normal game build requires only Windows and Python 3.10+; it does
-not download or compile these tools. Keep this folder beside `src_atari` when copying
-the project. Intermediate files stay in `src_atari/build`; game output goes to root
-`output_atari/ELITE` and `output_atari/ELITE.ST`.
+not download or compile these tools. Keep this folder in the project root when copying
+the project. Intermediate files stay in each source tree's `build` directory; game
+output goes to `output_atari`, `output_amiga` or `output_orig` respectively.
 
 The original source archives are preserved in `src_atari/vendor/vasm.tar.gz` and
 `src_atari/vendor/vlink.tar.gz`. Their versions, source URLs and SHA-256 hashes are

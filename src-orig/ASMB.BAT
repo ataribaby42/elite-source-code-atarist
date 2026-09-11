@@ -1,1 +1,0 @@
-call asm elite disk 
