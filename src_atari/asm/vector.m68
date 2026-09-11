@@ -15,6 +15,7 @@
 * Designed and coded by Rob Nicholson. Adapted from the MSX version.
 
 	include "macros.m68"
+	xref draw_ai_laser
 
 	xref disp_message,fx,check_missile,magnitude_table,c_line
 	xref draw_explosion,draw_point,monst,solid_polygon,sqrt,c_solid_polygon
@@ -317,7 +318,10 @@ q_vector_m68_32:
 	cmp.w (sp),d1
 	bne.s .next
 	move.l a0,-(sp)
+	move.l a5,-(sp)
 	bsr draw_it
+	move.l (sp)+,a5
+	jsr draw_ai_laser
 	move.l (sp)+,a0
 .next:
 	move.l next_ptr(a0),a0

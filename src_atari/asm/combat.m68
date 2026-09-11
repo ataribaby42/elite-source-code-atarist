@@ -35,7 +35,6 @@ fast_charge: equ 9
 rand_range: equ $2000 ; range for orbit's
 rand_limit: equ $4000 ; minimum distance
 launch_range: equ $1800 ; player range before launch
-laser_life: equ 8 ; life of laser beam
 platlet_life: equ 50 ; life of platlet
 platlet_vel: equ 50 ; speed of platlet
 spacing1: equ 700 ; spacing of squadrons
@@ -638,11 +637,49 @@ q_combat_m68_67:
 ; Regs: ?
 ; Subr: ?
 
+; Test the fixed view axis against the model's circular hit area.
+; Graphic jitter is deliberately never consulted here. Missile/ID targeting
+; retains CHECK_SIGHTS and its existing behaviour.
+	q_subr laser_in_sights
+
+	moveq #0,d0
+	tst in_sights(a6) ; also excludes hidden, invincible and off-view objects
+	beq.s .done
+	cmp #log_exploding,logic(a5)
+	beq.s .done
+	tst.l this_zpos(a5)
+	ble.s .done
+	moveq #0,d3
+	move.w hits_rad(a5),d3
+	move.l this_xpos(a5),d1
+	bpl.s .x_positive
+	neg.l d1
+.x_positive:
+	cmp.l d3,d1
+	bhi.s .done
+	move.l this_ypos(a5),d2
+	bpl.s .y_positive
+	neg.l d2
+.y_positive:
+	cmp.l d3,d2
+	bhi.s .done
+	mulu.w d1,d1
+	mulu.w d2,d2
+	add.l d2,d1
+	bcs.s .done
+	mulu.w d3,d3
+	cmp.l d3,d1
+	bhi.s .done
+	moveq #1,d0
+.done:
+	rts
+
 	q_subr check_hit,global
 
-	tst hit_check(a6) ; laser reached target ?
+	tst hit_check(a6) ; shot accepted in this game frame ?
 	q_ret eq ; no, return
-	tst in_sights(a6) ; in sights ?
+	bsr laser_in_sights ; fixed centre, independent of beam jitter
+	tst.w d0
 	q_ret eq ; no, return
 	tst obj_hit(a6) ; object already hit ?
 	q_ret ne ; yes, return
@@ -967,34 +1004,38 @@ q_combat_m68_107:
 
 	q_subr fire,global
 
-	tst laser_type(a6) ; laser fitted ?
-	q_ret mi ; no, return
-	cmp #max_ltemp,laser_temp(a6) ; laser overheated ?
-	q_ret eq ; yes, return
-	tst firing(a6) ; already firing ?
-	q_ret ne ; yes, return
-	clr obj_hit(a6) ; object not hit (yet!)
-	move laser_rate(a6),firing(a6) ; start laser firing
-	lea lasers(a6),a0 ; find free laser record
-q_combat_m68_109:
-	tst active(a0)
-	beq.s q_combat_m68_110
-	add.l #laser_len,a0
-	bra q_combat_m68_109
-q_combat_m68_110:
-	st active(a0) ; record in use
-	move #laser_life,life(a0) ; start of life
-	lea pulse_x(a0),a0 ; setup coords and vector
-	lea laser_data(pc),a1
-	q_loop 1,d6,6
-	move (a1)+,(a0)+
-	q_next 1,d6
-	q_inc laser_temp(a6) ; increase laser temperature
+; Hits and heat use the original game-frame cooldown. A held beam remains
+; visible between accepted shots, but those display-only frames do no damage.
+	tst game_frozen(a6)
+	bne .done
+	tst docked(a6)
+	bne .done
+	tst laser_type(a6)
+	bmi .done
+	cmp #max_ltemp,laser_temp(a6)
+	bhs .done
+	cmp #2,laser_type(a6) ; beam/military: a visual request for this frame
+	blt.s .cooldown
+	st laser_beam(a6)
+.cooldown:
+	tst firing(a6)
+	bne.s .done
+	move laser_rate(a6),firing(a6)
+	st laser_pending(a6) ; still an immediate hit in the firing frame
+	clr obj_hit(a6)
+	clr laser_flash(a6)
+	cmp #2,laser_type(a6)
+	bge.s .heat
+	move.l frclock,d0
+	addq.l #3,d0 ; a short visual pulse, independent of the shot cooldown
+	move.l d0,laser_flash_end(a6)
+	st laser_flash(a6)
+.heat:
+	q_inc laser_temp(a6) ; exactly once per accepted shot, as before
 	clr f_laser(a6)
-	q_sfx laser ; trigger sound effect
-
-	q_ret
-
+	q_sfx laser
+.done:
+	rts
 
 ; *****************************************
 ; **									 **
@@ -1791,13 +1832,6 @@ q_combat_m68_168:
 
 
 ; ---- LOCAL DATA ----
-
-; Initial data for laser beams (125,50,500,5000).
-
-laser_data:
-
-	dc.w -125,-50,500
-	dc.w 409,164,16378
 
 ; Rating bands for score.
 

@@ -17,7 +17,7 @@ max2:
 bitmaps: ds.b 146862
     section workspace,bss
 texture: ds.b 24358
-obj_data: ds.b 20156
+obj_data: ds.b 20172
 logo: ds.b 16276
 cockpit: ds.b 13386
 vars: ds.b var_size

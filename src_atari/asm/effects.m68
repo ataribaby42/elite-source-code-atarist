@@ -775,6 +775,7 @@ q_effects_m68_43:
 	jsr draw_all ; draw all queued objects
 	jsr update_inst ; update any instruments
 	jsr draw_sight ; draw laser sight
+	move #-2,text_frames(a6) ; keep caption active over circles throughout the tunnel
 	moveq #pulse,d0 ; display any text messages
 	jsr text_blatt
 	jsr swap_screen ; swap screens

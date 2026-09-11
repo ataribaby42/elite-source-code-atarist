@@ -38,7 +38,7 @@ The checksum module is outside the region between CHKSTART and CHKEND. The build
 
 - Game code: 84,514 bytes, entry point `$12000`, checksum `$B02D` with the default sources.
 - Second screen: `$28000`; variable base: `$6F16E`; end of used variables: `$72C76`, below the standard 512 KB ST screen at `$78000`.
-- Rebuilt `OBJECTS.IMG` and `ELITECHR.IMG` have the same SHA-256 hashes as the surviving originals.
+- The initial rebuild of `OBJECTS.IMG` and `ELITECHR.IMG` matched the surviving originals. `ELITECHR.IMG` still matches. The working `OBJECTS.IMG` now contains centred muzzle definitions for Sidewinder, Gecko, Adder and Moray, including two additional nodes; its reserved buffer is 20,172 bytes.
 - Eight ready-made data files are taken from copies in `assets`; their contents match the originals. The bitmap package is not currently regenerated using the helper C tools.
 - The output floppy contains all files; its directory and FAT chains have been read back and compared byte for byte.
 - The corrected build, started from both A: and C: in Hatari 2.6.1 with TOS 1.04 DE and 1 MB RAM, loaded game data and displayed the novella question. The `tools/run_hatari.py` diagnostic script can repeat this check and stores screenshots and GEMDOS traces in the ignored `build/hatari-test/{floppy,harddrive}` directories. This verifies startup and data loading, not full gameplay or compatibility with every TOS version.

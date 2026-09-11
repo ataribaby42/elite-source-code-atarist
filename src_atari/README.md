@@ -34,7 +34,21 @@ Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for 
 
 `commander=max` gives the default Jameson commander **1,000,000 Cr** when starting or resetting a game. `commander=default` keeps the original **100 Cr** balance and is the Python build default. Only the starting cash changes; saved commanders retain their saved balances.
 
-The root `build_atari.bat` currently supplies `noprotect=yes commander=max`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
+`laser=dualbeam` is the default player laser style: two filled beams from the bottom left and right converge on the jittering crosshair tip. `laser=singlebeam` selects one narrow filled beam from the bottom centre. Both styles use the existing palette: Pulse is red, Beam orange, Military white, and Mining the same magenta as the instrument bars. They keep the same cosmetic jitter, fixed-axis targeting, damage and timing. These style options do not affect AI beams or their 10% random miss chance.
+
+```powershell
+.\build_atari.bat laser=dualbeam
+.\build_atari.bat laser=singlebeam
+```
+
+`aifiresound=no` is the build default and disables AI laser firing sounds. `aifiresound=yes` enables them, subject to the game's existing Effects setting. This option controls AI laser shot sounds only; hit/impact sounds, player weapons, missile alerts and other effects keep their existing handling.
+
+```powershell
+.\build_atari.bat aifiresound=no
+.\build_atari.bat aifiresound=yes
+```
+
+The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=dualbeam aifiresound=no`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
 
 The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src-orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
 
@@ -61,6 +75,8 @@ Viewport clearing uses three `MOVEM.L` stores per row (11 + 11 + 10 longwords), 
 The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matching the full cleared screen area `x=32..287`, `y=8..119` (256 x 112 pixels). Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping, so they cannot overwrite the cockpit border.
 
 The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
+
+Player and AI lasers use instant-hit beams. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots have a 10% chance to miss, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
 

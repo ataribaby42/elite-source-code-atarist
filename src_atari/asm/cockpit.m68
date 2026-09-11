@@ -162,12 +162,11 @@ q_cockpit_m68_1:
 	jsr draw_sprite
 	bclr #dual_screen,sp_flags(a4)
 	bclr #dont_save,sp_flags(a4)
-	lea lasers(a6),a0 ; all laser records inactive
-	moveq #laser_len,d0
-	q_loop 1,max_lasers
-	clr active(a0)
-	add.l d0,a0
-	q_next 1
+	clr firing(a6) ; discard cooldown and all flashes on view/system changes
+	clr laser_pending(a6)
+	clr laser_beam(a6)
+	clr hit_check(a6)
+	clr laser_flash(a6)
 q_cockpit_m68_3:
 	bra define_sight ; define laser sight
 
@@ -1100,10 +1099,10 @@ locked_defn:
 
 laser_info:
 
-	dc 10,5,bit_sights+0 ; pulse laser
+	dc 10,5,bit_sights+0 ; pulse laser (original game-frame cadence)
 	dc 8,7,bit_sights+3 ; mining laser
-	dc 6,9,bit_sights+2 ; beam laser
-	dc 3,11,bit_sights+1 ; military laser
+	dc 6,9,bit_sights+2 ; beam laser (continuous visual only)
+	dc 3,11,bit_sights+1 ; military laser (continuous visual only)
 
 * List of lasers in equipment list.
 

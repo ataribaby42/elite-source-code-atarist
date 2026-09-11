@@ -16,7 +16,21 @@ Run from the project root:
 
 `commander=max` gives the default Jameson commander **1,000,000 Cr** when starting or resetting a game. `commander=default` keeps the original **100 Cr** balance and is the Python build default. Only the starting cash changes; saved commanders retain their saved balances.
 
-The root `build_amiga.bat` currently supplies `noprotect=yes commander=max`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=default` to build with the original starting balance.
+`laser=dualbeam` is the default player laser style: two filled beams from the bottom left and right converge on the jittering crosshair tip. `laser=singlebeam` selects one narrow filled beam from the bottom centre. Both styles use the existing palette: Pulse is red, Beam orange, Military white, and Mining the same magenta as the instrument bars. They keep the same cosmetic jitter, fixed-axis targeting, damage and timing. These style options do not affect AI beams or their 10% random miss chance.
+
+```powershell
+.\build_amiga.bat laser=dualbeam
+.\build_amiga.bat laser=singlebeam
+```
+
+`aifiresound=no` is the build default and disables AI laser firing sounds. `aifiresound=yes` enables them, subject to the game's existing Effects setting. This option controls AI laser shot sounds only; hit/impact sounds, player weapons, missile alerts and other effects keep their existing handling.
+
+```powershell
+.\build_amiga.bat aifiresound=no
+.\build_amiga.bat aifiresound=yes
+```
+
+The root `build_amiga.bat` currently supplies `noprotect=yes commander=max laser=dualbeam aifiresound=no`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=default` to build with the original starting balance.
 
 Python 3.10+ and Windows x64 are required. The build uses the root `tools/vasmm68k_mot.exe` (vasm 2.0f, Motorola syntax, MC68000) and `tools/vlink.exe` (vlink 0.18a). No additional Python packages are needed. `-Vasm` and `-Vlink` select alternative tool paths. `python src_amiga/build.py` is also supported. Unknown arguments, including `platform=amiga`, are rejected.
 
@@ -52,6 +66,8 @@ Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_
 The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matching the full cleared screen area `x=32..287`, `y=8..119` (256 x 112 pixels). Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping, so they cannot overwrite the cockpit border.
 
 The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
+
+Player and AI lasers use instant-hit beams. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots have a 10% chance to miss, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
 
 ## Source layout
 

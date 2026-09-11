@@ -96,14 +96,15 @@ q_main_m68_7:
 q_main_m68_3:
 	bsr torus_drive ; process torus jump drive
 	clr under_attack(a6) ; assume not under attack
-	move at_target(a6),hit_check(a6) ; set hit check flag (if set)
-	clr at_target(a6) ; assume no lasers reached target
+	move laser_pending(a6),hit_check(a6) ; accept hits in the firing frame
+	clr laser_pending(a6)
 	lea objects(a6),a5 ; point to 1st object
 	clr this_obj(a6)
 q_main_m68_9:
 	btst #in_use,flags(a5) ; object in use ?
 ; Quelo: 		if <ne> then					yes
 	beq q_main_m68_11
+	clr ai_laser(a5) ; enemy beams last for one game frame
 	jsr get_range ; compute range
 	jsr collision ; check for collision/docking
 	jsr draw_object ; draw object
@@ -266,6 +267,8 @@ q_main_m68_25:
 * Subr:  None
 
 	q_subr create_object,global
+
+	clr ai_laser(a4) ; copied/reused object records never inherit a shot
 
 	movem.l d0-d2/d7/a0-a1,-(sp) ; save registers
 	move type(a4),d0 ; fetch object type

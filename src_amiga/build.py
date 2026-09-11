@@ -24,7 +24,7 @@ FLAGS = ['-m68000', '-no-opt', '-align', '-allmp', '-spaces', '-nocase', '-nowar
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO.PC1', 'TITLE.PC1')
 
 
-def build_amiga(vasm, vlink, noprotect=False, commander='default'):
+def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False):
     BUILD.mkdir(parents=True, exist_ok=True)
     OUTPUT.mkdir(parents=True, exist_ok=True)
     for tool in (vasm, vlink):
@@ -42,12 +42,15 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default'):
     def assemble(name, fmt='vobj', output=None):
         output = output or BUILD/(name+'.o')
         run([vasm,*FLAGS,f'-Dnoprotect={int(noprotect)}',
-             f'-Dcommander_max={int(commander == "max")}','-F'+fmt,'-I'+str(BUILD),
+             f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
+             f'-Dlaser_singlebeam={int(laser == "singlebeam")}','-F'+fmt,'-I'+str(BUILD),
              '-I'+str(ROOT/'asm'),'-o',output,ROOT/'asm'/(name+'.m68')], name+'.log')
     modules = (ROOT/'modules.txt').read_text().split()
     modules = ['system', 'fileio', *modules, 'workspace']
     print('Assembling independent native Amiga game modules for MC68000...')
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
+    print('Player laser style: ' + laser)
+    print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
     for module in modules:
         assemble(module)
@@ -99,7 +102,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default'):
     disk = OUTPUT.parent/'ELITE.ADF'
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC68000','minimum_kickstart':'1.3',
-              'build_options':{'noprotect':noprotect,'commander':commander},
+              'build_options':{'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,
               'checks':['MC68000 assembly and linking', 'Hunk relocations and Chip RAM attributes',
@@ -120,18 +123,26 @@ def main():
     parser.add_argument('--vlink', type=Path, default=TOOLS/'vlink.exe')
     parser.add_argument('options', nargs='*', metavar='OPTION',
                         help='noprotect=yes|no (default: no); commander=max|default '
-                             '(default: default, max starts with 1,000,000 Cr)')
+                             '(default: default, max starts with 1,000,000 Cr); '
+                             'laser=dualbeam|singlebeam (default: dualbeam); '
+                             'aifiresound=yes|no (default: no)')
     args = parser.parse_intermixed_args()
-    noprotect, commander = False, 'default'
+    noprotect, commander, laser = False, 'default', 'dualbeam'
+    aifiresound = False
     for option in args.options:
         if option in ('noprotect=yes', 'noprotect=no'):
             noprotect = option == 'noprotect=yes'
         elif option in ('commander=max', 'commander=default'):
             commander = option.split('=', 1)[1]
+        elif option in ('laser=dualbeam', 'laser=singlebeam'):
+            laser = option.split('=', 1)[1]
+        elif option in ('aifiresound=yes', 'aifiresound=no'):
+            aifiresound = option == 'aifiresound=yes'
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
-                         'or commander=max|default')
-    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect, commander)
+                         'or commander=max|default or laser=dualbeam|singlebeam '
+                         'or aifiresound=yes|no')
+    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect, commander, laser, aifiresound)
 
 
 if __name__ == '__main__':

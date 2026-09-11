@@ -1,12 +1,13 @@
 ; Ported from src-orig/OBJECTS_DAT; edit this copy.
 * ---- A D D E R ----
 
+; The final node is a centred muzzle; existing mesh vertices stay unchanged.
 adder:
 
 	dc.l adder_nodes
 	dc.l adder_surfaces
 	dc.l adder_text
-	dc 12,17,48,112,18,0,1,66,16,1,2,1,0,6,1,10,120,100
+	dc 12,18,48,112,18,18,1,66,16,1,2,1,0,6,1,10,120,100
 
 adder_text:
 
@@ -18,6 +19,7 @@ adder_nodes:
 	dc -24,0,53,0,24,0,53,0,40,0,-32,0,40,0,-53,0,24,-9,-53,0,-24,-9,-53,0
 	dc -40,0,-53,0,-40,0,-32,0,-24,9,-53,0,24,9,-53,0,-24,9,18,0,24,9,18,0
 	dc -24,-9,18,0,24,-9,18,0,-14,4,39,0,14,4,39,0,14,6,32,0,-14,6,32,0
+	dc 0,0,53,0
 
 adder_surfaces:
 
@@ -1171,12 +1173,13 @@ s187: dc 0,-14,0
 
 * ---- G E C K O ----
 
+; Use the existing centred muzzle node.
 gecko:
 
 	dc.l gecko_nodes
 	dc.l gecko_surfaces
 	dc.l gecko_text
-	dc 8,12,39,190,22,0,1,66,28,1,2,2,-1,4,2,15,150,90
+	dc 8,12,39,190,22,12,1,66,28,1,2,2,-1,4,2,15,150,90
 
 gecko_text:
 
@@ -1512,12 +1515,13 @@ s221: dc -8,0,0
 
 * ---- M O R A Y   S T A R   B O A T ----
 
+; The final node is a centred muzzle; existing mesh vertices stay unchanged.
 moray:
 
 	dc.l moray_nodes
 	dc.l moray_surfaces
 	dc.l moray_text
-	dc 8,13,49,96,18,11,1,67,16,1,2,2,0,8,1,10,70,50
+	dc 8,14,49,96,18,14,1,67,16,1,2,2,0,8,1,10,70,50
 
 moray_text:
 
@@ -1529,6 +1533,7 @@ moray_nodes:
 	dc 15,0,65,0,-15,0,65,0,0,18,-40,0,-60,0,0,0,60,0,0,0,30,-27,-10,0,-30
 	dc -27,-10,0,-9,-4,-25,0,9,-4,-25,0,0,-18,-16,0,13,3,49,0,6,0,65,0,-13
 	dc 3,49,0,-6,0,65,0
+	dc 0,0,65,0
 
 moray_surfaces:
 
@@ -1826,12 +1831,13 @@ s269: dc 13,-14,9
 
 * ---- S I D E W I N D E R ----
 
+; Use the existing centred muzzle node.
 sidewnd:
 
 	dc.l sidewnd_nodes
 	dc.l sidewnd_surfaces
 	dc.l sidewnd_text
-	dc 6,10,42,40,20,0,1,70,36,1,2,1,0,11,1,10,50,80
+	dc 6,10,42,40,20,10,1,70,36,1,2,1,0,11,1,10,50,80
 
 sidewnd_text:
 

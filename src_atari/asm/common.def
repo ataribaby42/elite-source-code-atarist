@@ -23,6 +23,12 @@ noprotect: equ 0 ; build option: skip only the novella question
 	ifnd commander_max
 commander_max: equ 0 ; build option: default commander starts with 1,000,000 Cr
 	endc
+	ifnd laser_singlebeam
+laser_singlebeam: equ 0 ; build option: 0 = dualbeam (default), 1 = singlebeam
+	endc
+	ifnd aifiresound
+aifiresound: equ 0 ; build option: AI laser firing sound, disabled by default
+	endc
 calc_checksum: equ -0 ; flag  calculate and display checksum
 	ifnd valid
 valid equ $5123
@@ -209,7 +215,6 @@ csr_acc: equ 7 ; cursor acceleration rate
 max_csr: equ 8 ; max cursor speed
 no_dust: equ 15 ; no. dust particles
 max_objects: equ 30 ; max no. of objects
-max_lasers: equ 5 ; max no. of laser beams
 max_speed: equ 22 ; max speed of player
 max_nodes: equ 50 ; max. no. of nodes
 node_len: equ 16 ; bytes per node record
@@ -503,6 +508,8 @@ peel_z_count: rs.w 1 ; no. times to rotate in z direction
 peel_z: rs.w 1 ; angle to rotate each time
 pre_attack: rs.w 1 ; pre-attack health
 next_logic: rs.w 1 ; next logic to perform
+ai_laser: rs.w 1 ; flag  enemy fired a laser in this game frame
+
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
 text: rs.l 1 ; ptr  text data
@@ -563,21 +570,6 @@ act_attack: equ 2
 i: equ 0
 j: equ 2
 k: equ 4
-
-; Laser record definition.
-
-	rsset 0
-
-active: rs.w 1 ; flag  record in use
-pulse_x: rs.w 1 ; world coords of laser
-pulse_y: rs.w 1
-pulse_z: rs.w 1
-vector: rs.w 3 ; direction vector
-life: rs.w 1 ; life counter
-
-laser_len: equ __RS
-laser_size: equ max_lasers*laser_len
-
 
 ; Node record definition.
 
@@ -670,7 +662,7 @@ energy: rs.w 1 ; energy in energy banks
 laser_type: rs.w 1 ; laser type on view (0..3 or -1)
 laser_rate: rs.w 1 ; rate at which lasers can fire
 laser_power: rs.w 1 ; hitting power of laser
-firing: rs.w 1 ; flag  lasers firing
+firing: rs.w 1 ; remaining game frames before the next laser shot
 csr_speed: rs.w 1 ; speed of cursor
 csr_on: rs.w 1 ; flag  cursor is on
 csr_clk: rs.w 1 ; interrupt clock for cursor
@@ -854,8 +846,12 @@ last2_ptr: rs.l 1
 last_ptr: rs.l 1 ; ptr  last record stored
 approach: rs.w 1 ; object approach speed
 hit_check: rs.w 1 ; flag  check for laser hit
-at_target: rs.w 1 ; flag  laser reached target
-lasers: rs.b laser_size ; laser records
+laser_pending: rs.w 1 ; shot accepted before the current game frame
+laser_beam: rs.w 1 ; held beam/military visual request for this frame
+laser_flash: rs.w 1 ; flag  short pulse flash is active
+laser_flash_end: rs.l 1 ; pulse flash expiry (50 Hz flyback clock)
+laser_tip_x: rs.w 1 ; cosmetic jitter only, never used for targeting
+laser_tip_y: rs.w 1
 judder_ctr: rs.w 1 ; screen judder counter
 radar_scale: rs.l 1 ; current radar scale range
 old_speed: rs.w 1 ; speed of cobra before jump

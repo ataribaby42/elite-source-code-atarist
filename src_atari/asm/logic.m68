@@ -38,11 +38,6 @@ max_rad: equ 255 ; maximum explosion radius
 fire_range: equ 7000 ; distance to start firing
 run_limit: equ $1200 ; min. run away distance
 run_range: equ $1000 ; range of run away distances
-photon_life: equ 35 ; life of photon bolt
-photon_vel: equ 250 ; speed of photon bolt
-photon_size: equ 10 ; size of photon
-hit_range: equ 500 ; range for photon hit on player
-hit_prob: equ 200 ; probability of being hit
 avoid_range: equ 32 ; range of avoid distances
 avoid_limit: equ 60 ; min. avoid distance
 judder: equ 5 ; length of judder
@@ -379,6 +374,38 @@ q_logic_m68_33:
 
 * Flies towards the player, lasers blasting.
 
+; BBC's two aim cones, expressed in the game's Q14 orientation vectors.
+; The original fire-range guard keeps positions safely inside signed words.
+; Compare dot products directly: no square root or division is needed.
+	q_subr ai_laser_aim
+
+	moveq #0,d0
+	tst.l obj_range(a5)
+	ble.s .done
+	cmp.l #fire_range,obj_range(a5)
+	bhi.s .done
+	move.w xpos+2(a5),d1
+	muls.w z_vector+i(a5),d1
+	move.w ypos+2(a5),d2
+	muls.w z_vector+j(a5),d2
+	add.l d2,d1
+	move.w zpos+2(a5),d2
+	muls.w z_vector+k(a5),d2
+	add.l d2,d1
+	neg.l d1 ; direction from the enemy to the player
+	move.w obj_range+2(a5),d2
+	mulu.w #unit*32/36,d2
+	cmp.l d2,d1
+	blt.s .done
+	moveq #1,d0 ; within the firing cone, but can still miss
+	move.w obj_range+2(a5),d2
+	mulu.w #unit*35/36,d2
+	cmp.l d2,d1
+	blt.s .done
+	moveq #2,d0 ; within the narrower hit cone
+.done:
+	rts
+
 	q_subr do_attack
 
 	bset #angry,flags(a5) ; angry with player
@@ -393,52 +420,50 @@ q_logic_m68_37:
 q_logic_m68_35:
 	cmp.l #fire_range,obj_range(a5) ; close enough to fire ?
 	bhi no_fire ; no
-	tst on_course(a5) ; on course ?
-	beq no_fire ; no
 	tst cloaking_on(a6) ; cloaking device on ?
 	bne no_fire ; yes
-	jsr random ; correct probability ?
+	tst controls_locked(a6)
+	bne no_fire
+	jsr random ; preserve the original chance of firing
 	cmp mood(a5),d0
-	bhi no_fire ; no
-	tst controls_locked(a6) ; controls locked (escape) ?
-	bne no_fire ; yes
-	jsr alloc_object ; allocate object record for photon
-	q_ret cc ; none left
-	jsr copy_object ; use attacker's object record
-	move zpos(a4),mother_z(a4) ; save sign of attackers z coord
-	move gun_node(a4),d0 ; find gun node
-	move.l nodes(a4),a0
-	asl #3,d0
-	lea (a0,d0),a0
-	jsr transform ; transform from local to world
-	ext.l d0 ; add node coords to world coords
-	add.l d0,xpos(a4)
-	ext.l d1
-	add.l d1,ypos(a4)
-	ext.l d2
-	add.l d2,zpos(a4)
-	move.b #%10000111,flags(a4) ; no radar, point, invincible, in use
-	move #photon,type(a4) ; it's a photon bolt
-	move #photon_size,obj_rad(a4)
-	move #log_photon,logic(a4)
-	move #photon_life,counter(a4)
-	cmp #constr,type(a5) ; constrictor ?
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_logic_m68_39
-	moveq #6,d0 ; mega laser
-	bra q_logic_m68_40
-q_logic_m68_39:
-	move rating(a6),d0 ; determine range of damage depending
-	add d0,d0 ; on player's rating
+	bhi no_fire
+	bsr ai_laser_aim ; fresh aim: 0 = no shot, 1 = miss, 2 = hit
+	tst.w d0
+	beq no_fire
+	st ai_laser(a5)
+	cmp.w #2,d0
+	bne.s .laser_sound
+.accuracy_roll:
+	jsr random ; even a well-aimed shot has a separate 10% chance to miss
+	cmp.w #250,d0
+	bhs.s .accuracy_roll ; 250 accepted values: exactly 25/250 misses
+	cmp.w #25,d0
+	blo.s .laser_sound ; keep the beam and optional firing sound, skip all damage
+	cmp #constr,type(a5)
+	bne.s .ordinary_power
+	moveq #6,d0 ; original Constrictor projectile strength
+	bra.s .damage
+.ordinary_power:
+	move rating(a6),d0
+	add d0,d0
 	lea damage(pc),a0
 	move (a0,d0),d2
 	jsr rand
-	q_inc d0
-q_logic_m68_40:
-	move d0,force(a4) ; store hit force for later
-	jsr create_object ; create object
-	move #photon_vel,velocity(a4) ; set laser speed
-	q_sfx laser ; trigger sound effect
+	q_inc d0 ; original per-projectile damage, unchanged
+.damage:
+	move.w d0,-(sp) ; retain the original projectile's base strength
+.damage_multiplier:
+	jsr random
+	and.w #3,d0
+	cmp.w #3,d0
+	beq.s .damage_multiplier ; reject fourth choice: equal chances for 2, 3, 4
+	addq.w #2,d0
+	mulu.w (sp)+,d0 ; combine the old projectile's repeated hits into one hit
+	jsr reduce_shields ; A5 is the shooter: selects front/aft by its position
+.laser_sound:
+	ifne aifiresound
+	q_sfx laser ; only the AI firing sound; impacts are handled by reduce_shields
+	endc
 
 no_fire:
 
@@ -491,33 +516,6 @@ q_logic_m68_43:
 	q_dec counter(a5) ; timeout ?
 	q_ret ne ; no
 	bset #remove,flags(a5) ; remove object from world
-
-	q_ret
-
-
-* ********************************
-* **							**
-* ** PHOTON - PHOTON BOLT LOGIC **
-* **							**
-* ********************************
-
-* Performs the logic for a photon bolt.
-
-	q_subr do_photon
-
-	cmp.l #hit_range,obj_range(a5) ; within hit range ?
-; Quelo: 	if <lo> then.s						yes
-	bhs.s q_logic_m68_45
-*		 jsr random 					 correct probability
-*		cmp #hit_prob,d0
-*		ret <hs>						no
-	move force(a5),d0 ; hit shields
-	jsr reduce_shields
-*		move #judder,judder_ctr(a6) 	start judder
-q_logic_m68_45:
-	q_dec counter(a5) ; life over ?
-	q_ret ne ; no
-	bset #remove,flags(a5) ; remove bolt from world
 
 	q_ret
 
@@ -849,13 +847,13 @@ q_logic_m68_62:
 
 * ---- LOCAL DATA ----
 
-* Table of logic vectors.
+* Table of logic vectors. The former photon slot is reserved and inert.
 
 logic_vectors:
 
 	dc.l return,do_explosion,do_rotating,do_locked,do_launch,do_police
 	dc.l do_attack,do_peel_off,do_run_off,do_twisting,do_fly_planet,do_avoid
-	dc.l do_cruising,do_missile,do_escape,do_timer,do_photon,do_endgame1
+	dc.l do_cruising,do_missile,do_escape,do_timer,return,do_endgame1
 	dc.l do_launch1a,do_launch1b,do_launch2a,do_launch2b,do_launch3a
 	dc.l do_launch3b,do_launch4a,do_launch4b,do_circle,do_dock1a,do_dock1b
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c

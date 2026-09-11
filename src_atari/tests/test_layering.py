@@ -65,6 +65,8 @@ dust_cloud:
         for x in STARS:
             assembly += f'    move.w #{x},d0\n    moveq #20,d1\n    bsr plotxy\n'
         assembly += f"""
+draw_ai_laser:
+    rts
 clobber_scratch:
     move.l #$5a5a5a5a,d0
     move.l d0,d1

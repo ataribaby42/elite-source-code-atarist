@@ -582,8 +582,9 @@ full_screen:
 
 text1:
 	dc.b "Load new commander ?",0
-text2: dc.b c_cursor,6,14*8,c_colour,lgt_green,black,96
-	dc.b 'Amiga port of ST Elite',0
+; Keep the credit and its leading space inside the 32-column viewport.
+text2: dc.b c_cursor,4,14*8,c_colour,lgt_green,black,96
+	dc.b 'Amiga Version by Mr. Micro Ltd.',0
 text3:
 	dc.b "Press any key for mission",0
 text4: dc.b c_cursor,11,1*8,c_colour,yellow,black,96,'(c) Bell & Braben',0

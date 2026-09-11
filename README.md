@@ -37,7 +37,38 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** at th
 
 `commander=default` restores the original **100 Cr** starting balance. This option changes cash only; loading a saved commander uses the balance stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=max` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts currently supply `noprotect=yes commander=max laser=dualbeam aifiresound=no` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+
+Player lasers default to `laser=dualbeam`: two filled beams converge
+from the lower left and right on the jittering crosshair tip. Use
+`laser=singlebeam` for one narrow filled beam from the bottom centre:
+
+```powershell
+.\build_atari.bat laser=singlebeam
+.\build_amiga.bat laser=singlebeam
+```
+
+`laser=dualbeam` explicitly restores the default style. Both options preserve
+cosmetic jitter, fixed crosshair targeting, shot timing and damage. They change
+player laser graphics only. Player colours come from the existing palette:
+Pulse red, Beam orange, Military white, and Mining the same magenta as the
+instrument bars. AI beam colours follow the player's rating: Harmless through
+Poor is red, Average through Competent orange, and Dangerous through Elite white.
+Constrictor beams are always white. AI damage and the 10% random miss chance
+remain unchanged.
+
+AI laser firing sounds are disabled by default (`aifiresound=no`). Enable them
+with:
+
+```powershell
+.\build_atari.bat aifiresound=yes
+.\build_amiga.bat aifiresound=yes
+```
+
+`aifiresound=no` explicitly disables them again. This option controls AI laser
+shot sounds only. Impact sounds, player firing sounds, missile alerts and other
+effects retain their existing handling. Enabled AI firing sounds still follow
+the game's Effects setting.
 
 If the script cannot find Python, provide its path:
 
