@@ -1,0 +1,132 @@
+ST (Amiga?) Elite cheats
+
+This is the method of 'cheating' from within Elite. To start with, load up Elite, and type in SARA as the first answer to the protection. After that type in the correct word when asked again. To enter the cheat mode, press '*' on the numeric keypad. Elite will then display a screen titled Elite Hacker V1.0. Then you can use the following table to 'give' yourself equipment that you can't buy. For instance, you can't buy an ECM JAMMER or a cloaking device, but you can equipt your ship with them, the jammer will stop ECM systems on the normal everyday ships, but not the space station or those that are introduced by missions. Both are on a similar toggle to the docking computer and will need to be switched off. 'Y' toggles the cloaking device, 'L' toggles the jammer. Also you can give yourself a retro rocket that WILL NOT RUN OUT the normal retro's will run out after about 4 or 5 uses.
+
+This table has all addresses in hex.
+
+Location. Contents. Use.
+
+00 to 07 00 00 5A 4A 02 48 B7 53 Defines the galaxy you are in. (this number is doubled for each galactic jump, until seven jumps are done, then reset to the above.)
+08 to 09 0000 to 00FF Defines which planet you are currently at.
+0A 00 to 3F Flags. (see note 1.)
+0C to 0F 00000000 to 7FFFFFFF Your cash in tenths of a credit.
+13 00 to 49 Your fuel level in tenth of a light year (0 to 7.3 LY).
+15 00 to 1D Your missiles available (0 to 29).
+17 00 or 01 Large cargo bay present (01) or not (00).
+19 00 or 01 ECM system present or not.
+1B 00 to 0F Pulse Lasers. (see note 2.)
+1D 00 to 0F Beam Lasers. (see note 2.)
+1F 00 or 01 Fuel scoop present or not.
+21 00 or 01 Escape capsule present or not.
+23 00 or 01 Energy bomb present or not.
+25 00 to 02 Energy unit present or not. (02 is Naval Energy unit.)(see note 3.)
+27 00 or 01 Docking computer present or not.
+29 00 or 01 Galactic Hyperdrive present or not.
+2B 00 to 0F Mining Lasers. (see note 2.)
+2D 00 to 0F Military Lasers. (see note 2.)
+2F 00 or 01 Retro rockets present or not.
+31 00 or 01 ECM Jammer present or not.
+33 00 or 01 Cloaking device present or not.
+34 to 37 See note 3. Amount of food you are carrying.
+38 to 3B See note 3. Textiles.
+3C to 3F See note 3. Radioactives.
+40 to 43 See note 3. Slaves.
+44 to 47 See note 3. Wines.
+48 to 4B See note 3. Luxuries.
+4C to 4F See note 3. Narcotics.
+50 to 53 See note 3. Computers.
+54 to 57 See note 3. Machinary.
+58 to 5B See note 3. Alloys.
+5C to 5F See note 3. Firearms.
+60 to 63 See note 3. Furs.
+64 to 67 See note 3. Minerals.
+68 to 6B See note 3. Gold.
+6C to 6F See note 3. Platinum.
+70 to 73 See note 3. Gems.
+74 to 77 See note 3. Alien Goods.
+78 to 7B See note 3. Medical supplies.
+7C to 7F See note 3. Unhappy Refugees. (See Mission 3)
+80 to 83 See note 4. Thargoid papers. (See Mission 2)
+85 00 to FF Legal status (above $32 is fugitive, $00 is clean.)
+8B 00 to 08 Combat rating.
+91 00 to 05 Next mission number.
+93 00 to 51 Present mission details. (see below for explanations.)
+95 00 to FF See data on the missions below.
+97 00 to 40 Number of hyperspace jumps before the next mission.
+99 00 to 3B Game time in seconds.
+9B 00 to 3B Game time in minutes.
+9D 00 to 17 Game time in hours.
+9F 00 to FF Game time in days.
+AD 00 to 1D Cursor type. Usable cursor types are 00 to 04.
+AE 00 Put 01 here to give yourself 'eternal' retro rockets.
+
+
+Mission details.
+
+Mission 1.
+
+This mission is to find and kill a ship. The EMC jammer is ineffective for this ship. Best method to kill it is to follow it until you come out of hyperspace and have a 'CONDITION RED' immeadiately, stop dead and turn to face the attacking vessel, open up with forward laser until the ship changes from a grey blob, when this happens, use the retro rocket so it doesn't fire at you and continue to fire at it. Be careful as it drops a cargo canister when it explodes. There is a 400 credit bounty and 10000 credit reward for the ships destruction.
+
+The following table shows the details.
+
+Location. Contents. Meaning.
+
+93 11 Start of mission.
+12 Mission not accepted.
+13 Next planet is stored in 95.
+14 Final planet is stored in 95.
+
+Mission 2.
+
+This mission is to deliver a set of papers to a space station, usually as far from where you are, as possible. When this mission is accepted, you ship is refueled and stocked with 4 missiles. On completion, any energy unit installed is replaced by a NAVAL ENERGY UNIT.
+
+The table below shows the details.
+
+Location. Contents. Meaning.
+
+93 21 Start of mission. The final planet is stored in 95.
+
+The cheating way to complete this mission is to change location 09 to the number in 95, leave the space station and then re-dock.
+
+Mission 3.
+
+This mission is proceded by a fuel leak. You are supposed to refuel at the star, as the space station will not allow you to refuel there. Select your hyperspace destination before leaving the station as you only have eleven seconds to do the jump. Any cargo is lost when the mission is accepted. 1Kg of gems is given as the reward.
+
+The table below shows the relavent data.
+
+Location. Contents. Meaning.
+
+93 31 Start of mission.
+32 Mission not accepted.
+33 Mission accepted.
+34 Mission complete.
+
+Mission 4.
+
+This mission is to kill a ship. The ship has a cloaking device so missiles are useless. The best method is to repeat the process as in mission 1.
+
+Location. Contents. Meaning.
+
+93 41 Start of mission.
+
+Mission 5.
+
+In version 1.02 there is a bug preventing the completion of this mission. The only way to finish this mission is to clear the mission control location (93) and set the next mission location (91) to 06.
+
+Notes.
+
+1. Bit 0 Turns effects on and off.
+Bit 1 Turns damping on and off.
+Bit 2 Turns auto-centring on and off.
+Bit 3 Reverses the dive/climb on and off
+Bit 4 Enables fast or slow docking.
+Bit 5 Enables the docking sequence.
+
+2. Bit 0 controls front laser.
+Bit 1 controls rear laser.
+Bit 2 controls left laser.
+Bit 3 controls right laser.
+
+3. These locations store the amount of goods available in grams. The legal range is between 00 00 00 00 and 02 16 0E C0, 0 to 35 million grammes. It is possible to carry substantially more than the 35 tonne limit. If the cargo is collected in canisters, set any of the clear cargo locations to 0F and reset it to 00 after the cargo has been collected. The maximum cargo able to be carried is 4294 tonnes, 967 kilos and 295 grammes. To do this, set the cargo locations to FF FF FF FF. DO NOT DO THIS FOR GEMSTONES. When selling the cargo, there may be a substantial delay as the actual value is calculated.
+
+4. This location decides whether documents are on board or not. If the escape capsule is used, the documents are transfered to the escape capsule.
