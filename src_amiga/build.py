@@ -55,7 +55,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('Player laser style: ' + laser)
     print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
-    print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
+    print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
     for module in modules:
         assemble(module)
     executable = OUTPUT/'ELITE'

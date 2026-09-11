@@ -28,14 +28,14 @@ To skip the novella protection question at startup, add `noprotect=yes`:
 
 The Python builds default to `noprotect=no`, which keeps the question enabled. Each build applies the selected option to its own output files; it is not a runtime setting. Other game protection checks remain unchanged.
 
-Use `commander=max` to give the default Jameson commander **1,000,000 Cr** at the start of a new game or after resetting the game:
+Use `commander=max` to give the default Jameson commander **1,000,000 Cr** and the **Deadly** rating at the start of a new game or after resetting the game. His score starts at the Deadly threshold (`$A0000`):
 
 ```powershell
 .\build_atari.bat commander=max
 .\build_amiga.bat commander=max
 ```
 
-`commander=default` restores the original **100 Cr** starting balance. This option changes cash only; loading a saved commander uses the balance stored in that save. The Python builds default to `commander=default`.
+`commander=default` restores the original **100 Cr**, **Harmless** rating and zero score. Loading a saved commander uses the balance, score and rating stored in that save. The Python builds default to `commander=default`.
 
 The root build scripts currently supply `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
@@ -54,7 +54,8 @@ player laser graphics only. Player colours come from the existing palette:
 Pulse red, Beam orange, Military white, and Mining the same magenta as the
 instrument bars. AI beam colours follow the player's rating: Harmless through
 Poor is red, Average through Competent orange, and Dangerous through Elite white.
-Constrictor beams are always white. AI damage and the 10% random miss chance
+Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams
+are always light blue. AI damage and the 10% random miss chance
 remain unchanged.
 
 Player Beam and Military lasers have distinct continuous sounds while firing,

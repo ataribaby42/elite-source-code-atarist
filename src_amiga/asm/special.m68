@@ -274,7 +274,13 @@ laser_colours:
 	tst.l this_zpos(a5)
 	ble .done
 	movem.l d0-d7/a0-a5,-(sp)
-; Match the player-rating damage bands; Constrictor always uses white.
+; Thargoids and Thargons always use light blue, independent of player rating.
+	moveq #lgt_blue,d0
+	cmp.w #thargoid,type(a5)
+	beq.s .laser_colour
+	cmp.w #thargon,type(a5)
+	beq.s .laser_colour
+; Other ships match the player-rating damage bands; Constrictor uses white.
 	moveq #white,d0
 	cmp.w #constr,type(a5)
 	beq.s .laser_colour

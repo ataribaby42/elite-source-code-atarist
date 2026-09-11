@@ -91,7 +91,8 @@ does not disable this feedback.
 AI beam colours follow the same player-rating bands as base damage, using
 existing palette entries: Harmless through Poor is red (6), Average through
 Competent is orange (3), and Dangerous through Elite is white (15). The
-Constrictor always uses white regardless of player rating. The colour applies
+Constrictor always uses white regardless of player rating. Thargoids and
+Thargons (Tharglets) always use light blue (10). The colour applies
 to both hits and misses; it does not assign a player weapon type or change
 damage, firing opportunities, accuracy or sound.
 

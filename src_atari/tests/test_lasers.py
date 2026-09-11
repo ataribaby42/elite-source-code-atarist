@@ -82,7 +82,7 @@ class LaserTests(unittest.TestCase):
                      'objects', 'obj_len', 'max_objects', 'type', 'flags', 'in_use',
                      'invincible', 'yvector_ok', 'ai_laser', 'logic', 'log_attack',
                      'log_cruise', 'log_exploding', 'health', 'pre_attack',
-                     'attack_type', 'act_nothing', 'obj_ctr', 'viper', 'constr',
+                     'attack_type', 'act_nothing', 'obj_ctr', 'viper', 'constr', 'thargoid', 'thargon',
                      'mood', 'rating', 'obj_range', 'xpos', 'ypos', 'zpos',
                      'this_xpos', 'this_ypos', 'this_zpos', 'in_sights', 'hits_rad',
                      'gun_node', 'no_nodes', 'nodes', 'x_vector', 'y_vector',
@@ -594,7 +594,8 @@ peel_off_check:
                         with self.subTest(model=model, view=view, ship=name, rating=rating):
                             self.prepare(model, view)
                             self.var('rating', rating)
-                            self.obj('type', self.symbols['constr' if name == 'constri' else 'viper'])
+                            kind = {'constri': 'constr', 'tharg': 'thargoid', 'thargon': 'thargon'}.get(name, 'viper')
+                            self.obj('type', self.symbols[kind])
                             self.assertTrue(0 <= gun <= last)
                             self.cpu.mem_write(NODES, struct.pack('>' + 'h' * len(words), *words))
                             self.obj('gun_node', gun)
@@ -606,6 +607,8 @@ peel_off_check:
                             expected = (int(x * 512 / (3000 + z)), int(y * 512 / (3000 + z)))
                             self.assertEqual(self.lines[0][:2], expected)
                             ink = 15 if name == 'constri' else (6, 6, 6, 3, 3, 3, 15, 15, 15)[rating]
+                            if kind in ('thargoid', 'thargon'):
+                                ink = 10
                             masks = struct.pack('>4H', *(65535 if ink & (1 << p) else 0 for p in range(4)))
                             self.assertEqual(self.cpu.mem_read(self.read('colour_ptr', size=4), 8), masks)
 

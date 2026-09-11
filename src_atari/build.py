@@ -117,7 +117,7 @@ def main():
     print('Player laser style: ' + laser)
     print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
-    print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
+    print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
     for name in modules + ['workspace', 'loader']:
         assemble(name)
     first_map = link_game('elite-pass1.map')

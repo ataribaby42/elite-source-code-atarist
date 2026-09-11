@@ -33,7 +33,7 @@ use_novella: equ -1 ; flag  use novella protection
 noprotect: equ 0 ; build option: skip only the novella question
 	endc
 	ifnd commander_max
-commander_max: equ 0 ; build option: default commander starts with 1,000,000 Cr
+commander_max: equ 0 ; build option: default commander starts with 1,000,000 Cr and Deadly rating
 	endc
 	ifnd laser_singlebeam
 laser_singlebeam: equ 0 ; build option: 0 = dualbeam (default), 1 = singlebeam

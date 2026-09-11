@@ -676,8 +676,13 @@ reset_table:
 	dc.w 0 ; cloaking device
 	ds.l 20 ; cargo hold (empty)
 	dc.w 0 ; police record
+	ifne commander_max
+	dc.l $a0000 ; score: lower boundary of Deadly
+	dc.w 7 ; current rating: Deadly
+	else
 	dc.l 0 ; score
 	dc.w 0 ; current rating
+	endc
 	dc.w 0 ; mission counter
 	dc.w 0 ; kill counter
 	dc.w 1 ; next mission
@@ -723,8 +728,13 @@ reset_table:
 	dc.w 0 ; cloaking device
 	ds.l 20 ; cargo hold (empty)
 	dc.w 0 ; police record
+	ifne commander_max
+	dc.l $a0000 ; score: lower boundary of Deadly
+	dc.w 7 ; current rating: Deadly
+	else
 	dc.l 0 ; score
 	dc.w 0 ; current rating
+	endc
 	dc.w 0 ; mission counter
 	dc.w 0 ; kill counter
 	dc.w 1 ; next mission
