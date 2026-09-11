@@ -33,7 +33,7 @@ def assemble(directory):
              'amiga_music_attack', 'amiga_music_loops', 'music_code_end',
              'start_tune', 'start_fade', 'sound', 'quiet', 'fx', 'music_dma',
              'music_playing', 'fade_ticks', 'user', 'f_fx', 'end_hyperspace',
-             'amiga_samples', 'effect_ticks']
+             'amiga_samples', 'effect_ticks', 'sfx_laser', 'sfx_doors']
     music = (ROOT/'asm/music.m68').read_text()
     sounds = (ROOT/'asm/sounds.m68').read_text()
     # Keep executable pages separate so writes to instructions fail even when
@@ -202,15 +202,28 @@ class MusicTests(unittest.TestCase):
                 call(machine, s['quiet'])
                 self.assertEqual(hardware.dma, 0)
                 self.assertEqual(hardware.volumes, [0]*4)
-                machine.mem_write(VARIABLES+s['user'], b'\1\0')
-                machine.reg_write(UC_M68K_REG_D0, 3)  # laser
-                call(machine, s['fx'])
-                call(machine, s['sound'])
-                self.assertNotEqual(hardware.dma, 0)
-                for _ in range(180):
+                lengths = struct.unpack_from('>19H', self.game, 0x60d0)
+                for effect, sample in (('sfx_laser', 3), ('sfx_doors', 16)):
+                    # Disabled effects must stay silent, including hangar launch.
+                    machine.mem_write(VARIABLES+s['user'], b'\0\0')
+                    machine.reg_write(UC_M68K_REG_D0, s[effect])
+                    call(machine, s['fx'])
                     call(machine, s['sound'])
-                self.assertEqual(hardware.dma, 0)
-                self.assertEqual(hardware.volumes, [0]*4)
+                    self.assertEqual(hardware.dma, 0)
+                    machine.mem_write(VARIABLES+s['user'], b'\1\0')
+                    machine.reg_write(UC_M68K_REG_D0, s[effect])
+                    call(machine, s['fx'])
+                    call(machine, s['sound'])
+                    channels = [n for n in range(4) if hardware.dma & (1 << n)]
+                    self.assertEqual(len(channels), 1)
+                    channel = channels[0]
+                    self.assertEqual(hardware.pointers[channel], s['amiga_samples']+sum(lengths[:sample]))
+                    self.assertEqual(2*hardware.lengths[channel], lengths[sample])
+                    # Include the longer launch envelope and its silent tail.
+                    for _ in range(260):
+                        call(machine, s['sound'])
+                    self.assertEqual(hardware.dma, 0)
+                    self.assertEqual(hardware.volumes, [0]*4)
 
 
 class PaulaTrace:
