@@ -1,6 +1,6 @@
 """One-time, read-only import of the 1988/1990 Quelo sources to vasm syntax.
 
-The converted files in src-orig/asm are the editable source of the modern build.
+The converted files in src_orig/asm are the editable source of the modern build.
 This converter is retained for provenance; the normal build never imports
 the archive or overwrites the edited assembly files.
 """
@@ -222,7 +222,7 @@ class Converter:
 def main():
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--overwrite', action='store_true', help='explicitly replace all converted files (destroys edits in src-orig/asm)')
+    parser.add_argument('--overwrite', action='store_true', help='explicitly replace all converted files (destroys edits in src_orig/asm)')
     parser.add_argument('--source-dir', required=True, type=Path,
                         help='directory extracted from resources/elite_atarist_source.zip')
     args = parser.parse_args()

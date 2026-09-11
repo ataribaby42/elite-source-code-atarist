@@ -1,4 +1,4 @@
-; Ported from src-orig/OBJECTS_DAT; edit this copy.
+; Ported from src_orig/asm/objects.dat; edit this copy.
 * ---- A D D E R ----
 
 ; The final node is a centred muzzle; existing mesh vertices stay unchanged.

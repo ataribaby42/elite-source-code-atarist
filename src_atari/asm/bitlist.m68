@@ -1,4 +1,4 @@
-; Ported from src-orig/BITLIST_M68; edit this copy.
+; Ported from src_orig/asm/bitlist.m68; edit this copy.
 * List of bit maps index numbers.
 
 	rsset 0

@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/CHKSTART_M68; edit this copy.
+; Ported from src_orig/asm/chkstart.m68; edit this copy.
 * Label start of checksum area.
 
 	section text,code

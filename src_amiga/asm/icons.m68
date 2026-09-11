@@ -1,4 +1,4 @@
-; Ported from src-orig/ICONS_M68; edit this copy.
+; Ported from src_orig/asm/icons.m68; edit this copy.
 * Action table fragment for common icons - included in file.
 
 	q_action 36,174,73,180,0,0,launch

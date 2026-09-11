@@ -1,6 +1,6 @@
 # Source code and development
 
-See the [main README in the project root](../README.md) for building and running the game. This directory contains the working sources and development tools. `src-orig` now contains an independent build of the preserved original game; enhanced Atari gameplay changes belong only under `src_atari`. The untouched historical source archive is `resources/elite_atarist_source.zip`.
+See the [main README in the project root](../README.md) for building and running the game. This directory contains the working sources and development tools. `src_orig` now contains an independent build of the preserved original game; enhanced Atari gameplay changes belong only under `src_atari`. The untouched historical source archive is `resources/elite_atarist_source.zip`.
 
 Run all commands below from the project root. Paths in the tables and text are also relative to the root.
 
@@ -56,7 +56,7 @@ Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for 
 
 The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
 
-The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src-orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
+The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src_orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
 
 The floppy contains `AUTO/ELITE.PRG` for automatic startup when booting from drive A:. This variant of `boot.s` selects the current drive root before opening `LOADER.IMG`; all data and the manual `ELITE.TOS` launcher remain in the root. The directory distribution remains flat for manual startup from a hard-drive folder. The FAT12 verifier checks both the root files and the AUTO directory, including its dot entries and launcher bytes.
 

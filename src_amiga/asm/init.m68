@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/INIT_M68; edit this copy.
+; Ported from src_orig/asm/init.m68; edit this copy.
 * @@@@@@ @@   @@  @@@@@@  @@@@@@
 *	@@	 @@@  @@	@@	  @ @@ @
 *	@@	 @@@@ @@	@@		@@

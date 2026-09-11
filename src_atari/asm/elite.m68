@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/ELITE_M68; edit this copy.
+; Ported from src_orig/asm/elite.m68; edit this copy.
 ;  @@@@   @@@@@@		 @@@@@@@ @@@@	  @@@@@@  @@@@@@ @@@@@@@
 ; @@  @@  @ @@ @		  @@   @  @@		@@	  @ @@ @  @@   @
 ; @@		@@			  @@ @	  @@		@@		@@	  @@ @

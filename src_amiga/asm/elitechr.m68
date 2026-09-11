@@ -1,4 +1,4 @@
-; Ported from src-orig/ELITECHR_M68; edit this copy.
+; Ported from src_orig/asm/elitechr.m68; edit this copy.
 	dc.b $00,$00,$00,$00,$00,$00,$00,$00,$00,$18,$18,$18,$18,$00,$18,$00
 	dc.b $00,$6C,$6C,$24,$00,$00,$00,$00,$00,$6C,$FE,$6C,$6C,$FE,$6C,$00
 	dc.b $00,$28,$7E,$A8,$7C,$2A,$FC,$00,$00,$C6,$CC,$18,$30,$66,$C6,$00

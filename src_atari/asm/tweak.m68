@@ -1,3 +1,3 @@
 	include "common.def"
-; Ported from src-orig/TWEAK_M68; edit this copy.
+; Ported from src_orig/asm/tweak.m68; edit this copy.
 * Tweak data file (not used at the moment).

@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/COCKPIT_M68; edit this copy.
+; Ported from src_orig/asm/cockpit.m68; edit this copy.
 *	@@@@	@@@ 	@@@@  @@@  @@ @@@@@@   @@@@@@  @@@@@@
 *  @@  @@  @@ @@   @@  @@  @@  @@  @@  @@	 @@    @ @@ @
 * @@	  @@   @@ @@	   @@ @@   @@  @@	 @@ 	 @@

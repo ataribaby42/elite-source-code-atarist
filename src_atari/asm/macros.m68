@@ -1,4 +1,4 @@
-; Ported from src-orig/MACROS_M68; edit this copy.
+; Ported from src_orig/asm/macros.m68; edit this copy.
 * GLOBAL <name> - define a global label.
 
 q_global macro

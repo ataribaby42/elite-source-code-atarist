@@ -4,10 +4,10 @@
 /output_orig/
 /src_atari/build/
 /src_amiga/build/
-/src-orig/build/
+/src_orig/build/
 /src_atari/**/__pycache__/
 /src_amiga/**/__pycache__/
-/src-orig/**/__pycache__/
+/src_orig/**/__pycache__/
 /src_atari/**/*.py[cod]
 /src_amiga/**/*.py[cod]
-/src-orig/**/*.py[cod]
+/src_orig/**/*.py[cod]

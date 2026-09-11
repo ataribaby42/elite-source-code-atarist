@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/PDATA_M68; edit this copy.
+; Ported from src_orig/asm/pdata.m68; edit this copy.
 * @@@@@@  @@@@@ 	 @@    @@@@@@	 @@
 *  @@  @@  @@ @@	@@@@   @ @@ @	@@@@
 *  @@  @@  @@  @@  @@  @@	 @@    @@  @@

@@ -1,7 +1,7 @@
 # Preserved original Atari ST Elite
 
 This independent source tree reconstructs the original Atari ST version from
-`resources/elite_atarist_source.zip`. It replaces the former raw `src-orig`
+`resources/elite_atarist_source.zip`. It replaces the former raw
 extraction. All 307 extracted files were checked against both the ZIP CRCs and
 the original SHA-256 manifest before conversion. The untouched ZIP remains the
 archival copy, including historic tools, objects, source encodings and line endings.
@@ -41,7 +41,7 @@ Optional tool overrides are supported:
 ```powershell
 .\build_orig.bat -Python C:\Python\python.exe
 .\build_orig.bat -Vasm C:\Tools\vasmm68k_mot.exe -Vlink C:\Tools\vlink.exe
-python src-orig/build.py --vasm C:\Tools\vasmm68k_mot.exe --vlink C:\Tools\vlink.exe
+python src_orig/build.py --vasm C:\Tools\vasmm68k_mot.exe --vlink C:\Tools\vlink.exe
 ```
 
 There are no gameplay options such as `commander=max`, `noprotect=yes`, `laser=`,
@@ -72,8 +72,8 @@ match the historical SHA-256 hashes or the build fails.
 ## Verification
 
 ```powershell
-python -m unittest discover -s src-orig/tests -v
-python src-orig/tools/verify_original.py
+python -m unittest discover -s src_orig/tests -v
+python src_orig/tools/verify_original.py
 ```
 
 The build verifies module linking, the embedded checksum, A6 workspace relocation,

@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/OPTIONS_M68; edit this copy.
+; Ported from src_orig/asm/options.m68; edit this copy.
 *	@@@   @@@@@@   @@@@@@  @@@@@@	@@@   @@   @@	@@@@
 *  @@ @@   @@  @@  @ @@ @	 @@    @@ @@  @@@  @@  @@  @@
 * @@   @@  @@  @@	 @@ 	 @@   @@   @@ @@@@ @@  @@

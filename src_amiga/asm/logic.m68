@@ -1,5 +1,5 @@
 	include "common.def"
-; Ported from src-orig/LOGIC_M68; edit this copy.
+; Ported from src_orig/asm/logic.m68; edit this copy.
 * @@@@		@@@ 	@@@@   @@@@@@	@@@@
 *  @@	   @@ @@   @@  @@	 @@    @@  @@
 *  @@	  @@   @@ @@		 @@   @@

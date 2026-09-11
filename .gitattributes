@@ -13,8 +13,8 @@
 *.ps1 text eol=crlf
 
 # Original-version converted sources use the text rules above.
-src-orig/asm/** text eol=lf linguist-vendored
-src-orig/assets/** binary
+src_orig/asm/** text eol=lf linguist-vendored
+src_orig/assets/** binary
 # Preserve historical archives and binary assets byte for byte.
 *.zip binary
 src_atari/assets/** binary
