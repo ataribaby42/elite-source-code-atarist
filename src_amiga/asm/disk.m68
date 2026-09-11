@@ -14,6 +14,7 @@
 ; Designed and coded by Rob Nicholson. Adpated from the MSX version.
 
 	include "macros.m68"
+	xref registration_validate
 	include "bitlist.m68"
 
 ; Modification history:
@@ -93,6 +94,7 @@ q_disk_m68_1:
 	q_next 1
 	bra q_disk_m68_1
 q_disk_m68_2:
+	jsr registration_validate ; accept the extension or migrate an old save
 	move current(a6),req_planet(a6) ; generate system planet and prices
 	jsr gen_prices
 	jmp home_cursor ; home cursor on planet and return
@@ -1011,6 +1013,7 @@ var_list:
 	dc.w cursor_type,1
 	dc.w retro_used,1
 	dc.w logo_shown,1
+	dc.w registration_tag,4 ; eight bytes in the formerly unused save tail
 	dc.w -1
 
 ; Disk icon draw data table.

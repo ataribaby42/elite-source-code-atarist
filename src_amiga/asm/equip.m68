@@ -18,6 +18,7 @@
 ; V1.1	30/03/90	'E-L-I-T-E' message flashes on status screen.
 
 	include "macros.m68"
+	xref registration_status
 	include "bitlist.m68"
 
 	xref invert_icon,prepare_text,print_centre,text_colour,find_bitmap,locate
@@ -862,6 +863,7 @@ q_equip_m68_52:
 	jsr print_number
 	lea text6(pc),a0 ; (credits)
 	jsr print_string
+	jsr registration_status ; persistent player ship ID below Cash
 	moveq #bit_cobra,d0 ; display cobra
 	jsr find_bitmap
 	move #cobra_x2,d0

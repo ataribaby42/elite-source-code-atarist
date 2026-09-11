@@ -21,6 +21,7 @@
 ;						capsule.
 
 	include "macros.m68"
+	xref registration_assign,registration_new_player
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
@@ -332,6 +333,7 @@ q_main_m68_35:
 q_main_m68_37:
 q_main_m68_36:
 q_main_m68_33:
+	jsr registration_assign ; fresh identity, including copied objects
 	st obj_range(a4) ; object range not yet set up
 	movem.l (sp)+,d0-d2/d7/a0-a1 ; restore registers
 
@@ -1142,6 +1144,8 @@ q_main_m68_118:
 	move #log_escape,next_logic(a4) ; escape after peel off
 	move #cobra,type(a4) ; it's a cobra
 	jsr create_object ; create the object
+	move.l player_registration(a6),registration_id(a4) ; abandoned hull keeps its ID
+	jsr registration_new_player ; replacement hull receives a new ID
 	clr equip+escape_capsule(a6) ; only use once
 	clr police_record(a6) ; status = clean
 	clr speed(a6) ; slow right down

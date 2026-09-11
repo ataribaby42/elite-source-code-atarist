@@ -903,6 +903,9 @@ reset_table:
 	dc.w 0 ; logo not shown
 	endc
 
+	dc.l $52494431 ; RID1 registration extension (normal and max commander)
+	dc.b "JS",42,0 ; default Cobra registration JS-042
+
 	ds.b 256-(*-new_game) ; pad out to 256 bytes
 
 * Table of local variable data.

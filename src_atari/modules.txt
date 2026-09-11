@@ -35,5 +35,6 @@ cargo
 equip
 options
 effects
+registration
 chkend
 checksum

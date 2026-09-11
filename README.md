@@ -99,6 +99,27 @@ If the script cannot find Python, provide its path:
 
 Alternatively, run `python src_atari/build.py` directly. The scripts resolve project paths relative to their own location, so you can also invoke the build from another working directory.
 
+## Ship registrations
+
+In both enhanced versions, press **I** and centre a ship or station in the
+crosshair to identify its type and registration, for example `Viper AB-123`.
+Identification also works in a view without a fitted laser. Pirates conceal
+their registration as `??-???`; a hostile police ship still displays its ID.
+Thargoids and Thargons (Tharglets) also conceal their registration.
+The Constrictor displays its ID, as in the companion C64 version.
+Debris and missiles retain their original type-only identification.
+
+Each AI ship keeps its ID for its lifetime. Stations use their model, galaxy
+and system number: Lave's station is `Space Station C1-007`. Alien stations
+use the `D` prefix. The player's registration appears below Cash on the
+Status screen and is saved with the commander. New and legacy commanders
+start with `JS-042`; a successful escape capsule launch assigns the replacement
+ship a new registration. The commander file remains 256 bytes, and existing
+saved commanders can still be loaded.
+
+See the [Atari registration notes](src_atari/REGISTRATION.md) and
+[Amiga registration notes](src_amiga/REGISTRATION.md) for implementation and tests.
+
 ## Build output and running the game
 
 | Path relative to the project root | Contents |

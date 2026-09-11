@@ -1,0 +1,247 @@
+; Ship registrations, inspired by this project's C64 companion version.
+; IDs use their own generator and never advance the gameplay random seed.
+    include "common.def"
+    include "macros.m68"
+    xref disp_message,locate,text_colour,print_string
+    q_module registration
+
+; Assign a fresh identity after CREATE_OBJECT has installed the model header.
+; A4 = new object. Preserve all registers; a copied parent ID is discarded.
+    q_subr registration_assign,global
+    movem.l d0-d7/a0-a5,-(sp)
+    clr.l registration_id(a4)
+    move.w type(a4),d0
+    cmp.w #thargon,d0
+    beq.s .ship
+    cmp.w #viper,d0
+    blo.s .done
+    cmp.w #constr,d0
+    bhi.s .done
+    cmp.w #dodec,d0
+    beq.s .done
+.ship:
+    bsr registration_generate
+    move.l d0,registration_id(a4)
+.done:
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; Return a nonzero 8-bit LFSR state in D0 (255-state cycle, feedback $B8).
+; Only called when creating an identity, never during drawing/identification.
+    q_subr registration_next
+    moveq #0,d0
+    move.w registration_state(a6),d0
+    bne.s .step
+    move.b gal_seed+5(a6),d0
+    move.b current+1(a6),d2
+    eor.b d2,d0
+    move.b galaxy_no+1(a6),d2
+    eor.b d2,d0
+    move.b fluctuation+1(a6),d2
+    eor.b d2,d0
+    bne.s .step
+    move.w #$a5,d0
+.step:
+    lsr.b #1,d0
+    bcc.s .store
+    eor.b #$b8,d0
+.store:
+    move.w d0,registration_state(a6)
+    rts
+
+; D0 = packed [letter, letter, number 1..255, zero]. D1-D3/A0 scratch.
+; Reserve a distinct number among all live ships and the player's ship.
+; At most 31 of 255 numbers can be occupied, so this search always terminates.
+    q_subr registration_generate
+.retry:
+    bsr registration_next
+    cmp.b player_registration+2(a6),d0
+    beq.s .retry
+    lea objects(a6),a0
+    moveq #max_objects-1,d2
+.check:
+    btst #in_use,flags(a0)
+    beq.s .next
+    cmp.b registration_id+2(a0),d0
+    beq.s .retry
+.next:
+    lea obj_len(a0),a0
+    dbra d2,.check
+    move.w d0,d3
+    move.b current+1(a6),d2
+    eor.b d2,d0
+    move.b fluctuation+1(a6),d2
+    eor.b d2,d0
+    move.b galaxy_no+1(a6),d2
+    eor.b d2,d0
+    divu #26,d0
+    swap d0
+    add.b #'A',d0
+    moveq #0,d1
+    move.b d0,d1
+    lsl.l #8,d1
+    moveq #0,d0
+    move.b d3,d0
+    move.b gal_seed+5(a6),d2
+    eor.b d2,d0
+    move.b galaxy_no+1(a6),d2
+    eor.b d2,d0
+    add.b fluctuation+1(a6),d0
+    divu #26,d0
+    swap d0
+    add.b #'A',d0
+    move.b d0,d1
+    lsl.l #8,d1
+    move.b d3,d1
+    lsl.l #8,d1
+    move.l d1,d0
+    rts
+
+; A new hull after a successful escape. Preserve all registers.
+    q_subr registration_new_player,global
+    movem.l d0-d3/a0,-(sp)
+    bsr registration_generate
+    move.l d0,player_registration(a6)
+    move.l #$52494431,registration_tag(a6) ; "RID1", save extension version
+    movem.l (sp)+,d0-d3/a0
+    rts
+
+; Accept only a tagged, valid ID. Old 256-byte saves have an unused tail.
+; Give legacy commanders a deterministic default and save it on the next save.
+    q_subr registration_validate,global
+    cmp.l #$52494431,registration_tag(a6)
+    bne.s .legacy
+    cmp.b #'A',player_registration(a6)
+    blo.s .legacy
+    cmp.b #'Z',player_registration(a6)
+    bhi.s .legacy
+    cmp.b #'A',player_registration+1(a6)
+    blo.s .legacy
+    cmp.b #'Z',player_registration+1(a6)
+    bhi.s .legacy
+    tst.b player_registration+2(a6)
+    beq.s .legacy
+    tst.b player_registration+3(a6)
+    beq.s .done
+.legacy:
+    move.l #$52494431,registration_tag(a6)
+    move.l #$4a532a00,player_registration(a6) ; JS-042
+.done:
+    rts
+
+; A5 = identified object. Preserve all registers, including the render pointer.
+; Copy the name, append at most seven characters, then snapshot the message.
+    q_subr registration_message,global
+    movem.l d0-d7/a0-a5,-(sp)
+    lea registration_buffer(a6),a1
+    move.l text(a5),a0
+    moveq #no_cols-7-1,d2
+.name:
+    move.b (a0)+,d0
+    beq.s .suffix
+    move.b d0,(a1)+
+    dbra d2,.name
+.suffix:
+    move.w type(a5),d0
+    cmp.w #spacestn,d0
+    beq.s .station
+    cmp.w #dodec,d0
+    beq.s .station
+    tst.l registration_id(a5)
+    beq.s .display
+    move.b #' ',(a1)+
+    cmp.w #thargoid,type(a5) ; C64 Thargoid blueprint has the pirate identity flag
+    beq.s .hidden
+    cmp.w #thargon,type(a5) ; also conceal the alien fighter's identity
+    beq.s .hidden
+    cmp.w #typ_pirate,ship_type(a5)
+    beq.s .hidden
+    lea registration_id(a5),a0
+    bsr registration_format
+    bra.s .display
+.hidden:
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    move.b #'-',(a1)+
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    bra.s .display
+.station:
+    move.b #' ',(a1)+
+    move.b #'C',(a1)+
+    cmp.w #dodec,d0
+    bne.s .galaxy
+    move.b #'D',-1(a1)
+.galaxy:
+    move.w galaxy_no(a6),d0
+    and.w #7,d0
+    add.b #'1',d0
+    move.b d0,(a1)+
+    move.b #'-',(a1)+
+    moveq #0,d0
+    move.b current+1(a6),d0
+    bsr registration_digits
+.display:
+    clr.b (a1)
+    lea registration_buffer(a6),a0
+    jsr disp_message
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; Append six visible characters to A1 from the packed identity at A0.
+; D0-D1/A0-A1 scratch; A1 finishes immediately after the last digit.
+    q_subr registration_format
+    move.b (a0)+,(a1)+
+    move.b (a0)+,(a1)+
+    move.b #'-',(a1)+
+    moveq #0,d0
+    move.b (a0),d0
+    ; Fall through to the three-digit formatter.
+
+; Append a zero-padded unsigned decimal number, 000..255. D0-D1/A1 scratch.
+    q_subr registration_digits
+    divu #100,d0
+    move.w d0,d1
+    add.b #'0',d1
+    move.b d1,(a1)+
+    clr.w d0
+    swap d0
+    divu #10,d0
+    move.w d0,d1
+    add.b #'0',d1
+    move.b d1,(a1)+
+    swap d0
+    add.b #'0',d0
+    move.b d0,(a1)+
+    rts
+
+; Status row below Cash and above the forward laser label (which starts y=86).
+; Column 14 keeps the six-character ID wholly left of the equipment tree.
+    q_subr registration_status,global
+    movem.l d0-d7/a0-a5,-(sp)
+    moveq #0,d0
+    moveq #text_top+2+56,d1
+    jsr locate
+    moveq #magenta,d0
+    moveq #trans,d1
+    jsr text_colour
+    lea registration_heading(pc),a0
+    jsr print_string
+    moveq #14,d0
+    moveq #text_top+2+56,d1
+    jsr locate
+    moveq #yellow,d0
+    moveq #trans,d1
+    jsr text_colour
+    lea player_registration(a6),a0
+    lea registration_buffer(a6),a1
+    bsr registration_format
+    clr.b (a1)
+    lea registration_buffer(a6),a0
+    jsr print_string
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+registration_heading:
+    dc.b 'Registration:',0

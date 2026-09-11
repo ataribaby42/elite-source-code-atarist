@@ -15,7 +15,7 @@
 * Designed and coded by Rob Nicholson. Adapted from the MSX version.
 
 	include "macros.m68"
-	xref draw_ai_laser
+	xref draw_ai_laser,registration_message
 
 	xref disp_message,fx,check_missile,magnitude_table,c_line
 	xref draw_explosion,draw_point,monst,solid_polygon,sqrt,c_solid_polygon
@@ -936,8 +936,6 @@ q_vector_m68_100:
 	move hits_rad(a5),d0 ; calculate screen radius for hits
 	ext.l d0
 	bsr perspective
-	tst laser_type(a6) ; laser on this view
-	q_ret mi ; no, return
 	btst #invincible,flags(a5) ; invincible ?
 	q_ret ne ; yes, return
 	move centre_x(a5),d1 ; within sights along x axis ?
@@ -954,28 +952,30 @@ q_vector_m68_101:
 q_vector_m68_103:
 	cmp d0,d1
 	q_ret hi ; no, return
-	st in_sights(a6) ; object within sights!
-	tst id_trigger(a6) ; ID triggered ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_vector_m68_105
-	clr id_trigger(a6) ; clear trigger
-	move.l text(a5),a0 ; display objects type
-	jsr disp_message
-	q_sfx locked
-q_vector_m68_105:
+	tst laser_type(a6) ; identification also works without a fitted laser
+	bmi.s .identify
+	st in_sights(a6) ; preserve the original laser/missile targeting rules
 	cmp #1,missile_state(a6) ; missile armed ?
-	q_ret ne ; no, return
-	move.l a5,a4 ; missile already on intercept ?
+	bne.s .identify
+	move.l a5,a4
 	jsr check_missile
 	tst d7
-	q_ret pl ; yes, return
-	q_inc missile_state(a6) ; flag target found
-	clr f_missiles(a6) ; update display
+	bpl.s .identify ; missile already on intercept
+	q_inc missile_state(a6)
+	clr f_missiles(a6)
 	move.l a5,target_ptr(a6)
-	q_sfx locked ; object locked on target
-	lea text1(pc),a0 ; display message
+	tst id_trigger(a6) ; an explicit ID request takes priority over lock text
+	bne.s .identify
+	q_sfx locked
+	lea text1(pc),a0
 	jmp disp_message
-
+.identify:
+	tst id_trigger(a6)
+	q_ret eq
+	clr id_trigger(a6)
+	jsr registration_message
+	q_sfx locked
+	rts
 
 * ***************************************
 * **								   **

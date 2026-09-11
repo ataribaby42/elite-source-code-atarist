@@ -512,6 +512,7 @@ peel_z: rs.w 1 ; angle to rotate each time
 pre_attack: rs.w 1 ; pre-attack health
 next_logic: rs.w 1 ; next logic to perform
 ai_laser: rs.w 1 ; flag  enemy fired a laser in this game frame
+registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
@@ -737,6 +738,10 @@ snova: rs.l 1 ; size of supernova
 under_attack: rs.w 1 ; flag  under attack
 recharge_count: rs.w 1 ; recharge energy banks counter
 first_time: rs.w 1 ; flag  first time thro' routine
+registration_tag: rs.l 1 ; RID1 save extension, followed by player ID
+player_registration: rs.l 1 ; two ASCII letters, number 1..255, zero
+registration_state: rs.w 1 ; private 8-bit LFSR; never gameplay RNG
+registration_buffer: rs.b no_cols+2 ; bounded ID message plus terminator
 player_name: rs.b 12 ; name of player
 rating: rs.w 1 ; players rating
 score: rs.l 1 ; players score
