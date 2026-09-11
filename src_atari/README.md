@@ -48,9 +48,17 @@ Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for 
 .\build_atari.bat aifiresound=yes
 ```
 
-The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=dualbeam aifiresound=no`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
+`scannerlogo=yes` (default) shows the ELITE caption below the scanner. Use `scannerlogo=no` to hide the caption on both cockpit buffers. The scanner, instruments and other game logos are unaffected. This is a build-time setting.
+
+```powershell
+.\build_atari.bat scannerlogo=no
+```
+
+The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
 
 The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src-orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
+
+The floppy contains `AUTO/ELITE.PRG` for automatic startup when booting from drive A:. This variant of `boot.s` selects the current drive root before opening `LOADER.IMG`; all data and the manual `ELITE.TOS` launcher remain in the root. The directory distribution remains flat for manual startup from a hard-drive folder. The FAT12 verifier checks both the root files and the AUTO directory, including its dot entries and launcher bytes.
 
 `src_atari/tools/convert_quelo.py` documents the one-time import of the original dialect. **The normal build does not run it.** By default, it refuses to overwrite existing files. Its `--overwrite` option discards edits to converted files in `src_atari/asm` and is intended only for deliberately repeating the import.
 
@@ -76,7 +84,7 @@ The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matc
 
 The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
 
-Player and AI lasers use instant-hit beams. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots have a 10% chance to miss, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots have a 10% chance to miss, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
 
@@ -93,7 +101,7 @@ python src_atari/tools/run_hatari.py --hatari 'C:\Hatari\hatari.exe' --rom 'C:\p
 python src_atari/tools/run_hatari.py --hatari 'C:\Hatari\hatari.exe' --rom 'C:\path\tos104.img' --floppy
 ```
 
-The script uses the game from the root `output_atari` directory and stores screenshots and diagnostics separately in `src_atari/build/hatari-test/harddrive` and `src_atari/build/hatari-test/floppy`. It runs without a window, write-protects the game disks, and does not save settings to the user profile. Assess the result using the screenshots and logs; the emulator's exit code alone does not confirm that the game works. The normal build does not run the emulator (`runtime_tested: false` in its report).
+The script uses the game from the root `output_atari` directory and stores screenshots and diagnostics separately in `src_atari/build/hatari-test/harddrive` and `src_atari/build/hatari-test/floppy`. The floppy diagnostic uses the real TOS AUTO scan; only the hard-drive diagnostic uses desktop autorun. It runs without a window, write-protects the game disks, and does not save settings to the user profile. Assess the result using the screenshots and logs; the emulator's exit code alone does not confirm that the game works. The normal build does not run the emulator (`runtime_tested: false` in its report).
 
 ## Optional assembler and linker rebuild
 

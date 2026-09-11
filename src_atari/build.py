@@ -69,10 +69,12 @@ def main():
                         help='noprotect=yes|no (default: no); commander=max|default '
                              '(default: default, max starts with 1,000,000 Cr); '
                              'laser=dualbeam|singlebeam (default: dualbeam); '
-                             'aifiresound=yes|no (default: no)')
+                             'aifiresound=yes|no (default: no); '
+                             'scannerlogo=yes|no (default: yes)')
     args = parser.parse_intermixed_args()
     noprotect, commander, laser = False, 'default', 'dualbeam'
     aifiresound = False
+    scannerlogo = True
     for option in args.options:
         if option in ('noprotect=yes', 'noprotect=no'):
             noprotect = option == 'noprotect=yes'
@@ -82,10 +84,12 @@ def main():
             laser = option.split('=', 1)[1]
         elif option in ('aifiresound=yes', 'aifiresound=no'):
             aifiresound = option == 'aifiresound=yes'
+        elif option in ('scannerlogo=yes', 'scannerlogo=no'):
+            scannerlogo = option == 'scannerlogo=yes'
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
                          'or commander=max|default or laser=dualbeam|singlebeam '
-                         'or aifiresound=yes|no')
+                         'or aifiresound=yes|no or scannerlogo=yes|no')
     args.vasm, args.vlink = args.vasm.resolve(), args.vlink.resolve()
     for tool in (args.vasm, args.vlink):
         check(tool.is_file(), f'Tool not found: {tool}. Restore the bundled root tools folder '
@@ -98,6 +102,7 @@ def main():
         output = output or BUILD / (name + '.o')
         run([args.vasm, *FLAGS, f'-Dnoprotect={int(noprotect)}',
              f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
+             f'-Dscannerlogo={int(scannerlogo)}',
              f'-Dlaser_singlebeam={int(laser == "singlebeam")}', '-F' + fmt, *extra,
              '-I' + str(BUILD), '-I' + str(ROOT / 'asm'),
              '-o', output, ROOT / 'asm' / (name + extension)], name + '.log')
@@ -111,6 +116,7 @@ def main():
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
     print('Player laser style: ' + laser)
     print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
+    print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
     print('Default commander: ' + ('1,000,000 Cr' if commander == 'max' else '100 Cr'))
     for name in modules + ['workspace', 'loader']:
         assemble(name)
@@ -156,6 +162,8 @@ def main():
         f'loader_address equ ${LOADER_ORIGIN:x}\nloader_size equ {loader_size}\n'
         f'required_ram equ ${syms["ram_end"]:x}\n', encoding='ascii')
     assemble('boot', 'tos', GAME / 'ELITE.TOS', extra=['-nosym'], extension='.s')
+    auto_program = BUILD / 'ELITE.PRG'
+    assemble('boot', 'tos', auto_program, extra=['-nosym', '-Dauto_start=1'], extension='.s')
     tos = (GAME / 'ELITE.TOS').read_bytes()
     check(tos[:2] == b'\x60\x1a', 'Invalid TOS executable header')
     text_size, data_size, bss_size, symbol_size = struct.unpack_from('>4I', tos, 2)
@@ -181,12 +189,12 @@ def main():
     names = (*ASSET_NAMES, 'ELITE.IMG', 'LOADER.IMG', 'ELITE.TOS', 'OBJECTS.IMG', 'ELITECHR.IMG')
     files = [GAME / name for name in names]
     disk = OUTPUT / 'ELITE.ST'
-    make_disk(files, disk)
-    verify_disk(disk, files)
+    make_disk(files, disk, auto_program=auto_program)
+    verify_disk(disk, files, auto_program=auto_program)
     baseline = json.loads((ROOT / 'original-sha256.json').read_text())
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
-        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound},
+        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound, 'scannerlogo': scannerlogo},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',
         'ram_end': f'{syms["ram_end"]:08X}',
@@ -197,11 +205,13 @@ def main():
         'checks': ['all modules assembled', 'all symbols linked', 'checksum embedded and verified',
                    'workspace relocation and RAM limits', 'per-module variable capacities',
                    'keyboard ASCII constants', 'asset buffer capacities', 'TOS header',
-                   'FAT12 image read back byte-for-byte'],
+                   'FAT12 image read back byte-for-byte, including AUTO/ELITE.PRG'],
+        'autostart': {'path': 'AUTO/ELITE.PRG', 'sha256': digest(auto_program)},
         'runtime_tested': False,
     }
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(f'Validated TOS launcher, RAM layout and 720 KB FAT12 disk: {disk}')
+    print('Floppy autostart: AUTO/ELITE.PRG (game data in the disk root)')
     print(f'Distribution: {GAME}')
 
 

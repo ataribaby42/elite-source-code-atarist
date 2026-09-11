@@ -13,6 +13,15 @@ start:
     cmp.l #required_ram,d0
     blo memory_error
 
+    ifd auto_start
+    pea root_path(pc)
+    move.w #$3b,-(sp)            ; Dsetpath: AUTO data stays in the boot drive root
+    trap #1
+    addq.l #6,sp
+    tst.l d0
+    bmi load_error
+    endif
+
     clr.w -(sp)
     pea loader_name(pc)
     move.w #$3d,-(sp)            ; Fopen(name, read-only)
@@ -52,6 +61,9 @@ show_error:
     move.w #$4c,-(sp)            ; Pterm(1)
     trap #1
 
+    ifd auto_start
+root_path: dc.b 92,0            ; backslash, current drive root
+    endif
 loader_name: dc.b 'LOADER.IMG',0
 memory_message:
     dc.b 'Elite needs free low memory and',13,10
@@ -60,7 +72,12 @@ memory_message:
     dc.b 'Press a key.',13,10,0
 load_message:
     dc.b 'Cannot read LOADER.IMG.',13,10
+    ifd auto_start
+    dc.b 'Keep all game data in the root',13,10
+    dc.b 'of the boot disk. Press a key.',13,10,0
+    else
     dc.b 'Keep ELITE.TOS and all game files',13,10
     dc.b 'in the same directory. Press a key.',13,10,0
+    endif
     even
 launcher_end:

@@ -6,6 +6,7 @@
     xref amiga_music_init,amiga_music_tick,amiga_music_periods
     xref amiga_music_volumes,amiga_music_mute,amiga_music_retrigger
     xref amiga_music_attack,amiga_music_loops
+    include "beam-loops.inc"
 sounds_used: equ 0
     section text,code
 fx:
@@ -43,6 +44,13 @@ play_effect:
     addq.l #2,a1
     dbra d7,.same
     move.w next_channel,d6
+    cmp.w #3,d6
+    bne .channel_ready
+    tst beam_kind
+    beq .channel_ready
+    moveq #0,d6                ; channel 3 belongs to the held beam, including release
+.channel_ready:
+    move.w d6,next_channel
     addq.w #1,next_channel
     and.w #3,next_channel
     lea effect_ids,a0
@@ -139,6 +147,9 @@ audio_settle:
 
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
+    clr laser_audio_request(a6)
+    clr beam_kind
+    clr beam_volume
     clr music_playing
     clr music_dma
     clr fade_ticks
@@ -189,6 +200,7 @@ sound:
 .music:
     tst music_playing
     bne play_music
+    bsr update_beam_sound
     lea effect_ticks,a0
     lea effect_envelopes,a2
     lea $dff0a0,a3
@@ -260,6 +272,86 @@ sound:
     cmp.w #17,d0
     bne .request
 .return:
+    rts
+
+; One DMA loop on channel 3. The main task only publishes a word-sized request;
+; hardware writes, channel reservation and the attack/release all run in VBL.
+update_beam_sound:
+    move.w laser_audio_request(a6),d5
+    cmp.w #2,d5
+    blo .disabled
+    cmp.w #3,d5
+    bhi .disabled
+    cmp.w laser_type(a6),d5
+    bne .disabled
+    btst #f_fx,user(a6)
+    beq .disabled
+    tst game_frozen(a6)
+    bne .disabled
+    tst game_over(a6)
+    bne .disabled
+    tst docked(a6)
+    bne .disabled
+    tst cockpit_on(a6)
+    beq .disabled
+    tst controls_locked(a6)
+    bne .disabled
+    cmp.w #max_ltemp,laser_temp(a6)
+    bhs .disabled
+    bra .request
+.disabled:
+    moveq #0,d5
+    clr laser_audio_request(a6)
+.request:
+    tst beam_kind
+    beq .start
+    cmp.w beam_kind,d5
+    beq .attack
+    move.w beam_volume,d0
+    sub.w #16,d0
+    bpl .release_volume
+    moveq #0,d0
+.release_volume:
+    move.w d0,beam_volume
+    move.w d0,$dff0d8
+    bne .done
+    moveq #4,d1
+    bsr audio_settle            ; latch silence before stopping the held DAC
+    move.w #8,$dff096
+    clr beam_kind
+.start:
+    tst.w d5
+    beq .done
+    clr effect_ticks+6
+    move.b #-1,effect_ids+3
+    move.w #0,$dff0d8
+    moveq #4,d1
+    bsr audio_settle
+    move.w #8,$dff096
+    move.w #beam_audio_period,$dff0d6
+    move.w #0,$dff0da
+    lea beam_samples,a0
+    cmp.w #3,d5
+    bne .sample_ready
+    adda.l #beam_sample_bytes,a0
+.sample_ready:
+    move.l a0,$dff0d0
+    move.w #beam_sample_words,$dff0d4
+    moveq #4,d1
+    bsr audio_settle
+    move.w #$8208,$dff096
+    move.w d5,beam_kind
+    clr beam_volume
+.attack:
+    move.w beam_volume,d0
+    add.w #16,d0
+    cmp.w #48,d0
+    bls .volume
+    moveq #48,d0
+.volume:
+    move.w d0,beam_volume
+    move.w d0,$dff0d8
+.done:
     rts
 
 play_music:
@@ -375,6 +467,9 @@ effect_map:
     section amiga_audio,data
 amiga_samples:
     incbin "amiga-samples.bin"
+    even
+beam_samples:
+    incbin "beam-loops.bin"
     section audio_vars,bss
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
@@ -386,3 +481,5 @@ fade_ticks: ds.w 1
 warp_ticks: ds.w 1
 music_dma: ds.w 1
 audio_resetting: ds.w 1
+beam_kind: ds.w 1
+beam_volume: ds.w 1

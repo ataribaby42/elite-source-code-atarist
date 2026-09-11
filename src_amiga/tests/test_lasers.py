@@ -75,7 +75,7 @@ class LaserTests(unittest.TestCase):
         }
         names = [name for group in groups.values() for name in group] + ['fx']
         constants = ['laser_pending', 'hit_check', 'firing', 'laser_beam',
-                     'laser_flash', 'laser_flash_end', 'laser_tip_x', 'laser_tip_y',
+                     'laser_flash', 'laser_flash_end', 'laser_tip_x', 'laser_tip_y', 'laser_audio_request',
                      'laser_temp', 'laser_type', 'laser_rate', 'laser_power',
                      'max_ltemp', 'game_frozen', 'docked', 'cockpit_on',
                      'scr_base', 'colour_ptr', 'random_seed', 'obj_hit',
@@ -89,7 +89,7 @@ class LaserTests(unittest.TestCase):
                      'z_vector', 'w_view_ptr', 'l_view_ptr', 'unit', 'view',
                      'cloaking_on', 'controls_locked', 'radar_obj', 'on_course',
                      'front_shield', 'aft_shield', 'max_shield', 'shields_fx', 'energy', 'max_energy',
-                     'frame_count', 'reduce_ctr', 'laser_info', 'white', 'sfx_laser', 'sfx_shields']
+                     'frame_count', 'reduce_ctr', 'laser_info', 'white', 'sfx_laser', 'sfx_shields', 'sfx_hit']
         assembly = ('laser_singlebeam equ 1\n' if cls.beam_style == 'singlebeam' else '')
         assembly += 'aifiresound equ 1\n' if cls.ai_fire_sound else ''
         assembly += preamble() + '\tinclude "bitlist.m68"\n'
@@ -262,7 +262,9 @@ peel_off_check:
                         self.frame()
                         self.assertEqual(self.read('health', True), 1000 - power)
                         self.assertEqual(self.read('laser_pending'), 0)
-                        self.assertIn(self.symbols['sfx_laser'], self.sound_calls)
+                        self.assertIn(self.symbols['sfx_hit'], self.sound_calls)
+                        self.assertEqual(self.symbols['sfx_laser'] in self.sound_calls, kind < 2)
+                        self.assertEqual(self.read('laser_audio_request'), kind if kind >= 2 else 0)
                         self.assertEqual(len(self.wedges), len(self.bases))
                         self.assertEqual(self.cpu.mem_read(self.read('colour_ptr', size=4), 16),
                                          struct.pack('>8H', *(player_colour(kind) * 2)))
@@ -291,6 +293,7 @@ peel_off_check:
             self.frame()
             self.wedges.clear()
             self.frame(fire=False)
+            self.assertEqual(self.read('laser_audio_request'), 0)
             self.assertEqual(self.wedges, [])
             self.assertEqual(self.read('health', True), 1000 - power)
             for frame in range(2, interval):

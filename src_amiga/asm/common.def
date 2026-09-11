@@ -41,6 +41,9 @@ laser_singlebeam: equ 0 ; build option: 0 = dualbeam (default), 1 = singlebeam
 	ifnd aifiresound
 aifiresound: equ 0 ; build option: AI laser firing sound, disabled by default
 	endc
+	ifnd scannerlogo
+scannerlogo: equ 1 ; build option: show ELITE below the scanner (default)
+	endc
 calc_checksum: equ -0 ; flag  calculate and display checksum
 	ifnd valid
 valid equ $5123
@@ -799,6 +802,7 @@ approach: rs.w 1 ; object approach speed
 hit_check: rs.w 1 ; flag  check for laser hit
 laser_pending: rs.w 1 ; shot accepted before the current game frame
 laser_beam: rs.w 1 ; held beam/military visual request for this frame
+laser_audio_request: rs.w 1 ; stable VBL request: 0=off, 2=Beam, 3=Military
 laser_flash: rs.w 1 ; flag  short pulse flash is active
 laser_flash_end: rs.l 1 ; pulse flash expiry (50 Hz flyback clock)
 laser_tip_x: rs.w 1 ; cosmetic jitter only, never used for targeting

@@ -43,8 +43,9 @@ expires does not bypass it. Unlike the first instant-laser implementation,
 Pulse does not use a 50 Hz clock for its firing interval, and visible Beam or
 Military frames do not automatically produce damage.
 
-Each accepted shot immediately evaluates one hit, adds one unit of heat and
-triggers the original firing sound. The original per-hit damage, heat limit,
+Each accepted shot immediately evaluates one hit and adds one unit of heat.
+Pulse and Mining trigger the original firing sound; Beam and Military use
+continuous audio independent of the damage interval. The original per-hit damage, heat limit,
 cooling and energy handling are retained. Thus shot intervals and the entire
 heat progression match the travelling-projectile version; only its initial
 eight-game-frame hit delay is removed.
@@ -63,6 +64,26 @@ intervals are 0.60 s (Pulse), 0.48 s (Mining), 0.36 s (Beam), and 0.18 s
 (Military). Actual intervals increase if the game frame takes longer. This is
 the original frame-based pacing rather than BBC's 50 Hz shot timer; the BBC
 references below describe the visual style and fixed-axis aiming.
+
+## Continuous player laser audio
+
+The input frame publishes a stable audio request independently of the
+visual beam flag. Holding Beam or Military sustains the sound between
+accepted hits without restarting it or consuming random numbers. Release,
+overheating, pause, docking, hidden cockpit, locked controls, game over
+and disabled Effects end the sound with a short release. View/system
+changes clear the request; music startup and shutdown also clear it.
+
+The native Atari driver reserves one of the three PSG effect channels.
+Beam uses a lower tone with gentle deterministic modulation; Military uses
+a higher, tighter tone. The sound uses neither the shared noise generator
+nor the shared hardware envelope, leaving them available to other effects.
+The reserved channel remains available to music after release. Volume rises
+to 12/15 and releases in four PAL VBLs (80 ms).
+
+Successful player hits still trigger the original target-impact effect. It plays
+on another effect channel alongside the continuous beam; `aifiresound=no`
+does not disable this feedback.
 
 ## AI weapons
 

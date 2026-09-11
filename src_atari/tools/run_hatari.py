@@ -35,8 +35,10 @@ command = [str(exe), '--tos', str(args.rom.resolve()), '--machine', 'st', '--mem
     '--protect-floppy', 'on', '--protect-hd', 'on',
     '--run-vbls', str(args.vbls), '--parse', str(out / 'start.ini'),
     '--trace', 'gemdos', '--trace-file', str(out / 'gemdos.log'),
-    '--log-file', str(out / 'hatari.log'), '--screenshot-dir', str(out),
-    '--auto', 'A:\\ELITE.TOS' if args.floppy else 'C:\\ELITE.TOS']
+    '--log-file', str(out / 'hatari.log'), '--screenshot-dir', str(out)]
+# Floppy startup must use TOS's real AUTO scan, not Hatari's desktop autorun.
+if not args.floppy:
+    command += ['--auto', 'C:\\ELITE.TOS']
 command += ['--disk-a', str(ROOT.parent / 'output_atari/ELITE.ST')] if args.floppy else ['--harddrive', str(ROOT.parent / 'output_atari/ELITE')]
 result = subprocess.run(command, cwd=out, env=env, capture_output=True, text=True,
     creationflags=subprocess.CREATE_NO_WINDOW, timeout=55)

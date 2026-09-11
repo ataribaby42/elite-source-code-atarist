@@ -14,6 +14,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.amiga_assets import extract_assets, ofs_file
+from tools.beam_audio import generate_beam_audio
 
 try:
     from unicorn import (Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ,
@@ -33,7 +34,10 @@ def assemble(directory):
              'amiga_music_attack', 'amiga_music_loops', 'music_code_end',
              'start_tune', 'start_fade', 'sound', 'quiet', 'fx', 'music_dma',
              'music_playing', 'fade_ticks', 'user', 'f_fx', 'end_hyperspace',
-             'amiga_samples', 'effect_ticks', 'sfx_laser', 'sfx_doors']
+             'amiga_samples', 'effect_ticks', 'sfx_laser', 'sfx_doors', 'sfx_explosion', 'sfx_hit',
+             'beam_samples', 'beam_kind', 'beam_volume', 'laser_audio_request', 'laser_type',
+             'laser_temp', 'max_ltemp', 'game_frozen', 'game_over', 'docked', 'cockpit_on',
+             'controls_locked']
     music = (ROOT/'asm/music.m68').read_text()
     sounds = (ROOT/'asm/sounds.m68').read_text()
     # Keep executable pages separate so writes to instructions fail even when
@@ -100,6 +104,7 @@ class MusicTests(unittest.TestCase):
         adf = ROOT.parent/'resources/amiga/Elite 2.0.adf'
         cls.game = ofs_file(adf.read_bytes(), 887)
         extract_assets(adf, directory)
+        generate_beam_audio(directory)
         cls.code, cls.symbols = assemble(directory)
 
     def native(self, model):
@@ -226,6 +231,106 @@ class MusicTests(unittest.TestCase):
                     self.assertEqual(hardware.volumes, [0]*4)
 
 
+    def configure_beam(self, machine, kind):
+        for name, value in [('user', 0x100), ('cockpit_on', 1),
+                            ('laser_type', kind), ('laser_audio_request', kind)]:
+            machine.mem_write(VARIABLES+self.symbols[name], struct.pack('>H', value))
+
+    def test_continuous_beams_loop_without_retrigger_and_keep_other_effect_channels(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for kind in (2, 3):
+                machine, hardware = self.output_machine(model)
+                self.configure_beam(machine, kind)
+                pointer = s['beam_samples']+(kind-2)*4096
+                starts = []
+                for frame in range(600):
+                    if frame in (20, 50, 80, 110, 140, 170, 200):
+                        machine.reg_write(UC_M68K_REG_D0, s['sfx_explosion'])
+                        call(machine, s['fx'])
+                    call(machine, s['sound'])
+                    self.assertTrue(hardware.dma & 8)
+                    self.assertEqual(hardware.pointers[3], pointer)
+                    self.assertEqual(hardware.lengths[3], 2048)
+                    self.assertEqual(hardware.periods[3], 214)
+                    self.assertEqual(hardware.volumes[3], min((frame+1)*16, 48))
+                    starts.append(hardware.enabled[3])
+                self.assertEqual(len(set(starts)), 1, 'held sound restarted')
+                self.assertGreater(hardware.attacks, 1, 'other effects did not play')
+                machine.mem_write(VARIABLES+s['laser_audio_request'], b'\0\0')
+                volumes = []
+                for _ in range(4):
+                    call(machine, s['sound'])
+                    volumes.append(hardware.volumes[3])
+                self.assertEqual(volumes, [32, 16, 0, 0])
+                self.assertEqual(hardware.dma, 0)
+                self.assertEqual(hardware.volumes, [0]*4)
+
+    def test_target_hits_are_audible_alongside_both_continuous_lasers(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for kind in (2, 3):
+                machine, hardware = self.output_machine(model)
+                self.configure_beam(machine, kind)
+                for _ in range(10):
+                    call(machine, s['sound'])
+                beam_started = hardware.enabled[3]
+                for _ in range(8):
+                    machine.reg_write(UC_M68K_REG_D0, s['sfx_hit'])
+                    call(machine, s['fx'])
+                    call(machine, s['sound'])
+                    # Native sfx_hit maps to original ADF sample 12 (zero-based).
+                    audible_hits = [n for n in range(3)
+                                    if hardware.dma & (1 << n)
+                                    and hardware.pointers[n] == s['amiga_samples']+24728
+                                    and hardware.lengths[n] == 2752//2
+                                    and hardware.volumes[n] == 64]
+                    self.assertTrue(audible_hits, 'target impact was not audible')
+                    self.assertTrue(hardware.dma & 8)
+                    self.assertEqual(hardware.volumes[3], 48)
+                    self.assertEqual(hardware.enabled[3], beam_started)
+                    for _ in range(10):
+                        call(machine, s['sound'])
+                call(machine, s['quiet'])
+                self.assertEqual(hardware.dma, 0)
+                self.assertEqual(hardware.volumes, [0]*4)
+
+    def test_beam_shutdown_guards_type_switch_and_music_takeover(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for name, value in [('user', 0), ('cockpit_on', 0), ('docked', 1),
+                                ('game_frozen', 1), ('game_over', 1),
+                                ('controls_locked', 1), ('laser_temp', s['max_ltemp']),
+                                ('laser_type', 0)]:
+                machine, hardware = self.output_machine(model)
+                self.configure_beam(machine, 2)
+                for _ in range(8):
+                    call(machine, s['sound'])
+                machine.mem_write(VARIABLES+s[name], struct.pack('>H', value))
+                for _ in range(5):
+                    call(machine, s['sound'])
+                self.assertEqual(hardware.dma, 0, name)
+                self.assertEqual(hardware.volumes, [0]*4, name)
+                self.assertEqual(machine.mem_read(VARIABLES+s['laser_audio_request'], 2), b'\0\0')
+            machine, hardware = self.output_machine(model)
+            self.configure_beam(machine, 2)
+            for _ in range(8):
+                call(machine, s['sound'])
+            self.configure_beam(machine, 3)
+            for _ in range(8):
+                call(machine, s['sound'])
+            self.assertEqual(hardware.attacks, 2)
+            self.assertEqual(hardware.pointers[3], s['beam_samples']+4096)
+            call(machine, s['start_tune'])
+            self.assertEqual(machine.mem_read(s['beam_kind'], 2), b'\0\0')
+            self.assertEqual(machine.mem_read(VARIABLES+s['laser_audio_request'], 2), b'\0\0')
+            for _ in range(50):
+                call(machine, s['sound'])
+            call(machine, s['quiet'])
+            self.assertEqual(hardware.dma, 0)
+            self.assertEqual(hardware.volumes, [0]*4)
+
+
 class PaulaTrace:
     """Register-level DMA model; this checks ordering, not analogue audio quality."""
     def __init__(self, machine, symbols):
@@ -245,7 +350,7 @@ class PaulaTrace:
         p, length = self.pointers[channel], 2*self.lengths[channel]
         s = self.symbols
         banks = [(s['wb_samples'], 60350), (s['wb_silence'], 2),
-                 (s['amiga_samples'], 53908)]
+                 (s['amiga_samples'], 53908), (s['beam_samples'], 8192)]
         assert length and any(start <= p and p+length <= start+size
                               for start, size in banks), (channel, hex(p), length)
 

@@ -64,6 +64,14 @@ fuel_dist: equ max_ctemp*23/24 ; temperature for fuel scooping
 
 	q_subr game_logic,global
 
+; Publish once per input frame; drawing consumes laser_beam separately.
+	moveq #0,d0
+	tst laser_beam(a6)
+	beq.s .audio_ready
+	move.w laser_type(a6),d0
+.audio_ready:
+	move.w d0,laser_audio_request(a6)
+
 	tst cockpit_on(a6) ; cockpit displayed ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_main_m68_1

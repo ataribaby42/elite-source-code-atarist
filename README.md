@@ -37,7 +37,7 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** at th
 
 `commander=default` restores the original **100 Cr** starting balance. This option changes cash only; loading a saved commander uses the balance stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=max laser=dualbeam aifiresound=no` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts currently supply `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 Player lasers default to `laser=dualbeam`: two filled beams converge
 from the lower left and right on the jittering crosshair tip. Use
@@ -57,6 +57,10 @@ Poor is red, Average through Competent orange, and Dangerous through Elite white
 Constrictor beams are always white. AI damage and the 10% random miss chance
 remain unchanged.
 
+Player Beam and Military lasers have distinct continuous sounds while firing,
+with short attack and release ramps. Amiga uses new synthesized sample loops;
+Atari ST uses its native PSG. Pulse and Mining keep their original firing sounds.
+
 AI laser firing sounds are disabled by default (`aifiresound=no`). Enable them
 with:
 
@@ -69,6 +73,17 @@ with:
 shot sounds only. Impact sounds, player firing sounds, missile alerts and other
 effects retain their existing handling. Enabled AI firing sounds still follow
 the game's Effects setting.
+
+The ELITE caption below the scanner is shown by default (`scannerlogo=yes`).
+Hide it in either build with:
+
+```powershell
+.\build_atari.bat scannerlogo=no
+.\build_amiga.bat scannerlogo=no
+```
+
+`scannerlogo=yes` shows it again. This build option changes only the caption
+below the scanner; it leaves the scanner, instruments and other logos intact.
 
 If the script cannot find Python, provide its path:
 
@@ -84,14 +99,14 @@ Alternatively, run `python src_atari/build.py` directly. The scripts resolve pro
 
 | Path relative to the project root | Contents |
 | --- | --- |
-| `output_atari/ELITE.ST` | 720 KB FAT12 floppy image containing all game files |
+| `output_atari/ELITE.ST` | 720 KB FAT12 floppy image with AUTO-folder startup |
 | `output_atari/ELITE/` | Game directory containing the `ELITE.TOS` launcher and all data files |
 | `output_amiga/ELITE.ADF` | Amiga build: bootable 880 KB OFS floppy image |
 | `output_amiga/ELITE/` | Amiga build: native `ELITE` executable and data files |
 | `src_atari/build/` | Intermediate files, logs, link map, and verification report |
 | `src_amiga/build/` | Independent Amiga intermediate files, logs, link map, and verification report |
 
-Mount `output_atari/ELITE.ST` in your emulator, open drive A:, and run `ELITE.TOS`. The floppy does not boot automatically.
+Mount `output_atari/ELITE.ST` in drive A: and reset the Atari to boot from the floppy. TOS runs `AUTO\ELITE.PRG` automatically; the launcher selects the disk root before loading the game data. `ELITE.TOS` remains in the root for manual startup from the desktop. The disk uses the standard TOS AUTO-folder mechanism, without executable boot-sector code.
 
 To run from C:, copy the entire contents of `output_atari/ELITE` to a directory such as `C:\ELITE`, then run `C:\ELITE\ELITE.TOS`. **All files must be in the same directory as `ELITE.TOS`, with no separate data subdirectory.** When updating, replace every file, including `LOADER.IMG`, or replace the entire floppy image.
 

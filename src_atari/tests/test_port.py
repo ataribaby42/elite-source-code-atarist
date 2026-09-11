@@ -11,6 +11,13 @@ sys.path.insert(0, str(ROOT))
 from tools.convert_quelo import Converter, field
 from build import LOADER_ORIGIN, TOOLS
 
+try:
+    from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_HOOK_CODE
+    from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020,
+        UC_M68K_REG_A7, UC_M68K_REG_SR, UC_M68K_REG_PC, UC_M68K_REG_D0)
+except ImportError:
+    Uc = None
+
 
 class PortTests(unittest.TestCase):
     def assemble(self, source, extra_files=None):
@@ -73,6 +80,65 @@ class PortTests(unittest.TestCase):
             self.assertIn(b'\0', message, 'GEMDOS Cconws requires a NUL terminator')
             text = message.split(b'\0', 1)[0]
             self.assertTrue(all(len(line) <= 40 for line in text.split(b'\r\n')))
+
+    @unittest.skipIf(Uc is None, 'optional launcher execution requires unicorn==2.1.4')
+    def test_auto_launcher_selects_root_and_manual_launcher_preserves_directory(self):
+        source = (ROOT/'asm/boot.s').read_text()
+        loader = bytes(range(256)) + bytes(range(134))
+        config = {'boot-config.inc': f'loader_address equ ${LOADER_ORIGIN:x}\n'
+                  f'loader_size equ {len(loader)}\nrequired_ram equ $72c76\n'}
+        for automatic in (False, True):
+            binary = self.assemble(('auto_start equ 1\n' if automatic else '')+source, config)
+            for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+                with self.subTest(automatic=automatic, cpu=model):
+                    cpu = Uc(UC_ARCH_M68K, UC_MODE_BIG_ENDIAN)
+                    cpu.ctl_set_cpu_model(model)
+                    cpu.mem_map(0, 0x100000)
+                    cpu.mem_write(0xf1f8, binary)
+                    cpu.reg_write(UC_M68K_REG_SR, 0x2700)
+                    cpu.reg_write(UC_M68K_REG_A7, 0x7f000)
+                    cpu.mem_write(0x7f004, struct.pack('>I', 0xe000))
+                    cpu.mem_write(0xe004, struct.pack('>I', 0x80000))
+                    calls, directory = [], ['\\AUTO' if automatic else '\\ELITE']
+
+                    def gemdos(machine, address, size, user):
+                        if machine.mem_read(address, 2) != b'\x4e\x41':
+                            return
+                        stack = machine.reg_read(UC_M68K_REG_A7)
+                        def number(offset, length):
+                            return int.from_bytes(machine.mem_read(stack+offset, length), 'big')
+                        def string(pointer):
+                            return bytes(machine.mem_read(pointer, 100)).split(b'\0', 1)[0].decode()
+                        op = number(0, 2)
+                        calls.append(op)
+                        result = 0
+                        if op == 0x3b:
+                            directory[0] = string(number(2, 4))
+                            self.assertEqual(directory[0], '\\')
+                        elif op == 0x3d:
+                            self.assertEqual(directory[0], '\\' if automatic else '\\ELITE')
+                            self.assertEqual(string(number(2, 4)), 'LOADER.IMG')
+                            self.assertEqual(number(6, 2), 0)
+                            result = 5
+                        elif op == 0x3f:
+                            self.assertEqual(number(2, 2), 5)
+                            self.assertEqual(number(4, 4), len(loader))
+                            self.assertEqual(number(8, 4), LOADER_ORIGIN)
+                            machine.mem_write(LOADER_ORIGIN, loader)
+                            result = len(loader)
+                        elif op == 0x3e:
+                            self.assertEqual(number(2, 2), 5)
+                        else:
+                            self.fail(f'Unexpected GEMDOS call: {op:#x}')
+                        machine.reg_write(UC_M68K_REG_D0, result)
+                        machine.reg_write(UC_M68K_REG_PC, address+2)
+
+                    cpu.hook_add(UC_HOOK_CODE, gemdos)
+                    cpu.emu_start(0xf1f8, LOADER_ORIGIN, count=1000)
+                    self.assertEqual(cpu.reg_read(UC_M68K_REG_PC), LOADER_ORIGIN)
+                    self.assertEqual(cpu.reg_read(UC_M68K_REG_A7), 0x7f000)
+                    self.assertEqual(bytes(cpu.mem_read(LOADER_ORIGIN, len(loader))), loader)
+                    self.assertEqual(calls, ([0x3b] if automatic else [])+[0x3d, 0x3f, 0x3e])
 
 
 if __name__ == '__main__':

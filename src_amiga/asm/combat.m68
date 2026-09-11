@@ -1033,6 +1033,8 @@ q_combat_m68_107:
 .heat:
 	q_inc laser_temp(a6) ; exactly once per accepted shot, as before
 	clr f_laser(a6)
+	cmp #2,laser_type(a6) ; held weapons use the continuous VBL sound
+	bge.s .done
 	q_sfx laser
 .done:
 	rts

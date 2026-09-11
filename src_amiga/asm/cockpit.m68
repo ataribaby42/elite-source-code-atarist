@@ -165,6 +165,7 @@ q_cockpit_m68_1:
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)
+	clr laser_audio_request(a6)
 	clr hit_check(a6)
 	clr laser_flash(a6)
 q_cockpit_m68_3:
@@ -209,6 +210,16 @@ q_cockpit_m68_3:
 	q_loop 1,32000/4
 	move.l (a0)+,(a1)+
 	q_next 1
+	ifeq scannerlogo
+; The caption is part of COCKPIT.PC1. Clear only its pixels on both screens.
+	move.w #140,d0
+	move.w #193,d1
+	moveq #1,d2 ; dual screen
+	moveq #40,d3
+	moveq #7,d4
+	moveq #0,d5 ; black
+	jsr block
+	endc
 	bsr instruments ; update all instruments
 	move.l a0,-(sp)
 	lea cockpit+2,a0

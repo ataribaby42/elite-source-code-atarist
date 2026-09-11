@@ -43,8 +43,9 @@ expires does not bypass it. Unlike the first instant-laser implementation,
 Pulse does not use a 50 Hz clock for its firing interval, and visible Beam or
 Military frames do not automatically produce damage.
 
-Each accepted shot immediately evaluates one hit, adds one unit of heat and
-triggers the original firing sound. The original per-hit damage, heat limit,
+Each accepted shot immediately evaluates one hit and adds one unit of heat.
+Pulse and Mining trigger the original firing sound; Beam and Military use
+continuous audio independent of the damage interval. The original per-hit damage, heat limit,
 cooling and energy handling are retained. Thus shot intervals and the entire
 heat progression match the travelling-projectile version; only its initial
 eight-game-frame hit delay is removed.
@@ -63,6 +64,27 @@ intervals are 0.60 s (Pulse), 0.48 s (Mining), 0.36 s (Beam), and 0.18 s
 (Military). Actual intervals increase if the game frame takes longer. This is
 the original frame-based pacing rather than BBC's 50 Hz shot timer; the BBC
 references below describe the visual style and fixed-axis aiming.
+
+## Continuous player laser audio
+
+The input frame publishes a stable audio request independently of the
+visual beam flag. Holding Beam or Military sustains the sound between
+accepted hits without restarting it or consuming random numbers. Release,
+overheating, pause, docking, hidden cockpit, locked controls, game over
+and disabled Effects end the sound with a short release. View/system
+changes clear the request; music startup and shutdown also clear it.
+
+The native Amiga driver loops two newly synthesized 4,096-byte signed PCM
+waveforms at Paula period 214. Beam is lower and softer; Military is brighter
+and richer in harmonics. Both are original sounds generated at build time
+by `tools/beam_audio.py`, with no Frontier samples or additional build
+dependencies. Channel 3 is reserved only while the sound is active or fading,
+leaving three channels for effects. Volume ramps to 48/64 and releases in
+three PAL VBLs (60 ms); the existing muted-DAC delay precedes DMA shutdown.
+
+Successful player hits still trigger the original target-impact effect. It plays
+on another effect channel alongside the continuous beam; `aifiresound=no`
+does not disable this feedback.
 
 ## AI weapons
 

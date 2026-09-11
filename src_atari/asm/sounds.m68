@@ -102,6 +102,8 @@ sound_type: rs.w 1 ; Sound type: 0=none,1=music,-1=effects
 fx_done: rs.w 1 ; Flag: Set when effects processed
 hold_sound: rs.w 1 ; Flag: hold sounds from interrupts
 fade_out: rs.w 1 ; flag: fade out the music
+beam_kind: rs.w 1 ; active continuous laser type
+beam_channel: rs.l 1 ; channel reserved for the continuous laser
 
 	q_end_vars sounds
 
@@ -229,6 +231,7 @@ q_sounds_m68_1:
 	q_subr start_tune,global
 
 	st hold_sound(a6) ; stop sound interrupts
+	clr laser_audio_request(a6)
 	bsr init_music ; initialise music system
 	move.l a0,music_start(a6) ; save music start address
 	lea chan_1(a6),a1 ; start with 1st channel
@@ -363,6 +366,8 @@ q_sounds_m68_5:
 
 	q_subr init_queues
 
+	clr beam_kind(a6)
+	clr.l beam_channel(a6)
 	move d0,sound_type(a6) ; store sound type
 	lea chan_1(a6),a1 ; clear sound queues
 	q_loop 1,fx_len*3/2
@@ -398,6 +403,7 @@ q_sounds_m68_5:
 	st fx_done(a6) ; effects done
 	tst hold_sound(a6) ; sounds held ?
 	q_ret ne ; yes, return
+	bsr update_beam_sound
 	tst sound_type(a6) ; any sound ?
 	q_ret eq ; no, return
 	lea chan_1(a6),a5 ; start with channel #1
@@ -455,6 +461,109 @@ q_sounds_m68_11:
 
 * Regs:  ?
 * Subr:  ?
+
+; A held laser reserves one normal effect channel, leaving two for impacts
+; and other sounds. Modulation is deterministic and never consumes game RNG.
+	q_subr update_beam_sound
+
+	cmp #1,sound_type(a6)
+	beq .music
+	move.w laser_audio_request(a6),d5
+	cmp.w #2,d5
+	blo .disabled
+	cmp.w #3,d5
+	bhi .disabled
+	cmp.w laser_type(a6),d5
+	bne .disabled
+	btst #f_fx,user(a6)
+	beq .disabled
+	tst game_frozen(a6)
+	bne .disabled
+	tst game_over(a6)
+	bne .disabled
+	tst docked(a6)
+	bne .disabled
+	tst cockpit_on(a6)
+	beq .disabled
+	tst controls_locked(a6)
+	bne .disabled
+	cmp.w #max_ltemp,laser_temp(a6)
+	bhs .disabled
+	bra .request
+.music:
+	clr laser_audio_request(a6)
+	rts
+.disabled:
+	moveq #0,d5
+	clr laser_audio_request(a6)
+.request:
+	tst beam_kind(a6)
+	beq .start
+	move.l beam_channel(a6),a5
+	cmp.w beam_kind(a6),d5
+	beq .attack
+	move.w volume(a5),d0
+	subq.w #3,d0
+	bpl .release_volume
+	moveq #0,d0
+.release_volume:
+	move.w d0,volume(a5)
+	bsr set_volume
+	tst.w d0
+	bne .done
+	bsr silence_effect
+	clr beam_kind(a6)
+	clr.l beam_channel(a6)
+.start:
+	tst.w d5
+	beq .done
+	bsr init_effects
+	bsr allocate_channel
+	move.l a5,beam_channel(a6)
+	move.w d5,beam_kind(a6)
+	clr volume(a5)
+	clr cycle(a5)
+	clr flag_ptr(a5)
+	clr clear_env(a5)
+	st hold_chan(a5)
+	st chn_active(a5)
+	move.l #beam_idle,service(a5)
+	bsr reg7_mask              ; tone only: shared noise/envelope remain available to effects
+	or.b d0,d1
+	moveq #7,d0
+	bsr psg_output
+.attack:
+	move.w volume(a5),d0
+	addq.w #2,d0
+	cmp.w #12,d0
+	bls .volume
+	moveq #12,d0
+.volume:
+	move.w d0,volume(a5)
+	bsr set_volume
+	addq.w #1,cycle(a5)
+	and.w #31,cycle(a5)
+	move.w cycle(a5),d2
+	lea beam_modulation(pc),a0
+	move.b (a0,d2.w),d0
+	ext.w d0
+	cmp.w #3,beam_kind(a6)
+	bne .beam
+	asr.w #1,d0
+	add.w #176,d0             ; Military: tighter, higher electric tone
+	bra .tone
+.beam:
+	add.w #316,d0             ; Beam: lower tone with a gentle continuous wobble
+.tone:
+	bsr set_tone
+.done:
+	rts
+beam_idle:
+	rts
+beam_modulation:
+	dc.b 0,1,2,3,4,5,6,6,6,6,5,4,3,2,1,0
+	dc.b 0,-1,-2,-3,-4,-5,-6,-6,-6,-6,-5,-4,-3,-2,-1,0
+	even
 
 	q_subr play
 
@@ -766,6 +875,9 @@ q_sounds_m68_37:
 	q_subr quiet,global
 
 	st hold_sound(a6) ; hold sounds from interrupts
+	clr laser_audio_request(a6)
+	clr beam_kind(a6)
+	clr.l beam_channel(a6)
 	tst sound_type(a6) ; effects active ?
 ; Quelo: 	if <mi> then.s						yes
 	bpl.s q_sounds_m68_39

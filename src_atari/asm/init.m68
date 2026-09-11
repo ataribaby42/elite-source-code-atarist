@@ -690,6 +690,7 @@ q_init_m68_34:
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)
+	clr laser_audio_request(a6)
 	clr hit_check(a6)
 	clr laser_flash(a6)
 	jmp quiet ; silence music/effects
