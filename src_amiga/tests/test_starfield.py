@@ -15,7 +15,7 @@ from test_raster import BACKGROUND, GUARD, SCREEN, OTHER, paint, routine
 try:
     from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ, UC_PROT_EXEC
     from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020,
-        UC_M68K_REG_A5, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_D0,
+        UC_M68K_REG_A0, UC_M68K_REG_A5, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_D0,
         UC_M68K_REG_PC, UC_M68K_REG_SR)
 except ImportError:
     Uc = None
@@ -35,8 +35,11 @@ class StarfieldTests(unittest.TestCase):
         init = (ROOT / 'asm/init.m68').read_text()
         rotate = (ROOT / 'asm/rotate.m68').read_text()
         data = (ROOT / 'asm/data.m68').read_text()
+        main = (ROOT / 'asm/main.m68').read_text(encoding='utf-8')
+        flight = (ROOT / 'asm/flight.m68').read_text(encoding='utf-8')
         names = re.findall(r'^\s*q_subr (\w+)', dust, re.M)
         reset_names = ['reset_system', 'set_roll_angles', 'set_climb_angles', 'get_trig']
+        control_names = ['lock_controls', 'torus', 'torus_drive', 'attack', 'damping', 'finish_space_skip']
         constants = ['dust_front', 'dust_store', 'dust_len', 'no_dust', 'dust_used',
                      'dust_motion', 'dust_step', 'dust_plane_sin',
                      'dust_plane_cos', 'dust_vertical_sin', 'dust_vertical_cos',
@@ -44,13 +47,18 @@ class StarfieldTests(unittest.TestCase):
                      'roll_sin', 'roll_cos', 'climb_sin', 'climb_cos', 'retro_count',
                      'retro_life', 'dust_type', 'dust_size', 'dust_ctr', 'latch',
                      'max_len', 'witch_space', 'scr_base', 'colour_ptr', 'random_seed',
-                     'roll_angle', 'climb_angle']
+                     'roll_angle', 'climb_angle', 'controls_locked', 'torus_on', 'torus_ctr',
+                     'stop_skip', 'planet_range', 'sun_range', 'torus_planet', 'torus_sun',
+                     'mission', 'splanet', 'govern', 'f_roll', 'f_climb']
         assembly = ('amiga_implementation equ 1\namiga_workspace_implementation equ 1\n'
                     'fileio_implementation equ 1\n\tinclude "common.def"\n'
                     '\tinclude "macros.m68"\n\tinclude "raster.inc"\n')
         assembly += dust[dust.index('    rsset 0'):dust.index('    q_module dust')]
+        assembly += flight[flight.index('\tq_vars flight'):flight.index('\tq_module flight')]
+        for name in ('torus_dur', 'torus_speed'):
+            assembly += re.search(r'^'+name+r': equ[^\n]*\n', flight, re.M).group(0)
         assembly += re.search(r'^outcodes macro.*?^\s*endm', graphics, re.M | re.S).group(0) + '\n'
-        assembly += '\torg $10000\n\tdc.l ' + ','.join(names + reset_names + constants) + '\n'
+        assembly += '\torg $10000\n\tdc.l ' + ','.join(names + reset_names + control_names + constants) + '\n'
         assembly += '\n'.join(routine(dust, name) for name in names)
         assembly += '\n'.join(routine(graphics, name) for name in
                               ['dot_to_addr', 'c_plotxy', 'plotxy', 'mask_plot'])
@@ -59,7 +67,13 @@ class StarfieldTests(unittest.TestCase):
         assembly += re.search(r'^reset_table:\s*\n(?:\s*dc\.w[^\n]*\n)+', init, re.M).group(0)
         assembly += '\n'.join(routine(rotate, name) for name in reset_names[1:])
         assembly += re.search(r'\tq_global trig_table\s*\n(?:\s*dc\.l[^\n]*\n)+', data).group(0)
-        assembly += '\nquiet:\n\trts\n'
+        assembly += routine(main, 'lock_controls')
+        assembly += '\n'.join(routine(flight, name) for name in control_names[1:-1])
+        # Execute the frame's actual deferred torus-stop block.
+        assembly += '\nfinish_space_skip:\n' + re.search(
+            r'\ttst stop_skip\(a6\).*?^q_main_m68_17:', main, re.M | re.S).group(0) + '\n\trts\n'
+        assembly += '\nquiet:\ncheck_inflight:\nbeep:\ndisp_message:\nfx:\npirate_attack:\n\trts\n'
+        assembly += '\ntext7:\ntext8:\ntext10:\n\tdc.w 0\n'
         assembly += '\nset_colour:\n\trts\nmult_by_320:\n\tdc.w '
         assembly += ','.join(str(y * 320) for y in range(200)) + '\n'
         assembly += graphics[graphics.index('\tq_global bit_masks'):graphics.index('clip_list:')]
@@ -75,8 +89,8 @@ class StarfieldTests(unittest.TestCase):
             if result.returncode:
                 raise AssertionError(result.stdout + result.stderr)
             cls.code = binary.read_bytes()
-        cls.symbols = dict(zip(names + reset_names + constants,
-                              struct.unpack_from('>' + 'I' * (len(names) + len(reset_names) + len(constants)), cls.code)))
+        cls.symbols = dict(zip(names + reset_names + control_names + constants,
+                              struct.unpack_from('>' + 'I' * (len(names) + len(reset_names) + len(control_names) + len(constants)), cls.code)))
 
     def prepare(self, view=0, speed=0, roll=0, pitch=0, retro=False,
                 screen=SCREEN, model=None):
@@ -128,6 +142,86 @@ class StarfieldTests(unittest.TestCase):
         self.assertTrue(-128 <= x//UNIT <= 127, x/UNIT)
         self.assertTrue(-56 <= y//UNIT <= 55, y/UNIT)
         self.assertTrue(8*256 <= z <= 65535, z/256)
+
+
+    def test_control_lock_resets_cached_rotation_without_clobbering_registers(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for roll, pitch in ((40, 0), (-40, 0), (0, 20), (0, -20), (40, -20), (0, 0)):
+                with self.subTest(cpu=model, roll=roll, pitch=pitch):
+                    self.prepare(model=model)
+                    for name, angle in (('roll', roll), ('climb', pitch)):
+                        self.variable(name + '_angle', angle)
+                        self.call('set_' + name + '_angles')
+                    self.variable('f_roll', 0xffff)
+                    self.variable('f_climb', 0xffff)
+                    registers = {UC_M68K_REG_D0+i: 0x12340000+i for i in range(8)}
+                    registers.update({UC_M68K_REG_A0+i: 0x80000+i*16 for i in range(6)})
+                    for register, value in registers.items():
+                        self.cpu.reg_write(register, value)
+                    self.call('lock_controls')
+                    for register, value in registers.items():
+                        self.assertEqual(self.cpu.reg_read(register), value)
+                    for name in ('roll', 'climb'):
+                        for suffix, size, expected in (('_angle', 2, 0), ('_sin', 4, 0),
+                                                      ('_cos', 4, 1 << 24)):
+                            actual = self.cpu.mem_read(VARIABLES+self.symbols[name+suffix], size)
+                            self.assertEqual(int.from_bytes(actual, 'big'), expected, name+suffix)
+                    for flag in ('f_roll', 'f_climb'):
+                        self.assertEqual(self.cpu.mem_read(VARIABLES+self.symbols[flag], 2), b'\0\0')
+
+    def test_torus_entry_and_all_exits_match_neutral_starfield_in_every_view(self):
+        def flight(model, view, roll, pitch, exit_kind):
+            self.prepare(view, speed=self.symbols['max_speed'], model=model)
+            self.call('init_dust')
+            for name, angle in (('roll', roll), ('climb', pitch)):
+                self.variable(name+'_angle', angle)
+                self.call('set_'+name+'_angles')
+            self.variable('planet_range', self.symbols['torus_planet']+100000, 4)
+            self.variable('sun_range', self.symbols['torus_sun']+200000, 4)
+            self.cpu.mem_write(VARIABLES+self.symbols['splanet']+self.symbols['govern'], b'\0\7')
+            self.call('torus')
+            self.assertEqual(self.cpu.mem_read(VARIABLES+self.symbols['torus_on'], 2), b'\xff\x00')
+            states = []
+            start = VARIABLES+self.symbols['dust_front']
+
+            def frame():
+                self.cpu.mem_write(GUARD, BACKGROUND)
+                self.call('dust_cloud')
+                states.append(bytes(self.cpu.mem_read(start, 4*self.symbols['dust_store'])))
+
+            for _ in range(4):
+                self.call('torus_drive')
+                self.call('finish_space_skip')
+                frame()
+            if exit_kind == 'manual':
+                # J again: force a stop, with a valid government and a known
+                # non-attack RNG result (1), without stubbing the drive logic.
+                self.variable('random_seed', 0x02000000, 4)
+                self.call('torus')
+            elif exit_kind == 'mass_lock':
+                self.variable('planet_range', self.symbols['torus_planet']+100, 4)
+            else:
+                self.variable('mission', 0x21)
+                self.variable('torus_ctr', 1)
+            self.call('torus_drive')
+            self.call('finish_space_skip')
+            for name in ('torus_on', 'controls_locked', 'dust_type', 'roll_angle', 'climb_angle'):
+                self.assertEqual(self.cpu.mem_read(VARIABLES+self.symbols[name], 2), b'\0\0', name)
+            self.assertEqual(int.from_bytes(self.cpu.mem_read(
+                VARIABLES+self.symbols['speed'], 2), 'big'), self.symbols['max_speed'])
+            for _ in range(12):
+                self.call('damping')
+                frame()
+            return states
+
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                for exit_kind in ('manual', 'mass_lock', 'attack'):
+                    neutral = flight(model, view, 0, 0, exit_kind)
+                    for roll, pitch in ((40, 0), (0, -20), (40, 20), (-40, -20)):
+                        with self.subTest(cpu=model, view=view, exit=exit_kind, roll=roll, pitch=pitch):
+                            self.assertTrue(flight(model, view, roll, pitch, exit_kind) == neutral,
+                                            'Starfield differs from an initially neutral warp')
 
     def test_front_and_rear_follow_bbc_depth_and_radial_laws(self):
         for view, sign in ((0, 1), (1, -1)):

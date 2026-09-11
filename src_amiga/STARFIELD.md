@@ -33,6 +33,8 @@ Roll and pitch use the game's own sine/cosine values, converted to Q14. In-plane
 
 Resetting the system refreshes both cached sine/cosine pairs after clearing the control angles. In particular, zero pitch needs a cosine of one before the first control input. Leaving the startup cosine at zero collapsed the side-view particles towards the centre immediately after launch; stale values from the title scene could also cause unintended rotation.
 
+Locking the controls for torus travel, hyperspace or an escape capsule also refreshes both cached sine/cosine pairs and the control indicators. This prevents residual starfield rotation during a jump and after returning to normal flight. The lock routine preserves all general-purpose registers.
+
 The view-dependent in-plane/vertical angles are:
 
 | View | In-plane angle | Vertical angle |
@@ -55,3 +57,5 @@ Sustained rear-view pitch tests cover both directions, several angular speeds, z
 The complete cloud is exercised over hundreds of frames on MC68000 and MC68020 CPU models with executable memory write-protected. Guarded buffers check that no drawing reaches the cockpit. The separate `tests/test_layering.py` suite executes the scene traversal and raster routines with overlapping fixture objects, checking celestial/star/object occlusion, depth order, empty lists and the unfiltered renderer. These are CPU-level checks; they do not establish emulator gameplay quality or a frame-rate measurement.
 
 Cold-start tests execute the real system reset and trigonometry routines before any steering input, then simulate the launch spin and first side-view frames. They verify both the neutral trigonometric values and the cloud's spread, including reset from stale cached angles.
+
+Torus regression tests execute the real control lock, drive entry, drive processing and frame stop logic. Starting with roll, pitch or both must produce the same starfield trajectory as neutral controls in all four views, during the jump and after manual cancellation, mass locking or a pirate attack. Both CPU models are covered, including register preservation and neutral control indicators; sound, UI messages and pirate creation are stubbed.

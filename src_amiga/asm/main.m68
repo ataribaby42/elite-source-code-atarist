@@ -25,6 +25,7 @@
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
+	xref set_climb_angles
 	xref wait_key,clear_image,swap_screen,clear_input,hexagon
 	xref disp_message,damping,print_string,launch_system,get_range,draw_object
 	xref world_x_rotate,world_z_rotate,do_logic,move,hyperspace
@@ -701,6 +702,14 @@ q_main_m68_60:
 	st controls_locked(a6) ; lock controls
 	clr roll_angle(a6) ; clear roll and climb angles
 	clr climb_angle(a6)
+	; Starfield rotation reads cached trig even when the control angles are zero.
+	; Keep LOCK_CONTROLS register-preserving for torus, hyperspace and escape.
+	movem.l d0-d4/a0,-(sp)
+	jsr set_roll_angles
+	jsr set_climb_angles
+	movem.l (sp)+,d0-d4/a0
+	clr f_roll(a6) ; redraw the neutral control indicators
+	clr f_climb(a6)
 
 	q_ret
 
