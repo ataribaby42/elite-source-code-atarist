@@ -206,6 +206,15 @@ q_combat_m68_11:
 	q_subr explode_object,global
 
 	q_save_all save ; all registers
+	cmp #dodec,type(a4) ; every destruction path must finish mission #5
+	bne.s .mission_checked
+	cmp #$52,mission(a6) ; only the active alien-station objective
+	bne.s .mission_checked
+	cmp #log_exploding,logic(a4) ; do not count an existing explosion again
+	beq.s .mission_checked
+	st station_destroyed(a6)
+	q_inc mission(a6) ; state #$53: reward at the next normal station
+.mission_checked:
 	move #15,force(a4) ; initialise explosion
 	move #rate,force_timer(a4)
 	move #exp_dur,exp_timer(a4)
@@ -733,16 +742,8 @@ q_combat_m68_79:
 	bcc.s q_combat_m68_83
 	cmp #constr,d1 ; constrictor ?
 ; Quelo: 		if <eq> then.s					yes
-	bne.s q_combat_m68_85
+	bne.s q_combat_m68_86
 	q_inc mission(a6) ; state #16
-	bra.s q_combat_m68_86
-q_combat_m68_85:
-	cmp #dodec,d1 ; alien space station ?
-; Quelo: 			if <eq> then.s				yes
-	bne.s q_combat_m68_87
-	st station_destroyed(a6)
-	q_inc mission(a6)
-q_combat_m68_87:
 q_combat_m68_86:
 	move.l a5,a4 ; explode object
 	bsr explode_object

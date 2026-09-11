@@ -146,7 +146,7 @@
     cmp.w #spacestn,d0
     beq.s .station
     cmp.w #dodec,d0
-    beq.s .station
+    beq.s .alien_station
     tst.l registration_id(a5)
     beq.s .display
     move.b #' ',(a1)+
@@ -167,13 +167,12 @@
     move.b #'?',(a1)+
     move.b #'?',(a1)+
     bra.s .display
+.alien_station:
+    move.b #' ',(a1)+ ; alien stations have no generated ship ID
+    bra.s .hidden
 .station:
     move.b #' ',(a1)+
     move.b #'C',(a1)+
-    cmp.w #dodec,d0
-    bne.s .galaxy
-    move.b #'D',-1(a1)
-.galaxy:
     move.w galaxy_no(a6),d0
     and.w #7,d0
     add.b #'1',d0

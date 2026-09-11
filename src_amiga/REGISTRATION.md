@@ -18,9 +18,10 @@ are used.
   concealment also applies to Thargons (Tharglets), as requested for this port.
   The Constrictor displays its ID, matching its C64 blueprint's hostile-only
   flags. These display rules do not change `typ_alien` or combat logic.
-* Stations use `C` for `spacestn`, `D` for the alien `dodec`, galaxy 1..8 and
-  system index 000..255. Lave is `C1-007`. The actual station model determines
-  the prefix, rather than importing C64 technology-level rules.
+* Coriolis stations (`spacestn`) use `C`, galaxy 1..8 and system index
+  000..255. Lave is `C1-007`. Alien Dodecahedron stations (`dodec`) always
+  display `Alien Space Station ??-???`, including without an assigned ship
+  ID. Concealment does not change their object data or mission state.
 * AI ships, including Thargons, receive registrations. Missiles, cargo,
   asteroids, escape capsules and non-ship graphics keep type-only labels.
 * The player's Status row shows `Registration: JS-042` initially, for both

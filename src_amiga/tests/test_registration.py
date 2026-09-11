@@ -244,17 +244,39 @@ fixture_name: dc.b 'Cobra MkIII',0
         self.cpu.mem_write(obj + self.s['flags'], bytes([(1 << self.s['in_use']) | (1 << self.s['angry'])]))
         self.assertRegex(self.message(obj), r'^Viper [A-Z]{2}-\d{3}$')
 
-    def test_station_identity_uses_actual_model_galaxy_and_system(self):
-        for kind, prefix in (('spacestn', 'C'), ('dodec', 'D')):
+    def test_coriolis_identity_and_hidden_alien_station_in_all_galaxies(self):
+        for kind, prefix in (('spacestn', 'C'), ('dodec', None)):
             obj = self.obj(kind=kind)
             for galaxy in range(8):
                 for system in (0, 7, 255):
                     self.word(self.at('galaxy_no'), galaxy)
                     self.word(self.at('current'), system)
-                    name = 'Alien Space Station' if prefix == 'D' else 'Space Station'
-                    self.assertEqual(self.message(obj, name), f'{name} {prefix}{galaxy+1}-{system:03}')
+                    name = 'Space Station' if prefix else 'Alien Space Station'
+                    suffix = f'C{galaxy+1}-{system:03}' if prefix else '??-???'
+                    self.assertEqual(self.message(obj, name), f'{name} {suffix}')
                     self.call('registration_new_player')
-                    self.assertEqual(self.message(obj, name), f'{name} {prefix}{galaxy+1}-{system:03}')
+                    self.assertEqual(self.message(obj, name), f'{name} {suffix}')
+
+    def test_alien_station_mask_preserves_object_rng_and_registers_on_both_cpus(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            self.boot(model)
+            obj = self.obj(kind='dodec')
+            for identity in (0, 0x415a7f00):
+                self.long(obj + self.s['registration_id'], identity)
+                before = bytes(self.cpu.mem_read(obj, self.s['obj_len']))
+                seed = self.long(self.at('random_seed'))
+                registration_seed = self.word(self.at('registration_state'))
+                self.assertEqual(self.message(obj, 'Alien Space Station'), 'Alien Space Station ??-???')
+                registers = {f'd{i}': 0x12345600+i for i in range(8)}
+                registers.update({f'a{i}': 0x80000+i*16 for i in range(6)})
+                registers.update(a5=obj)
+                self.call('registration_message', **registers)
+                for reg, value in registers.items():
+                    index = (UC_M68K_REG_D0 if reg[0] == 'd' else UC_M68K_REG_A0) + int(reg[1:])
+                    self.assertEqual(self.cpu.reg_read(index), value)
+                self.assertEqual(bytes(self.cpu.mem_read(obj, self.s['obj_len'])), before)
+                self.assertEqual(self.long(self.at('random_seed')), seed)
+                self.assertEqual(self.word(self.at('registration_state')), registration_seed)
 
     def test_hidden_aliens_and_visible_constrictor_keep_their_combat_role(self):
         for kind, name, hidden in (('thargoid', 'Thargoid', True),

@@ -109,9 +109,10 @@ Thargoids and Thargons (Tharglets) also conceal their registration.
 The Constrictor displays its ID, as in the companion C64 version.
 Debris and missiles retain their original type-only identification.
 
-Each AI ship keeps its ID for its lifetime. Stations use their model, galaxy
-and system number: Lave's station is `Space Station C1-007`. Alien stations
-use the `D` prefix. The player's registration appears below Cash on the
+Each AI ship keeps its ID for its lifetime. Coriolis stations use their galaxy
+and system number: Lave's station is `Space Station C1-007`. Alien Dodecahedron
+stations conceal their registration as `Alien Space Station ??-???`.
+The player's registration appears below Cash on the
 Status screen and is saved with the commander. New and legacy commanders
 start with `JS-042`; a successful escape capsule launch assigns the replacement
 ship a new registration. The commander file remains 256 bytes, and existing
