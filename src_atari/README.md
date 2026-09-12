@@ -67,6 +67,12 @@ The build automatically recalculates the new binary's checksum and assembles the
 The link map is in `src_atari/build/elite.map`; verification results and output SHA-256 hashes are in `src_atari/build/verification.json`. See [ANALYSIS.md](ANALYSIS.md) for the memory layout, original architecture, and conversion details.
 
 
+## Flight controls
+
+`A`, left `Shift` and right `Shift` fire the player laser on Atari ST, with either mouse or joystick selected. Holding multiple fire keys does not increase the firing rate, and releasing one continues firing while another remains held. The Shift keys provide additional bindings to try with two simultaneous steering keys on the original keyboard.
+
+Alternate retains its original hyperspace shortcut and does not fire the laser.
+
 ## Verification
 
 Tests and original-file verification can be run independently:

@@ -749,7 +749,7 @@ joystick_steer:
 	dc.w down,$2d,$50,$74,-1 ; down  - X,down arrow,joy_down
 	dc.w left,$33,$4b,$75,-1 ; left  - <,left arrow,joy_left
 	dc.w right,$34,$4d,$76,-1 ; right - >,right arrow,joy_right
-	dc.w trigger,$1e,$78,-1 ; fire  - A,right button
+	dc.w trigger,$1e,$2a,$36,$78,-1 ; fire  - A,left/right Shift,right button
 	dc.w -1
 
 mouse_steer:
@@ -758,7 +758,7 @@ mouse_steer:
 	dc.w down,$2d,$50,$74,-1 ; down  - X,down arrow,joy_down
 	dc.w left,$33,$4b,$75,-1 ; left  - <,left arrow,joy_left
 	dc.w right,$34,$4d,$76,-1 ; right - >,right arrow,joy_right
-	dc.w trigger,$1e,$77,-1 ; fire  - A,left button
+	dc.w trigger,$1e,$2a,$36,$77,-1 ; fire  - A,left/right Shift,left button
 	dc.w -1
 
 * Text messages.
