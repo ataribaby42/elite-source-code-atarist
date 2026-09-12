@@ -1926,7 +1926,7 @@ spcstn:
 	dc.l spcstn_nodes
 	dc.l spcstn_surfaces
 	dc.l spcstn_text
-	dc 13,15,210,255,0,0,1,226,0,3,0,0,-1,7,3,0,0,500
+	dc 14,15,210,255,0,0,1,226,0,3,0,0,-1,7,3,0,0,500
 
 spcstn_text:
 
@@ -2002,8 +2002,18 @@ s296: dc -107,107,-107
 	dc 1,14,9,6,10,-1
 	dc 0
 s297: dc 0,0,-160
-	dc.l 0
+	dc.l spcstn_lights1
 	dc 1,15,8,9,10,11,-1
+	dc 0
+
+; Four one-pixel docking-face lights, using the pulsing engine colour.
+; Draw after the hull; the front normal hides them from the back.
+spcstn_lights1: dc 0,0,160
+	dc.l 0
+	dc -1,31,0,0,0,-1
+	dc -1,31,1,1,1,-1
+	dc -1,31,2,2,2,-1
+	dc -1,31,3,3,3,-1
 	dc 0
 
 spcstn_type2:
@@ -2062,8 +2072,18 @@ s310: dc -107,107,-107
 	dc 1,56,9,6,10,-1
 	dc 0
 s311: dc 0,0,-160
-	dc.l 0
+	dc.l spcstn_lights2
 	dc 1,55,8,9,10,11,-1
+	dc 0
+
+; Four one-pixel docking-face lights, using the pulsing engine colour.
+; Draw after the hull; the front normal hides them from the back.
+spcstn_lights2: dc 0,0,160
+	dc.l 0
+	dc -1,31,0,0,0,-1
+	dc -1,31,1,1,1,-1
+	dc -1,31,2,2,2,-1
+	dc -1,31,3,3,3,-1
 	dc 0
 
 * ---- L E T T E R   T ----

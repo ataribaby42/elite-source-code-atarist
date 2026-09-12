@@ -19,7 +19,7 @@ SECTIONS
     max2 = .;
     bitmaps = .;       . = . + 146862;
     texture = .;       . = . + 24358;
-    obj_data = .;      . = . + 20172;
+    obj_data = .;      . = . + 20292;
     logo = .;          . = . + 16276;
     cockpit = .;       . = . + 13386;
     vars = .;
