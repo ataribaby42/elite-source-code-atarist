@@ -136,9 +136,9 @@ Mount `output_atari/ELITE.ST` in drive A: and reset the Atari to boot from the f
 
 To run from C:, copy the entire contents of `output_atari/ELITE` to a directory such as `C:\ELITE`, then run `C:\ELITE\ELITE.TOS`. **All files must be in the same directory as `ELITE.TOS`, with no separate data subdirectory.** When updating, replace every file, including `LOADER.IMG`, or replace the entire floppy image.
 
-The default target is a standard Atari ST with a colour monitor, at least 512 KB RAM, and a plain TOS desktop without resident accessories. The original novella protection questions are enabled unless built with `noprotect=yes`.
+The target is a standard Atari ST with a colour monitor. A plain 512 KB ST remains supported. For hard-drive setups, the launcher places the game above resident software inside the free ST-RAM block assigned by TOS, rather than requiring fixed low addresses. Enough contiguous free ST RAM is still required; the launcher checks the game workspace, screen placement and startup stack before loading. The original novella protection questions are enabled unless built with `noprotect=yes`.
 
-Startup from both A: and C: has been verified in Hatari 2.6.1 with TOS 1.04 DE and 1 MB RAM, as far as the novella question screen. Startup has also been confirmed in Steem SSE. Full gameplay and real hardware have not yet been tested.
+The relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE: automatic floppy startup on a 512 KB ST, normal C: startup on a 1 MB ST, and C: startup with a 128 KB resident program occupying low memory. In the last configuration, the previous launcher reported low memory; the new launcher reached the animated ship and commander prompt. The resident program simulates occupied memory; compatibility with PP HDD Driver on physical hardware still needs confirmation.
 
 ## Independent Amiga version
 

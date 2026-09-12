@@ -28,11 +28,21 @@
 
 `elite.ld` translates the memory layout from `ELITE.LNK`. The helper `workspace.m68` creates an actual BSS section: without it, vlink would not correctly relocate symbols reserved only by the linker script. Buffers are not written into `ELITE.IMG`.
 
-The original `ELITE.S` loads and starts the loader at `$F000`, while the surviving `LOADER.LNK` specifies `$11E00`. The build uses `$11E00` from the linker file. The loader is 390 bytes long and fits in the 512-byte gap before the game at `$12000`. The new `boot.s` creates a valid TOS program and checks both memory availability and loader reads. The game loader itself remains derived from `LOADER.M68`.
+The original `ELITE.S` loads and starts the loader at `$F000`, while the surviving `LOADER.LNK` specifies `$11E00`. The build retains `$11E00` and `$12000` as the reference loader/game addresses. The position-independent loader remains derived from `LOADER.M68` and fits in the 512-byte gap before the game. It receives the actual game address, a checked screen address and a relocation callback from `boot.s`, and bounds its file reads to the known title and game sizes.
 
 The first build incorrectly used `$F000`. When reproduced in Hatari with TOS 1.04 DE, the process basepage was at `$F0F8` and launcher code started at `$F1F8`, so the guard rejected startup before opening `LOADER.IMG`. The corrected launcher ends at `$F368`, safely below `$11E00`. Error strings are NUL-terminated as required by GEMDOS `Cconws` and split for a 40-column display; the earlier incorrect dollar-sign terminator caused two messages to run together.
 
 The checksum module is outside the region between CHKSTART and CHKEND. The build first links the whole game, sums the bytes in that region modulo 65536, assembles CHECKSUM with the new constant, and links again. It verifies that the second pass did not change the protected region and that the constant was actually embedded in the instruction.
+
+### Startup with resident HDD drivers
+
+The fixed-address launcher's low-memory guard also rejected systems with enough total RAM when an HDD driver moved the TOS basepage above `$11E00`. The replacement uses the bounds of the process's TPA. It selects the smallest nonnegative multiple of `$8000` that places the loader above the complete launcher, then checks the relocated workspace against the TPA end with 4 KB reserved for the startup stack. An aligned system screen outside the TPA can be reused; otherwise an aligned primary screen is reserved above the workspace and below that stack. No fixed-address guard is simply bypassed.
+
+vlink's `rawbin -q` output supplies the absolute-long relocation offsets. The build decodes and bounds-checks the table, verifies exact reconstruction of the fixed image, and independently links the same objects at `$1A000` to verify a `$8000` runtime move. The compact table is embedded in both launchers. At startup, its extended offsets are read byte by byte because the table is not word-aligned. References to system variables and hardware registers remain absolute. `LOADER.IMG` is separately checked to be byte-identical when linked at two different addresses.
+
+Before executing any game code, the launcher applies the delta to the recorded addresses. It updates the expected checksum by the difference between the protected-region sums before and after relocation, preserving detection of unrelated corrupted bytes. The game image on disk, game state layout, gameplay and commander file format are unchanged by this startup fix.
+
+Validation on 2026-09-12: 143 Atari tests passed, including execution of the actual startup routines on MC68000/MC68020 with simulated GEMDOS/XBIOS. In Hatari 2.6.1 / TOS 1.04 DE / 1 MB, a 128 KB resident program moved the launcher to `$2F1FC`: the previous launcher showed its low-memory error, while the replacement loaded Elite at `$32000`, used variables at `$8FF7E`, and reached the animated ship and commander prompt. Plain C: startup and automatic floppy startup with 512 KB also succeeded. Logs, RAM captures and screenshots are in `build/hdd-qa`. The resident allocation reproduces the memory-placement issue; it is not a test of PP HDD Driver's own I/O implementation.
 
 ## Verified results
 

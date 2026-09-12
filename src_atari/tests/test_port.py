@@ -26,7 +26,10 @@ class PortTests(unittest.TestCase):
             src, output = Path(directory) / 'test.s', Path(directory) / 'test.bin'
             src.write_text(source)
             for name, content in (extra_files or {}).items():
-                (Path(directory) / name).write_text(content)
+                if isinstance(content, bytes):
+                    (Path(directory) / name).write_bytes(content)
+                else:
+                    (Path(directory) / name).write_text(content)
             result = subprocess.run([str(TOOLS / 'vasmm68k_mot.exe'),
                 '-m68000', '-Fbin', '-no-opt', '-align', '-allmp', '-spaces', '-nocase',
                 '-I' + directory, '-I' + str(ROOT / 'asm'), '-o', str(output), str(src)], cwd=directory, capture_output=True, text=True)
@@ -70,7 +73,8 @@ class PortTests(unittest.TestCase):
         source += '\n    dc.l memory_message,load_message,launcher_end\n'
         binary = self.assemble(source, {'boot-config.inc':
             f'loader_address equ ${LOADER_ORIGIN:x}\nloader_size equ 390\n'
-            'required_ram equ $72c76\n'})
+            'required_ram equ $72c76\ngame_address equ $12000\ngame_size equ 100\n'
+            'patch_checksum equ 0\n', 'game-relocations.bin': b''})
         memory_message, load_message, launcher_end = struct.unpack('>3I', binary[-12:])
         # Actual TOS 1.04 DE desktop load address from both A: and C: runs.
         self.assertLess(0xf1f8 + launcher_end, LOADER_ORIGIN)
@@ -86,7 +90,9 @@ class PortTests(unittest.TestCase):
         source = (ROOT/'asm/boot.s').read_text()
         loader = bytes(range(256)) + bytes(range(134))
         config = {'boot-config.inc': f'loader_address equ ${LOADER_ORIGIN:x}\n'
-                  f'loader_size equ {len(loader)}\nrequired_ram equ $72c76\n'}
+                  f'loader_size equ {len(loader)}\nrequired_ram equ $72c76\n'
+                  'game_address equ $12000\ngame_size equ 100\npatch_checksum equ 0\n',
+                  'game-relocations.bin': b''}
         for automatic in (False, True):
             binary = self.assemble(('auto_start equ 1\n' if automatic else '')+source, config)
             for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
@@ -102,6 +108,12 @@ class PortTests(unittest.TestCase):
                     calls, directory = [], ['\\AUTO' if automatic else '\\ELITE']
 
                     def gemdos(machine, address, size, user):
+                        if machine.mem_read(address, 2) == b'\x4e\x4e':
+                            stack = machine.reg_read(UC_M68K_REG_A7)
+                            self.assertEqual(bytes(machine.mem_read(stack, 2)), b'\x00\x02')
+                            machine.reg_write(UC_M68K_REG_D0, 0x80000)
+                            machine.reg_write(UC_M68K_REG_PC, address+2)
+                            return
                         if machine.mem_read(address, 2) != b'\x4e\x41':
                             return
                         stack = machine.reg_read(UC_M68K_REG_A7)
@@ -136,7 +148,7 @@ class PortTests(unittest.TestCase):
                     cpu.hook_add(UC_HOOK_CODE, gemdos)
                     cpu.emu_start(0xf1f8, LOADER_ORIGIN, count=1000)
                     self.assertEqual(cpu.reg_read(UC_M68K_REG_PC), LOADER_ORIGIN)
-                    self.assertEqual(cpu.reg_read(UC_M68K_REG_A7), 0x7f000)
+                    self.assertEqual(cpu.reg_read(UC_M68K_REG_A7), 0x7fff0)
                     self.assertEqual(bytes(cpu.mem_read(LOADER_ORIGIN, len(loader))), loader)
                     self.assertEqual(calls, ([0x3b] if automatic else [])+[0x3d, 0x3f, 0x3e])
 

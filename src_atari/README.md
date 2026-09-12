@@ -11,7 +11,7 @@ Run all commands below from the project root. Paths in the tables and text are a
 | `src_atari/asm/` | 39 converted game modules, macros, definitions, loader, font, and ship data |
 | `src_atari/assets/` | Copies of original bitmaps, images, and trigonometric tables |
 | `src_atari/modules.txt` | Game module order from the original `ELITE.LNK` |
-| `src_atari/elite.ld` | Fixed memory layout and linker symbols |
+| `src_atari/elite.ld` | Reference memory layout and linker symbols for runtime relocation |
 | `src_atari/build.py` | Assembly, linking, verification, and floppy image creation |
 | `src_atari/build.bat` | Windows build entry point called by the root `build_atari.bat`; forwards all arguments |
 | `src_atari/build.ps1` | Python discovery and argument forwarding to `src_atari/build.py` |
@@ -60,6 +60,8 @@ The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the
 
 The floppy contains `AUTO/ELITE.PRG` for automatic startup when booting from drive A:. This variant of `boot.s` selects the current drive root before opening `LOADER.IMG`; all data and the manual `ELITE.TOS` launcher remain in the root. The directory distribution remains flat for manual startup from a hard-drive folder. The FAT12 verifier checks both the root files and the AUTO directory, including its dot entries and launcher bytes.
 
+The launcher keeps its loader, game and workspace within the TOS process's free ST-RAM block, moving them above resident drivers in 32 KB steps. This preserves the renderer's screen alignment. The build embeds vlink relocation records in each launcher and checks them against an independent link at a higher address. Startup adjusts the expected program checksum only for the address changes. Copy all files from `output_atari/ELITE` together when updating a hard-drive installation; the launcher, loader and game image belong to the same build.
+
 `src_atari/tools/convert_quelo.py` documents the one-time import of the original dialect. It now requires `--source-dir` pointing to a separately extracted copy of `resources/elite_atarist_source.zip`. **The normal build does not run it.** By default, it refuses to overwrite existing files. Its `--overwrite` option discards edits to converted files in `src_atari/asm` and is intended only for deliberately repeating the import.
 
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
@@ -83,6 +85,8 @@ python src_atari/tools/verify_original.py
 ```
 
 The build checks all external symbols, the embedded checksum, A6 relocation to the variable area, RAM and local-variable bounds, control-key ASCII values, data buffer capacities, the TOS header, and a full readback of the FAT12 floppy image. Tests also cover sensitive Quelo conversion details, including reused labels, the tenth macro argument, and OR conditions, as well as launcher placement under TOS 1.04 and error-message termination.
+
+After building, `tests/test_boot.py` executes the actual launcher, loader and linked game relocation on MC68000 and MC68020 CPU models. Simulated OS calls cover manual/AUTO paths, low and high process addresses, 512 KB/1 MB/4 MB layouts, unaligned system screens, missing/truncated files, insufficient memory, and preservation of checksum error detection. Hatari 2.6.1 with TOS 1.04 DE also reached the title animation from a 512 KB floppy and the commander prompt from C: on a 1 MB ST with a 128 KB resident allocation. These checks do not emulate PP HDD Driver itself.
 
 Viewport clearing uses three `MOVEM.L` stores per row (11 + 11 + 10 longwords), saving and restoring A2-A4 once per call. It clears the same 256 x 112 viewport and keeps the original VBL wait. Diagonal lines cache their two colour pairs in registers and preserve the caller's D7 counter. The original pixel selection, patterned colours and frame synchronization are retained.
 

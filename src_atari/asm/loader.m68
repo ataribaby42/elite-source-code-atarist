@@ -16,8 +16,10 @@
 
 * ---- CONSTANTS ----
 
-main_load: equ $12000 ; main program load address
-main_run: equ main_load ; main program run address
+	include "loader-config.inc"
+
+; Entry from boot.s: A3 = aligned primary screen, A4 = relocation callback,
+; A5 = actual game entry. All three survive GEMDOS/XBIOS and the local routines.
 
 	section text,code
 
@@ -42,18 +44,13 @@ q_loader_m68_1:
 	q_ext_bios cursconf,6
 	lea title_screen(pc),a0 ; load title screen
 	lea free(pc),a1
+	move.l #title_size,d6
 	bsr read_file
+	cmp.l #title_size,d0
+	bne loader_error
 	pea blank(pc) ; blank out the screen
 	q_ext_bios setpalette,6
-	q_ext_bios physbase,2 ; fetch screen address
-	move.l d0,d1 ; on 32k boundary ?
-	and.l #$7fff,d1
-; Quelo: 	if <ne> then.s						no
-	beq.s q_loader_m68_3
-	move.l a7,d0 ; move screen to 64k under stack
-	sub.l #$10000,d0
-	and.l #$ffff8000,d0 ; clamp on 32k boundary
-q_loader_m68_3:
+	move.l a3,d0 ; boot.s has checked screen ownership, alignment and room
 	clr -(sp) ; set low res and screen address
 	q_push.l d0
 	q_push.l d0
@@ -63,9 +60,15 @@ q_loader_m68_3:
 	lea free(pc),a0
 	bsr draw_screen
 	lea main_program(pc),a0 ; load main program
-	move.l #main_load,a1
+	move.l a5,a1
+	move.l #game_size,d6
 	bsr read_file
-	jmp main_run ; run main program
+	jsr (a4) ; check the read and relocate before executing any game code
+	jmp (a5)
+
+loader_error:
+	moveq #-1,d0
+	jmp (a4) ; launcher's file-error path
 
 
 * ***************************************
@@ -100,7 +103,7 @@ q_loader_m68_3:
 	bra q_loader_m68_6
 q_loader_m68_5:
 	move d0,d7 ; D7 = file handle
-	q_push.l #$7fffffff ; attempt to read all of file
+	q_push.l d6 ; bounded read into the reserved destination
 	q_push d7
 	q_bdos f_read,12
 	q_push.l d0 ; save error/no. bytes read

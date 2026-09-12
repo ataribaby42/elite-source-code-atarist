@@ -61,6 +61,34 @@ def check(condition, message):
         raise RuntimeError(message)
 
 
+def relocation_offsets(data, image_size):
+    """Decode vlink rawbin -q's bounded byte-distance relocation stream."""
+    check(len(data) >= 4, 'Missing relocation table size')
+    check(int.from_bytes(data[:4], 'big') == len(data)-4, 'Invalid relocation table size')
+    offsets, position, offset = [], 4, 0
+    while position < len(data):
+        distance = data[position]
+        position += 1
+        if distance == 0:
+            check(position + 4 <= len(data), 'Truncated extended relocation distance')
+            distance = int.from_bytes(data[position:position+4], 'big')
+            position += 4
+        offset += distance
+        check(offset % 2 == 0 and offset + 4 <= image_size, 'Relocation outside game code')
+        check(not offsets or offset >= offsets[-1]+4, 'Overlapping relocations')
+        offsets.append(offset)
+    return offsets
+
+
+def relocate_image(image, offsets, delta):
+    result = bytearray(image)
+    for offset in offsets:
+        value = int.from_bytes(result[offset:offset+4], 'big') + delta
+        check(0 <= value <= 0xffffffff, 'Relocated address overflow')
+        result[offset:offset+4] = value.to_bytes(4, 'big')
+    return bytes(result)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm', type=Path, default=TOOLS / 'vasmm68k_mot.exe')
@@ -107,9 +135,9 @@ def main():
              '-I' + str(BUILD), '-I' + str(ROOT / 'asm'),
              '-o', output, ROOT / 'asm' / (name + extension)], name + '.log')
 
-    def link_game(log):
-        return run([args.vlink, '-brawbin1', '-T', ROOT / 'elite.ld', '-M',
-                    '-o', GAME / 'ELITE.IMG',
+    def link_game(log, output=None, extra=(), script=None):
+        return run([args.vlink, '-brawbin1', *extra, '-T', script or ROOT / 'elite.ld', '-M',
+                    '-o', output or GAME / 'ELITE.IMG',
                     *(BUILD / (name + '.o') for name in modules + ['workspace'])], log)
 
     print(f'Assembling {len(modules)} game modules for MC68000...')
@@ -118,7 +146,7 @@ def main():
     print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
-    for name in modules + ['workspace', 'loader']:
+    for name in modules + ['workspace']:
         assemble(name)
     first_map = link_game('elite-pass1.map')
     syms = symbols(first_map)
@@ -153,14 +181,46 @@ def main():
           'Quelo character literal conversion broke keyboard constants')
 
     print(f'Linked ELITE.IMG: {len(image):,} bytes; checksum ${checksum:04X}.')
+    # Keep the on-disk image and its original link addresses. Only the launcher
+    # applies a runtime delta, using relocation records emitted by the linker.
+    reloc_output = BUILD / 'elite-reloc.bin'
+    link_game('elite-reloc.map', reloc_output, extra=['-q'])
+    reloc_image = reloc_output.read_bytes()
+    reloc_data = reloc_image[len(image):]
+    relocs = relocation_offsets(reloc_data, len(image))
+    check(relocate_image(reloc_image[:len(image)], relocs, ORIGIN) == image,
+          'Relocation records do not reconstruct the fixed-address image')
+    (BUILD / 'game-relocations.bin').write_bytes(reloc_data[4:])
+    shifted_script = BUILD / 'elite-shifted.ld'
+    shifted_script.write_text((ROOT / 'elite.ld').read_text().replace(
+        '. = 0x12000;', '. = 0x1a000;', 1))
+    shifted_output = BUILD / 'elite-shifted.bin'
+    link_game('elite-shifted.map', shifted_output, script=shifted_script)
+    check(relocate_image(image, relocs, 0x8000) == shifted_output.read_bytes(),
+          'Runtime relocation differs from independently linking at a higher address')
+
+    (BUILD / 'loader-config.inc').write_text(
+        f'game_size equ {len(image)}\n'
+        f'title_size equ {(ROOT / "assets/TITLE.PC1").stat().st_size}\n', encoding='ascii')
+    assemble('loader')
     loader_map = run([args.vlink, '-brawbin1', '-Ttext', hex(LOADER_ORIGIN), '-M',
                       '-o', GAME / 'LOADER.IMG', BUILD / 'loader.o'], 'loader.map')
     loader_size = (GAME / 'LOADER.IMG').stat().st_size
     check(symbols(loader_map)['main'] == LOADER_ORIGIN, 'Incorrect loader entry address')
     check(0 < loader_size <= ORIGIN - LOADER_ORIGIN, 'Loader overlaps main program')
+    loader_shifted = BUILD / 'loader-shifted.bin'
+    run([args.vlink, '-brawbin1', '-Ttext', hex(LOADER_ORIGIN + 0x8000),
+         '-o', loader_shifted, BUILD / 'loader.o'], 'loader-shifted.log')
+    check(loader_shifted.read_bytes() == (GAME / 'LOADER.IMG').read_bytes(),
+          'Loader is not position-independent')
     (BUILD / 'boot-config.inc').write_text(
         f'loader_address equ ${LOADER_ORIGIN:x}\nloader_size equ {loader_size}\n'
-        f'required_ram equ ${syms["ram_end"]:x}\n', encoding='ascii')
+        f'game_address equ ${ORIGIN:x}\ngame_size equ {len(image)}\n'
+        f'required_ram equ ${syms["ram_end"]:x}\n'
+        f'patch_checksum equ {int(bool(syms["use_novella"]))}\n'
+        f'checksum_start_offset equ {start}\nchecksum_length equ {end-start}\n'
+        f'checksum_patch_offset equ {syms.get("checksum_expected", ORIGIN)-ORIGIN+2}\n',
+        encoding='ascii')
     assemble('boot', 'tos', GAME / 'ELITE.TOS', extra=['-nosym'], extension='.s')
     auto_program = BUILD / 'ELITE.PRG'
     assemble('boot', 'tos', auto_program, extra=['-nosym', '-Dauto_start=1'], extension='.s')
@@ -169,6 +229,8 @@ def main():
     text_size, data_size, bss_size, symbol_size = struct.unpack_from('>4I', tos, 2)
     check(text_size > 0 and len(tos) >= 28 + text_size + data_size + symbol_size,
           'Truncated TOS executable')
+    check(struct.unpack_from('>I', tos, 22)[0] & 2 == 0,
+          'Launcher must load into ST RAM, not alternative RAM')
 
     assemble('objects', 'bin', GAME / 'OBJECTS.IMG')
     assemble('elitechr', 'bin', GAME / 'ELITECHR.IMG')
@@ -198,6 +260,10 @@ def main():
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',
         'ram_end': f'{syms["ram_end"]:08X}',
+        'runtime_relocation': {'step': 32768, 'records': len(relocs),
+                               'table_bytes': len(reloc_data)-4,
+                               'workspace_bytes': syms['ram_end']-LOADER_ORIGIN,
+                               'startup_stack_bytes': 4096},
         'byte_identical_to_original': {name: digest(GAME / name) == baseline[name]
                                        for name in ('OBJECTS.IMG', 'ELITECHR.IMG', *ASSET_NAMES)},
         'artifacts': {path.name: {'bytes': path.stat().st_size, 'sha256': digest(path)}
@@ -205,6 +271,8 @@ def main():
         'checks': ['all modules assembled', 'all symbols linked', 'checksum embedded and verified',
                    'workspace relocation and RAM limits', 'per-module variable capacities',
                    'keyboard ASCII constants', 'asset buffer capacities', 'TOS header',
+                   'runtime relocation matches independent higher-address link',
+                   'position-independent loader and ST-RAM executable flags',
                    'FAT12 image read back byte-for-byte, including AUTO/ELITE.PRG'],
         'autostart': {'path': 'AUTO/ELITE.PRG', 'sha256': digest(auto_program)},
         'runtime_tested': False,
