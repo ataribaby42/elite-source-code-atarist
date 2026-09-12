@@ -15,6 +15,7 @@
 ; Native OS services; no TOS trap interface.
     ifnd fileio_implementation
     xref file_open,file_create,file_read,file_write,file_close,file_first,file_next,console_write
+    xref commander_open,commander_create
     endc
 
 ; Development flags.

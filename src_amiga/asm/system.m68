@@ -7,7 +7,7 @@ amiga_implementation: equ 1
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
     xdef amiga_start_display
     xdef palette,frclock,dos_base,set_palette,random_seed_value
-    xref active_files,directory_lock
+    xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
     section text,code
 amiga_entry:
@@ -20,6 +20,7 @@ amiga_entry:
     jsr -552(a6)                 ; OpenLibrary
     move.l d0,dos_base
     beq startup_failed
+    jsr file_init               ; disk-swap paths and requester policy
     lea graphics_name(pc),a1
     moveq #0,d0
     jsr -552(a6)
@@ -99,6 +100,7 @@ startup_failed:
     jsr -90(a6)                 ; UnLock
     clr.l directory_lock
 .files_closed:
+    jsr file_shutdown
     move.l exec_base,a6
     move.l graphics_base,d0
     beq .no_graphics

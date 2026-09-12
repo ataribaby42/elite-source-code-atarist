@@ -69,7 +69,7 @@ class StartupTests(unittest.TestCase):
         assembly += re.search(r'^load_file macro.*?^\s*endm', init, re.M | re.S).group(0)
         assembly += '\n' + routine(init, 'show_title') + routine(init, 'read_file')
         assembly += routine(graphics, 'draw_screen')
-        assembly += ('\nelite:\nquiet:\nkey_change:\nfile_open:\nfile_read:\nfile_close:\n'
+        assembly += ('\nelite:\nquiet:\nkey_change:\nfile_init:\nfile_shutdown:\nfile_open:\nfile_read:\nfile_close:\n'
                      '\trts\nvblank:\n\taddq.l #1,game_ticks\n\trts\n'
                      'game_ticks: dc.l 0\nactive_files: dcb.l 8,0\ndirectory_lock: dc.l 0\n'
                      'title_file: dc.b "title.pc1",0\n'

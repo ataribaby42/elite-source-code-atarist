@@ -319,7 +319,7 @@ q_disk_m68_8:
 	movem.l d1-d3/a0,-(sp)
 	lea input(a6),a0
 	move.l a0,d1
-	jsr file_open
+	jsr commander_open
 	movem.l (sp)+,d1-d3/a0
 	move.l d0,d6 ; error ?
 ; Quelo: 	if <mi> then.s						yes
@@ -453,7 +453,7 @@ q_disk_m68_11:
 	movem.l d1-d3/a0,-(sp)
 	lea input(a6),a0
 	move.l a0,d1
-	jsr file_create
+	jsr commander_create
 	movem.l (sp)+,d1-d3/a0
 	move.l d0,d6 ; disk error ?
 	bmi disk_error ; yes
@@ -553,7 +553,7 @@ q_disk_m68_24:
 	movem.l d1-d3/a0,-(sp)
 	lea catalog_buffer(a6),a0
 	move.l a0,d1
-	jsr file_open
+	jsr commander_open
 	movem.l (sp)+,d1-d3/a0
 	move.l d0,d6 ; disk error ?
 	bmi disk_error ; yes

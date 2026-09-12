@@ -5,7 +5,92 @@ fileio_implementation: equ 1
     xref dos_base
     xdef file_open,file_create,file_close,file_read,file_write,file_first,file_next
     xdef console_write,active_files,directory_lock
+    xdef file_init,file_shutdown,commander_open,commander_create
     section text,code
+; Process.pr_WindowPtr is part of the original Kickstart 1.x Process ABI.
+pr_window_ptr: equ 184
+
+; Remember the startup filesystem before the user can swap a floppy. Relative
+; DOS paths retain the old volume lock; DFx: paths follow the inserted disk.
+; Keep HDD launches relative to their original current directory.
+file_init:
+    movem.l d0-d7/a0-a6,-(sp)
+    move.l 4.w,a6
+    suba.l a1,a1
+    jsr -294(a6)                 ; FindTask(NULL): our CLI process
+    move.l d0,file_process
+    move.l d0,a0
+    move.l pr_window_ptr(a0),saved_window_ptr
+    move.l #-1,pr_window_ptr(a0) ; report DOS errors to the game, no hidden requester
+    clr.l commander_directory
+    move.l dos_base,a6
+    lea current_directory(pc),a0
+    move.l a0,d1
+    jsr -174(a6)                 ; DeviceProc(""): current directory's handler
+    move.l d0,d6
+    beq .done
+    lea floppy_names(pc),a2
+    moveq #3,d7
+.drive:
+    move.l a2,d1
+    jsr -174(a6)                 ; DeviceProc("DF0:".."DF3:")
+    cmp.l d6,d0
+    beq .floppy
+    addq.l #6,a2
+    dbra d7,.drive
+    bra .done
+.floppy:
+    move.l a2,commander_directory
+.done:
+    movem.l (sp)+,d0-d7/a0-a6
+    rts
+
+; Restore the CLI's requester policy after all game file handles are closed.
+file_shutdown:
+    move.l a0,-(sp)
+    move.l file_process,a0
+    cmpa.l #0,a0
+    beq .done
+    move.l saved_window_ptr,pr_window_ptr(a0)
+    clr.l file_process
+.done:
+    move.l (sp)+,a0
+    rts
+
+; Commander-only entry points; asset loading keeps its original relative paths.
+; D1 names an 8.3 commander file. Preserve the regular file API contract.
+commander_open:
+    movem.l d1/a0-a1,-(sp)
+    bsr commander_name
+    bsr file_open
+    movem.l (sp)+,d1/a0-a1
+    rts
+commander_create:
+    movem.l d1/a0-a1,-(sp)
+    bsr commander_name
+    bsr file_create
+    movem.l (sp)+,d1/a0-a1
+    rts
+commander_name:
+    move.l commander_directory,d0
+    beq .done
+    move.l d0,a1
+    move.l (a1),d0               ; four-byte DFx: prefix
+    move.l d1,a0
+    lea commander_path,a1
+    move.l d0,(a1)+
+    moveq #12,d0                ; at most 8+4 filename bytes and its terminator
+.copy:
+    move.b (a0)+,(a1)+
+    beq .ready
+    dbra d0,.copy
+    clr.b -1(a1)
+.ready:
+    lea commander_path,a0
+    move.l a0,d1
+.done:
+    rts
+
 file_open:
     movem.l d1-d7/a0-a6,-(sp)
     move.l #1005,d2
@@ -84,6 +169,10 @@ file_first:
 .lock:
     lea current_directory(pc),a0
     move.l a0,d1
+    tst.l commander_directory
+    beq .directory
+    move.l commander_directory,d1
+.directory:
     moveq #-2,d2
     jsr -84(a6)
     move.l d0,directory_lock
@@ -166,6 +255,8 @@ console_write:
     move.l d0,d1
     jsr -48(a6)
     bra io_done
+floppy_names:
+    dc.b "DF0:",0,0,"DF1:",0,0,"DF2:",0,0,"DF3:",0,0
 current_directory: dc.b 0
     even
     section file_vars,bss
@@ -173,3 +264,7 @@ active_files: ds.l 8
 directory_lock: ds.l 1
 catalog_name: ds.l 1
 file_info: ds.b 260
+file_process: ds.l 1
+saved_window_ptr: ds.l 1
+commander_directory: ds.l 1
+commander_path: ds.b 18
