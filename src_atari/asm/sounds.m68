@@ -48,6 +48,9 @@ hit_dur: equ 31 ; Hit: Duration
 hit_step: equ 4 ; Step size
 ramp_size: equ 7 ; Length of ramp
 ramp_size2: equ 16 ; length of the second ramp
+launch_ticks: equ 234 ; 4.68 seconds at PAL VBL rate, like the Amiga launch
+launch_fade: equ 64 ; final 1.28 seconds fade to silence
+launch_tone: equ 228 ; initial motor pitch, rising to about twice this frequency
 
 * Setup constants.
 
@@ -1867,6 +1870,60 @@ q_sounds_m68_67:
 
 	q_ret
 
+; Hangar engine: a rising, slightly uneven tone mixed with filtered PSG noise.
+; One ordinary effect channel, no sample replay, extra interrupt or game RNG.
+	q_subr fx_launch
+
+	set_fx volume,0
+	set_fx noise_on
+	set_fx tone,launch_tone
+	set_fx duration,launch_ticks
+	set_fx cycle,0
+	set_fx service,do_launch
+	set_fx done
+	st clear_env(a5) ; silence/preemption must clear the software volume too
+	clr flag_ptr(a5)
+	clr hold_chan(a5)
+	move #launch_tone*16,tone(a5) ; 12.4 fixed point for a gradual pitch sweep
+	rts
+
+do_launch:
+	btst #f_fx,user(a6)
+	beq silence_effect
+	subq.w #1,duration(a5)
+	beq silence_effect
+	addq.w #1,cycle(a5)
+	subq.w #8,tone(a5) ; half a tone-period unit per VBL
+	move.w tone(a5),d0
+	lsr.w #4,d0
+	move.w cycle(a5),d2
+	and.w #7,d2
+	add.w d2,d2
+	lea launch_flutter(pc),a0
+	add.w (a0,d2.w),d0
+	bsr set_tone
+	lsr.w #3,d0 ; brighten the engine noise as the pitch rises
+	move.w d0,d1
+	moveq #6,d0
+	bsr psg_output
+	move.w cycle(a5),d0
+	lsr.w #1,d0 ; short attack: reach volume 14 after 28 VBLs
+	cmp.w #14,d0
+	bls.s .level
+	moveq #14,d0
+.level:
+	cmp.w #launch_fade,duration(a5)
+	bhi.s .volume
+	move.w duration(a5),d0
+	mulu #14,d0
+	lsr.w #6,d0 ; scale the final 64 VBLs from 14 to zero
+.volume:
+	move.w d0,volume(a5)
+	bra set_volume
+
+launch_flutter:
+	dc.w 0,1,2,1,0,-1,-2,-1
+
 	ifne 0
 
 *************************************
@@ -1950,3 +2007,4 @@ fx_vectors:
 	dc.l fx_bang ; O
 	dc.l fx_doors ; P
 	dc.l fx_teletype
+	dc.l fx_launch

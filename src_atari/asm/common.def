@@ -359,6 +359,7 @@ sfx_cargo: rs.b 1 ; captured some cargo
 sfx_bomb: rs.b 1 ; energy bomb
 sfx_doors: rs.b 1 ; opening doors
 sfx_teletype: rs.b 1 ; teletype print effect
+sfx_launch: rs.b 1 ; engine spool-up when leaving the hangar
 
 ; Logic bytes.
 

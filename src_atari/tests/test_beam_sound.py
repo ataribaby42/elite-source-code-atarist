@@ -1,4 +1,4 @@
-"""Execute the real PSG driver: held lasers, competing effects and shutdown."""
+"""Execute the real PSG driver: lasers, hangar launch, competing effects and shutdown."""
 from pathlib import Path
 import re
 import struct
@@ -11,7 +11,10 @@ try:
     from unicorn import (Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ,
                          UC_PROT_EXEC, UC_HOOK_MEM_READ, UC_HOOK_MEM_WRITE)
     from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020,
-        UC_M68K_REG_A0, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_SR, UC_M68K_REG_PC, UC_M68K_REG_D0)
+        UC_M68K_REG_A0, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_SR, UC_M68K_REG_PC, UC_M68K_REG_D0,
+        UC_M68K_REG_D1, UC_M68K_REG_D2, UC_M68K_REG_D3, UC_M68K_REG_D4, UC_M68K_REG_D5,
+        UC_M68K_REG_D6, UC_M68K_REG_D7, UC_M68K_REG_A1, UC_M68K_REG_A2,
+        UC_M68K_REG_A3, UC_M68K_REG_A4, UC_M68K_REG_A5)
 except ImportError:
     Uc = None
 
@@ -46,7 +49,9 @@ class BeamSoundTests(unittest.TestCase):
                  'laser_audio_request', 'laser_type', 'laser_temp', 'max_ltemp',
                  'cockpit_on', 'docked', 'game_frozen', 'game_over', 'controls_locked',
                  'user', 'volume', 'reg_volume', 'reg_tone', 'hold_chan',
-                 'sfx_explosion', 'sfx_ecm', 'sfx_laser', 'sfx_hit', 'sound_type', 'random_seed', 'blue_danube']
+                 'sfx_explosion', 'sfx_ecm', 'sfx_laser', 'sfx_hit', 'sound_type', 'random_seed', 'blue_danube',
+                 'sfx_launch', 'chan_1', 'chan_2', 'chan_3', 'chn_active', 'service', 'do_launch',
+                 'launch_ticks', 'launch_sequence', 'f_sequence']
         source = (ROOT/'asm/sounds.m68').read_text()
         source = re.sub(r'^\s*xref random\s*$', '', source, flags=re.M)
         source = source.replace('\tq_module sounds',
@@ -54,6 +59,12 @@ class BeamSoundTests(unittest.TestCase):
         source += routine((ROOT/'asm/maths.m68').read_text(), 'random')
         music = (ROOT/'asm/music.m68').read_text()
         source += music[music.index('\tq_global blue_danube'):]
+        # Execute the actual launch entry through its sound request, stopping
+        # before 3D object creation. The two earlier display calls are stubbed.
+        launch = routine((ROOT/'asm/effects.m68').read_text(), 'launch_sequence')
+        source += '\teven\n' + launch[:launch.index('\tjsr alloc_object')]
+        source += ('\trts\nq_effects_m68_7:\n\trts\n'
+                   'front_view:\nclear_objects:\n\trts\n')
         cls.code, cls.symbols = assemble(source, names)
 
     def prepare(self, model, kind=2):
@@ -93,6 +104,91 @@ class BeamSoundTests(unittest.TestCase):
     def effect(self, name):
         self.machine.reg_write(UC_M68K_REG_D0, self.symbols[name])
         self.call('fx')
+
+    def test_launch_trigger_obeys_effects_and_animation_settings(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for effects in (False, True):
+                for sequence in (False, True):
+                    self.prepare(model, 0)
+                    self.var('user', ((int(effects) << 0 | int(sequence) << self.symbols['f_sequence']) << 8))
+                    self.call('launch_sequence')
+                    self.assertEqual(bool(self.read('chan_1')), effects and sequence)
+                    for _ in range(30):
+                        self.call('sound')
+                    self.assertEqual(bool(self.hardware.registers[8]), effects and sequence)
+                    self.call('quiet')
+
+    def test_launch_pitch_envelope_registers_rng_and_final_silence(self):
+        registers = [UC_M68K_REG_D0, UC_M68K_REG_D1, UC_M68K_REG_D2, UC_M68K_REG_D3,
+                     UC_M68K_REG_D4, UC_M68K_REG_D5, UC_M68K_REG_D6, UC_M68K_REG_D7,
+                     UC_M68K_REG_A0, UC_M68K_REG_A1, UC_M68K_REG_A2, UC_M68K_REG_A3,
+                     UC_M68K_REG_A4, UC_M68K_REG_A5, UC_M68K_REG_A6]
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            self.prepare(model, 0)
+            for n, register in enumerate(registers[:-1]):
+                self.machine.reg_write(register, 0xabc000+n*0x101)
+            self.machine.reg_write(UC_M68K_REG_D0, self.symbols['sfx_launch'])
+            before = [self.machine.reg_read(r) for r in registers]
+            self.call('fx')
+            self.assertEqual([self.machine.reg_read(r) for r in registers], before)
+            seed = bytes(self.machine.mem_read(VARIABLES+self.symbols['random_seed'], 4))
+            periods, levels = [], []
+            for _ in range(self.symbols['launch_ticks']):
+                self.call('sound')
+                r = self.hardware.registers
+                periods.append(r[0] | r[1] << 8)
+                levels.append(r[8])
+                self.assertEqual(r[9:11], [0, 0])
+                self.assertTrue(0 <= r[6] <= 31)
+                self.assertTrue(0 <= r[8] <= 14)
+            self.assertGreater(periods[0], periods[-2]*1.9)
+            self.assertEqual(levels[:28], sorted(levels[:28]))
+            self.assertEqual(levels[27:170], [14]*143)
+            self.assertEqual(levels[170:], sorted(levels[170:], reverse=True))
+            self.assertEqual(levels[-1], 0)
+            self.assertEqual(self.read('chan_1'), 0)
+            self.assertEqual(bytes(self.machine.mem_read(VARIABLES+self.symbols['random_seed'], 4)), seed)
+            self.assertFalse(any(reg >= 11 for reg, value in self.hardware.writes))
+            for _ in range(300):
+                self.call('sound')
+                self.assertEqual(self.hardware.registers[8:11], [0, 0, 0])
+
+    def test_launch_shutdown_preemption_and_channel_reuse(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for shutdown in ('quiet', 'disabled', 'preempt', 'music'):
+                self.prepare(model, 0)
+                self.effect('sfx_launch')
+                for _ in range(40):
+                    self.call('sound')
+                if shutdown == 'quiet':
+                    self.call('quiet')
+                elif shutdown == 'disabled':
+                    self.var('user', 0)
+                    self.call('sound')
+                elif shutdown == 'preempt':
+                    for _ in range(3):
+                        self.effect('sfx_hit')
+                    for _ in range(10):
+                        self.call('sound')
+                    # Original impact effects finish by disabling their mixer
+                    # and tone; their volume register alone need not be zero.
+                    self.assertEqual([self.read(n) for n in ('chan_1', 'chan_2', 'chan_3')], [0, 0, 0])
+                    self.assertEqual(self.hardware.registers[:6], [0]*6)
+                    self.assertEqual(self.hardware.registers[7] & 0x38, 0x38)
+                    self.call('quiet')
+                else:
+                    self.machine.reg_write(UC_M68K_REG_A0, self.symbols['blue_danube'])
+                    self.call('start_tune')
+                    for _ in range(20):
+                        self.call('sound')
+                    self.assertEqual(self.read('sound_type'), 1)
+                    self.call('quiet')
+                self.assertEqual(self.hardware.registers[8:11], [0, 0, 0], shutdown)
+                self.var('user', 0x100)
+                self.effect('sfx_launch')
+                for _ in range(self.symbols['launch_ticks']+2):
+                    self.call('sound')
+                self.assertEqual(self.hardware.registers[8:11], [0, 0, 0])
 
     def test_held_beam_survives_effect_allocation_and_releases_to_silence(self):
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):

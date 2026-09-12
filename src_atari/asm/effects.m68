@@ -213,6 +213,7 @@ q_effects_m68_2:
 	btst #f_sequence,user(a6) ; launch sequence on ?
 ; Quelo: 	if <ne> then						yes
 	beq q_effects_m68_7
+	q_sfx launch ; native PSG counterpart of the Amiga hangar launch effect
 	jsr alloc_object ; create left side panel
 	lea side(pc),a0
 	bsr init_object
