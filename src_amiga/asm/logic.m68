@@ -434,10 +434,10 @@ q_logic_m68_35:
 	cmp.w #2,d0
 	bne.s .laser_sound
 .accuracy_roll:
-	jsr random ; even a well-aimed shot has a separate 10% chance to miss
+	jsr random ; even a well-aimed shot has a separate 20% chance to miss
 	cmp.w #250,d0
-	bhs.s .accuracy_roll ; 250 accepted values: exactly 25/250 misses
-	cmp.w #25,d0
+	bhs.s .accuracy_roll ; 250 accepted values: exactly 50/250 misses
+	cmp.w #50,d0
 	blo.s .laser_sound ; keep the beam and optional firing sound, skip all damage
 	cmp #constr,type(a5)
 	bne.s .ordinary_power

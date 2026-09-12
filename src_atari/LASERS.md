@@ -99,9 +99,9 @@ An enemy's current position and forward orientation determine whether it can
 fire and hit. The firing cone uses the BBC ratio 32/36; the narrower hit cone
 uses 35/36. A ship aimed between those limits fires a visible beam but misses.
 Within the narrower hit cone, each shot also makes a separate accuracy roll:
-90% hit and 10% miss. This additional miss chance is a project-specific change,
-not a rule from BBC Elite. Random bytes 250..255 are retried; values 0..24 miss
-and 25..249 hit, giving 25 misses among 250 equally weighted accepted values.
+80% hit and 20% miss. This additional miss chance is a project-specific change,
+not a rule from BBC Elite. Random bytes 250..255 are retried; values 0..49 miss
+and 50..249 hit, giving 50 misses among 250 equally weighted accepted values.
 Geometric misses do not make this extra roll and can never become hits.
 
 The original firing range, random firing opportunity, cloaking check and control
@@ -166,7 +166,7 @@ dependency. Unrelated world and UI services are stubbed. Tests cover same-frame
 hits in all views, fixed-axis aiming despite visual jitter, per-hit damage,
 original frame-based damage/heat intervals, continuous visuals between hits,
 trigger release/resume, heat limits, pulse persistence and clock wrap, AI aim and
-shield selection, 90/10 accuracy selection and retry handling, preserved miss
+shield selection, 80/20 accuracy selection and retry handling, preserved miss
 visuals, both AI firing sound settings, preserved player/impact sounds, damage multipliers, shield overflow into energy, every ship's
 muzzle projection, and guarded raster buffers. Both player beam styles are
 checked against filled-triangle pixel references, including bottom-edge coverage,

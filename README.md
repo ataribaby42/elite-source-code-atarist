@@ -58,7 +58,7 @@ Pulse red, Beam orange, Military white, and Mining the same magenta as the
 instrument bars. AI beam colours follow the player's rating: Harmless through
 Poor is red, Average through Competent orange, and Dangerous through Elite white.
 Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams
-are always light blue. AI damage and the 10% random miss chance
+are always light blue. AI damage and the 20% random miss chance
 remain unchanged.
 
 Player Beam and Military lasers have distinct continuous sounds while firing,

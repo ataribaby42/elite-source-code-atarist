@@ -687,6 +687,7 @@ q_init_m68_34:
 	move #max_shield,front_shield(a6) ; shields at full power
 	move #max_shield,aft_shield(a6)
 	move #radar_range,radar_scale+2(a6) ; radar mag x 1
+	clr f_magnify(a6) ; redraw x1 on both screens after resetting the scale
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)

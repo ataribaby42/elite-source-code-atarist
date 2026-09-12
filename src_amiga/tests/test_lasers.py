@@ -490,7 +490,7 @@ peel_off_check:
                 base = raw % 7 + 1
                 retry = raw % 4 == 3
                 multiplier = 2 if retry else raw % 4 + 2
-                random_values[:] = [0, 25, raw] + ([255, 3, 0] if retry else [])
+                random_values[:] = [0, 50, raw] + ([255, 3, 0] if retry else [])
                 self.var('front_shield', 24)
                 self.var('energy', 96)
                 self.damage_calls.clear()
@@ -512,7 +512,7 @@ peel_off_check:
             self.assertEqual(self.damage_calls, [])
             self.assertTrue(self.read('ai_laser', True))
 
-    def test_ai_accuracy_is_90_10_and_respects_firing_sound_option(self):
+    def test_ai_accuracy_is_80_20_and_respects_firing_sound_option(self):
         # Exercise every possible accuracy byte in the actual attack routine.
         # Keep the real bounded-damage roll and multiplier; replace only random
         # bytes, checking the exact draw count, visible line and requested sounds.
@@ -536,10 +536,10 @@ peel_off_check:
                                       begin=self.symbols['random'], end=self.symbols['random'])
                     accepted_hits, accepted_misses = 0, 0
                     for raw in range(256):
-                        hit = raw >= 25
+                        hit = raw >= 50
                         random_values[:] = [0, raw]
                         if raw >= 250:
-                            random_values.extend([255, 25]) # retry twice, then hit
+                            random_values.extend([255, 50]) # retry twice, then hit
                         if hit:
                             random_values.extend([0] if kind == 'constr' else [0, 0, 0])
                         self.var(side, 24)
@@ -563,11 +563,11 @@ peel_off_check:
                         if raw < 250:
                             accepted_hits += hit
                             accepted_misses += not hit
-                        if raw in (0, 24, 25, 249, 250, 255):
+                        if raw in (0, 49, 50, 249, 250, 255):
                             self.lines.clear()
                             self.call('draw_ai_laser')
                             self.assertEqual(len(self.lines), 1)
-                    self.assertEqual((accepted_hits, accepted_misses), (225, 25))
+                    self.assertEqual((accepted_hits, accepted_misses), (200, 50))
 
     def test_ai_respects_range_cloaking_and_control_locks(self):
         for variable, value, obj in [('obj_range', 7001, True),
