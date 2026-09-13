@@ -8,6 +8,15 @@ One successful confirmation creates one ordinary Cargo Canister 400 world units 
 
 The success signal reuses the short missile-lock beep; failure uses the existing error sound. Both follow the Effects setting. With Fuel Scoops and enough free hold space, the ejected canister can be collected for its exact original mass and commodity. The entire payload must fit; insufficient space does not transfer part of the cargo or discard a remainder. Ordinary salvage keeps its original random quantity of 1–4 market units.
 
+The Jettison confirmation is non-blocking: flight, AI attacks and normal game
+timing continue while it is open. Only Y/N, Escape and the YES/NO mouse buttons
+are accepted during confirmation. The selected commodity is retained, and its
+current quantity and the available object slots are checked again on YES.
+If the cargo is no longer valid, YES rejects the request with the existing error
+sound. Y and N are consumed by the dialog, so Y does not toggle cloaking.
+Docking, hyperspace and death close the dialog when changing screens. Other
+confirmation dialogs keep their existing behaviour.
+
 ## Legal status
 
 Like C64 Elite Unbound, each successful ejection in the station's protection zone adds 15 legal-status points, except under Anarchy. Outside the zone there is no dumping penalty. Both games use Clean = 0, Offender = 1–49 and Fugitive = 50–255, so no conversion is needed. The addition saturates at 255. Cancelled or failed requests incur no penalty. Other existing legal checks, including scooping illegal goods, still apply.

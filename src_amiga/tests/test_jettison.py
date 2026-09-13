@@ -27,13 +27,13 @@ class JettisonTests(unittest.TestCase):
         cargo,bios,flight,main,data=map(read,('cargo','bios','flight','main','data'))
         cls.units=[(int(m,16)>>5)&3 for m in re.findall(r'^\s*dc \$[0-9a-f]+,\$([0-9a-f]+),.*;',data,re.M)[:18]]
         assert cls.units == [0]*12+[1,1,1,2,0,0]
-        names='''jettison_cargo jettison_motion jettison_orientation random jettison_question jettison_penalty d_inventory s_inventory d_sell refresh_inventory
+        names='''jettison_cargo jettison_motion jettison_orientation random jettison_question jettison_penalty d_inventory poll_jettison s_inventory d_sell refresh_inventory
             check_click create_object copy_object remove_objects salvage move_object do_twisting
             objects obj_len obj_size max_objects flags in_use remove no_bounty type barrel
             cargo_type cargo_mass health velocity vel_max visible on_course log_twisting logic x_vector y_vector z_vector
             xpos ypos zpos obj_range obj_rad unit nodes obj_data_len no_canisters
             obj_ctr pirate_count trader_count registration_id max_obj_num
-            docked hold equip fuel_scoop cargo_bay police_record radar_obj splanet govern
+            docked game_over cockpit_on jettison_pending jettison_item hold equip fuel_scoop cargo_bay police_record radar_obj splanet govern
             products product_len units naughty quantity price cash cargo_items this_cargo max_cargo
             action_ptr action_table function button_pressed cursor_spr sp_xpos csr_on inventory_action_table
             selected highlight fixture_answer fixture_random fixture_fx fixture_prompts fixture_message
@@ -55,7 +55,18 @@ class JettisonTests(unittest.TestCase):
                                  (read('vector'),('fix_unit','calc_yvector')),
                                  (read('logic'),('do_twisting','do_cruising','speed_control'))):
             for n in functions:asm+='\n'+routine(source,n)
-        asm+='\nconfirm_yn:\n addq.w #1,fixture_prompts(a6)\n move fixture_answer(a6),d0\n rts\n'
+        asm+='''
+open_jettison_confirm:
+ addq.w #1,fixture_prompts(a6)
+ st jettison_pending(a6)
+ rts
+poll_jettison_confirm:
+ move fixture_answer(a6),d0
+ bmi .waiting
+ clr jettison_pending(a6)
+.waiting:
+ rts
+'''
         asm+='\nfx:\n move d0,fixture_fx(a6)\n rts\n'
         asm+='\nrandom:\n addq.w #1,fixture_calls(a6)\n tst fixture_real_random(a6)\n bne real_random\n move fixture_random(a6),d0\n rts\n'
         asm+=routine(read('maths'),'random').replace('q_subr random,global','q_subr real_random')
@@ -64,7 +75,7 @@ class JettisonTests(unittest.TestCase):
         asm+='\nprint_centre:\n move.l a0,fixture_message(a6)\n rts\n'
         externals=set()
         for group in re.findall(r'^\s*xref (.*)',cargo,re.M):externals.update(group.strip().split(','))
-        actual={'alloc_object','create_object','confirm_yn','fx','init_cursor','str_copy','str_cat','find_table','print_centre','build_number','random','fix_unit','calc_yvector'}
+        actual={'alloc_object','create_object','open_jettison_confirm','poll_jettison_confirm','fx','init_cursor','str_copy','str_cat','find_table','print_centre','build_number','random','fix_unit','calc_yvector'}
         externals-=actual|{'product_list'}
         externals|={'registration_assign','target_lost','local_z_rotate'}
         asm+='\n'+':\n'.join(sorted(externals))+':\n rts\n'
@@ -107,7 +118,7 @@ class JettisonTests(unittest.TestCase):
     def scoop(self,obj=0):
         a=self.obj(obj);self.long(a+self.s['zpos'],100);self.long(a+self.s['ypos'],-40)
         self.call('salvage',a5=a)
-    def click(self,index,double=True):
+    def click(self,index,double=True,answer=True):
         x,y=16+(index%6)*48+10,20+(index//6)*48+10
         self.word(self.at('cursor_spr')+self.s['sp_xpos'],x-10)
         self.word(self.at('cursor_spr')+self.s['sp_xpos']+2,y-8)
@@ -115,7 +126,46 @@ class JettisonTests(unittest.TestCase):
         self.call('check_click',d2=14 if double else 10)
         self.assertEqual(self.long(self.at('action_ptr')),self.s['d_inventory' if double else 's_inventory'])
         self.put('button_pressed',0)
-        return self.call('d_inventory' if double else 's_inventory',d0=self.get('function'))
+        result=self.call('d_inventory' if double else 's_inventory',d0=self.get('function'))
+        if answer and self.get('jettison_pending'):
+            result=self.call('poll_jettison')
+        return result
+
+    def test_live_confirmation_rechecks_cargo_and_slots_only_on_yes(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for outcome in ('lost','reduced','full','cancel','success'):
+                self.boot(model);self.cargo(10,2000000)
+                self.call('refresh_inventory');self.click(0,answer=False)
+                self.assertTrue(self.get('jettison_pending'))
+                self.assertEqual(self.cargo(10),2000000)
+                self.assertEqual(self.get('fixture_fx'),65535)
+                self.put('fixture_answer',65535)
+                for _ in range(60):self.call('poll_jettison')
+                self.assertTrue(self.get('jettison_pending'))
+                self.assertEqual(self.cargo(10),2000000)
+                self.assertEqual(self.objects(),bytes(self.s['obj_size']))
+                if outcome=='lost':self.cargo(10,0)
+                if outcome=='reduced':self.cargo(10,157)
+                if outcome=='full':
+                    for slot in range(30):self.word(self.obj(slot)+self.s['flags'],0x100)
+                # Another displayed item's index must never replace the saved commodity.
+                self.cargo(0,1000000);self.put('this_cargo',0)
+                self.put('fixture_answer',0 if outcome=='cancel' else 1)
+                before=self.objects();legal=self.get('police_record')
+                self.call('poll_jettison')
+                self.assertFalse(self.get('jettison_pending'))
+                self.assertEqual(self.cargo(0),1000000)
+                if outcome in ('lost','full'):
+                    self.assertEqual(self.get('fixture_fx'),self.s['sfx_error'])
+                    self.assertEqual(self.objects(),before)
+                    self.assertEqual(self.get('police_record'),legal)
+                elif outcome=='cancel':
+                    self.assertEqual(self.get('fixture_fx'),65535)
+                    self.assertEqual(self.cargo(10),2000000)
+                else:
+                    self.assertEqual(self.get('fixture_fx'),self.s['sfx_locked'])
+                    self.assertEqual(self.word(self.obj()+self.s['cargo_type']),10)
+                    self.assertEqual(self.long(self.obj()+self.s['cargo_mass']),157 if outcome=='reduced' else 1000000)
 
     def test_all_commodities_units_and_exact_scoop(self):
         for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
@@ -420,12 +470,45 @@ class ConfirmationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         bios=(ROOT/'asm/bios.m68').read_text()
+        action=(ROOT/'asm/action.m68').read_text()
         names='''confirm confirm_yn fixture_key fixture_mouse fixture_reads fixture_depth
-            fixture_flush fixture_answer button_pressed function'''.split()
+            fixture_flush fixture_answer button_pressed function open_jettison_confirm poll_jettison_confirm
+            cancel_jettison_confirm jettison_pending jettison_item docked game_over cockpit_on
+            check_keys fixture_normal_actions action_ptr frame_count loop_ctr'''.split()
         asm=preamble()+'\tinclude "bitlist.m68"\nconfirm_x equ 105\nconfirm_y equ 83\n'
         for i,n in enumerate(names[2:8]):asm+=f'{n} equ var_size+{i*2}\n'
+        asm+=action[action.index('threshold_x:'):action.index('\tq_module action')]
+        asm+='fixture_normal_actions equ var_size+12\n'
         asm+='\torg $10000\n dc.l '+','.join(names)+'\nreturn: set *\n rts\n'
+        asm+=routine(action,'check_keys')
+        asm+='''
+key_list:
+ dc.w 'Y'
+ dc.l fixture_normal_action
+no_keys equ 1
+fixture_normal_action:
+ addq.w #1,fixture_normal_actions(a6)
+ rts
+poll_jettison:
+ bra poll_jettison_confirm
+increase_speed:
+decrease_speed:
+get_joystick:
+roll_left:
+roll_right:
+climb:
+dive:
+fire:
+check_mouse:
+start_galactic:
+disp_message:
+text5:
+fx:
+ rts
+'''
         asm+=routine(bios,'confirm_yn')+routine(bios,'confirm')
+        for name in ('open_jettison_confirm','poll_jettison_confirm','cancel_jettison_confirm'):
+            asm+=routine(bios,name)
         asm+='''
 flush_keyboard:
  addq.w #1,fixture_flush(a6)
@@ -475,5 +558,75 @@ confirm_table:
                     self.assertEqual(self.get('fixture_depth'),0);self.assertEqual(self.get('fixture_reads'),0)
                     self.assertEqual(self.get('button_pressed'),0)
 
+
+    def test_live_panel_returns_while_waiting_and_balances_cursor_on_close(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for key,answer in ((ord('Y'),1),(ord('N'),0),(27,0)):
+                self.boot(model)
+                self.call('open_jettison_confirm')
+                self.assertTrue(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_depth'),1)
+                for ignored in (0,ord('X'),ord('H'),ord('G'),ord('A')):
+                    self.put('fixture_key',ignored)
+                    self.assertEqual(self.call('poll_jettison_confirm'),65535)
+                    self.assertEqual(self.get('fixture_depth'),1)
+                self.put('fixture_key',key)
+                self.assertEqual(self.call('poll_jettison_confirm'),answer)
+                self.assertFalse(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_depth'),0)
+                self.call('cancel_jettison_confirm')
+                self.assertEqual(self.get('fixture_depth'),0)
+            for mouse in (0,65535):
+                self.boot(model);self.call('open_jettison_confirm')
+                self.put('button_pressed',1);self.put('function',mouse)
+                self.put('fixture_key',ord('N') if mouse else ord('Y'))
+                self.assertEqual(self.call('poll_jettison_confirm'),int(bool(mouse)))
+                self.assertFalse(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_depth'),0)
+            for transition in ('docked','game_over','cockpit_on'):
+                self.boot(model);self.call('open_jettison_confirm')
+                self.put('fixture_key',ord('Y'));self.put(transition,1)
+                self.assertEqual(self.call('poll_jettison_confirm'),0)
+                self.assertFalse(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_depth'),0)
+
+    def test_input_router_captures_answers_and_returns_to_main_loop(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for key in (ord('Y'),ord('N'),27):
+                self.boot(model)
+                self.put('button_pressed',1)
+                self.long(self.at('action_ptr'),self.s['open_jettison_confirm'])
+                self.put('fixture_key',ord('Y'))
+                self.call('check_keys')
+                self.assertTrue(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_reads'),0) # no key dispatch after opening
+                self.assertEqual(self.get('fixture_normal_actions'),0)
+                self.put('fixture_key',ord('X'))
+                self.put('frame_count',3);self.put('loop_ctr',7)
+                for _ in range(60):self.call('check_keys')
+                self.assertTrue(self.get('jettison_pending'))
+                self.assertEqual(self.get('frame_count'),3)
+                self.assertEqual(self.get('loop_ctr'),7)
+                self.assertEqual(self.get('fixture_normal_actions'),0)
+                self.put('fixture_key',key);self.call('check_keys')
+                self.assertFalse(self.get('jettison_pending'))
+                self.assertEqual(self.get('fixture_normal_actions'),0)
+                self.assertEqual(self.get('fixture_depth'),0)
+                # A new Y after closing resumes its ordinary binding.
+                self.put('fixture_key',ord('Y'));self.call('check_keys')
+                self.assertEqual(self.get('fixture_normal_actions'),1)
+
+    def test_cancel_preserves_registers_and_is_inert_without_jettison(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for active in (False,True):
+                self.boot(model)
+                if active:self.call('open_jettison_confirm')
+                regs={**{f'd{i}':0xab123000+i for i in range(8)},
+                      **{f'a{i}':0x70000+i*0x100 for i in range(6)}}
+                self.call('cancel_jettison_confirm',**regs)
+                for reg,value in regs.items():
+                    self.assertEqual(self.cpu.reg_read((UC_M68K_REG_D0 if reg[0]=='d' else UC_M68K_REG_A0)+int(reg[1])),value)
+                self.assertEqual(self.get('fixture_depth'),0)
+                self.assertFalse(self.get('jettison_pending'))
 
 if __name__=='__main__':unittest.main()

@@ -18,7 +18,7 @@
 	xref blank_screen,kill_sprites,print_string,block,draw_sprite,polygon
 	xref message,clear_input,clear_image,text_blatt
 	xref set_colour,fx,wait_key,hold_clock,wait,remove_sprite,dot_to_addr
-	xref draw_screen,cockpit,find_bitmap,put_bitmap
+	xref draw_screen,cockpit,find_bitmap,put_bitmap,cancel_jettison_confirm
 
 * --- LOCAL CONSTANTS ----
 
@@ -187,6 +187,7 @@ q_cockpit_m68_3:
 * Subr:  ?
 
 	q_subr prepare_cockpit
+	jsr cancel_jettison_confirm
 
 	st stop_cycle(a6) ; stop colour cycling
 	clr csr_on(a6) ; turn cursor off

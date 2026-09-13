@@ -1422,6 +1422,77 @@ q_bios_m68_98:
 	q_ret return
 
 
+; Only Jettison uses these asynchronous helpers. The ordinary CONFIRM and
+; CONFIRM_YN routines retain their original blocking behaviour.
+	q_subr open_jettison_confirm,global
+	bsr flush_keyboard
+	bsr hide_cursor ; hide the cursor
+	lea temp_spr(a6),a4 ; use other screen for buffer
+	move.l scr_base(a6),d0
+	add #16384,d0
+	move.l flip_screen(a6),d1
+	eor.l d1,d0
+	move.l d0,buffer_ptr(a4)
+	moveq #bit_confirm,d0 ; find error box bitmap
+	jsr find_bitmap
+	move.l a0,data_ptr(a4)
+	move #confirm_x,sp_xpos(a4) ; position box
+	move #confirm_y,sp_ypos(a4)
+	jsr draw_sprite ; display error box
+	lea confirm_table(pc),a0 ; initialise cursor
+	bsr init_cursor
+	st jettison_pending(a6)
+	rts
+
+; Poll once per normal input frame. Do not run or reset game timing here.
+	q_subr poll_jettison_confirm,global
+	tst docked(a6)
+	bne.s .no
+	tst game_over(a6)
+	bne.s .no
+	tst cockpit_on(a6)
+	bne.s .no
+	tst button_pressed(a6)
+	beq.s .key
+	tst function(a6)
+	beq.s .no
+	bra.s .yes
+.key:
+	bsr read_key
+	cmp.b #'Y',d0
+	beq.s .yes
+	cmp.b #'N',d0
+	beq.s .no
+	cmp.b #27,d0
+	beq.s .no
+	moveq #-1,d0
+	rts
+.yes:
+	moveq #1,d0
+	bra.s .answered
+.no:
+	moveq #0,d0
+.answered:
+	bsr cancel_jettison_confirm ; preserves the answer in D0
+	rts
+
+; Close before a screen transition can reuse TEMP_SPR or its saved background.
+; No effect when inactive; preserve registers for all screen-entry callers.
+	q_subr cancel_jettison_confirm,global
+	tst jettison_pending(a6)
+	beq.s .done
+	movem.l d0-d7/a0-a6,-(sp)
+	clr jettison_pending(a6)
+	bsr hide_cursor
+	lea temp_spr(a6),a4
+	jsr remove_sprite
+	bsr restore_cursor
+	bsr restore_cursor
+	bsr flush_keyboard
+	movem.l (sp)+,d0-d7/a0-a6
+.done:
+	rts
+
 * *******************************************
 * **									   **
 * ** INIT_CURSOR - INITIALISE MOUSE CURSOR **
@@ -1677,6 +1748,7 @@ d_0:
 * Subr:   ?
 
 	q_subr prepare_text,global
+	bsr cancel_jettison_confirm
 
 	st stop_cycle(a6) ; stop colour cycling
 	tst cockpit_on(a6) ; cockpit displayed ?

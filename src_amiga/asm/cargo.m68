@@ -24,7 +24,7 @@
 	xref str_len,set_colour,launch,divide_by_1e5,equip_ship,galactic_chart
 	xref local_chart,data,status,disk,find_planet,home_cursor,options
 	xref check_docked,build_name,disp_message
-	xref alloc_object,create_object,confirm_yn,fx
+	xref alloc_object,create_object,open_jettison_confirm,poll_jettison_confirm,fx
 	xref random,fix_unit,calc_yvector
 
 * ---- LOCAL CONSTANTS ----
@@ -707,34 +707,49 @@ q_cargo_m68_44:
 	bsr draw_highlight
 	bsr find_sell
 	cmp #refugees,d1
-	bhs .invalid
+	bhs jettison_invalid_selection
 	tst.l (a4)
-	beq .invalid
-	move d1,-(sp)
+	beq jettison_invalid_selection
+	move d1,jettison_item(a6) ; keep the commodity while combat continues
 	bsr jettison_question
 	bsr cargo_notice
-	jsr confirm_yn
-	move (sp)+,d1
+	jmp open_jettison_confirm ; return to the normal input/game-logic loop
+
+	q_subr poll_jettison,global
+	jsr poll_jettison_confirm ; -1 = waiting, 0 = cancel, 1 = confirm
 	tst d0
+	bmi.s .waiting
 	beq .cancel
-	move d1,d0
+	move jettison_item(a6),d0 ; JETTISON_CARGO rechecks cargo and free slots
 	bsr jettison_cargo
 	tst d0
 	bmi .full
-	beq .invalid
+	beq jettison_invalid_selection
 	q_sfx locked
 	bsr refresh_inventory
 	lea jettison_done(pc),a0
 	bra cargo_notice
+.waiting:
+	rts
 .cancel:
+	tst game_over(a6)
+	bne.s .waiting
+	tst docked(a6)
+	bne.s .waiting
+	tst cockpit_on(a6)
+	bne.s .waiting
+	bsr refresh_inventory ; reflect any cargo lost while the dialog was open
 	jsr clear_input
 	bra no_select
 .full:
 	lea jettison_full(pc),a0
-	bra .error
-.invalid:
+	bra jettison_notice_error
+jettison_invalid_selection:
 	lea jettison_invalid(pc),a0
-.error:
+jettison_notice_error:
+	move.l a0,-(sp)
+	bsr refresh_inventory
+	move.l (sp)+,a0
 	bsr cargo_notice
 	q_sfx error
 	rts

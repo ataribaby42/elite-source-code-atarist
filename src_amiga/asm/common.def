@@ -863,6 +863,8 @@ device: rs.w 1 ; input device, 0=mouse,!0=joystick
 from_mouse: rs.w 1 ; flag  control from mouse
 stop_cycle: rs.w 1 ; flag  stop colour cyling
 check_key: rs.w 1 ; flag  check next key press
+jettison_pending: rs.w 1 ; non-blocking Jettison confirmation is visible
+jettison_item: rs.w 1 ; commodity selected before the live confirmation
 fx_off: rs.w 1 ; flag  kill doors sound effect
 slow_print: rs.w 1 ; flag  print text string slowly
 invisible: rs.w 1 ; flag  object invisible

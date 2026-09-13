@@ -25,6 +25,7 @@
 	xref jammer_toggle,magnification,text_blatt,disp_message,hide_cursor
 	xref restore_cursor,cancel_angles,hacker,start_galactic,fire_retros
 	xref check_inflight,str_copy,str_cat,build_number,text_colour,str_len
+	xref poll_jettison
 
 * Mouse movement threshold limits.
 
@@ -117,6 +118,11 @@ scrolling: rs.w 1 ; flag: message scrolling
 
 	q_subr check_keys,global
 
+	tst jettison_pending(a6)
+	beq.s .normal_input
+	jmp poll_jettison ; consume Y/N exclusively, then let the main loop advance
+.normal_input:
+
 	tst controls_locked(a6) ; controls locked ?
 ; Quelo: 	if <eq> then						no
 	bne q_action_m68_1
@@ -150,6 +156,8 @@ q_action_m68_1:
 	move.w function(a6),d0 ; fetch function # (if any)
 	clr button_pressed(a6) ; allow more key presses
 	jsr (a0) ; execute routine
+	tst jettison_pending(a6) ; just opened: do not dispatch another key
+	q_ret ne
 q_action_m68_5:
 	jsr read_key ; key pressed ?
 	tst d0
