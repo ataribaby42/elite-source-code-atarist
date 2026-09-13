@@ -100,9 +100,23 @@ An enemy's current position and forward orientation determine whether it can
 fire and hit. The firing cone uses the BBC ratio 32/36; the narrower hit cone
 uses 35/36. A ship aimed between those limits fires a visible beam but misses.
 Within the narrower hit cone, each shot also makes a separate accuracy roll:
-80% hit and 20% miss. This additional miss chance is a project-specific change,
-not a rule from BBC Elite. Random bytes 250..255 are retried; values 0..49 miss
-and 50..249 hit, giving 50 misses among 250 equally weighted accepted values.
+the additional miss chance increases with the shooter's distance from the player.
+This is a project-specific change, not a rule from BBC Elite.
+
+| Distance (world units) | Additional miss chance |
+| ---: | ---: |
+| 1,000 or less | 10% |
+| 3,000 | 20% |
+| 5,000 | 30% |
+| 7,000 | 50% |
+
+A 16-byte table stores these four anchors. Each otherwise well-aimed shot
+interpolates between neighbouring anchors, rounding down to 0.5 percentage points;
+for example, 2,000 gives 15%, 4,000 gives 25%, and 6,000 gives 40%.
+There is no additional calculation on frames without an eligible shot. The
+distance is the existing world-space range, independent of scanner zoom or view.
+Random bytes 200..255 are retried; accepted values 0..199 are compared with
+twice the miss percentage. The anchor probabilities are therefore exact.
 Geometric misses do not make this extra roll and can never become hits.
 
 The original firing range, random firing opportunity, cloaking check and control
@@ -167,7 +181,7 @@ dependency. Unrelated world and UI services are stubbed. Tests cover same-frame
 hits in all views, fixed-axis aiming despite visual jitter, per-hit damage,
 original frame-based damage/heat intervals, continuous visuals between hits,
 trigger release/resume, heat limits, pulse persistence and clock wrap, AI aim and
-shield selection, 80/20 accuracy selection and retry handling, preserved miss
+shield selection, distance-based accuracy across the firing range and retry handling, preserved miss
 visuals, both AI firing sound settings, preserved player/impact sounds, damage multipliers, shield overflow into energy, every ship's
 muzzle projection, and guarded raster buffers. Both player beam styles are
 checked against filled-triangle pixel references, including bottom-edge coverage,

@@ -65,7 +65,7 @@ class LaserTests(unittest.TestCase):
         groups = {
             'combat': ['fire', 'laser_in_sights', 'check_hit', 'reduce_shields', 'reduce_energy'],
             'special': ['draw_lasers', 'draw_laser_wedge', 'draw_ai_laser'],
-            'logic': ['ai_laser_aim', 'do_attack'],
+            'logic': ['ai_laser_aim', 'ai_laser_miss_threshold', 'do_attack'],
             'main': ['game_logic'],
             'vector': ['transform', 'calc_yvector'] +
                       [f'{size}_swap_{view}' for view in VIEWS for size in ('w', 'l')],
@@ -512,7 +512,7 @@ peel_off_check:
             self.assertEqual(self.damage_calls, [])
             self.assertTrue(self.read('ai_laser', True))
 
-    def test_ai_accuracy_is_80_20_and_respects_firing_sound_option(self):
+    def test_ai_distance_accuracy_and_respects_firing_sound_option(self):
         # Exercise every possible accuracy byte in the actual attack routine.
         # Keep the real bounded-damage roll and multiplier; replace only random
         # bytes, checking the exact draw count, visible line and requested sounds.
@@ -534,40 +534,106 @@ peel_off_check:
                         cpu.reg_write(UC_M68K_REG_PC, destination)
                     self.cpu.hook_add(UC_HOOK_CODE, random_value,
                                       begin=self.symbols['random'], end=self.symbols['random'])
-                    accepted_hits, accepted_misses = 0, 0
-                    for raw in range(256):
-                        hit = raw >= 50
-                        random_values[:] = [0, raw]
-                        if raw >= 250:
-                            random_values.extend([255, 50]) # retry twice, then hit
-                        if hit:
-                            random_values.extend([0] if kind == 'constr' else [0, 0, 0])
-                        self.var(side, 24)
-                        self.var('energy', 96)
-                        self.var('shields_fx', 0)
-                        self.obj('ai_laser', 0)
-                        self.damage_calls.clear()
-                        self.sound_calls.clear()
-                        self.call('do_attack')
-                        self.assertEqual(random_values, [])
-                        damage = (12 if kind == 'constr' else 2) if hit else 0
-                        self.assertEqual(self.damage_calls, [damage] if hit else [])
-                        self.assertEqual(self.read(side), 24 - damage)
-                        self.assertEqual(self.read(other), 24)
-                        self.assertEqual(self.read('energy'), 96)
-                        self.assertTrue(self.read('ai_laser', True))
-                        sounds = ([self.symbols['sfx_shields']] if hit else [])
-                        if self.ai_fire_sound:
-                            sounds.append(self.symbols['sfx_laser'])
-                        self.assertEqual(self.sound_calls, sounds)
-                        if raw < 250:
-                            accepted_hits += hit
-                            accepted_misses += not hit
-                        if raw in (0, 49, 50, 249, 250, 255):
-                            self.lines.clear()
-                            self.call('draw_ai_laser')
-                            self.assertEqual(len(self.lines), 1)
-                    self.assertEqual((accepted_hits, accepted_misses), (200, 50))
+                    for distance, threshold in ((500, 20), (1000, 20), (2000, 30),
+                                                (3000, 40), (4000, 50), (5000, 60),
+                                                (6000, 80), (7000, 100)):
+                        self.obj('obj_range', distance, 4)
+                        self.obj('zpos', -distance if behind else distance, 4)
+                        self.obj('this_zpos', distance, 4)
+                        accepted_hits, accepted_misses = 0, 0
+                        for raw in range(256):
+                            hit = raw >= threshold
+                            random_values[:] = [0, raw]
+                            if raw >= 200:
+                                random_values.extend([255, threshold]) # retry twice, then hit
+                            if hit:
+                                random_values.extend([0] if kind == 'constr' else [0, 0, 0])
+                            self.var(side, 24)
+                            self.var('energy', 96)
+                            self.var('shields_fx', 0)
+                            self.obj('ai_laser', 0)
+                            self.damage_calls.clear()
+                            self.sound_calls.clear()
+                            self.call('do_attack')
+                            self.assertEqual(random_values, [])
+                            damage = (12 if kind == 'constr' else 2) if hit else 0
+                            self.assertEqual(self.damage_calls, [damage] if hit else [])
+                            self.assertEqual(self.read(side), 24 - damage)
+                            self.assertEqual(self.read(other), 24)
+                            self.assertEqual(self.read('energy'), 96)
+                            self.assertTrue(self.read('ai_laser', True))
+                            sounds = ([self.symbols['sfx_shields']] if hit else [])
+                            if self.ai_fire_sound:
+                                sounds.append(self.symbols['sfx_laser'])
+                            self.assertEqual(self.sound_calls, sounds)
+                            if raw < 200:
+                                accepted_hits += hit
+                                accepted_misses += not hit
+                            if raw in (0, threshold - 1, threshold, 199, 200, 255):
+                                self.lines.clear()
+                                self.call('draw_ai_laser')
+                                self.assertEqual(len(self.lines), 1)
+                        self.assertEqual((accepted_hits, accepted_misses), (200 - threshold, threshold))
+
+    def test_ai_distance_curve_is_monotonic_and_preserves_state(self):
+        # Every world-unit distance, not just the table anchors; execute the
+        # actual 68000 helper with code/table pages protected against writes.
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            self.prepare(model)
+            self.cpu.reg_write(UC_M68K_REG_D3, 0x12345678)
+            previous = 20
+            seed = self.read('random_seed', size=4)
+            for distance in range(0, 7101):
+                self.obj('obj_range', distance, 4)
+                record = bytes(self.cpu.mem_read(self.ship, self.symbols['obj_len']))
+                self.call('ai_laser_miss_threshold')
+                actual = self.cpu.reg_read(UC_M68K_REG_D2) & 65535
+                expected = (20 + max(0, distance - 1000) // 100 if distance <= 5000
+                            else min(100, 60 + (distance - 5000) // 50))
+                self.assertEqual(actual, expected, distance)
+                self.assertLessEqual(previous, actual)
+                previous = actual
+                self.assertEqual(self.cpu.reg_read(UC_M68K_REG_D3), 0x12345678)
+                self.assertEqual(self.cpu.reg_read(UC_M68K_REG_A5), self.ship)
+                self.assertEqual(self.cpu.reg_read(UC_M68K_REG_A6), VARIABLES)
+                self.assertEqual(bytes(self.cpu.mem_read(self.ship, self.symbols['obj_len'])), record)
+            self.assertEqual(self.read('random_seed', size=4), seed)
+
+    def test_ai_mood_gate_and_geometric_misses_skip_distance_roll(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            self.prepare(model)
+            self.aim(0)
+            calls = []
+            def trace(cpu, address, size, user):
+                calls.append(address)
+            self.cpu.hook_add(UC_HOOK_CODE, trace, begin=self.symbols['ai_laser_miss_threshold'],
+                              end=self.symbols['ai_laser_miss_threshold'])
+            def random_value(cpu, address, size, user):
+                # A firing-opportunity roll of 128 must fail below mood 128,
+                # but pass at mood 128 exactly, whatever the distance.
+                sp = cpu.reg_read(UC_M68K_REG_A7)
+                destination = int.from_bytes(cpu.mem_read(sp, 4), 'big')
+                cpu.reg_write(UC_M68K_REG_D0, 128)
+                cpu.reg_write(UC_M68K_REG_A7, sp + 4)
+                cpu.reg_write(UC_M68K_REG_PC, destination)
+            self.cpu.hook_add(UC_HOOK_CODE, random_value,
+                              begin=self.symbols['random'], end=self.symbols['random'])
+            for distance in (1000, 3000, 5000, 7000):
+                for angle, mood, fires, rolls in ((0, 127, False, 0), (0, 128, True, 1),
+                                                (20, 255, True, 0), (40, 255, False, 0)):
+                    self.aim(angle)
+                    self.obj('obj_range', distance, 4)
+                    self.obj('zpos', distance, 4)
+                    self.obj('mood', mood)
+                    self.obj('ai_laser', 0)
+                    self.damage_calls.clear()
+                    calls.clear()
+                    self.var('front_shield', 24)
+                    self.var('energy', 96)
+                    self.call('do_attack')
+                    self.assertEqual(bool(self.read('ai_laser', True)), fires)
+                    self.assertEqual(len(calls), rolls)
+                    self.assertEqual(bool(self.damage_calls), bool(rolls))
 
     def test_ai_respects_range_cloaking_and_control_locks(self):
         for variable, value, obj in [('obj_range', 7001, True),

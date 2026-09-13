@@ -406,6 +406,40 @@ q_logic_m68_33:
 .done:
 	rts
 
+; Additional miss threshold out of 200, returned in D2 for the accuracy roll.
+; Only called for an otherwise well-aimed shot, never on every flight frame.
+; Interpolate the four distance anchors, rounding down to half a percentage point.
+; Clobbers D0/D1/D2/A0; random preserves D2. All other registers are unchanged.
+	q_subr ai_laser_miss_threshold
+
+	move.l obj_range(a5),d0
+	moveq #20,d2
+	cmp.l #1000,d0
+	ble.s .done
+	moveq #100,d2
+	cmp.l #7000,d0
+	bhs.s .done
+	lea .distance_miss+4(pc),a0 ; first upper endpoint is 3000
+.interval:
+	cmp.w (a0),d0
+	bls.s .interpolate
+	addq.l #4,a0
+	bra.s .interval
+.interpolate:
+	move.w -2(a0),d1 ; lower endpoint's miss threshold
+	move.w 2(a0),d2
+	sub.w d1,d2 ; threshold increase over this 2000-unit interval
+	sub.w -4(a0),d0 ; distance beyond the lower endpoint
+	mulu.w d2,d0
+	divu.w #2000,d0
+	move.w d1,d2
+	add.w d0,d2
+.done:
+	rts
+
+.distance_miss:
+	dc.w 1000,20,3000,40,5000,60,7000,100 ; 10%, 20%, 30%, 50%
+
 	q_subr do_attack
 
 	bset #angry,flags(a5) ; angry with player
@@ -433,11 +467,12 @@ q_logic_m68_35:
 	st ai_laser(a5)
 	cmp.w #2,d0
 	bne.s .laser_sound
+	bsr ai_laser_miss_threshold ; distance-dependent chance, D2 survives random
 .accuracy_roll:
-	jsr random ; even a well-aimed shot has a separate 20% chance to miss
-	cmp.w #250,d0
-	bhs.s .accuracy_roll ; 250 accepted values: exactly 50/250 misses
-	cmp.w #50,d0
+	jsr random
+	cmp.w #200,d0
+	bhs.s .accuracy_roll ; reject 200..255 for 200 equally weighted outcomes
+	cmp.w d2,d0
 	blo.s .laser_sound ; keep the beam and optional firing sound, skip all damage
 	cmp #constr,type(a5)
 	bne.s .ordinary_power
