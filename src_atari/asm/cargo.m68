@@ -24,6 +24,8 @@
 	xref str_len,set_colour,launch,divide_by_1e5,equip_ship,galactic_chart
 	xref local_chart,data,status,disk,find_planet,home_cursor,options
 	xref check_docked,build_name,disp_message
+	xref alloc_object,create_object,confirm_yn,fx
+	xref random,fix_unit,calc_yvector
 
 * ---- LOCAL CONSTANTS ----
 
@@ -46,6 +48,7 @@ xc2: rs.w 1
 yc2: rs.w 1
 selected: rs.w 1 ; flag: cargo item selected
 max_cargo: rs.w 1 ; maximum cargo item to be sold
+cargo_items: rs.b max_products ; commodity behind each displayed icon
 
 	q_end_vars cargo
 
@@ -277,6 +280,8 @@ q_cargo_m68_11:
 	lea text20(pc),a0 ; display message in cockpit
 	jmp disp_message ; (and return)
 q_cargo_m68_9:
+
+	q_subr refresh_inventory
 	jsr prepare_text ; prepare text screen
 	lea text21(pc),a0 ; print 'Inventory'
 	moveq #title_y,d1
@@ -313,11 +318,14 @@ q_cargo_m68_9:
 	q_loop 1,max_products
 	tst.l (a5) ; carrying this item ?
 ; Quelo: 		if <ne> then.s					yes
-	beq.s q_cargo_m68_13
+	beq q_cargo_m68_13
 	q_push.w d7 ; draw cargo icon
 	q_push.l a5
 	moveq #max_products-1,d0
 	sub d7,d0
+	lea cargo_items(a6),a0
+	move this_cargo(a6),d1
+	move.b d0,(a0,d1) ; remember the displayed commodity if cargo is lost in combat
 	q_push d0
 	add #bit_cargo,d0
 	jsr find_bitmap
@@ -676,6 +684,253 @@ q_cargo_m68_44:
 	rts
 
 
+; Inventory keeps its normal single-click description. A double click in
+; flight offers up to one tonne, with the commodity saved across the dialog.
+
+	q_subr s_inventory
+	cmp max_cargo(a6),d0
+	bhs no_select
+	move this_cargo(a6),-(sp)
+	move d0,this_cargo(a6)
+	bsr find_sell
+	move this_cargo(a6),d0
+	move (sp)+,this_cargo(a6) ; leave the previous highlight available to erase
+	tst.l (a4)
+	beq refresh_inventory ; live combat may have removed the displayed item
+	bra display_sell
+
+	q_subr d_inventory
+	tst docked(a6)
+	bne display_sell
+	cmp max_cargo(a6),d0
+	bhs no_select
+	bsr draw_highlight
+	bsr find_sell
+	cmp #refugees,d1
+	bhs .invalid
+	tst.l (a4)
+	beq .invalid
+	move d1,-(sp)
+	bsr jettison_question
+	bsr cargo_notice
+	jsr confirm_yn
+	move (sp)+,d1
+	tst d0
+	beq .cancel
+	move d1,d0
+	bsr jettison_cargo
+	tst d0
+	bmi .full
+	beq .invalid
+	q_sfx locked
+	bsr refresh_inventory
+	lea jettison_done(pc),a0
+	bra cargo_notice
+.cancel:
+	jsr clear_input
+	bra no_select
+.full:
+	lea jettison_full(pc),a0
+	bra .error
+.invalid:
+	lea jettison_invalid(pc),a0
+.error:
+	bsr cargo_notice
+	q_sfx error
+	rts
+
+; A4 = selected hold entry, D1.W = commodity. A0 = exact-quantity prompt.
+; D0-D4/D7/A0-A1 corrupt. No rounding: use kg only for whole kilograms.
+	q_subr jettison_question
+	move d1,-(sp)
+	lea jettison_prompt(pc),a0
+	lea pad(a6),a1
+	jsr str_copy
+	lea -1(a1),a0
+	move.l (a4),d0
+	moveq #0,d4 ; tonnes
+	cmp.l #1000000,d0
+	blo .smaller
+	moveq #1,d0
+	bra .number
+.smaller:
+	moveq #2,d4 ; grams unless the kilogram division is exact
+	move.l d0,d2
+	divu #1000,d2 ; quotient <= 999, safe on 68000
+	swap d2
+	tst d2
+	bne .number
+	swap d2
+	move.l d2,d0
+	moveq #1,d4 ; kilograms
+.number:
+	moveq #0,d1
+	jsr build_number
+	lea -1(a0),a1
+	move d4,d0
+	lea units_table(pc),a0
+	jsr find_table
+	jsr str_copy
+	move.b #' ',-1(a1)
+	move (sp)+,d0
+	lea product_list,a0
+	jsr find_table
+	jsr str_copy
+	lea pad(a6),a0
+	rts
+
+	q_subr cargo_notice
+	jsr clear_input
+	move #prompt_y,d1
+	jmp print_centre
+
+; D0.W = commodity index; D0.W = 1 success, 0 ineligible, -1 no free slot.
+; All other registers preserved. No cargo, counters or legal status change on
+; failure. Deferred removal still owns its slot until REMOVE_OBJECTS runs.
+	q_subr jettison_cargo
+	movem.l d1-d7/a0-a5,-(sp)
+	tst docked(a6)
+	bne .invalid
+	cmp #refugees,d0
+	bhs .invalid
+	move d0,d6
+	lsl #2,d0
+	lea hold(a6),a3
+	adda.w d0,a3
+	move.l (a3),d5
+	beq .invalid
+	cmp.l #1000000,d5
+	bls .amount_ready
+	move.l #1000000,d5
+.amount_ready:
+	jsr alloc_object
+	bcc .full
+	move.l a4,a0
+	move #obj_len/2-1,d7
+.clear:
+	clr.w (a0)+
+	dbra d7,.clear
+	move.b #(1<<in_use)|(1<<no_bounty),flags(a4)
+	move.l #-400,zpos(a4) ; aft, beyond the canister's 150-unit collision radius
+	move #barrel,type(a4)
+	move #log_twisting,logic(a4)
+	jsr create_object
+	bsr jettison_motion
+	move d6,cargo_type(a4) ; CREATE_OBJECT loads the ordinary barrel header first
+	move.l d5,cargo_mass(a4) ; preserve the exact payload, including kg/g remainders
+	sub.l d5,(a3)
+	bsr jettison_penalty
+	moveq #1,d0
+	bra .done
+.full:
+	moveq #-1,d0
+	bra .done
+.invalid:
+	moveq #0,d0
+.done:
+	movem.l (sp)+,d1-d7/a0-a5
+	rts
+
+; A4 = newly created canister. All registers preserved.
+; Choose a rearward direction within 35.3 degrees of straight aft. Build an
+; orthonormal model basis so tumbling does not distort the canister or its path.
+	q_subr jettison_motion
+	movem.l d0-d3/d7/a0/a5,-(sp)
+	jsr random
+	sub #128,d0
+	asl #6,d0
+	move d0,z_vector+i(a4)
+	jsr random
+	sub #128,d0
+	asl #6,d0
+	move d0,z_vector+j(a4)
+	move #-unit,z_vector+k(a4) ; negative Z guarantees rearward drift
+	lea z_vector(a4),a0
+	jsr fix_unit
+	move z_vector+k(a4),x_vector+i(a4)
+	clr x_vector+j(a4)
+	move z_vector+i(a4),d0
+	neg d0
+	move d0,x_vector+k(a4) ; perpendicular to Z, never a zero vector
+	lea x_vector(a4),a0
+	jsr fix_unit
+	move.l a4,a5
+	bclr #yvector_ok,flags(a5)
+	jsr calc_yvector
+	jsr random
+	and #3,d0
+	addq #3,d0 ; slow but nonzero: 3..6 world units per movement step
+	move d0,velocity(a4)
+	move d0,vel_max(a4) ; twisting/cruise logic must not accelerate back to 11
+	bsr jettison_orientation
+	movem.l (sp)+,d0-d3/d7/a0/a5
+	rts
+
+; A4 = canister with an orthonormal basis. All registers preserved.
+; Choose a random roll around the flight axis without changing Z or velocity.
+; A random nonzero linear combination of X/Y followed by normalization covers
+; the full turn without extending the game's limited-angle trig table.
+	q_subr jettison_orientation
+	movem.l d0-d4/d7/a0-a1/a5,-(sp)
+	jsr random
+	sub #128,d0
+	move d0,d3
+	jsr random
+	sub #128,d0
+	move d0,d4
+	or d3,d0
+	bne .coefficients
+	moveq #1,d3 ; avoid a zero vector when both random coefficients are zero
+.coefficients:
+	move d3,d0
+	bpl .abs_first
+	neg d0
+.abs_first:
+	move d4,d1
+	bpl .abs_second
+	neg d1
+.abs_second:
+	or d1,d0
+.precision:
+	cmp #64,d0 ; avoid normalizing a tiny vector after integer rounding
+	bhs .basis
+	add d3,d3
+	add d4,d4
+	add d0,d0
+	bra .precision
+.basis:
+	lea x_vector(a4),a0
+	lea y_vector(a4),a1
+	moveq #2,d7
+.component:
+	move (a0),d0
+	muls d3,d0
+	move (a1)+,d1
+	muls d4,d1
+	add.l d1,d0
+	asr.l #7,d0 ; keep the result inside a signed word before normalization
+	move d0,(a0)+
+	dbra d7,.component
+	lea x_vector(a4),a0
+	jsr fix_unit
+	move.l a4,a5
+	bclr #yvector_ok,flags(a5)
+	jsr calc_yvector
+	movem.l (sp)+,d0-d4/d7/a0-a1/a5
+	rts
+
+; Same 0..255 legal scale and 50-point Fugitive threshold as C64 Unbound.
+	q_subr jettison_penalty
+	tst radar_obj(a6)
+	beq .done
+	tst splanet+govern(a6) ; Anarchy does not police dumping
+	beq .done
+	add.b #15,police_record+1(a6)
+	bcc .done
+	move #255,police_record(a6)
+.done:
+	rts
+
 * *******************************************************
 * **												   **
 * ** DRAW_HIGHLIGHT - DRAW HIGHLIGHT AROUND CARGO ITEM **
@@ -689,6 +944,7 @@ q_cargo_m68_44:
 
 * Regs: ?
 * Subr: ?
+
 
 	q_subr draw_highlight
 
@@ -920,25 +1176,19 @@ q_cargo_m68_53:
 *		 A5 = ptr: products record
 *		 D1 = index #
 
-* Regs: D0-D2/A4/A5 corrupt.
+* Regs: D0-D2/A0/A4/A5 corrupt.
 * Subr: None
 
 	q_subr find_sell
 
-	lea hold(a6),a4 ; search for cargo hold record
-	moveq #-1,d0
-	moveq #-1,d1
-q_cargo_m68_55:
-q_cargo_m68_57:
-	q_inc d1
-	tst.l (a4)+
-	beq q_cargo_m68_57
-q_cargo_m68_58:
-	q_inc d0
-	cmp this_cargo(a6),d0
-	bne q_cargo_m68_55
-q_cargo_m68_56:
-	subq.l #4,a4
+	move this_cargo(a6),d0
+	lea cargo_items(a6),a0
+	moveq #0,d1
+	move.b (a0,d0),d1 ; use the displayed icon, not a fresh scan of live cargo
+	move d1,d2
+	lsl #2,d2
+	lea hold(a6),a4
+	adda.w d2,a4
 	move d1,d2 ; index into products array
 	mulu #product_len,d2
 	lea products(a6),a5
@@ -1217,24 +1467,24 @@ prices_action_table:
 
 inventory_action_table:
 
-	q_action cargo_x,cargo_y,cargo_x+39,cargo_y+39,0,0,display_sell
-	q_action cargo_x+48,cargo_y,cargo_x+87,cargo_y+39,1,0,display_sell
-	q_action cargo_x+96,cargo_y,cargo_x+135,cargo_y+39,2,0,display_sell
-	q_action cargo_x+144,cargo_y,cargo_x+183,cargo_y+39,3,0,display_sell
-	q_action cargo_x+192,cargo_y,cargo_x+231,cargo_y+39,4,0,display_sell
-	q_action cargo_x+240,cargo_y,cargo_x+279,cargo_y+39,5,0,display_sell
-	q_action cargo_x,cargo_y+48,cargo_x+39,cargo_y+87,6,0,display_sell
-	q_action cargo_x+48,cargo_y+48,cargo_x+87,cargo_y+87,7,0,display_sell
-	q_action cargo_x+96,cargo_y+48,cargo_x+135,cargo_y+87,8,0,display_sell
-	q_action cargo_x+144,cargo_y+48,cargo_x+183,cargo_y+87,9,0,display_sell
-	q_action cargo_x+192,cargo_y+48,cargo_x+231,cargo_y+87,10,0,display_sell
-	q_action cargo_x+240,cargo_y+48,cargo_x+279,cargo_y+87,11,0,display_sell
-	q_action cargo_x,cargo_y+96,cargo_x+39,cargo_y+135,12,0,display_sell
-	q_action cargo_x+48,cargo_y+96,cargo_x+87,cargo_y+135,13,0,display_sell
-	q_action cargo_x+96,cargo_y+96,cargo_x+135,cargo_y+135,14,0,display_sell
-	q_action cargo_x+144,cargo_y+96,cargo_x+183,cargo_y+135,15,0,display_sell
-	q_action cargo_x+192,cargo_y+96,cargo_x+231,cargo_y+135,16,0,display_sell
-	q_action cargo_x+240,cargo_y+96,cargo_x+279,cargo_y+135,17,0,display_sell
+	q_action cargo_x,cargo_y,cargo_x+39,cargo_y+39,0,1,inventory
+	q_action cargo_x+48,cargo_y,cargo_x+87,cargo_y+39,1,1,inventory
+	q_action cargo_x+96,cargo_y,cargo_x+135,cargo_y+39,2,1,inventory
+	q_action cargo_x+144,cargo_y,cargo_x+183,cargo_y+39,3,1,inventory
+	q_action cargo_x+192,cargo_y,cargo_x+231,cargo_y+39,4,1,inventory
+	q_action cargo_x+240,cargo_y,cargo_x+279,cargo_y+39,5,1,inventory
+	q_action cargo_x,cargo_y+48,cargo_x+39,cargo_y+87,6,1,inventory
+	q_action cargo_x+48,cargo_y+48,cargo_x+87,cargo_y+87,7,1,inventory
+	q_action cargo_x+96,cargo_y+48,cargo_x+135,cargo_y+87,8,1,inventory
+	q_action cargo_x+144,cargo_y+48,cargo_x+183,cargo_y+87,9,1,inventory
+	q_action cargo_x+192,cargo_y+48,cargo_x+231,cargo_y+87,10,1,inventory
+	q_action cargo_x+240,cargo_y+48,cargo_x+279,cargo_y+87,11,1,inventory
+	q_action cargo_x,cargo_y+96,cargo_x+39,cargo_y+135,12,1,inventory
+	q_action cargo_x+48,cargo_y+96,cargo_x+87,cargo_y+135,13,1,inventory
+	q_action cargo_x+96,cargo_y+96,cargo_x+135,cargo_y+135,14,1,inventory
+	q_action cargo_x+144,cargo_y+96,cargo_x+183,cargo_y+135,15,1,inventory
+	q_action cargo_x+192,cargo_y+96,cargo_x+231,cargo_y+135,16,1,inventory
+	q_action cargo_x+240,cargo_y+96,cargo_x+279,cargo_y+135,17,1,inventory
 	include "icons.m68"
 	dc.w -1
 	dc.l no_select
@@ -1270,3 +1520,9 @@ text18: dc.b 'Sorry - you can''t sell those!',0
 text19: dc.b ' Market Prices',0
 text20: dc.b 'Cargo hold is empty!',0
 text21: dc.b 'Cargo Hold Inventory',0
+
+	even
+jettison_prompt: dc.b 'Jettison ',0
+jettison_done: dc.b 'Cargo jettisoned.',0
+jettison_full: dc.b 'No room for another cargo canister.',0
+jettison_invalid: dc.b 'That cargo cannot be jettisoned.',0

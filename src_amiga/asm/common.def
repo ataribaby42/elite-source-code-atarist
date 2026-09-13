@@ -81,7 +81,7 @@ orbit_vsize: equ 16
 radar_vsize: equ 16
 combat_vsize: equ 16
 special_vsize: equ 16
-cargo_vsize: equ 16
+cargo_vsize: equ 18
 equip_vsize: equ 16
 pdata_vsize: equ 16
 options_vsize: equ 16
@@ -465,6 +465,8 @@ pre_attack: rs.w 1 ; pre-attack health
 next_logic: rs.w 1 ; next logic to perform
 ai_laser: rs.w 1 ; flag  enemy fired a laser in this game frame
 registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
+
+cargo_mass: rs.l 1 ; exact jettison payload in grams; 0 = normal random salvage
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data

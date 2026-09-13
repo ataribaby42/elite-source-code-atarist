@@ -77,6 +77,10 @@ The link map is in `src_atari/build/elite.map`; verification results and output 
 
 Alternate retains its original hyperspace shortcut and does not fire the laser.
 
+## Jettison cargo
+
+In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.
+
 ## Verification
 
 Tests and original-file verification can be run independently:

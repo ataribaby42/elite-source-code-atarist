@@ -1359,7 +1359,16 @@ q_bios_m68_96:
 * Regs: ?
 * Subr: ?
 
+; Jettison uses the existing panel with Y/N/Esc keyboard input as well.
+	q_subr confirm_yn,global
+	bsr flush_keyboard
+	moveq #1,d0
+	bra.s confirm_start
+
 	q_subr confirm,global
+	moveq #0,d0 ; existing callers retain mouse-only behaviour
+confirm_start:
+	move d0,-(sp)
 
 	bsr hide_cursor ; hide the cursor
 	lea temp_spr(a6),a4 ; use other screen for buffer
@@ -1379,8 +1388,23 @@ q_bios_m68_96:
 q_bios_m68_97:
 	jsr amiga_poll
 	tst button_pressed(a6)
+	bne.s q_bios_m68_98
+	tst.w (sp)
 	beq q_bios_m68_97
+	bsr read_key
+	cmp.b #'Y',d0
+	beq.s confirm_yes
+	cmp.b #'N',d0
+	beq.s confirm_no
+	cmp.b #27,d0
+	bne q_bios_m68_97
+confirm_no:
+	clr function(a6)
+	bra.s q_bios_m68_98
+confirm_yes:
+	move #-1,function(a6)
 q_bios_m68_98:
+	addq.l #2,sp
 	q_push function(a6) ; save function #
 	clr button_pressed(a6) ; clear button press
 	bsr hide_cursor ; remove confirm panel

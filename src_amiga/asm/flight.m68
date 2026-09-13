@@ -1274,6 +1274,8 @@ q_flight_m68_165:
 	lea text6(pc),a0
 	bra q_flight_m68_168
 q_flight_m68_167:
+	tst.l cargo_mass(a5)
+	bne salvage_exact
 	mulu #product_len,d0 ; find size of one unit
 	lea products(a6),a4
 	move units(a4,d0),d0
@@ -1297,6 +1299,7 @@ q_flight_m68_169:
 	bne q_flight_m68_169
 q_flight_m68_170:
 	q_pop d1 ; check for illegal goods
+salvage_legal:
 	q_push.l a5
 	move cargo_type(a5),d0
 	mulu #product_len,d0
@@ -1315,6 +1318,20 @@ q_flight_m68_168:
 	st salvage_ok(a6) ; salvage is ok
 
 	q_ret return
+
+salvage_exact:
+	jsr cargo_spare
+	tst.l d3
+	q_ret mi ; reject an already overfull hold
+	move.l cargo_mass(a5),d4
+	cmp.l d4,d3
+	q_ret lo ; require room for the whole payload, without discarding a remainder
+	move cargo_type(a5),d1
+	lsl #2,d1
+	lea hold(a6),a0
+	add.l d4,(a0,d1)
+	moveq #1,d1 ; at most one tonne; all illegal commodities use tonne units
+	bra salvage_legal
 
 
 ; *************************

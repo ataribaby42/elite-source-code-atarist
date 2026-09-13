@@ -2,6 +2,8 @@
 
 Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `src_atari`, a separate native Amiga port in `src_amiga`, and the preserved original Atari ST version in `src_orig`. All three use **vasm 2.0f and vlink 0.18a** with independent source trees and build scripts. The untouched historical sources remain in `resources/elite_atarist_source.zip`; no build uses the old `.LTX` object files.
 
+During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
+
 ## Building on Windows
 
 You need **Windows x64 and Python 3.10 or later**, with no additional Python packages. The **vasm 2.0f assembler** (`vasmm68k_mot.exe`, MC68000 with Motorola syntax) and **vlink 0.18a linker** (`vlink.exe`) are bundled as compiled Windows executables in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
