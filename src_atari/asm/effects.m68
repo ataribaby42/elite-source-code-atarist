@@ -184,6 +184,10 @@ q_effects_m68_4:
 	jsr text_blatt
 	jsr update_inst ; update any instruments
 	jsr swap_screen ; swap to other screen
+; Frame time is measured from CLEAR_IMAGE, not from this wait.
+end_game_frame_wait:
+	cmp #3,frame_count(a6)
+	blo.s end_game_frame_wait
 	jsr remove_objects ; remove any flagged objects
 	btst #in_use,objects+flags(a6) ; until explosion over
 	bne q_effects_m68_1
@@ -313,6 +317,10 @@ q_effects_m68_11:
 	jsr text_blatt
 	jsr draw_sight ; draw laser sight
 	jsr swap_screen ; swap screens
+; Frame time is measured from CLEAR_IMAGE, not from this wait.
+launch_frame_wait:
+	cmp #3,frame_count(a6)
+	blo.s launch_frame_wait
 	jsr remove_objects ; remove flagged objects
 	tst create_tunnel(a6) ; leaving docking bay over ?
 ; Quelo: 		if <ne> then.s					yes
@@ -786,12 +794,11 @@ q_effects_m68_43:
 	bne.s q_effects_m68_45
 	bsr new_circle ; create a new circle
 q_effects_m68_45:
-	ifne 0
+; Same elapsed-frame limit as GAME_LOGIC; both jump types use this loop.
 q_effects_m68_47:
 	cmp #3,frame_count(a6)
 	blo q_effects_m68_47
 q_effects_m68_48:
-	endc
 	tst hyperspace_over(a6) ; until effect over
 	beq q_effects_m68_39
 q_effects_m68_40:
@@ -953,6 +960,10 @@ q_effects_m68_59:
 	jsr text_blatt
 	jsr draw_sight ; draw laser sight
 	jsr swap_screen ; swap screens
+; Frame time is measured from CLEAR_IMAGE, not from this wait.
+docking_frame_wait:
+	cmp #3,frame_count(a6)
+	blo.s docking_frame_wait
 	jsr remove_objects ; remove flagged objects
 	tst black_count(a6) ; in initial black stage ?
 ; Quelo: 		if <ne> then.s					yes

@@ -71,6 +71,10 @@ The build automatically recalculates the new binary's checksum and assembles the
 The link map is in `src_atari/build/elite.map`; verification results and output SHA-256 hashes are in `src_atari/build/verification.json`. See [ANALYSIS.md](ANALYSIS.md) for the memory layout, original architecture, and conversion details.
 
 
+## Animation timing
+
+The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. Both hyperspace types use a five-second PAL timer (250 VBLs), followed by the final circle passing through the view. The timer is independent of the Effects setting on both platforms.
+
 ## Flight controls
 
 `A`, left `Shift` and right `Shift` fire the player laser on Atari ST, with either mouse or joystick selected. Holding multiple fire keys does not increase the firing rate, and releasing one continues firing while another remains held. The Shift keys provide additional bindings to try with two simultaneous steering keys on the original keyboard.

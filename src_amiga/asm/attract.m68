@@ -184,6 +184,10 @@ q_attract_m68_10:
 	jsr draw_all
 	jsr update_inst ; update instruments
 	jsr swap_screen ; swap screen
+; Use elapsed VBLs, as in GAME_LOGIC: slow frames do not wait again.
+attract_frame_wait:
+	cmp #3,frame_count(a6)
+	blo.s attract_frame_wait
 	tst fading(a6) ; fading ?
 ; Quelo: 		if <ne> then.s					yes
 	beq.s q_attract_m68_11

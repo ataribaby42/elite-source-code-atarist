@@ -14,7 +14,7 @@ fx:
     bne .return
     cmp.w #sfx_hyperspace,d0
     bne .enabled
-    move.w #465,warp_ticks      ; hyperspace duration in PAL vertical blanks
+    move.w #250,warp_ticks      ; five seconds at PAL 50 Hz
     st end_hyperspace(a6)
 .enabled:
     btst #f_fx,user(a6)

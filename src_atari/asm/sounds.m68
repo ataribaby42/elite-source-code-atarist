@@ -107,6 +107,7 @@ hold_sound: rs.w 1 ; Flag: hold sounds from interrupts
 fade_out: rs.w 1 ; flag: fade out the music
 beam_kind: rs.w 1 ; active continuous laser type
 beam_channel: rs.l 1 ; channel reserved for the continuous laser
+warp_ticks: rs.w 1 ; hyperspace timer, independent of Effects and sound channels
 
 	q_end_vars sounds
 
@@ -277,6 +278,11 @@ q_sounds_m68_1:
 
 	q_subr fx,global
 
+	cmp.w #sfx_hyperspace,d0
+	bne.s .enabled
+	move.w #250,warp_ticks(a6) ; five seconds at PAL, even with Effects OFF
+	st end_hyperspace(a6)
+.enabled:
 	btst #f_fx,user(a6) ; effects enabled ?
 	q_ret eq ; no, return
 	cmp #1,sound_type(a6) ; music playing ?
@@ -403,6 +409,12 @@ q_sounds_m68_5:
 
 	q_subr sound,global
 
+	tst warp_ticks(a6)
+	beq.s .audio
+	subq.w #1,warp_ticks(a6)
+	bne.s .audio
+	clr end_hyperspace(a6)
+.audio:
 	st fx_done(a6) ; effects done
 	tst hold_sound(a6) ; sounds held ?
 	q_ret ne ; yes, return
@@ -877,6 +889,8 @@ q_sounds_m68_37:
 
 	q_subr quiet,global
 
+	clr warp_ticks(a6)
+	clr end_hyperspace(a6)
 	st hold_sound(a6) ; hold sounds from interrupts
 	clr laser_audio_request(a6)
 	clr beam_kind(a6)
@@ -1676,9 +1690,10 @@ do_missile:
 
 	set_fx envelope,8,ramp_size ; Intialise effect
 	set_fx tone,170
-	set_fx duration,85
-	set_fx cycle,38
-	set_fx flagptr,end_hyperspace
+; Match the first sound phase to 250 VBLs: 70 + (26 + 24 + ... + 4).
+	set_fx duration,70
+	set_fx cycle,26
+; SOUND owns the tunnel timer; pre-empting this channel cannot finish it.
 	set_fx service,do_warp1
 	set_fx done
 
@@ -1705,7 +1720,6 @@ do_warp1:
 	set_fx cycle,15
 	set_fx service,do_warp2
 	set_fx done
-	clr end_hyperspace(a6)
 
 	q_ret
 
