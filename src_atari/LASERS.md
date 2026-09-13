@@ -149,7 +149,15 @@ a valid muzzle node. Projection uses the same cached view position as the
 rendered model. Following BBC Elite, the other endpoint lies at the opposite
 side of the viewport, with a visual height derived from depth; this endpoint
 does not determine damage. Invalid or extreme projections are rejected before
-the native line clipper.
+the native line clipper. Ships outside the viewport can still show the clipped
+portion of their beam. After an off-screen ship's AI fires, a laser-only record
+is inserted at its cached view depth in the same sorted queue as visible ships.
+The off-screen model is skipped; nearer ships still cover the beam, and sights
+and text remain above it. Hidden Cougars, emitters behind the current view and
+exploding ships do not gain visible beams. Shots, damage and accuracy are
+unchanged. There is at most one draw record per object, including laser-only
+records; no extra object slots are allocated. The vector workspace reserves
+80 additional bytes, without changing the object or commander-save layout.
 
 The working ship data centres the muzzle across the bow for four models:
 
@@ -188,6 +196,12 @@ all four weapon colours on even/odd rows, shared jitter and unchanged random-num
 Executable pages are write-protected. These are CPU correctness checks, not
 an emulator gameplay, performance or listening test. The existing layering,
 sprite, viewport and starfield suites provide regression coverage.
+
+`tests/test_ai_beam_visibility.py` executes the real culling, depth queue, AI
+beam and raster routines on both CPU models. It covers all four views, each
+viewport edge, both screen buffers, late AI shots, full 30-object queues in
+both depth orders, clipping, model occlusion, hidden and behind-view emitters,
+and preservation of registers, targeting flags and random state.
 
 ## BBC source references
 

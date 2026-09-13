@@ -136,7 +136,7 @@ peel_off_check:
                  'clear_image', 'remove_radar', 'update_inst', 'do_countdown',
                  'damping', 'flash_message', 'torus_drive', 'get_range', 'collision',
                  'radar', 'mini_radar', 'do_logic', 'world_z_rotate', 'world_x_rotate',
-                 'orthogonal', 'move', 'radar_lock', 'calc_altitude', 'warnings',
+                 'orthogonal', 'move', 'queue_ai_laser', 'radar_lock', 'calc_altitude', 'warnings',
                  'ecm', 'docking', 'recharge', 'draw_space', 'draw_sight', 'text_blatt',
                  'swap_screen', 'remove_objects', 'object_logic', 'run_docking',
                  'hyperspace', 'is_game_over', 'advance_sky']

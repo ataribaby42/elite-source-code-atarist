@@ -21,7 +21,7 @@
 ;						capsule.
 
 	include "macros.m68"
-	xref advance_sky
+	xref advance_sky,queue_ai_laser
 	xref registration_assign,registration_new_player
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
@@ -122,6 +122,7 @@ q_main_m68_9:
 	jsr radar ; plot on radar
 	jsr mini_radar
 	jsr do_logic ; perform logic
+	jsr queue_ai_laser ; an off-screen ship may have fired this frame
 	jsr check_hit ; check for laser hit
 	tst roll_angle(a6) ; player rolling ?
 	q_call ne,world_z_rotate ; yes

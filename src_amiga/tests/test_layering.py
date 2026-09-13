@@ -112,7 +112,7 @@ mult_by_320:
             cpu.mem_write(address, struct.pack('>I', value))
         long(CURSOR, TRACE)
         long(VARIABLES+self.symbols['scr_base'], screen)
-        long(VARIABLES+self.symbols['next_record'], LIST+len(objects)*12 if objects else 0)
+        long(VARIABLES+self.symbols['next_record'], LIST+len(objects)*self.symbols['draw_len'] if objects else 0)
         # Deliberately invalid when the queue is empty.
         long(VARIABLES+self.symbols['list_ptr'], LIST if objects else 0xffffffff)
         for index, (kind, left, right, ink) in enumerate(objects):
@@ -125,9 +125,9 @@ mult_by_320:
             long(address+self.symbols['zpos'], COLOURS+ink*8)
             node = LIST+index*self.symbols['draw_len']
             long(node+self.symbols['obj_ptr'], address)
-            long(node+self.symbols['prev_ptr'], node-12 if index else 0)
-            long(node+self.symbols['next_ptr'], node+12 if index+1 < len(objects) else 0)
-        queue_before = bytes(cpu.mem_read(LIST, len(objects)*12))
+            long(node+self.symbols['prev_ptr'], node-self.symbols['draw_len'] if index else 0)
+            long(node+self.symbols['next_ptr'], node+self.symbols['draw_len'] if index+1 < len(objects) else 0)
+        queue_before = bytes(cpu.mem_read(LIST, len(objects)*self.symbols['draw_len']))
         cpu.reg_write(UC_M68K_REG_SR, 0x2700)
         cpu.reg_write(UC_M68K_REG_A6, VARIABLES)
         cpu.reg_write(UC_M68K_REG_A7, STACK-4)

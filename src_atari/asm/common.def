@@ -48,7 +48,7 @@ missiled: equ 4
 
 ; Size of variable areas (words).
 
-vector_vsize: equ 600
+vector_vsize: equ 640
 init_vsize: equ 600
 rotate_vsize: equ 8
 attract_vsize: equ 16

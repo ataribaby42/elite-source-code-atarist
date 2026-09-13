@@ -37,6 +37,7 @@ max_lines: equ 10 ; maximum no. of surface lines
 obj_ptr: rs.l 1 ; ptr: object record
 prev_ptr: rs.l 1 ; ptr: previous record (0=none)
 next_ptr: rs.l 1 ; ptr: next record (0=none)
+laser_only: rs.w 1 ; nonzero: draw the beam without the off-screen model
 
 draw_len: equ __RS
 draw_size: equ draw_len*max_objects
@@ -53,6 +54,7 @@ surface_vector: rs.w 3 ; surface vector components
 explode_x: rs.w 1 ; distance to move each coordinate of
 explode_y: rs.w 1 ; the exploding cobra (end game)
 explode_z: rs.w 1
+laser_candidate: rs.w 1 ; current object was culled only by the viewport
 
 	q_end_vars vector
 
@@ -145,6 +147,7 @@ q_vector_m68_6\@:
 
 	q_subr draw_object,global
 
+	clr laser_candidate(a6) ; never inherit another object/view
 	sf in_sights(a6) ; not in sights
 	sf visible(a6) ; not visible
 	sf invisible(a6) ; not invisible
@@ -180,12 +183,38 @@ q_vector_m68_15:
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_vector_m68_17
 	tst scr_radius(a5) ; visible yet ?
-	q_ret eq ; no, exit routine
+	beq queue_laser_candidate
 	bsr visibility ; object visible ?
 	tst d3
-	q_ret eq ; no, exit routine
+	beq queue_laser_candidate
 	st visible(a6) ; object is visible
 q_vector_m68_17:
+	moveq #0,d7 ; draw both the model and any beam
+	bra queue_draw_object
+queue_laser_candidate:
+	st laser_candidate(a6) ; AI runs later, before this object moves
+	rts
+
+; Called after this object's AI, before CHECK_HIT or world movement. Keep
+; gameplay visibility/sight flags unchanged. Each object gets at most one
+; draw record: either the model above, or just this newly fired beam.
+	q_subr queue_ai_laser,global
+	tst laser_candidate(a6)
+	beq.s .done
+	clr laser_candidate(a6) ; consume the candidate, even if no shot was fired
+	tst ai_laser(a5)
+	beq.s .done
+	cmp #log_exploding,logic(a5)
+	beq.s .done
+	movem.l d0-d7/a0-a4,-(sp)
+	moveq #-1,d7
+	bsr queue_draw_object
+	movem.l (sp)+,d0-d7/a0-a4
+.done:
+	rts
+
+; A5 = object with cached view coordinates; D7.W = laser-only flag.
+	q_subr queue_draw_object
 	move.l next_record(a6),d0 ; first object drawn ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_vector_m68_19
@@ -243,6 +272,7 @@ q_vector_m68_22:
 
 inserted:
 
+	move.w d7,laser_only(a1)
 	move.l a5,obj_ptr(a1) ; store object record pointer
 	lea draw_len(a1),a1 ; advance next record pointer
 	move.l a1,next_record(a6)
@@ -270,10 +300,13 @@ inserted:
 	q_ret eq ; yes, return
 	move.l list_ptr(a6),a0 ; point to 1st record
 q_vector_m68_31:
+	tst laser_only(a0) ; nonflight rendering draws models only
+	bne.s .next
 	move.l obj_ptr(a0),a5 ; draw the object
 	q_push.l a0
 	bsr draw_it
 	q_pop.l a0
+.next:
 	move.l next_ptr(a0),a0 ; next record
 	move.l a0,d0
 	bne q_vector_m68_31
@@ -321,9 +354,12 @@ q_vector_m68_32:
 	cmp.w (sp),d1
 	bne.s .next
 	move.l a0,-(sp)
+	tst laser_only(a0)
+	bne.s .beam
 	move.l a5,-(sp)
 	bsr draw_it
 	move.l (sp)+,a5
+.beam:
 	jsr draw_ai_laser
 	move.l (sp)+,a0
 .next:
