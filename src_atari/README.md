@@ -9,7 +9,7 @@ Run all commands below from the project root. Paths in the tables and text are a
 | Path | Purpose |
 | --- | --- |
 | `src_atari/asm/` | 39 converted game modules, macros, definitions, loader, font, and ship data |
-| `src_atari/assets/` | Copies of original bitmaps, images, and trigonometric tables |
+| `src_atari/assets/` | Game bitmaps, loading artwork, images, and trigonometric tables |
 | `src_atari/modules.txt` | Game module order from the original `ELITE.LNK` |
 | `src_atari/elite.ld` | Reference memory layout and linker symbols for runtime relocation |
 | `src_atari/build.py` | Assembly, linking, verification, and floppy image creation |
@@ -63,6 +63,8 @@ The floppy contains `AUTO/ELITE.PRG` for automatic startup when booting from dri
 The launcher keeps its loader, game and workspace within the TOS process's free ST-RAM block, moving them above resident drivers in 32 KB steps. This preserves the renderer's screen alignment. The build embeds vlink relocation records in each launcher and checks them against an independent link at a higher address. Startup adjusts the expected program checksum only for the address changes. Copy all files from `output_atari/ELITE` together when updating a hard-drive installation; the launcher, loader and game image belong to the same build.
 
 `src_atari/tools/convert_quelo.py` documents the one-time import of the original dialect. It now requires `--source-dir` pointing to a separately extracted copy of `resources/elite_atarist_source.zip`. **The normal build does not run it.** By default, it refuses to overwrite existing files. Its `--overwrite` option discards edits to converted files in `src_atari/asm` and is intended only for deliberately repeating the import.
+
+The loading screen uses the supplied Coriolis-and-planet artwork in `assets/TITLE.PC1`, at 320 x 200 pixels with the original 16-colour palette. The approved PNG was converted without resampling, colour changes or additional dithering.
 
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
 

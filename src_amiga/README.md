@@ -56,7 +56,7 @@ When launched from a floppy, commander loading, saving and the catalog use the r
 
 The raster routines write directly to the two screens used by Amiga display DMA. The original Atari word-interleaved framebuffer and the former frame conversion wrapper are absent.
 
-Startup displays the Atari release's `TITLE.PC1` artwork while loading the game assets. It decodes directly into the primary Amiga screen with a native OCS palette. The secondary screen temporarily holds the compressed picture, then becomes the bitmap loader's disk buffer. Display refresh runs during loading; game clock, cursor and sound updates begin only after initialization. The game continues automatically when loading finishes, without requiring a key press. A missing or unreadable title file is skipped.
+Startup displays the supplied Coriolis-and-planet loading artwork in `assets/TITLE.PC1`, at 320 x 200 pixels with the original 16-colour palette, while loading the game assets. It decodes directly into the primary Amiga screen with a native OCS palette. The secondary screen temporarily holds the compressed picture, then becomes the bitmap loader's disk buffer. Display refresh runs during loading; game clock, cursor and sound updates begin only after initialization. The game continues automatically when loading finishes, without requiring a key press. A missing or unreadable title file is skipped.
 
 Screen swapping waits for the VBL handler to accept the rendered screen before reusing the previous display buffer. It preserves that VBL acknowledgement, so the next viewport clear does not wait for an extra refresh. The existing three-VBL gameplay frame limiter remains in effect.
 
