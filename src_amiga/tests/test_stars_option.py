@@ -100,6 +100,7 @@ class StarsOptionTests(unittest.TestCase):
                     for x,yy in ((box[0],box[1]),(box[2],box[1]),(box[0],box[3]),(box[2],box[3])):
                         self.click(x,yy,double)
                         self.assertEqual(self.get('sky_enabled'),enabled)
+                        self.assertEqual(self.get('user'),0x3f00 | (0x4000 if not enabled else 0))
                         self.assertEqual(self.box(),box)
                         self.call('options')
                         self.assertEqual(self.box(),box)

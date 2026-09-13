@@ -13,12 +13,13 @@ sky_count: rs.w 1
 sky_dirty: rs.w 1
 sky_view: rs.w 1
 sky_turns: rs.w 1
-sky_enabled: rs.w 1           ; session preference, outside the commander save block
+sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars preference
     q_end_vars sky
     q_module sky
 
     q_subr init_sky,global
     movem.l d0-d7/a0-a5,-(sp)
+    bclr #f_no_stars,user(a6) ; startup and a freshly enabled sky default to ON
     move.w #1,sky_enabled(a6)
     lea sky_basis(a6),a0
     moveq #8,d0
@@ -40,11 +41,26 @@ sky_enabled: rs.w 1           ; session preference, outside the commander save b
     q_subr set_sky_enabled,global
     tst.w d0
     beq.s .off
+    bclr #f_no_stars,user(a6)
     tst.w sky_enabled(a6)
     beq init_sky
     rts
 .off:
+    bset #f_no_stars,user(a6)
     clr.w sky_enabled(a6)
+    rts
+
+; Apply the saved flag after RESTORE_STATE. Legacy saves have bit 6 clear (ON).
+; Keep the renderer cache in sync without changing any other saved preference.
+    q_subr restore_sky,global
+    move.l d0,-(sp)
+    moveq #1,d0
+    btst #f_no_stars,user(a6)
+    beq.s .apply
+    moveq #0,d0
+.apply:
+    bsr set_sky_enabled
+    move.l (sp)+,d0
     rts
 
 ; Called after the flight scene, once per simulation frame, including menus.

@@ -288,7 +288,7 @@ q_options_m68_14:
 	bra highlight_icon ; highlight icon and return
 
 
-* Stars are a session preference, independent of saved commander flags.
+* Stars use the saved user/f_no_stars flag and the sky renderer's cached state.
 * D0 = 1 for ON, 0 for OFF. Use the same highlight boxes as other options.
 
 	q_subr change_stars

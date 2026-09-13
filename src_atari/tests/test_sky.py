@@ -45,7 +45,7 @@ class SkyTests(unittest.TestCase):
                  'sky_project_star', 'sky_multiply', 'sky_normalise', 'sky_catalogue',
                  'sky_catalogue_end', 'sky_basis', 'sky_matrix', 'sky_pixels', 'sky_count',
                  'sky_dirty', 'sky_view', 'sky_turns', 'sky_vars', 'sky_used', 'sky_vsize',
-                 'sky_capacity', 'sky_enabled', 'set_sky_enabled', 'view', 'witch_space', 'roll_angle', 'climb_angle',
+                 'sky_capacity', 'sky_enabled', 'set_sky_enabled', 'restore_sky', 'view', 'witch_space', 'roll_angle', 'climb_angle',
                  'roll_sin', 'roll_cos', 'climb_sin', 'climb_cos', 'speed', 'dust_type',
                  'random_seed', 'scr_base', 'colour_ptr']
         asm = preamble() + sky[sky.index('sky_capacity:'):sky.index('    q_module sky')]
@@ -282,7 +282,7 @@ class SkyTests(unittest.TestCase):
     def test_public_routines_preserve_registers_and_private_workspace(self):
         self.prepare()
         self.angles(0.04, -0.02)
-        for name in ('init_sky', 'set_sky_enabled', 'advance_sky', 'draw_sky'):
+        for name in ('init_sky', 'set_sky_enabled', 'restore_sky', 'advance_sky', 'draw_sky'):
             regs = [UC_M68K_REG_D0+i for i in range(8)] + [UC_M68K_REG_A0+i for i in range(6)]
             values = {reg: 0x12345670+i for i, reg in enumerate(regs)}
             for reg, value in values.items():

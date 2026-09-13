@@ -28,7 +28,7 @@ class RegistrationTests(unittest.TestCase):
     def setUpClass(cls):
         read = lambda name: (ROOT / 'asm' / (name + '.m68')).read_text(encoding='utf-8')
         src = {n: read(n) for n in ('registration', 'main', 'vector', 'disk', 'init',
-                                  'bios', 'graphics', 'combat', 'data')}
+                                  'bios', 'graphics', 'combat', 'data', 'sky')}
         constants = '''registration_tag player_registration registration_state registration_buffer
             registration_id objects obj_len obj_data_len nodes surfaces text type flags in_use
             ship_type typ_trader typ_pirate typ_police typ_alien thargoid thargon viper dodec constr spacestn
@@ -38,17 +38,20 @@ class RegistrationTests(unittest.TestCase):
             obj_range this_xpos this_ypos centre_x centre_y obj_rad hits_rad in_sights laser_type
             id_trigger missile_state target_ptr target text_buffer text_offset text_frames
             max_objects max_obj_num req_planet player_record witch_space mission count_down
-            jump_trigger speed no_cols text_top'''.split()
+            jump_trigger speed no_cols text_top user f_no_stars sky_enabled sky_basis'''.split()
         names = ['registration_assign', 'registration_next', 'registration_generate',
                  'registration_new_player', 'registration_validate', 'registration_message',
                  'registration_status', 'create_object', 'copy_object', 'clear_objects',
                  'alloc_object', 'escape', 'check_sights', 'save_state', 'restore_state',
                  'default_game', 'scramble', 'new_game', 'var_list', 'fixture_header',
-                 'locate', 'print_string']
-        assembly = preamble() + 'max_vert equ 15\n' + variable_block(src['graphics'], 'graphics')
+                 'locate', 'print_string', 'init_sky', 'set_sky_enabled', 'restore_sky']
+        assembly = preamble() + 'max_vert equ 15\nsky_capacity equ 64\n'
+        assembly += variable_block(src['graphics'], 'graphics') + variable_block(src['sky'], 'sky')
         assembly += '\torg $10000\n\tdc.l ' + ','.join(names + constants) + '\n'
         assembly += 'return: set *\n\trts\npersistance equ 30\n'
         assembly += src['registration'].split('    q_module registration', 1)[1]
+        assembly += src['sky'][src['sky'].index('    q_subr init_sky'):
+                               src['sky'].index('; Called after the flight scene')]
         for module, functions in {
             'main': ('create_object', 'copy_object', 'clear_objects', 'alloc_object'),
             'vector': ('perspective', 'check_sights'),

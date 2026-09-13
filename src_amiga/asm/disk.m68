@@ -14,7 +14,7 @@
 ; Designed and coded by Rob Nicholson. Adpated from the MSX version.
 
 	include "macros.m68"
-	xref registration_validate
+	xref registration_validate,restore_sky
 	include "bitlist.m68"
 
 ; Modification history:
@@ -95,6 +95,7 @@ q_disk_m68_1:
 	bra q_disk_m68_1
 q_disk_m68_2:
 	jsr registration_validate ; accept the extension or migrate an old save
+	jsr restore_sky ; apply the saved Stars preference, including default Jameson
 	move current(a6),req_planet(a6) ; generate system planet and prices
 	jsr gen_prices
 	jmp home_cursor ; home cursor on planet and return

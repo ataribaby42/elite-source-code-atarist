@@ -605,6 +605,7 @@ f_centre: rs.b 1 ; centre joystick flag
 f_reverse: rs.b 1 ; reverse joystick flag
 f_docking: rs.b 1 ; docking computer fast/slow
 f_sequence: rs.b 1 ; docking sequence on/off
+f_no_stars: rs.b 1 ; saved Stars OFF flag; zero keeps old commanders/defaults ON
 
 ; Equipment record.
 
