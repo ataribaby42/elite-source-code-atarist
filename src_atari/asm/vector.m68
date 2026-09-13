@@ -15,6 +15,7 @@
 * Designed and coded by Rob Nicholson. Adapted from the MSX version.
 
 	include "macros.m68"
+	xref draw_sky
 	xref draw_ai_laser,registration_message
 
 	xref disp_message,fx,check_missile,magnitude_table,c_line
@@ -290,6 +291,8 @@ q_vector_m68_32:
 * Draw the flight scene with stars between celestial bodies and other objects.
 * DRAW_ALL remains the unfiltered renderer for hangars and other scenes.
 	q_subr draw_space,global
+
+	jsr draw_sky ; distant white stars behind every other flight layer
 
 	moveq #1,d0 ; planet and sun behind the starfield
 	bsr draw_space_layer

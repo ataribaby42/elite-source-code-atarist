@@ -18,6 +18,7 @@
 
 	xref vars,other_screen,amstrad_8x8,vblank,critical_error,texture
 	xref display_char,default_game,find_bitmap,novella
+	xref init_sky
 	xref init_dust,rand,monst,checksum,logo
 	xref cockpit,textscr,obj_data,bitmaps
 	xref hyper_buffer,quiet,blank_screen
@@ -185,6 +186,7 @@ size macro
 	move.l a0,buffer_ptr(a4)
 	jsr random_seed_value
 	move.l d0,random_seed(a6)
+	jsr init_sky ; initialise the independent distant sky
 	jsr init_dust ; initialise dust clouds
 	jsr amiga_install ; enable input and game VBL work after initialization
 *	 move.l #trace_it,$24

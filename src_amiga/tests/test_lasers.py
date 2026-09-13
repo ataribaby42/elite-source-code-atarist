@@ -139,7 +139,7 @@ peel_off_check:
                  'orthogonal', 'move', 'radar_lock', 'calc_altitude', 'warnings',
                  'ecm', 'docking', 'recharge', 'draw_space', 'draw_sight', 'text_blatt',
                  'swap_screen', 'remove_objects', 'object_logic', 'run_docking',
-                 'hyperspace', 'is_game_over']
+                 'hyperspace', 'is_game_over', 'advance_sky']
         assembly += '\n' + '\n'.join(name + ':\n\trts' for name in stubs) + '\n'
         assembly += 'text12:\ntext13:\ntext18:\ntext19:\n\tdc.w 0\n'
         (ROOT / 'build/laser-qa').mkdir(parents=True, exist_ok=True)

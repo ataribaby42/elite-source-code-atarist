@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CODE, STOP, VARIABLES, STACK = 0x10000, 0x1000, 0x30000, 0x90000
 OBJECTS, LIST, COLOURS, TRACE, CURSOR = 0x60000, 0x68000, 0x73000, 0x74000, 0x76000
 STARS = (40, 80, 120, 160, 200, 240)
+SKY = tuple(range(40, 281, 20))
 
 
 def colour(value):
@@ -44,6 +45,10 @@ class LayeringTests(unittest.TestCase):
         assembly += '\n'.join(routine(graphics, name) for name in
                               ['dot_to_addr', 'plotxy', 'line', 'horiz_line', 'vert_line', 'mask_plot'])
         assembly += graphics[graphics.index('\tq_global bit_masks'):graphics.index('clip_list:')]
+        assembly += f'\ndraw_sky:\n    moveq #-2,d0\n    bsr trace_event\n    move.l #{COLOURS+15*8},colour_ptr(a6)\n'
+        for x in SKY:
+            assembly += f'    move.w #{x},d0\n    moveq #20,d1\n    bsr plotxy\n'
+        assembly += '    bra clobber_scratch\n'
         # Stubs deliberately clobber drawing scratch registers; selectors/list
         # pointers must survive just as they do across real object rendering.
         assembly += f"""
@@ -60,7 +65,7 @@ draw_it:
 dust_cloud:
     moveq #0,d0
     bsr trace_event
-    move.l #{COLOURS+15*8},colour_ptr(a6)
+    move.l #{COLOURS+3*8},colour_ptr(a6)
 """
         for x in STARS:
             assembly += f'    move.w #{x},d0\n    moveq #20,d1\n    bsr plotxy\n'
@@ -139,15 +144,17 @@ mult_by_320:
         celestial = {self.symbols['planet'], self.symbols['sun']}
         order = list(range(len(objects)))
         if flight:
-            order = ([i for i in order if objects[i][0] in celestial] + [-1] +
+            order = ([-2] + [i for i in order if objects[i][0] in celestial] + [-1] +
                      [i for i in order if objects[i][0] not in celestial])
-        expected_trace = tuple(0 if index == -1 else OBJECTS+index*512 for index in order)
+        expected_trace = tuple(0xfffffffe if index == -2 else 0 if index == -1 else OBJECTS+index*512 for index in order)
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
             for screen in (SCREEN, OTHER):
                 expected = bytearray(BACKGROUND)
                 for index in order:
-                    if index == -1:
-                        paint(expected, ((x, 20) for x in STARS), colour(15), screen)
+                    if index == -2:
+                        paint(expected, ((x, 20) for x in SKY), colour(15), screen)
+                    elif index == -1:
+                        paint(expected, ((x, 20) for x in STARS), colour(3), screen)
                     else:
                         _, left, right, ink = objects[index]
                         paint(expected, ((x, 20) for x in range(left, right+1)), colour(ink), screen)

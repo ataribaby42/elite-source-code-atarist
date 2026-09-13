@@ -23,7 +23,7 @@ The shared depth step is `64 + floor(speed * 2048 / 22)`, ranging from 64 to 211
 - Retro rockets reverse translation and incoming edges, while steering keeps the signs of the actual view.
 - Coloured torus/hyperspace trails retain their separate depth step of 128 and their existing repeated drawing, duration and growth.
 
-All coordinates use the complete 256 x 112 viewport. Every star is always **one pixel**, at every depth. Normal stars retain the existing yellow colour. The original BBC/C64 distance-based point sizes are deliberately omitted at the user's request.
+All coordinates use the complete 256 x 112 viewport. Every star is always **one pixel**, at every depth. Normal particles use the existing dark grey palette colour, also used by the hyperspace tunnel. Coloured jump trails retain their existing colours. The original BBC/C64 distance-based point sizes are deliberately omitted at the user's request.
 
 ## Adaptation to this game
 
@@ -44,9 +44,23 @@ The view-dependent in-plane/vertical angles are:
 | Left | Negative pitch | Negative roll |
 | Right | Pitch | Roll |
 
-The flight frame draws the planet and sun first, then the starfield, followed by all other 3D objects, laser beams, the laser sight and viewport messages. Stars therefore overlay the planet and sun, while ships, stations, other objects and the UI can cover them. Each object layer retains its existing depth order. The unfiltered renderer used by hangars and other scenes is unchanged. The starfield draws the current particle positions, then rotates and advances them for the following frame. Coordinates are checked after rotation and movement; invalid depths are recycled before division. Coloured jump trails keep their existing repeated drawing, duration and growth. The existing witchspace suppression remains in effect.
+The flight frame draws the distant white sky first, then the planet and sun, then the moving starfield, followed by all other 3D objects, laser beams, the laser sight and viewport messages. Stars therefore overlay the planet and sun, while ships, stations, other objects and the UI can cover them. Each object layer retains its existing depth order. The unfiltered renderer used by hangars and other scenes is unchanged. The starfield draws the current particle positions, then rotates and advances them for the following frame. Coordinates are checked after rotation and movement; invalid depths are recycled before division. Coloured jump trails keep their existing repeated drawing, duration and growth. The existing witchspace suppression remains in effect.
 
 The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-byte workspace allocation is removed. The original files under `assets` remain unchanged for reference. Builds omit the files from the disk images and remove stale copies from their generated distribution directory.
+
+## Distant white sky
+
+Game Options includes **Stars: ON/OFF**, enabled by default. OFF hides the distant white stars and restores the moving starfield to yellow; ON uses dark grey moving particles against the white sky. Coloured warp trails are unchanged. OFF returns before sky rendering, projection, cache maintenance or orientation updates. Switching back ON resets the orientation and invalidates the pixel cache; clicking ON while already enabled preserves the current sky. The preference is kept for the running session, outside the commander save block, so loading old saves does not turn the stars off.
+
+A separate background contains 1,024 fixed star directions, each drawn as one white pixel. These stars respond only to ship rotation, not forward speed, retro rockets or torus translation. All four views share the same orientation and catalogue, so returning to a direction restores the same constellation. The existing moving dark grey dust is unchanged.
+
+The white sky is the first flight layer. Planets, the sun, dark grey dust, ships, stations, lasers, the sight and messages can all cover it. Hangar/title rendering is unchanged, and witchspace retains its existing absence of stars.
+
+`tools/make_sky.py` reproducibly generates `asm/sky.dat` from a private fixed seed. It does not consume the game's random sequence. The catalogue and its conservative binary cone tree occupy 12,276 bytes; the renderer reserves 512 bytes of workspace and uses no world-object slots. Each rejected tree node skips its entire subtree. Accepted leaves contain four stars; only visible points reach perspective division and the pixel cache. There is no floating-point arithmetic, allocation, self-modifying code or runtime trigonometry generation.
+
+The celestial-to-ship matrix retains Q24 fractional components and follows the game's roll-then-pitch order once per flight simulation frame, including frames showing flight menus. Periodic normalisation bounds long-session scale drift. A Q14 matrix is derived for the selected view. When neither orientation nor view changes, the renderer simply replots cached coordinates. A bounded 64-pixel cache provides headroom above the intended sparse density.
+
+`tests/test_sky.py` runs the actual MC68000 routines on MC68000 and MC68020 CPU models. It compares tree culling against projection of the complete catalogue across random orientations and all views, checks full-turn continuity and sustained rotation, confirms translation/torus independence, and verifies single white pixels, screen guards, register preservation, caching and unchanged game random state. `tests/test_layering.py` checks that every other flight layer covers the white sky, while preserving the existing moving-dust ordering. CPU tests establish correctness; emulator profiling is needed for timing.
 
 ## Validation
 

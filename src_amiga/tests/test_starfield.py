@@ -13,7 +13,7 @@ import unittest
 from test_raster import BACKGROUND, GUARD, SCREEN, OTHER, paint, routine
 
 try:
-    from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ, UC_PROT_EXEC
+    from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ, UC_PROT_EXEC, UC_HOOK_CODE
     from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020,
         UC_M68K_REG_A0, UC_M68K_REG_A5, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_D0,
         UC_M68K_REG_PC, UC_M68K_REG_SR)
@@ -49,11 +49,14 @@ class StarfieldTests(unittest.TestCase):
                      'max_len', 'witch_space', 'scr_base', 'colour_ptr', 'random_seed',
                      'roll_angle', 'climb_angle', 'controls_locked', 'torus_on', 'torus_ctr',
                      'stop_skip', 'planet_range', 'sun_range', 'torus_planet', 'torus_sun',
-                     'mission', 'splanet', 'govern', 'f_roll', 'f_climb']
+                     'mission', 'splanet', 'govern', 'f_roll', 'f_climb',
+                     'sky_enabled', 'set_colour', 'yellow', 'drk_grey']
         assembly = ('amiga_implementation equ 1\namiga_workspace_implementation equ 1\n'
                     'fileio_implementation equ 1\n\tinclude "common.def"\n'
                     '\tinclude "macros.m68"\n\tinclude "raster.inc"\n')
         assembly += dust[dust.index('    rsset 0'):dust.index('    q_module dust')]
+        sky = (ROOT / 'asm/sky.m68').read_text()
+        assembly += sky[sky.index('sky_capacity:'):sky.index('    q_module sky')]
         assembly += flight[flight.index('\tq_vars flight'):flight.index('\tq_module flight')]
         for name in ('torus_dur', 'torus_speed'):
             assembly += re.search(r'^'+name+r': equ[^\n]*\n', flight, re.M).group(0)
@@ -143,6 +146,31 @@ class StarfieldTests(unittest.TestCase):
         self.assertTrue(-56 <= y//UNIT <= 55, y/UNIT)
         self.assertTrue(8*256 <= z <= 65535, z/256)
 
+
+    def test_stars_option_changes_only_normal_dust_colour(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for view in range(4):
+                for warp in (0, 1):
+                    states, colour_runs = [], []
+                    for enabled in (0, 1):
+                        self.prepare(view=view, speed=11, model=model)
+                        self.call('init_dust')
+                        self.variable('sky_enabled', enabled)
+                        self.variable('dust_type', warp)
+                        colours = []
+                        hook = self.cpu.hook_add(UC_HOOK_CODE,
+                            lambda cpu, a, size, data: colours.append(cpu.reg_read(UC_M68K_REG_D0) & 65535),
+                            begin=self.symbols['set_colour'], end=self.symbols['set_colour'])
+                        self.call('draw_dust')
+                        self.cpu.hook_del(hook)
+                        self.assertEqual(colours[0], self.symbols['drk_grey' if enabled else 'yellow'])
+                        states.append((bytes(self.cpu.mem_read(VARIABLES+self.symbols['dust_front'],
+                                       self.symbols['dust_store']*4)),
+                                       bytes(self.cpu.mem_read(VARIABLES+self.symbols['random_seed'], 4))))
+                        colour_runs.append(colours[1:])
+                    self.assertEqual(states[0], states[1])
+                    self.assertEqual(colour_runs[0], colour_runs[1])
+                    self.assertEqual(len(colour_runs[0]), self.symbols['no_dust'] if warp else 0)
 
     def test_control_lock_resets_cached_rotation_without_clobbering_registers(self):
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):

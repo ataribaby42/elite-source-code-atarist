@@ -36,5 +36,6 @@ equip
 options
 effects
 registration
+sky
 chkend
 checksum

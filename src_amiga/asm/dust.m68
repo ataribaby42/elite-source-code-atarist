@@ -4,6 +4,7 @@
 ; See ../STARFIELD.md for source links, scaling and deliberate adaptations.
     include "common.def"
     include "macros.m68"
+    xref sky_enabled
     xref random,rand,set_colour,c_plotxy
 
 ; Screen offsets retain subpixel motion. Depth has the original 8.8 scale.
@@ -464,6 +465,10 @@ dust_vertical_cos: rs.w 1
     bne.s .done
     bsr setup_dust
     moveq #yellow,d0
+    tst.w sky_enabled(a6)
+    beq.s .colour
+    moveq #drk_grey,d0
+.colour:
     jsr set_colour
     move.l dust_ptr(a6),a5
     move.w #no_dust,dust_count(a6)

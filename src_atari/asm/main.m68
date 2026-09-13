@@ -21,6 +21,7 @@
 ;						capsule.
 
 	include "macros.m68"
+	xref advance_sky
 	xref registration_assign,registration_new_player
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
@@ -179,6 +180,7 @@ q_main_m68_19:
 *			jsr disp_debug
 	jsr swap_screen ; swap screens
 q_main_m68_21:
+	jsr advance_sky ; advance the fixed sky once, even with a flight menu open
 q_main_m68_23:
 	cmp #3,frame_count(a6)
 	blo q_main_m68_23
