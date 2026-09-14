@@ -34,11 +34,12 @@
 	xref remove_radar,radar,ecm,draw_sight,recharge,dock_check
 	xref flash_message,reduce_energy,object_logic,read_key,check_hit,well_done
 	xref draw_lasers,orthogonal,torus_drive,collision,update_inst,run_docking
-	xref check_police,check_inflight,draw_space,text_blatt,docking_sequence
+	xref check_cargo,check_police,check_inflight,draw_space,text_blatt,docking_sequence
 
 * ---- LOCAL CONSTANTS ----
 
 spcstn_space: equ $22500 ; Space station space orbit
+spcstn_rearm: equ spcstn_space+512 ; cargo scan hysteresis outside the S boundary
 persistance: equ 30 ; Persistance of game info
 max_palt: equ $24000 ; max planet altitude
 min_palt: equ $0c000 ; min planet altitude
@@ -591,7 +592,7 @@ q_main_m68_49:
 	jsr launch_sequence ; display launch sequence
 	jsr reset_system ; reset star system
 	jsr launch_system ; create launch system
-	st checkpoint(a6) ; ignore checkpoint check
+	move.w #-1,checkpoint(a6) ; already inside S; suppress cargo/police checks on launch
 	move #-1,launch_spin(a6) ; spin as leaving
 	move #max_roll/4,roll_angle(a6)
 	jsr set_roll_angles
@@ -777,12 +778,19 @@ q_main_m68_63:
 ; Quelo: 	if.l d0 <lo> #spcstn_space then.s	yes
 	cmp.l #spcstn_space,d0
 	bhs.s q_main_m68_65
+; The low checkpoint byte tracks physical entry independently of the
+; compass, which PREPARE_COCKPIT resets when returning from a flight menu.
+	tst.b checkpoint+1(a6)
+	bne.s cargo_already_checked
+	st checkpoint+1(a6)
+	jsr check_cargo ; update record before the existing police response
+cargo_already_checked:
 	tst radar_obj(a6) ; just entered space station space ?
 ; Quelo: 		if <eq> then.s					no
 	bne.s q_main_m68_67
 	q_inc radar_obj(a6) ; lock onto space station (obj#1)
 	clr f_schar(a6) ; flag instrument change
-	tst checkpoint(a6) ; just entered space station space ?
+	tst.b checkpoint(a6) ; police response already checked in this system ?
 ; Quelo: 			if <eq> then.s				yes
 	bne.s q_main_m68_69
 	st checkpoint(a6) ; only check once per system
@@ -791,6 +799,10 @@ q_main_m68_69:
 q_main_m68_67:
 	bra q_main_m68_66
 q_main_m68_65:
+	cmp.l #spcstn_rearm,d0
+	blo.s cargo_still_near_zone
+	clr.b checkpoint+1(a6) ; rearm only beyond the outer hysteresis boundary
+cargo_still_near_zone:
 	tst radar_obj(a6) ; just left space station space ?
 ; Quelo: 		if <ne> then.s					yes
 	beq.s q_main_m68_71

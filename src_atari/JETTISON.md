@@ -19,7 +19,7 @@ confirmation dialogs keep their existing behaviour.
 
 ## Legal status
 
-Like C64 Elite Unbound, each successful ejection in the station's protection zone adds 15 legal-status points, except under Anarchy. Outside the zone there is no dumping penalty. Both games use Clean = 0, Offender = 1–49 and Fugitive = 50–255, so no conversion is needed. The addition saturates at 255. Cancelled or failed requests incur no penalty. Other existing legal checks, including scooping illegal goods, still apply.
+Like C64 Elite Unbound, each successful ejection in the station's protection zone adds 15 legal-status points, except under Anarchy. Outside the zone there is no dumping penalty. Both games use Clean = 0, Offender = 1–49 and Fugitive = 50–255, so no conversion is needed. The addition saturates at 255. Cancelled or failed requests incur no penalty. Scooping has no immediate legal penalty. Each transition from outside into station space (the S zone) inspects the whole current hold: each complete tonne of Firearms adds 2 points, and Slaves or Narcotics add 4 points. This applies under every government and saturates at 255. Remaining inside, returning from flight menus and launching from the station do not repeat the inspection. Travelling at least 512 world units beyond the S boundary rearms the check for the next entry; brief S flicker within that margin does not. The existing purchase penalty and once-per-system police-response check remain unchanged.
 
 ## Implementation and verification
 

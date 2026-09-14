@@ -129,3 +129,7 @@ The current Amiga music replay is separately checked by `tests/test_music.py`: 1
 Real hardware, extended gameplay and audible quality of the new music replay remain unvalidated. CPU/register checks are distinct from a listening test. Mouse/joystick bindings need a physical-device play test.
 
 Original game and asset credits and bundled tool licences are documented in the [main README](../README.md#legal-information-and-credits).
+
+## Cargo inspections
+
+Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.

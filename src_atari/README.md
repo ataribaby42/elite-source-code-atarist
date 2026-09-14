@@ -138,3 +138,7 @@ The normal build uses the bundled executables and does not need this step. Rebui
 The script verifies the SHA-256 hashes of the archives in `src_atari/vendor`, extracts them to `src_atari/build/toolchain`, builds the tools with MSVC and a statically linked C runtime (`/MT`), and copies the resulting executables to the root `tools` directory. If archives are missing, it downloads them from the official site. Versions and hashes are recorded in `src_atari/tools/toolchain.json`; the script rejects changed upstream content until it has been reviewed. Extracted sources and objects therefore remain among the ignored build files.
 
 The upstream license terms are included beside the executables: [vasm](../tools/vasm-LICENSE.txt), [vlink](../tools/vlink-LICENSE.txt). The original archives remain in `src_atari/vendor`. See [tools/README.md](../tools/README.md) for the bundled binaries, and the [vasm](https://sun.hasenbraten.de/vasm/) and [vlink](https://sun.hasenbraten.de/vlink/) sites for official documentation.
+
+## Cargo inspections
+
+Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.

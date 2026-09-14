@@ -354,7 +354,7 @@ poll_jettison_confirm:
                 self.boot(model);self.cargo(item,1000000)
                 self.word(self.at('products')+item*self.s['product_len']+self.s['naughty'],factor)
                 self.call('jettison_cargo',d0=item);self.scoop()
-                self.assertEqual(self.get('police_record'),factor)
+                self.assertEqual(self.get('police_record'),0)  # checked on station entry
 
     def test_multiple_canisters_keep_individual_masses(self):
         for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):

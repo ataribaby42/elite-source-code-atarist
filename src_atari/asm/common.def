@@ -778,7 +778,7 @@ pad_char: rs.w 1 ; pad character for BUILD_NUMBER
 no_entry: rs.w 1 ; flag  prevent entry to space station
 visible: rs.w 1 ; flag  object is visible
 in_sights: rs.w 1 ; flag  object is in sights
-checkpoint: rs.w 1 ; flag  set at space station checkpoint
+checkpoint: rs.w 1 ; high byte: police checked; low byte: inside cargo-check zone
 id_trigger: rs.w 1 ; flag  trigger ID message
 cloaking_on: rs.w 1 ; flag  cloaking device active
 max_laser: rs.w 1 ; max. energy laser fitted (0..3)

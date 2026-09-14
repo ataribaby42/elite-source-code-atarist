@@ -28,7 +28,7 @@
 	xref create_system,reset_system,instruments,flush_keyboard,clear_image
 	xref text_blatt,update_inst,swap_screen,wait,magnitude_table,sqrt,get_unit
 	xref pirate_attack,explode_object,target_lost,reduce_shields,cargo_spare
-	xref illegal,product_list,find_table,rand
+	xref product_list,find_table,rand
 
 ; ---- LOCAL CONSTANTS ----
 
@@ -1286,7 +1286,6 @@ q_flight_m68_167:
 	jsr random ; determine amount to add (1..4)
 	and #3,d0
 	q_inc d0
-	q_push d0 ; (save for later)
 	move cargo_type(a5),d1 ; index into cargo hold array
 	asl #2,d1
 	lea hold(a6),a0
@@ -1298,15 +1297,8 @@ q_flight_m68_169:
 	q_dec d0 ; next item
 	bne q_flight_m68_169
 q_flight_m68_170:
-	q_pop d1 ; check for illegal goods
-salvage_legal:
-	q_push.l a5
-	move cargo_type(a5),d0
-	mulu #product_len,d0
-	lea products(a6),a5
-	lea (a5,d0),a5
-	jsr illegal
-	q_pop.l a5
+salvage_message:
+; Scooping has no immediate legal penalty; station entry inspects the hold.
 	move cargo_type(a5),d0 ; find message
 	lea product_list,a0
 	jsr find_table
@@ -1330,8 +1322,7 @@ salvage_exact:
 	lsl #2,d1
 	lea hold(a6),a0
 	add.l d4,(a0,d1)
-	moveq #1,d1 ; at most one tonne; all illegal commodities use tonne units
-	bra salvage_legal
+	bra salvage_message
 
 
 ; *************************
