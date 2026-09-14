@@ -26,6 +26,17 @@ amiga_entry:
     jsr -372(a6)                 ; GetMsg
     move.l d0,workbench_message
 .cli:
+    ; Check and publish one system-wide owner without a task-switch window.
+    ; Do this before opening files or changing display/input/audio ownership.
+    jsr -132(a6)                 ; Forbid
+    lea instance_name(pc),a1
+    jsr -390(a6)                 ; FindPort
+    tst.l d0
+    bne instance_busy
+    lea instance_port(pc),a1
+    jsr -354(a6)                 ; AddPort also initializes the message list
+    st instance_owned
+    jsr -138(a6)                 ; Permit
     lea dos_name(pc),a1
     moveq #0,d0
     jsr -552(a6)                 ; OpenLibrary
@@ -143,6 +154,14 @@ startup_failed:
     move.l d0,a1
     jsr -414(a6)
 .no_dos:
+    tst instance_owned
+    beq finish_process
+    jsr -132(a6)                 ; keep the marker until all cleanup has finished
+    lea instance_port(pc),a1
+    jsr -360(a6)                 ; RemPort: remove only this process's marker
+    clr instance_owned
+    jsr -138(a6)                 ; Permit
+finish_process:
     move.l workbench_message,d0
     beq .return
     move.l d0,a2
@@ -154,6 +173,10 @@ startup_failed:
     movem.l (sp)+,d2-d7/a2-a6
     moveq #0,d0
     rts
+
+instance_busy:
+    jsr -138(a6)                 ; balance the unsuccessful ownership check
+    bra finish_process          ; WB still needs its startup message replied
 
 ; Display-only startup also serves the loading picture, before game init.
 amiga_start_display:
@@ -397,7 +420,16 @@ dos_name: dc.b 'dos.library',0
 graphics_name: dc.b 'graphics.library',0
 input_name: dc.b 'input.device',0
 empty_name: dc.b 0
+instance_name: dc.b 'Elite.Native.Amiga',0
     even
+; Public marker only; no signal allocation and no message-based game API.
+instance_port:
+    dc.l 0,0
+    dc.b 4,0                    ; NT_MSGPORT, priority 0
+    dc.l instance_name
+    dc.b 2,0                    ; PA_IGNORE, unused signal bit
+    dc.l 0,0,0,0                ; signal task and message-list pointers
+    dc.w 0                      ; message-list type/padding (MsgPort is 34 bytes)
 input_port:
     dc.l 0,0
     dc.b 4,0
@@ -452,3 +484,4 @@ input_open: ds.w 1
 input_added: ds.w 1
 vblank_added: ds.w 1
 mouse_right: ds.w 1
+instance_owned: ds.w 1
