@@ -41,7 +41,8 @@ class BootTests(unittest.TestCase):
                 {'boot-config.inc': cls.config, 'game-relocations.bin': cls.stream})
 
     def execute(self, model, basepage, top, screen, automatic=False,
-                short_file=None, bad_open=None, corrupt=False):
+                short_file=None, bad_open=None, corrupt=False, hz=50,
+                load_ticks=0, clock_start=100):
         code = self.launchers[automatic]
         text = basepage + 0x100
         delta = max(0, (text + len(code) - LOADER_ORIGIN + 32767) // 32768 * 32768)
@@ -59,9 +60,11 @@ class BootTests(unittest.TestCase):
         cpu.reg_write(UC_M68K_REG_SR, 0x2700)
         cpu.reg_write(UC_M68K_REG_A7, top-128)
         cpu.mem_write(0x484, b'\x07')  # conterm, key click may be disabled by loader
+        cpu.mem_write(0x4ba, struct.pack('>I', clock_start))
         low_before = bytes(cpu.mem_read(0, basepage))
         directory = '\\AUTO' if automatic else '\\ELITE'
         handles, opened, errors, reads, screens = {}, [], [], [], []
+        elapsed_ticks, syncs, title_tick = 0, 0, None
         game_on_disk = bytearray(self.files['ELITE.IMG'])
         if corrupt:
             # An unrelated modified byte must still fail the game's original check.
@@ -77,13 +80,18 @@ class BootTests(unittest.TestCase):
             def string(pointer):
                 return bytes(machine.mem_read(pointer, 160)).split(b'\0', 1)[0].decode()
             op, result = number(0, 2), 0
-            nonlocal directory
+            nonlocal directory, elapsed_ticks, syncs, title_tick
             if opcode == b'\x4e\x4e':
                 if op == 2: result = screens[-1] if screens else screen
                 elif op == 5:
                     self.assertEqual(number(2, 4), number(6, 4))
                     self.assertEqual(number(10, 2), 0)
                     screens.append(number(2, 4))
+                elif op == 37:
+                    elapsed_ticks += (syncs + 1) * 200 // hz - syncs * 200 // hz
+                    syncs += 1
+                    if title_tick is None:
+                        title_tick = elapsed_ticks
                 elif op not in (6, 21): self.fail(f'Unexpected XBIOS call {op}')
             elif op == 0x20: result = 1  # already supervisor, as in AUTO execution
             elif op == 0x3b: directory = string(number(2, 4))
@@ -107,6 +115,8 @@ class BootTests(unittest.TestCase):
                 machine.mem_write(destination, data)
                 reads.append((name, destination, len(data)))
                 result = len(data)
+                if name == 'ELITE.IMG':
+                    elapsed_ticks += load_ticks
             elif op == 0x3e: self.assertIn(number(2, 2), handles)
             elif op == 9: errors.append(string(number(2, 4)))
             elif op == 7: pass
@@ -116,6 +126,7 @@ class BootTests(unittest.TestCase):
                 return
             else: self.fail(f'Unexpected GEMDOS call {op:#x}')
             machine.reg_write(UC_M68K_REG_D0, result & 0xffffffff)
+            machine.mem_write(0x4ba, struct.pack('>I', (clock_start + elapsed_ticks) & 0xffffffff))
             machine.reg_write(UC_M68K_REG_PC, address + 2)
 
         cpu.hook_add(UC_HOOK_CODE, trap)
@@ -123,9 +134,15 @@ class BootTests(unittest.TestCase):
         reached = cpu.reg_read(UC_M68K_REG_PC) == entry
         low_after = bytearray(cpu.mem_read(0, basepage))
         low_after[0x484] = low_before[0x484]  # sole intentional system-variable write
+        low_after[0x4ba:0x4be] = low_before[0x4ba:0x4be]  # simulated OS clock
         self.assertEqual(bytes(low_after), low_before, 'Memory below the TPA was overwritten')
         if reached:
             self.assertFalse(errors)
+            self.assertGreaterEqual(elapsed_ticks - title_tick, 201)
+            if load_ticks >= 201:
+                self.assertEqual(syncs, 1, 'Slow loading must not add another hold')
+            else:
+                self.assertLessEqual(elapsed_ticks - title_tick, 201 + (200 + hz - 1) // hz)
             expected = bytearray(relocate_image(game_on_disk, self.offsets, delta))
             if self.values['patch_checksum']:
                 start = self.values['checksum_start_offset']
@@ -169,6 +186,14 @@ class BootTests(unittest.TestCase):
                                                           **{fault: name})
                         self.assertFalse(reached)
                         self.assertIn('Cannot read the Elite game files', errors[0])
+
+    def test_loading_hold_counts_io_time_on_pal_ntsc_and_clock_wrap(self):
+        for model, hz, load_ticks, clock in itertools.product(
+                (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020), (50, 60),
+                (80, 201, 600), (100, 0xfffffff0)):
+            with self.subTest(cpu=model, hz=hz, load_ticks=load_ticks, clock=clock):
+                self.assertTrue(self.execute(model, 0x31000, 0xf8000, 0xf8000,
+                    hz=hz, load_ticks=load_ticks, clock_start=clock)[0])
 
     def test_relocation_does_not_hide_game_checksum_corruption(self):
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):

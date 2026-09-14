@@ -59,11 +59,22 @@ q_loader_m68_1:
 	move.l d0,a1
 	lea free(pc),a0
 	bsr draw_screen
+	q_ext_bios vsync,2 ; Setpalette takes effect on the next vertical blank
+	move.l $4ba.w,-(sp) ; _hz_200: count the main-program load towards one second
 	lea main_program(pc),a0 ; load main program
 	move.l a5,a1
 	move.l #game_size,d6
 	bsr read_file
 	jsr (a4) ; check the read and relocate before executing any game code
+loader_title_wait:
+	move.l $4ba.w,d0
+	sub.l (sp),d0 ; elapsed time also works when the system clock wraps
+	cmp.l #201,d0 ; 200 Hz plus one tick to cover the initial partial tick
+	bhs.s loader_title_ready
+	q_ext_bios vsync,2
+	bra.s loader_title_wait
+loader_title_ready:
+	addq.l #4,sp
 	jmp (a5)
 
 loader_error:

@@ -66,6 +66,8 @@ The launcher keeps its loader, game and workspace within the TOS process's free 
 
 The loading screen uses [the final Coriolis-and-planet artwork](../resources/loading_screen/elite_loading_screen_new_final.png), converted to `assets/TITLE.PC1` at 320 x 200 pixels with the original 16-colour palette. The PNG is preserved without resampling, colour changes or additional dithering.
 
+The loader keeps the picture visible for at least one second, including time spent reading and relocating `ELITE.IMG`. It starts measuring after the palette reaches the display, using TOS's 200 Hz clock so PAL, NTSC and faster CPUs retain the same minimum. Slow loading adds no further hold. `tests/test_boot.py` exercises fast/slow loads, timer wraparound, relocated HDD startup and file errors on MC68000 and MC68020 with OS calls simulated.
+
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
 
 The link map is in `src_atari/build/elite.map`; verification results and output SHA-256 hashes are in `src_atari/build/verification.json`. See [ANALYSIS.md](ANALYSIS.md) for the memory layout, original architecture, and conversion details.

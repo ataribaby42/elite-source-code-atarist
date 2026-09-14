@@ -8,6 +8,12 @@ In flight, double-click an Inventory item and confirm with `Y` or the YES button
 
 ## Build and run
 
+`assets/ELITE.info` is the standard four-colour Workbench tool icon (96 x 24 pixels, normal and selected images). The build copies this asset unchanged beside `ELITE` in both the ADF and `output_amiga/ELITE`. Double-click it to launch the game from Workbench 1.3 or later; keep all game files together. The native executable receives and replies to the Workbench startup message, selects the executable's directory before loading assets, and restores the caller's directory on exit. Ctrl+F10 returns to Workbench. Shell and boot-disk launches remain supported.
+
+The icon follows Workbench's screen palette: the default 1.3 colours are blue/white/black/orange; 3.0 uses grey/black/white/blue-grey. `python src_amiga/tools/make_icon.py` rebuilds the checked-in icon from its hand-pixelled winged badge; ordinary builds consume the asset directly. `tests/test_workbench.py` executes the entry/exit paths and library-open failures on MC68000 and MC68020 with OS services stubbed.
+
+The loading picture stays visible for at least one second, including asset-loading time. Startup uses the display VBL counter and Exec's PAL/NTSC refresh frequency, with a two-frame allowance for publishing the first Copper frame. Only the remaining time is waited; a missing or unreadable optional picture adds no delay. This applies to Shell, boot-disk and Workbench launches. `tests/test_startup.py` checks the hold, clock wraparound, missing files and the handoff to the game on MC68000 and MC68020 with OS services stubbed.
+
 Run from the project root:
 
 ```powershell

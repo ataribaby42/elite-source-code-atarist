@@ -5,7 +5,7 @@ amiga_implementation: equ 1
     include "macros.m68"
     xref elite,vars,vblank,key_change,other_screen,quiet
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
-    xdef amiga_start_display
+    xdef amiga_start_display,amiga_wait_title
     xdef palette,frclock,dos_base,set_palette,random_seed_value
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
@@ -15,11 +15,35 @@ amiga_entry:
     move.l sp,host_stack
     move.l 4.w,a6
     move.l a6,exec_base
+    suba.l a1,a1
+    jsr -294(a6)                 ; FindTask(NULL)
+    move.l d0,a2
+    tst.l 172(a2)               ; Process.pr_CLI: zero for a Workbench launch
+    bne .cli
+    lea 92(a2),a0               ; Process.pr_MsgPort
+    jsr -384(a6)                 ; WaitPort: Workbench owns our startup message
+    lea 92(a2),a0
+    jsr -372(a6)                 ; GetMsg
+    move.l d0,workbench_message
+.cli:
     lea dos_name(pc),a1
     moveq #0,d0
     jsr -552(a6)                 ; OpenLibrary
     move.l d0,dos_base
     beq startup_failed
+    move.l workbench_message,d0
+    beq .directory_ready
+    move.l d0,a0
+    tst.l 28(a0)                ; WBStartup.sm_NumArgs
+    beq .directory_ready
+    move.l 36(a0),a0            ; sm_ArgList: first argument is the executable
+    move.l (a0),d1              ; WBArg.wa_Lock: borrowed, never UnLock it here
+    move.l dos_base,a6
+    jsr -126(a6)                 ; CurrentDir: assets and HDD saves live here
+    move.l d0,workbench_old_directory
+    st workbench_directory_changed
+    move.l exec_base,a6
+.directory_ready:
     jsr file_init               ; disk-swap paths and requester policy
     lea graphics_name(pc),a1
     moveq #0,d0
@@ -101,6 +125,13 @@ startup_failed:
     clr.l directory_lock
 .files_closed:
     jsr file_shutdown
+    tst workbench_directory_changed
+    beq .directory_restored
+    move.l dos_base,a6
+    move.l workbench_old_directory,d1
+    jsr -126(a6)
+    clr workbench_directory_changed
+.directory_restored:
     move.l exec_base,a6
     move.l graphics_base,d0
     beq .no_graphics
@@ -112,6 +143,13 @@ startup_failed:
     move.l d0,a1
     jsr -414(a6)
 .no_dos:
+    move.l workbench_message,d0
+    beq .return
+    move.l d0,a2
+    jsr -132(a6)                 ; Forbid: WB may unload us as soon as we reply
+    move.l a2,a1
+    jsr -378(a6)                 ; ReplyMsg; process termination releases Forbid
+.return:
     move.l host_stack,sp
     movem.l (sp)+,d2-d7/a2-a6
     moveq #0,d0
@@ -128,12 +166,36 @@ amiga_start_display:
     lea vblank_server,a1
     moveq #5,d0
     jsr -168(a6)                 ; AddIntServer
+    move.l frclock,title_frame
     st vblank_added
 .done:
     movem.l (sp)+,d0-d7/a0-a6
     rts
 
+; Loading work counts towards the hold. Two extra VBLs cover publishing the
+; first Copper frame, so even a fast HDD launch shows a complete second.
+amiga_wait_title:
+    movem.l d0-d2/a0-a1/a6,-(sp)
+    tst vblank_added             ; optional picture absent: no display to hold
+    beq .done
+    move.l exec_base,a6
+    moveq #0,d2
+    move.b 530(a6),d2            ; ExecBase.VBlankFrequency: PAL 50 / NTSC 60
+    addq.l #2,d2
+    move.l graphics_base,a6
+.wait:
+    move.l frclock,d0
+    sub.l title_frame,d0
+    cmp.l d2,d0
+    bhs .done
+    jsr -270(a6)                 ; WaitTOF: sleep until the next frame
+    bra .wait
+.done:
+    movem.l (sp)+,d0-d2/a0-a1/a6
+    rts
+
 amiga_install:
+    bsr amiga_wait_title
     movem.l d0-d7/a0-a6,-(sp)
     move.l exec_base,a6
     moveq #-1,d0
@@ -368,6 +430,9 @@ copper_planes:
 
     section platform_vars,bss
 host_stack: ds.l 1
+workbench_message: ds.l 1
+workbench_old_directory: ds.l 1
+workbench_directory_changed: ds.w 1
 exec_base: ds.l 1
 dos_base: ds.l 1
 graphics_base: ds.l 1
@@ -375,6 +440,7 @@ old_view: ds.l 1
 display_front: ds.l 1
 display_pending: ds.l 1
 frclock: ds.l 1
+title_frame: ds.l 1
 palette: ds.w 16
 saved_dma: ds.w 1
 display_owned: ds.w 1

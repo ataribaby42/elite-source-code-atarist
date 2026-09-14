@@ -130,7 +130,7 @@ See the [Atari registration notes](src_atari/REGISTRATION.md) and
 | `output_atari/ELITE.ST` | 720 KB FAT12 floppy image with AUTO-folder startup |
 | `output_atari/ELITE/` | Game directory containing the `ELITE.TOS` launcher and all data files |
 | `output_amiga/ELITE.ADF` | Amiga build: bootable 880 KB OFS floppy image |
-| `output_amiga/ELITE/` | Amiga build: native `ELITE` executable and data files |
+| `output_amiga/ELITE/` | Amiga build: native `ELITE` executable, Workbench icon and data files |
 | `src_atari/build/` | Intermediate files, logs, link map, and verification report |
 | `src_amiga/build/` | Independent Amiga intermediate files, logs, link map, and verification report |
 
@@ -147,6 +147,8 @@ The relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE: automatic f
 The Amiga game is developed in [src_amiga](src_amiga/README.md), separately from the Atari sources in `src_atari`. Both started from the corrected Atari game, including the starfield fixes. Amiga changes no longer require platform conditionals in the Atari tree.
 
 Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
+
+To launch from Workbench, open the game disk or copy the complete `output_amiga/ELITE` directory to a hard drive, then double-click the `ELITE` icon. The classic four-colour, dual-image icon comes from `src_amiga/assets/ELITE.info` and is included in both outputs. Keep the executable, icon and data files together. Workbench launches use the executable's directory for assets and HDD commander files, and Ctrl+F10 returns to Workbench. The icon uses the current Workbench palette, so its colours differ between the default Workbench 1.3 and 3.0 screens.
 
 The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original effect samples extracted from `resources/amiga/Elite 2.0.adf`. Music uses the original four-channel Amiga arrangement of Blue Danube, with its seven sampled instruments and native replay, for the title, docking computer and Elite congratulations screen. Effect timing and envelopes remain simplified. See [Amiga music notes](src_amiga/MUSIC.md) for extraction and validation details.
 

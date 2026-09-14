@@ -12,7 +12,7 @@ import unittest
 
 try:
     from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_HOOK_CODE
-    from unicorn.m68k_const import (UC_CPU_M68K_M68000,
+    from unicorn.m68k_const import (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020,
         UC_M68K_REG_A1, UC_M68K_REG_A6, UC_M68K_REG_A7, UC_M68K_REG_D0,
         UC_M68K_REG_D1, UC_M68K_REG_D2, UC_M68K_REG_PC, UC_M68K_REG_SR)
 except ImportError:
@@ -20,6 +20,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 CODE, STOP, EXEC, VARIABLES, STACK = 0x10000, 0x1000, 0x20000, 0x30000, 0x90000
+GRAPHICS = 0x24000
 SCREEN, OTHER = 0x4f020, 0x57020
 
 
@@ -63,7 +64,8 @@ class StartupTests(unittest.TestCase):
         names = ['show_title', 'amiga_install', 'amiga_start_display', 'amiga_vblank',
                  'palette', 'copper', 'copper_planes', 'display_front', 'display_pending',
                  'ready', 'amiga_active', 'frclock', 'exec_base', 'vblank_server',
-                 'file_open', 'file_read', 'file_close', 'game_ticks', 'var_size']
+                 'file_open', 'file_read', 'file_close', 'game_ticks', 'var_size',
+                 'amiga_wait_title', 'title_frame', 'graphics_base', 'vblank_added']
         assembly = ('amiga_workspace_implementation equ 1\nfileio_implementation equ 1\n'
                     '\torg $10000\n\tdc.l ' + ','.join(names) + '\n' + system)
         assembly += re.search(r'^load_file macro.*?^\s*endm', init, re.M | re.S).group(0)
@@ -90,14 +92,19 @@ class StartupTests(unittest.TestCase):
         cls.symbols = dict(zip(names, struct.unpack_from('>' + 'I' * len(names), cls.code)))
         cls.title = (ROOT / 'assets/TITLE.PC1').read_bytes()
 
-    def setUp(self):
+    def setUp(self, model=None):
         self.cpu = Uc(UC_ARCH_M68K, UC_MODE_BIG_ENDIAN)
-        self.cpu.ctl_set_cpu_model(UC_CPU_M68K_M68000)
+        self.cpu.ctl_set_cpu_model(UC_CPU_M68K_M68000 if model is None else model)
         self.cpu.mem_map(0, 0x100000)
         self.cpu.mem_map(0xbfe000, 0x1000)
         self.cpu.mem_map(0xdff000, 0x1000)
         self.cpu.mem_write(CODE, self.code)
         self.write_long('exec_base', EXEC)
+        self.write_long('graphics_base', GRAPHICS)
+        self.cpu.mem_write(EXEC + 530, bytes([50]))
+        self.cpu.mem_write(GRAPHICS - 270, b'\x4e\x75')
+        self.cpu.hook_add(UC_HOOK_CODE, self.wait_tof,
+                          begin=GRAPHICS - 270, end=GRAPHICS - 270)
         self.calls = []
         self.file_data = self.title
         self.read_error = False
@@ -116,6 +123,17 @@ class StartupTests(unittest.TestCase):
             self.assertEqual(cpu.reg_read(UC_M68K_REG_D0), 5)
             self.assertEqual(cpu.reg_read(UC_M68K_REG_A1), self.symbols['vblank_server'])
         cpu.reg_write(UC_M68K_REG_D0, {-330: 3, -294: 0x40000}.get(offset, 0))
+
+    def wait_tof(self, cpu, address, size, user_data):
+        self.calls.append('WaitTOF')
+        self.assertEqual(cpu.reg_read(UC_M68K_REG_A6), GRAPHICS)
+        self.assertEqual(self.read_long('game_ticks'), 0)
+        self.assertEqual(cpu.mem_read(self.symbols['amiga_active'], 2), b'\0\0')
+        self.write_long('frclock', (self.read_long('frclock') + 1) & 0xffffffff)
+        # Graphics calls may overwrite scratch data and address registers.
+        cpu.reg_write(UC_M68K_REG_D0, 0xdeadbeef)
+        cpu.reg_write(UC_M68K_REG_D1, 0xcafebabe)
+        cpu.reg_write(UC_M68K_REG_A1, 0xfeedface)
 
     def file_call(self, cpu, address, size, user_data):
         if address == self.symbols['file_open']:
@@ -180,6 +198,24 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(self.read_long('display_front'), OTHER)
         self.assertEqual(self.cpu.mem_read(self.symbols['ready'], 2), b'\0\0')
 
+    def test_loading_hold_counts_elapsed_frames_on_pal_ntsc_and_clock_wrap(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for hz in (50, 60):
+                for start, loaded in ((100, 0), (100, 12), (100, hz + 2),
+                                      (100, hz * 3), (0xfffffff0, 12)):
+                    with self.subTest(cpu=model, hz=hz, start=start, loaded=loaded):
+                        self.setUp(model)
+                        self.cpu.mem_write(EXEC + 530, bytes([hz]))
+                        self.write_long('frclock', start)
+                        self.run_code('show_title')
+                        self.assertEqual(self.read_long('title_frame'), start)
+                        self.write_long('frclock', (start + loaded) & 0xffffffff)
+                        self.run_code('amiga_install')
+                        self.assertEqual(self.calls.count('WaitTOF'), max(0, hz + 2 - loaded))
+                        self.assertEqual(self.calls.count(-168), 1)
+                        self.assertEqual(self.read_long('game_ticks'), 0)
+                        self.assertEqual(self.cpu.mem_read(SCREEN, 32000), decode_title(self.title))
+
     def test_missing_short_invalid_or_unreadable_title_allows_game_start(self):
         for data, read_error in [(None, False), (b'', False), (b'\x80\0', False),
                                  (b'\0' * 34, False), (self.title, True)]:
@@ -189,6 +225,7 @@ class StartupTests(unittest.TestCase):
                 self.run_code('show_title')
                 self.assertEqual(self.calls, [])
                 self.run_code('amiga_install')
+                self.assertNotIn('WaitTOF', self.calls)
                 self.assertEqual(self.calls.count(-168), 1)
                 self.run_code('amiga_vblank')
                 self.assertEqual(self.read_long('game_ticks'), 1)
