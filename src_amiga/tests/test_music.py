@@ -280,6 +280,7 @@ class MusicTests(unittest.TestCase):
                     for _ in range(7): call(m,s['sound'])
                     self.assertEqual(self.audio_word(m,'engine_voice'),1)
                     periods.append(h.periods[0])
+                    self.assertEqual(h.volumes[0],48)
                 self.assertEqual(periods,[419,321,224])
                 self.assertEqual(h.attacks,1)
                 m.mem_write(VARIABLES+s['key_states']+key,b'\0');call(m,s['sound'])
@@ -340,6 +341,135 @@ class MusicTests(unittest.TestCase):
                 m.reg_write(UC_M68K_REG_D0,s[effect]);call(m,s['fx']);call(m,s['sound'])
             self.assertEqual(self.audio_word(m,'engine_voice'),0)
             self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+
+    def test_engine_start_ramps_from_muted_dma_and_does_not_repeat_while_held(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for occupied in (0, 3):
+                for speed, key in ((0, 0x40), (22, 0x3a)):
+                    with self.subTest(cpu=model, occupied=occupied, speed=speed):
+                        m, h = self.output_machine(model)
+                        self.configure_beam(m, 0)
+                        if occupied:
+                            for effect in ('sfx_error', 'sfx_doors', 'sfx_hit'):
+                                m.reg_write(UC_M68K_REG_D0, s[effect])
+                                call(m, s['fx'])
+                            call(m, s['sound'])
+                        m.mem_write(VARIABLES+s['speed'], struct.pack('>H', speed))
+                        events = []
+
+                        def record(machine, access, address, size, value, user):
+                            if address == 0xdff096 and value & 0x8000:
+                                events.append(('start', value & 15, h.line, h.volumes.copy()))
+                            elif 0xdff0a8 <= address <= 0xdff0d8 and (address-0xdff0a8) % 16 == 0:
+                                events.append(('volume', (address-0xdff0a8)//16, h.line, value))
+
+                        m.hook_add(UC_HOOK_MEM_WRITE, record, begin=0xdff000, end=0xdff0ff)
+                        for restart in range(2):
+                            events.clear()
+                            m.mem_write(VARIABLES+s['key_states']+key, b'\1')
+                            self.steer_rcs(m, 0, 0)
+                            call(m, s['sound'])
+                            channel = self.audio_word(m, 'engine_voice')-1
+                            self.assertGreaterEqual(channel, 0)
+                            if not restart:
+                                self.assertEqual(channel, occupied)
+                            starts = [event for event in events
+                                      if event[0] == 'start' and event[1] & (1 << channel)]
+                            self.assertEqual(len(starts), 1)
+                            start = starts[0]
+                            self.assertEqual(start[3][channel], 0, 'DMA began at nonzero volume')
+                            ramp = [event for event in events if event[0] == 'volume'
+                                    and event[1] == channel and event[2] >= start[2]]
+                            levels = [0]+[event[3] for event in ramp]
+                            self.assertEqual(levels[-1], 48)
+                            self.assertGreater(len(ramp), 2, 'engine began with a gain jump')
+                            self.assertTrue(all(0 <= b-a <= 2 for a, b in zip(levels, levels[1:])))
+                            self.assertGreater(ramp[0][2]-start[2], 2, 'new loop was not fetched muted')
+                            self.assertTrue(all(b[2] > a[2] for a, b in zip(ramp, ramp[1:])))
+                            self.assertLess(ramp[-1][2]-start[2], 128)
+                            self.assertEqual(h.pointers[channel], s['engine_samples'])
+                            events.clear()
+                            for _ in range(6):
+                                call(m, s['sound'])
+                            self.assertFalse(any(event[0] == 'volume' and event[1] == channel
+                                                 or event[0] == 'start' and event[1] & (1 << channel)
+                                                 for event in events), 'held engine restarted its attack')
+                            m.mem_write(VARIABLES+s['key_states']+key, b'\0')
+                            call(m, s['sound'])
+                            self.assertEqual(self.audio_word(m, 'engine_voice'), 0)
+
+    def test_engine_stop_ramps_before_dma_off_in_the_same_call(self):
+        s = self.symbols
+        reasons = ('release', 'speed_limit', 'rcs_off', 'effects_off',
+                   'end_game', 'hyperspace_effect', 'docking_sequence',
+                   'quiet', 'start_tune', 'rcs_preemption', 'effect_preemption',
+                   'beam_preemption')
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for frames in (1, 4):  # stop just after startup as well as during sustained playback
+                for reason in reasons:
+                    with self.subTest(cpu=model, frames=frames, reason=reason):
+                        m, h = self.output_machine(model)
+                        self.configure_beam(m, 0)
+
+                        def occupy_other_voices():
+                            for effect in ('sfx_error', 'sfx_doors', 'sfx_hit'):
+                                m.reg_write(UC_M68K_REG_D0, s[effect])
+                                call(m, s['fx'])
+                            call(m, s['sound'])
+
+                        if reason == 'beam_preemption':
+                            occupy_other_voices()  # place the engine on channel 3
+                        m.mem_write(VARIABLES+s['speed'], struct.pack('>H', 11))
+                        m.mem_write(VARIABLES+s['key_states']+0x40, b'\1')
+                        self.steer_rcs(m, 0, 0)
+                        for _ in range(frames):
+                            call(m, s['sound'])
+                        if reason in ('rcs_preemption', 'effect_preemption'):
+                            occupy_other_voices()
+                        channel = self.audio_word(m, 'engine_voice')-1
+                        self.assertGreaterEqual(channel, 0)
+                        volume = h.volumes[channel]
+                        events = []
+
+                        def record(machine, access, address, size, value, user):
+                            if address == 0xdff0a8+16*channel:
+                                events.append(('volume', value, h.line))
+                            elif address == 0xdff096 and not value & 0x8000 and value & (1 << channel):
+                                events.append(('stop', value, h.line))
+
+                        m.hook_add(UC_HOOK_MEM_WRITE, record, begin=0xdff000, end=0xdff0ff)
+                        if reason == 'release':
+                            m.mem_write(VARIABLES+s['key_states']+0x40, b'\0')
+                        elif reason == 'speed_limit':
+                            m.mem_write(VARIABLES+s['speed'], struct.pack('>H', 22))
+                        elif reason in ('rcs_off', 'effects_off'):
+                            m.mem_write(VARIABLES+s['user'], b'\x81\0' if reason == 'rcs_off' else b'\0\0')
+                        elif reason == 'rcs_preemption':
+                            self.steer_rcs(m, 2, 0)
+                        elif reason == 'effect_preemption':
+                            m.reg_write(UC_M68K_REG_D0, s['sfx_explosion'])
+                            call(m, s['fx'])
+                        elif reason == 'beam_preemption':
+                            self.configure_beam(m, 2)
+                        call(m, s[reason] if reason in ('end_game', 'hyperspace_effect',
+                             'docking_sequence', 'quiet', 'start_tune') else s['sound'])
+
+                        # A beam may release channel 3 while an ordinary effect
+                        # expires elsewhere, allowing the engine to resume there.
+                        self.assertNotEqual(self.audio_word(m, 'engine_voice'), channel+1)
+                        if reason != 'beam_preemption':
+                            self.assertEqual(self.audio_word(m, 'engine_voice'), 0)
+                        stop = next(i for i, event in enumerate(events) if event[0] == 'stop')
+                        ramp = events[:stop]
+                        levels = [volume]+[event[1] for event in ramp]
+                        self.assertEqual(levels[-1], 0)
+                        self.assertGreater(len(ramp), 2, 'engine was cut off abruptly')
+                        self.assertTrue(all(0 <= a-b <= 2 for a, b in zip(levels, levels[1:])))
+                        self.assertTrue(all(b[2] > a[2] for a, b in zip(ramp, ramp[1:])))
+                        # The trace advances one line per register read. Even
+                        # with that overestimate, the ramp stays below one VBL.
+                        self.assertLess(events[stop][2]-ramp[0][2], 128)
 
     def test_rcs_real_damping_steady_rotation_and_no_loop_restarts(self):
         s = self.symbols

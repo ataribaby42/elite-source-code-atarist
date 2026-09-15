@@ -186,9 +186,8 @@ audio_settle:
 
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
-    clr engine_voice
+    bsr stop_engine_voice
     clr engine_request
-    clr engine_volume
     clr rcs_voice
     clr rcs_volume
     clr rcs_request
@@ -593,6 +592,19 @@ stop_engine_voice:
     lsl.w #4,d2
     lea $dff0a0,a1
     adda.w d2,a1
+    ; Avoid cutting the hum at an arbitrary sample with full gain. The ramp
+    ; takes at most 48 scanlines (about 3 ms), without leaving a release tail
+    ; for another VBL or delaying a cinematic until the next game frame.
+    move.w engine_volume,d2
+    beq.s .muted
+.fade:
+    subq.w #1,d2
+    move.w d2,8(a1)
+    moveq #0,d1
+    bsr audio_settle
+    tst.w d2
+    bne.s .fade
+.muted:
     move.w #0,8(a1)
     moveq #4,d1
     bsr audio_settle
@@ -687,7 +699,19 @@ update_engine_sound:
     bsr audio_settle
     or.w #$8200,d4
     move.w d4,$dff096
-    clr engine_volume
+    moveq #4,d1
+    bsr audio_settle          ; fetch the new loop while the channel is muted
+    ; Reach normal volume in about 3 ms using single-level steps, avoiding
+    ; both the initial gain jump and the old four-VBL staircase.
+    moveq #0,d2
+.attack:
+    addq.w #1,d2
+    move.w d2,8(a1)
+    moveq #0,d1
+    bsr audio_settle
+    cmp.w #48,d2              ; normal effect level, matching the continuous laser
+    blo.s .attack
+    move.w d2,engine_volume
 .running:
     move.w engine_voice,d2
     subq.w #1,d2
@@ -695,12 +719,6 @@ update_engine_sound:
     lea $dff0a0,a1
     adda.w d2,a1
     move.w d3,6(a1) ; vary pitch without restarting the loop
-    move.w engine_volume,d0
-    cmp.w #6,d0
-    bhs.s .done
-    addq.w #1,d0
-    move.w d0,engine_volume
-    move.w d0,8(a1)
 .done:
     rts
 .disabled:

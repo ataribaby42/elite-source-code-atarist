@@ -6,12 +6,14 @@ Run all commands below from the project root. Paths in the tables and text are a
 
 ## RCS sound
 
-RCS FX also enables a quiet motor tone while the player holds Space (accelerate)
+RCS FX also enables a motor tone while the player holds Space (accelerate)
 or slash (decelerate). Releasing both keys silences it on the next VBL. Actual
 speed changes, including mouse throttle and automatic changes, do not trigger
 it. Acceleration is silent at maximum speed, and deceleration is silent at
 zero speed; the opposite direction remains audible. Current speed sets the
-pitch. The motor has priority below RCS and all ordinary effects. Both RCS FX
+pitch, using PSG periods from 1920 to 960 for a deeper range close to the
+Amiga engine's fundamental. Volume rises to PSG level 12 over four VBLs, matching the continuous
+laser's level. The motor has priority below RCS and all ordinary effects. Both RCS FX
 OFF and Effects OFF mute it. Docking, either hyperspace jump and death clear
 its gameplay request immediately, even if a throttle key remains held.
 

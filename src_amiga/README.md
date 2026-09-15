@@ -4,13 +4,19 @@ This source tree started as a copy of the corrected Atari sources before the com
 
 ## RCS sound
 
-RCS FX also enables a quiet, synthesized motor hum while Space (accelerate)
+RCS FX also enables a synthesized motor hum while Space (accelerate)
 or slash (decelerate) is held. It stops at the next VBL after both keys are
-released. Actual speed changes, including mouse throttle and automatic changes,
+released, with a short volume ramp (about 3 ms at full volume) to reduce clicks.
+The ramp completes before DMA is stopped, including channel replacement and
+cinematic or music transitions; it does not leave a tail for later frames.
+Actual speed changes, including mouse throttle and automatic changes,
 do not trigger it. Acceleration is silent at maximum speed and deceleration
 is silent at zero; the opposite direction remains audible. Current speed
-sets the sample period from 428 to 214 without restarting its 1024-byte loop;
-volume rises to 6/64. It has priority below RCS and every ordinary effect.
+sets the sample period from 428 to 214 without restarting its 1024-byte loop.
+At startup, DMA first fetches the new loop at zero volume, then volume rises
+in single-level steps to 48/64 over about 3 ms, matching the continuous
+laser's level and avoiding abrupt gain changes.
+It has priority below RCS and every ordinary effect.
 RCS FX OFF and Effects OFF mute it. Docking, either hyperspace jump and death
 discard its gameplay request immediately, including when a key remains held.
 

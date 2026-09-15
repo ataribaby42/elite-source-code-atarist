@@ -135,7 +135,8 @@ class BeamSoundTests(unittest.TestCase):
                     for _ in range(4): self.call('sound')
                     self.assertNotEqual(self.read('engine_channel',4),0)
                     periods.append(self.hardware.registers[0] | self.hardware.registers[1]<<8)
-                self.assertEqual(periods,[1173,900,628])
+                    self.assertEqual(self.hardware.registers[8],12)
+                self.assertEqual(periods,[1877,1440,1004])
                 self.throttle_key(key,False);self.call('sound') # no new gameplay publication
                 self.assertEqual(self.read('engine_channel',4),0)
                 for mode in ('disabled','end_game','hyperspace_effect','docking_sequence'):
