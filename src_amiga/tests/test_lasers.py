@@ -134,7 +134,7 @@ peel_off_check:
                  'release_cargo', 'low_energy', 'prepare_vipers',
                  'disp_message', 'find_table', 'str_copy', 'str_cat', 'speed_control',
                  'clear_image', 'remove_radar', 'update_inst', 'do_countdown',
-                 'damping', 'flash_message', 'torus_drive', 'get_range', 'collision',
+                 'damping', 'publish_rcs_sound', 'flash_message', 'torus_drive', 'get_range', 'collision',
                  'radar', 'mini_radar', 'do_logic', 'world_z_rotate', 'world_x_rotate',
                  'orthogonal', 'move', 'queue_ai_laser', 'radar_lock', 'calc_altitude', 'warnings',
                  'ecm', 'docking', 'recharge', 'draw_space', 'draw_sight', 'text_blatt',
