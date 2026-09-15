@@ -15,6 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.amiga_assets import extract_assets, ofs_file
 from tools.beam_audio import generate_beam_audio
+from tools.rcs_audio import generate_rcs_audio
+from tools.engine_audio import generate_engine_audio
+from test_raster import routine
+from test_viewport import variable_block
 
 try:
     from unicorn import (Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ,
@@ -37,7 +41,11 @@ def assemble(directory):
              'amiga_samples', 'effect_ticks', 'sfx_laser', 'sfx_doors', 'sfx_explosion', 'sfx_hit',
              'beam_samples', 'beam_kind', 'beam_volume', 'laser_audio_request', 'laser_type',
              'laser_temp', 'max_ltemp', 'game_frozen', 'game_over', 'docked', 'cockpit_on',
-             'controls_locked']
+             'controls_locked', 'rcs_samples', 'rcs_voice', 'rcs_request', 'rcs_valid',
+             'rcs_volume', 'prepare_rcs_frame', 'publish_rcs_sound', 'stop_rcs_sound',
+             'roll_angle', 'climb_angle', 'damping', 'f_damping', 'sfx_error',
+             'end_game', 'hyperspace_effect', 'docking_sequence',
+             'engine_samples', 'engine_voice', 'speed', 'key_states']
     music = (ROOT/'asm/music.m68').read_text()
     sounds = (ROOT/'asm/sounds.m68').read_text()
     # Keep executable pages separate so writes to instructions fail even when
@@ -59,6 +67,13 @@ def assemble(directory):
                         'amiga_audio': chip}[match[1]]
             else:
                 dest.append(line)
+    flight = (ROOT/'asm/flight.m68').read_text()
+    text += [variable_block(flight, 'flight'), routine(flight, 'damping'),
+             'set_roll_angles:\nset_climb_angles:\n rts\n']
+    effects = (ROOT/'asm/effects.m68').read_text()
+    for entry in ('end_game', 'hyperspace_effect', 'docking_sequence'):
+        animation = routine(effects, entry)
+        text.append(animation[:animation.index('\ttst view(a6)')]+'\trts\n')
     code += '\n'.join(text)+'\n cnop 0,4096\nmusic_code_end:\n'
     code += '\n'.join(data)+'\n cnop 0,4096\n'
     code += '\n'.join(variables)+'\n cnop 0,4096\n'
@@ -105,6 +120,8 @@ class MusicTests(unittest.TestCase):
         cls.game = ofs_file(adf.read_bytes(), 887)
         extract_assets(adf, directory)
         generate_beam_audio(directory)
+        generate_rcs_audio(directory)
+        generate_engine_audio(directory)
         cls.code, cls.symbols = assemble(directory)
 
     def native(self, model):
@@ -236,6 +253,185 @@ class MusicTests(unittest.TestCase):
                             ('laser_type', kind), ('laser_audio_request', kind)]:
             machine.mem_write(VARIABLES+self.symbols[name], struct.pack('>H', value))
 
+    def steer_rcs(self, machine, roll, pitch):
+        s = self.symbols
+        call(machine, s['prepare_rcs_frame'])
+        for name, value in [('roll_angle', roll), ('climb_angle', pitch)]:
+            machine.mem_write(VARIABLES+s[name], struct.pack('>H', value & 65535))
+        call(machine, s['publish_rcs_sound'])
+
+    def audio_word(self, machine, name):
+        return int.from_bytes(machine.mem_read(self.symbols[name], 2), 'big')
+
+    def test_throttle_keys_release_speed_limits_option_and_cinematics(self):
+        s=self.symbols
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for key in (0x40,0x3a):
+                m,h=self.output_machine(model);self.configure_beam(m,0)
+                for speed in (0,11,22):
+                    m.mem_write(VARIABLES+s['speed'],struct.pack('>H',speed))
+                    self.steer_rcs(m,0,0);call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'engine_voice'),0)
+                m.mem_write(VARIABLES+s['key_states']+key,b'\x01')
+                periods=[]
+                for speed in (1,11,21):
+                    m.mem_write(VARIABLES+s['speed'],struct.pack('>H',speed))
+                    self.steer_rcs(m,0,0)
+                    for _ in range(7): call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'engine_voice'),1)
+                    periods.append(h.periods[0])
+                self.assertEqual(periods,[419,321,224])
+                self.assertEqual(h.attacks,1)
+                m.mem_write(VARIABLES+s['key_states']+key,b'\0');call(m,s['sound'])
+                self.assertEqual(h.dma,0)
+                for mode in ('disabled','end_game','hyperspace_effect','docking_sequence'):
+                    m.mem_write(VARIABLES+s['user'],b'\x01\0')
+                    m.mem_write(VARIABLES+s['key_states']+key,b'\x01')
+                    self.steer_rcs(m,0,0);call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'engine_voice'),1)
+                    if mode=='disabled':
+                        m.mem_write(VARIABLES+s['user'],b'\x81\0');call(m,s['sound'])
+                    else: call(m,s[mode])
+                    self.assertEqual(h.dma,0)
+                    for _ in range(6): call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'engine_voice'),0)
+
+    def test_throttle_is_silent_at_blocked_limits_but_allows_opposite_direction(self):
+        s=self.symbols
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for key,limit,opposite in ((0x40,22,0x3a),(0x3a,0,0x40)):
+                m,h=self.output_machine(model);self.configure_beam(m,0)
+                m.mem_write(VARIABLES+s['speed'],struct.pack('>H',limit))
+                m.mem_write(VARIABLES+s['key_states']+key,b'\x01')
+                self.steer_rcs(m,0,0);call(m,s['sound'])
+                self.assertEqual(self.audio_word(m,'engine_voice'),0)
+                self.assertEqual(h.dma,0)
+                m.mem_write(VARIABLES+s['speed'],struct.pack('>H',11))
+                self.steer_rcs(m,0,0);call(m,s['sound'])
+                self.assertNotEqual(self.audio_word(m,'engine_voice'),0)
+                m.mem_write(VARIABLES+s['speed'],struct.pack('>H',limit))
+                call(m,s['sound'])
+                self.assertEqual(self.audio_word(m,'engine_voice'),0)
+                self.assertEqual(h.volumes,[0]*4)
+                self.assertEqual(h.dma,0)
+                for _ in range(5): call(m,s['sound'])
+                self.assertEqual(h.dma,0)
+                m.mem_write(VARIABLES+s['key_states']+key,b'\0')
+                m.mem_write(VARIABLES+s['key_states']+opposite,b'\x01')
+                self.steer_rcs(m,0,0);call(m,s['sound'])
+                self.assertNotEqual(self.audio_word(m,'engine_voice'),0)
+
+    def test_throttle_yields_to_rcs_and_ordinary_effects(self):
+        s=self.symbols
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            m,h=self.output_machine(model);self.configure_beam(m,2)
+            m.mem_write(VARIABLES+s['key_states']+0x40,b'\x01')
+            self.steer_rcs(m,0,0);call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'engine_voice'),1)
+            for effect in ('sfx_error','sfx_doors'):
+                m.reg_write(UC_M68K_REG_D0,s[effect]);call(m,s['fx']);call(m,s['sound'])
+            self.steer_rcs(m,2,0);call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'engine_voice'),0)
+            self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+            m,h=self.output_machine(model);self.configure_beam(m,2)
+            m.mem_write(VARIABLES+s['key_states']+0x40,b'\x01')
+            self.steer_rcs(m,2,0);call(m,s['sound'])
+            for effect in ('sfx_error','sfx_doors'):
+                m.reg_write(UC_M68K_REG_D0,s[effect]);call(m,s['fx']);call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'engine_voice'),0)
+            self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+
+    def test_rcs_real_damping_steady_rotation_and_no_loop_restarts(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            m, h = self.output_machine(model)
+            self.configure_beam(m, 0)
+            m.mem_write(VARIABLES+s['user'], struct.pack('>H', 0x100 | (1 << (8+s['f_damping']))))
+            self.steer_rcs(m, 6, -4)
+            for _ in range(8):
+                call(m, s['sound'])
+            self.assertEqual(h.volumes, [8, 0, 0, 0])
+            self.assertEqual(h.pointers[0], s['rcs_samples'])
+            starts = h.attacks
+            for roll, pitch in ((4, -2), (2, 0), (0, 0)):
+                call(m, s['damping'])
+                call(m, s['publish_rcs_sound'])
+                self.assertEqual(int.from_bytes(m.mem_read(VARIABLES+s['roll_angle'],2),'big'),roll)
+                self.assertEqual(int.from_bytes(m.mem_read(VARIABLES+s['climb_angle'],2),'big'),pitch & 65535)
+                self.assertEqual(self.audio_word(m,'rcs_request'),1)
+                for _ in range(3):
+                    call(m,s['sound'])
+                self.assertEqual(h.attacks,starts)
+            self.steer_rcs(m, 40, 0)
+            self.steer_rcs(m, 40, 0)
+            for _ in range(4):
+                call(m,s['sound'])
+            self.assertEqual(h.volumes,[0]*4)
+            self.assertEqual(h.dma,0)
+
+    def test_rcs_lowest_priority_resumes_and_yields_beam_channel(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            m,h = self.output_machine(model)
+            self.configure_beam(m,2)
+            self.steer_rcs(m,2,0)
+            call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+            for n,effect in enumerate(('sfx_laser','sfx_error','sfx_doors')):
+                m.reg_write(UC_M68K_REG_D0,s[effect])
+                call(m,s['fx'])
+                call(m,s['sound'])
+                self.assertEqual(self.audio_word(m,'rcs_voice'),1 if n < 2 else 0)
+                self.assertEqual(h.pointers[3],s['beam_samples'])
+            for _ in range(200):
+                call(m,s['sound'])
+            self.assertNotEqual(self.audio_word(m,'rcs_voice'),0)
+            m,h = self.output_machine(model)
+            self.configure_beam(m,0)
+            self.steer_rcs(m,2,0)
+            for effect in ('sfx_error','sfx_doors','sfx_explosion'):
+                m.reg_write(UC_M68K_REG_D0,s[effect])
+                call(m,s['fx'])
+            call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'rcs_voice'),4)
+            self.configure_beam(m,2)
+            call(m,s['sound'])
+            self.assertEqual(self.audio_word(m,'rcs_voice'),0)
+            self.assertEqual(h.pointers[3],s['beam_samples'])
+
+    def test_rcs_cinematic_entries_and_option_shutdown(self):
+        s = self.symbols
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for entry in ('end_game','hyperspace_effect','docking_sequence','quiet','start_tune'):
+                m,h = self.output_machine(model)
+                self.configure_beam(m,0)
+                self.steer_rcs(m,2,0)
+                call(m,s['sound'])
+                self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+                call(m,s[entry])
+                self.assertEqual(h.volumes,[0]*4)
+                self.assertEqual(self.audio_word(m,'rcs_voice'),0)
+                self.assertEqual(self.audio_word(m,'rcs_request'),0)
+                for _ in range(10):
+                    call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'rcs_voice'),0)
+            for flag,value in [('user',0x8100),('user',0),('docked',1),
+                               ('game_frozen',1),('game_over',1),('controls_locked',1),('cockpit_on',0)]:
+                m,h = self.output_machine(model)
+                self.configure_beam(m,2)
+                self.steer_rcs(m,2,0)
+                call(m,s['sound'])
+                m.mem_write(VARIABLES+s[flag],struct.pack('>H',value))
+                call(m,s['sound'])
+                self.assertEqual(self.audio_word(m,'rcs_voice'),0)
+                self.assertEqual(h.volumes[0],0)
+                if value == 0x8100:
+                    self.assertTrue(h.dma & 8)
+                    m.mem_write(VARIABLES+s['user'],b'\x01\x00')
+                    self.steer_rcs(m,4,0)
+                    call(m,s['sound'])
+                    self.assertEqual(self.audio_word(m,'rcs_voice'),1)
+
     def test_continuous_beams_loop_without_retrigger_and_keep_other_effect_channels(self):
         s = self.symbols
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
@@ -350,7 +546,8 @@ class PaulaTrace:
         p, length = self.pointers[channel], 2*self.lengths[channel]
         s = self.symbols
         banks = [(s['wb_samples'], 60350), (s['wb_silence'], 2),
-                 (s['amiga_samples'], 53908), (s['beam_samples'], 8192)]
+                 (s['amiga_samples'], 53908), (s['beam_samples'], 8192),
+                 (s['rcs_samples'], 4096), (s['engine_samples'], 1024)]
         assert length and any(start <= p and p+length <= start+size
                               for start, size in banks), (channel, hex(p), length)
 

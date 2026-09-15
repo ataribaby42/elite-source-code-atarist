@@ -2,6 +2,38 @@
 
 This source tree started as a copy of the corrected Atari sources before the combined Amiga build was introduced. It retains the game logic and starfield fixes, with Amiga-specific rendering, sound, input, startup and file handling developed here. It builds independently of `src_atari`; neither target uses a platform switch or imports the other target's build script.
 
+## RCS sound
+
+RCS FX also enables a quiet, synthesized motor hum while Space (accelerate)
+or slash (decelerate) is held. It stops at the next VBL after both keys are
+released. Actual speed changes, including mouse throttle and automatic changes,
+do not trigger it. Acceleration is silent at maximum speed and deceleration
+is silent at zero; the opposite direction remains audible. Current speed
+sets the sample period from 428 to 214 without restarting its 1024-byte loop;
+volume rises to 6/64. It has priority below RCS and every ordinary effect.
+RCS FX OFF and Effects OFF mute it. Docking, either hyperspace jump and death
+discard its gameplay request immediately, including when a key remains held.
+
+`RCS FX: ON / OFF` appears below Effects in Game Options. It defaults to ON
+and is stored in the Commander's existing user preference byte (bit 7 means
+OFF). Effects OFF also mutes RCS.
+
+A quiet filtered-noise sample loops while roll or pitch changes, including
+automatic damping to zero. Steady rotation is silent. Paula volume rises to
+8/64 and fades briefly when steering settles. RCS takes only a free channel;
+ordinary effects use free channels first and replace RCS before another
+effect. The continuous beam retains channel 3. Noise effects can coexist
+because Paula voices play independent samples. Docking, normal and galactic
+hyperspace, and death entry points stop RCS before the first animation frame.
+
+`tools/rcs_audio.py` generates the 4096-byte loop at build time without using
+the game's random generator. The loop is placed in Chip RAM with the other
+audio. `tests/test_music.py` executes the driver and damping on MC68000 and
+MC68020, checking DMA ordering, priorities, cinematic shutdown, and existing
+music/laser behavior. The options and Commander tests cover button hit boxes,
+default ON, and preference round trips. Final loudness requires listening in
+an Amiga emulator or on hardware; register-level tests do not judge sound quality.
+
 ## Jettison cargo
 
 In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.

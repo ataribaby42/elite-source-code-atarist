@@ -27,6 +27,7 @@
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
 	xref set_climb_angles
+	xref publish_rcs_sound,stop_rcs_sound
 	xref wait_key,clear_image,swap_screen,clear_input,hexagon
 	xref disp_message,damping,print_string,launch_system,get_range,draw_object
 	xref world_x_rotate,world_z_rotate,do_logic,move,hyperspace
@@ -85,6 +86,7 @@ fuel_dist: equ max_ctemp*23/24 ; temperature for fuel scooping
 q_main_m68_1:
 	bsr do_countdown ; perform any countdown
 	bsr damping ; automatic damping
+	jsr publish_rcs_sound
 	q_dec reduce_ctr(a6) ; ready to reduce energy ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_main_m68_3
@@ -873,6 +875,7 @@ q_main_m68_77:
 ; Quelo: 	if <pl> then.s						yes
 	bmi.s q_main_m68_79
 	st game_over(a6)
+	jsr stop_rcs_sound
 	move d0,reason(a6)
 q_main_m68_79:
 

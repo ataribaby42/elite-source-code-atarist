@@ -54,6 +54,7 @@
 
 	xref initialise,attract,check_keys,quiet,game_logic,prepare_text
 	xref print_string,end_game,cockpit,read_key,put_bitmap,find_bitmap
+	xref prepare_rcs_frame
 
 	section text,code
 
@@ -73,6 +74,7 @@ q_elite_m68_3:
 q_elite_m68_5:
 	q_inc.b loop_ctr(a6) ; increment loop counter
 	clr frame_count(a6) ; clear the frame counter
+	jsr prepare_rcs_frame ; establish the initial steering baseline before input
 	jsr check_keys ; scan keys and take action
 	tst game_frozen(a6) ; game frozen ?
 ; Quelo: 			if <eq> then.s					no

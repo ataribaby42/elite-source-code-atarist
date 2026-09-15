@@ -7,6 +7,9 @@
     xref amiga_music_volumes,amiga_music_mute,amiga_music_retrigger
     xref amiga_music_attack,amiga_music_loops
     include "beam-loops.inc"
+    include "rcs-loop.inc"
+    include "engine-loop.inc"
+    xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
     section text,code
 fx:
@@ -43,6 +46,42 @@ play_effect:
 .next:
     addq.l #2,a1
     dbra d7,.same
+    ; Prefer a free voice, then RCS, before rotating through ordinary effects.
+    moveq #0,d6
+    lea effect_ticks,a1
+.find_free:
+    cmp.w #3,d6
+    bne.s .check_rcs
+    tst beam_kind
+    bne.s .next_free
+.check_rcs:
+    move.w d6,d7
+    addq.w #1,d7
+    cmp.w rcs_voice,d7
+    beq.s .next_free
+    cmp.w engine_voice,d7
+    beq.s .next_free
+    tst.w (a1)
+    beq .channel_ready
+.next_free:
+    addq.l #2,a1
+    addq.w #1,d6
+    cmp.w #4,d6
+    bne.s .find_free
+    tst engine_voice
+    beq.s .try_rcs
+    move.w engine_voice,d6
+    subq.w #1,d6
+    bsr stop_engine_voice
+    bra.s .channel_ready
+.try_rcs:
+    tst rcs_voice
+    beq.s .rotate
+    move.w rcs_voice,d6
+    subq.w #1,d6
+    bsr stop_rcs_voice
+    bra.s .channel_ready
+.rotate:
     move.w next_channel,d6
     cmp.w #3,d6
     bne .channel_ready
@@ -147,6 +186,13 @@ audio_settle:
 
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
+    clr engine_voice
+    clr engine_request
+    clr engine_volume
+    clr rcs_voice
+    clr rcs_volume
+    clr rcs_request
+    clr rcs_valid
     clr laser_audio_request(a6)
     clr beam_kind
     clr beam_volume
@@ -271,6 +317,8 @@ sound:
     addq.w #1,d0
     cmp.w #17,d0
     bne .request
+    bsr update_rcs_sound       ; ordinary pending effects always get first choice
+    bsr update_engine_sound    ; manual throttle is below RCS and all effects
 .return:
     rts
 
@@ -322,6 +370,14 @@ update_beam_sound:
 .start:
     tst.w d5
     beq .done
+    cmp.w #4,rcs_voice         ; the beam may reclaim its dedicated channel
+    bne.s .voice_ready
+    bsr stop_rcs_voice
+.voice_ready:
+    cmp.w #4,engine_voice
+    bne.s .engine_ready
+    bsr stop_engine_voice
+.engine_ready:
     clr effect_ticks+6
     move.b #-1,effect_ids+3
     move.w #0,$dff0d8
@@ -353,6 +409,304 @@ update_beam_sound:
     move.w d0,$dff0d8
 .done:
     rts
+
+; Game-frame publication includes manual input and automatic centring.
+prepare_rcs_frame:
+    tst rcs_valid
+    bne.s .done
+    move.w roll_angle(a6),rcs_roll
+    move.w climb_angle(a6),rcs_pitch
+    st rcs_valid
+.done:
+    rts
+
+publish_rcs_sound:
+    move.l d0,-(sp)
+    moveq #0,d0
+    tst.b key_states+$40(a6) ; Space: accelerate
+    bne.s .engine_on
+    tst.b key_states+$3a(a6) ; slash: decelerate
+    beq.s .engine_publish
+.engine_on:
+    moveq #1,d0
+.engine_publish:
+    move.w d0,engine_request ; only a gameplay frame may enable the motor
+    moveq #0,d0
+    tst rcs_valid
+    beq.s .publish
+    move.w roll_angle(a6),d0
+    cmp.w rcs_roll,d0
+    bne.s .changed
+    move.w climb_angle(a6),d0
+    cmp.w rcs_pitch,d0
+    bne.s .changed
+    moveq #0,d0
+    bra.s .publish
+.changed:
+    moveq #1,d0
+.publish:
+    move.w roll_angle(a6),rcs_roll
+    move.w climb_angle(a6),rcs_pitch
+    st rcs_valid
+    move.w d0,rcs_request
+    move.l (sp)+,d0
+    rts
+
+; Synchronous cinematic shutdown. Keep the VBL out of hardware updates.
+stop_rcs_sound:
+    move.w audio_resetting,-(sp)
+    st audio_resetting
+    clr rcs_request
+    clr rcs_valid
+    bsr stop_rcs_voice
+    clr engine_request
+    bsr stop_engine_voice
+    move.w (sp)+,audio_resetting
+    rts
+
+; Release just our voice, preserving the caller's registers and request.
+stop_rcs_voice:
+    tst rcs_voice
+    beq.s .done
+    movem.l d0-d2/d4/a1,-(sp)
+    move.w rcs_voice,d2
+    subq.w #1,d2
+    moveq #1,d4
+    lsl.w d2,d4
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    adda.w d2,a1
+    move.w #0,8(a1)
+    moveq #4,d1
+    bsr audio_settle
+    move.w d4,$dff096
+    move.w #0,10(a1)
+    clr rcs_voice
+    clr rcs_volume
+    movem.l (sp)+,d0-d2/d4/a1
+.done:
+    rts
+
+; Unlike the ST, Paula has independent samples: other noise effects may coexist.
+update_rcs_sound:
+    btst #f_no_rcs,user(a6)
+    bne .disabled
+    btst #f_fx,user(a6)
+    beq .disabled
+    tst game_frozen(a6)
+    bne .disabled
+    tst game_over(a6)
+    bne .disabled
+    tst docked(a6)
+    bne .disabled
+    tst cockpit_on(a6)
+    beq .disabled
+    tst controls_locked(a6)
+    bne .disabled
+    tst rcs_request
+    beq .release
+    tst rcs_voice
+    bne .attack
+    moveq #0,d2
+    lea effect_ticks,a0
+.find:
+    cmp.w #3,d2
+    bne.s .available
+    tst beam_kind
+    bne .reclaim_engine
+.available:
+    move.w d2,d0
+    addq.w #1,d0
+    cmp.w engine_voice,d0
+    beq.s .next_voice
+    tst.w (a0)+
+    beq.s .start
+    bra.s .advance_voice
+.next_voice:
+    addq.l #2,a0
+.advance_voice:
+    addq.w #1,d2
+    cmp.w #4,d2
+    bne.s .find
+.reclaim_engine:
+    tst engine_voice
+    beq .done
+    move.w engine_voice,d2
+    subq.w #1,d2
+    bsr stop_engine_voice
+.start:
+    move.w d2,rcs_voice
+    addq.w #1,rcs_voice
+    moveq #1,d4
+    lsl.w d2,d4
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    adda.w d2,a1
+    move.w #0,8(a1)
+    moveq #4,d1
+    bsr audio_settle
+    move.w d4,$dff096
+    move.w #rcs_audio_period,6(a1)
+    move.w #0,10(a1)
+    move.l #rcs_samples,(a1)
+    move.w #rcs_sample_words,4(a1)
+    moveq #4,d1
+    bsr audio_settle
+    or.w #$8200,d4
+    move.w d4,$dff096
+    clr rcs_volume
+.attack:
+    move.w rcs_volume,d0
+    addq.w #2,d0
+    cmp.w #8,d0               ; subdued hiss, well below the continuous beam
+    bls.s .volume
+    moveq #8,d0
+    bra.s .volume
+.release:
+    tst rcs_voice
+    beq.s .done
+    move.w rcs_volume,d0
+    subq.w #3,d0
+    ble stop_rcs_voice
+.volume:
+    move.w d0,rcs_volume
+    move.w rcs_voice,d2
+    subq.w #1,d2
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    move.w d0,8(a1,d2.w)
+.done:
+    rts
+.disabled:
+    clr rcs_request
+    clr rcs_valid
+    bra stop_rcs_voice
+
+stop_engine_voice:
+    tst engine_voice
+    beq.s .done
+    movem.l d0-d2/d4/a1,-(sp)
+    move.w engine_voice,d2
+    subq.w #1,d2
+    moveq #1,d4
+    lsl.w d2,d4
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    adda.w d2,a1
+    move.w #0,8(a1)
+    moveq #4,d1
+    bsr audio_settle
+    move.w d4,$dff096
+    move.w #0,10(a1)
+    clr engine_voice
+    clr engine_volume
+    movem.l (sp)+,d0-d2/d4/a1
+.done:
+    rts
+
+update_engine_sound:
+    btst #f_no_rcs,user(a6)
+    bne .disabled
+    btst #f_fx,user(a6)
+    beq .disabled
+    tst game_frozen(a6)
+    bne .disabled
+    tst game_over(a6)
+    bne .disabled
+    tst docked(a6)
+    bne .disabled
+    tst cockpit_on(a6)
+    beq .disabled
+    tst controls_locked(a6)
+    bne .disabled
+    tst jettison_pending(a6)
+    bne .disabled
+    tst engine_request
+    beq .stop
+    tst.b key_states+$40(a6)
+    beq.s .decelerate
+    cmp.w #max_speed,speed(a6)
+    blt.s .speed
+.decelerate:
+    tst.b key_states+$3a(a6)
+    beq .stop ; release is observed at the next VBL, not next game frame
+    tst.w speed(a6)
+    ble .stop ; the held key cannot slow the ship below zero
+.speed:
+    move.w speed(a6),d3
+    bpl.s .positive
+    moveq #0,d3
+.positive:
+    cmp.w #max_speed,d3
+    bls.s .speed_ok
+    move.w #max_speed,d3
+.speed_ok:
+    mulu.w #214,d3
+    divu.w #max_speed,d3
+    neg.w d3
+    add.w #428,d3
+    tst engine_voice
+    bne .running
+    moveq #0,d2
+    lea effect_ticks,a0
+.find:
+    cmp.w #3,d2
+    bne.s .check_rcs
+    tst beam_kind
+    bne .done
+.check_rcs:
+    move.w d2,d0
+    addq.w #1,d0
+    cmp.w rcs_voice,d0
+    beq.s .next
+    tst.w (a0)
+    beq.s .start
+.next:
+    addq.l #2,a0
+    addq.w #1,d2
+    cmp.w #4,d2
+    bne.s .find
+    rts
+.start:
+    move.w d2,engine_voice
+    addq.w #1,engine_voice
+    moveq #1,d4
+    lsl.w d2,d4
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    adda.w d2,a1
+    move.w #0,8(a1)
+    moveq #4,d1
+    bsr audio_settle
+    move.w d4,$dff096
+    move.w d3,6(a1)
+    move.w #0,10(a1)
+    move.l #engine_samples,(a1)
+    move.w #engine_sample_words,4(a1)
+    moveq #4,d1
+    bsr audio_settle
+    or.w #$8200,d4
+    move.w d4,$dff096
+    clr engine_volume
+.running:
+    move.w engine_voice,d2
+    subq.w #1,d2
+    lsl.w #4,d2
+    lea $dff0a0,a1
+    adda.w d2,a1
+    move.w d3,6(a1) ; vary pitch without restarting the loop
+    move.w engine_volume,d0
+    cmp.w #6,d0
+    bhs.s .done
+    addq.w #1,d0
+    move.w d0,engine_volume
+    move.w d0,8(a1)
+.done:
+    rts
+.disabled:
+    clr engine_request
+.stop:
+    bra stop_engine_voice
 
 play_music:
     tst fade_ticks
@@ -470,6 +824,12 @@ amiga_samples:
     even
 beam_samples:
     incbin "beam-loops.bin"
+    even
+rcs_samples:
+    incbin "rcs-loop.bin"
+    even
+engine_samples:
+    incbin "engine-loop.bin"
     section audio_vars,bss
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
@@ -483,3 +843,12 @@ music_dma: ds.w 1
 audio_resetting: ds.w 1
 beam_kind: ds.w 1
 beam_volume: ds.w 1
+rcs_voice: ds.w 1 ; zero=off, otherwise Paula channel index plus one
+rcs_volume: ds.w 1
+rcs_request: ds.w 1
+rcs_valid: ds.w 1
+rcs_roll: ds.w 1
+rcs_pitch: ds.w 1
+engine_voice: ds.w 1
+engine_request: ds.w 1 ; gameplay permission, not a speed-change detector
+engine_volume: ds.w 1

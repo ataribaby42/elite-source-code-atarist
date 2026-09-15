@@ -1,4 +1,5 @@
 	include "common.def"
+	xref stop_rcs_sound
 ; Ported from src_orig/asm/effects.m68; edit this copy.
 ; @@@@@@@ @@@@@@@ @@@@@@@ @@@@@@@	@@@@   @@@@@@	@@@@
 ;  @@	@  @@	@  @@	@  @@	@  @@  @@  @ @@ @  @@  @@
@@ -141,6 +142,7 @@ create_bay: rs.w 1 ; flag: create cargo bay
 
 	q_subr end_game,global
 
+	jsr stop_rcs_sound
 	tst view(a6) ; front view displayed ?
 	q_call ne,front_view ; no, display front view
 	jsr reset_system ; reset all variables
@@ -740,6 +742,7 @@ q_effects_m68_35:
 
 	q_subr hyperspace_effect,global
 
+	jsr stop_rcs_sound ; shared by normal and galactic jumps
 	tst view(a6) ; front view displayed ?
 	q_call ne,front_view ; no, force front view
 	jsr reset_system ; reset variables
@@ -903,6 +906,7 @@ q_effects_m68_53:
 
 	q_subr docking_sequence,global
 
+	jsr stop_rcs_sound
 	tst view(a6) ; force front view
 	q_call ne,front_view
 	clr missile_state(a6) ; clear missile state

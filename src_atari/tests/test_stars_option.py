@@ -28,7 +28,7 @@ class StarsOptionTests(unittest.TestCase):
             set_sky_enabled options_table sky_enabled sky_basis sky_dirty sky_vars sky_used
             action_ptr action_table function button_pressed cursor_spr sp_xpos csr_on
             user game_state random_seed cursor_type xc1 yc1 xc2 yc2 icon_y i_stars
-            i_damping i_effects i_quit i_reset'''.split()
+            i_damping i_effects i_quit i_reset change_rcs rcs_icon i_rcs'''.split()
         asm = preamble()+'\tinclude "bitlist.m68"\n'
         asm += options[options.index('icon_y:'):options.index('\tq_module options')]
         asm += sky[sky.index('sky_capacity:'):sky.index('    q_module sky')]
@@ -74,19 +74,35 @@ class StarsOptionTests(unittest.TestCase):
         self.call('init_sky')
         self.call('options')
 
-    def click(self,x,y,double=False):
+    def click(self,x,y,double=False,handler='change_stars'):
         self.put('button_pressed',0)
         self.cpu.mem_write(VARIABLES+self.sym['cursor_spr']+self.sym['sp_xpos'],struct.pack('>hh',x-10,y-8))
         self.cpu.reg_write(UC_M68K_REG_D0+2,14 if double else 10)
         self.call('check_click')
         self.assertTrue(self.get('button_pressed'))
-        self.assertEqual(self.get('action_ptr',4),self.sym['change_stars'])
+        self.assertEqual(self.get('action_ptr',4),self.sym[handler])
         value=self.get('function')
         self.put('button_pressed',0)
-        self.call('change_stars',value)
+        self.call(handler,value)
 
     def box(self):
         return tuple(self.get(n) for n in ('xc1','yc1','xc2','yc2'))
+
+    def test_rcs_buttons_default_on_click_borders_and_preserve_other_flags(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            self.prepare(model)
+            self.call('rcs_icon')
+            self.assertEqual(self.cpu.reg_read(UC_M68K_REG_D0),self.sym['i_rcs'])
+            y=self.sym['icon_y']+40
+            for double in (False,True):
+                for enabled,box in ((0,(259,y-5,294,y+13)),(1,(226,y-5,253,y+13))):
+                    for x,yy in ((box[0],box[1]),(box[2],box[1]),(box[0],box[3]),(box[2],box[3])):
+                        self.click(x,yy,double,handler='change_rcs')
+                        self.assertEqual(self.box(),box)
+                        self.assertEqual(self.get('user'),0x3f00 | (0x8000 if not enabled else 0))
+                        self.call('options')
+                        self.call('rcs_icon')
+                        self.assertEqual(self.cpu.reg_read(UC_M68K_REG_D0),self.sym['i_rcs']+1-enabled)
 
     def test_menu_default_mouse_clicks_and_reopening_preserve_other_preferences(self):
         for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):

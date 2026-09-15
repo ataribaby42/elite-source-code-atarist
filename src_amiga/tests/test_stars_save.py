@@ -69,6 +69,28 @@ class StarsSaveTests(unittest.TestCase):
                     self.assertEqual(g.word(g.at('sky_enabled')), 1)
                     self.assertEqual(g.word(g.at('user')), preferences << 8)
 
+    def test_rcs_default_on_and_commander_round_trip(self):
+        g = self.game
+        for model in (fixture.UC_CPU_M68K_M68000, fixture.UC_CPU_M68K_M68020):
+            for maximum in (0, 1):
+                g.boot(model, maximum)
+                original = self.saved()
+                self.assertEqual(original[10] & 0x80, 0)
+                for enabled in (False, True):
+                    preferences = g.word(g.at('user')) & ~0x8000
+                    g.word(g.at('user'), preferences | (0 if enabled else 0x8000))
+                    saved = self.saved()
+                    expected = bytearray(original)
+                    expected[10] |= 0 if enabled else 0x80
+                    self.assertEqual(saved, bytes(expected))
+                    g.word(g.at('user'), 0xffff)
+                    self.restore(saved)
+                    self.assertEqual(g.word(g.at('user')), preferences | (0 if enabled else 0x8000))
+                g.word(g.at('user'), 0xffff)
+                g.call('default_game')
+                g.call('restore_state')
+                self.assertEqual(g.word(g.at('user')) & 0x8000, 0)
+
     def test_startup_and_both_default_jamesons_enable_stars(self):
         g = self.game
         identity = struct.pack('>9i', 1 << 24, 0, 0, 0, 1 << 24, 0, 0, 0, 1 << 24)

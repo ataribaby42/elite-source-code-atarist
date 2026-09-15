@@ -108,6 +108,13 @@ fade_out: rs.w 1 ; flag: fade out the music
 beam_kind: rs.w 1 ; active continuous laser type
 beam_channel: rs.l 1 ; channel reserved for the continuous laser
 warp_ticks: rs.w 1 ; hyperspace timer, independent of Effects and sound channels
+rcs_channel: rs.l 1 ; expendable channel; never held against other effects
+rcs_request: rs.w 1 ; stable request between game frames
+rcs_valid: rs.w 1 ; previous steering belongs to the current flight
+rcs_roll: rs.w 1
+rcs_pitch: rs.w 1
+engine_channel: rs.l 1
+engine_request: rs.w 1 ; gameplay permission while throttle keys are held
 
 	q_end_vars sounds
 
@@ -377,7 +384,9 @@ q_sounds_m68_5:
 
 	clr beam_kind(a6)
 	clr.l beam_channel(a6)
+	clr.l rcs_channel(a6)
 	move d0,sound_type(a6) ; store sound type
+	clr.l engine_channel(a6)
 	lea chan_1(a6),a1 ; clear sound queues
 	q_loop 1,fx_len*3/2
 	clr (a1)+
@@ -419,6 +428,8 @@ q_sounds_m68_5:
 	tst hold_sound(a6) ; sounds held ?
 	q_ret ne ; yes, return
 	bsr update_beam_sound
+	bsr update_rcs_sound
+	bsr update_engine_sound
 	tst sound_type(a6) ; any sound ?
 	q_ret eq ; no, return
 	lea chan_1(a6),a5 ; start with channel #1
@@ -476,6 +487,287 @@ q_sounds_m68_11:
 
 * Regs:  ?
 * Subr:  ?
+
+; Cinematic entry points stop RCS synchronously, before their first frame.
+; Preserve the sound lock and registers; never stop another effect or music.
+	q_subr stop_rcs_sound,global
+
+	movem.l d0-d2/a5,-(sp)
+	move.w hold_sound(a6),-(sp)
+	st hold_sound(a6)
+	clr rcs_request(a6)
+	clr rcs_valid(a6)
+	clr engine_request(a6)
+	tst.l rcs_channel(a6)
+	beq.s .engine
+	move.l rcs_channel(a6),a5
+	bsr silence_effect
+.engine:
+	tst.l engine_channel(a6)
+	beq.s .done
+	move.l engine_channel(a6),a5
+	bsr silence_effect
+.done:
+	move.w (sp)+,hold_sound(a6)
+	movem.l (sp)+,d0-d2/a5
+	rts
+
+; Steering is compared once per game frame, never once per VBL: the main
+; loop spans several VBLs and a VBL comparison would chop the hiss into pulses.
+	q_subr prepare_rcs_frame,global
+
+	tst rcs_valid(a6)
+	bne.s .done
+	move.w roll_angle(a6),rcs_roll(a6)
+	move.w climb_angle(a6),rcs_pitch(a6)
+	st rcs_valid(a6)
+.done:
+	rts
+
+	q_subr publish_rcs_sound,global
+
+	move.l d0,-(sp)
+	moveq #0,d0
+	tst.b key_states+$39(a6) ; Space
+	bne.s .engine_on
+	tst.b key_states+$35(a6) ; slash
+	beq.s .engine_publish
+.engine_on:
+	moveq #1,d0
+.engine_publish:
+	move.w d0,engine_request(a6)
+	moveq #0,d0
+	tst rcs_valid(a6)
+	beq.s .publish
+	move.w roll_angle(a6),d0
+	cmp.w rcs_roll(a6),d0
+	bne.s .changed
+	move.w climb_angle(a6),d0
+	cmp.w rcs_pitch(a6),d0
+	bne.s .changed
+	moveq #0,d0
+	bra.s .publish
+.changed:
+	moveq #1,d0
+.publish:
+	move.w roll_angle(a6),rcs_roll(a6)
+	move.w climb_angle(a6),rcs_pitch(a6)
+	st rcs_valid(a6)
+	move.w d0,rcs_request(a6) ; one atomic publication after both comparisons
+	move.l (sp)+,d0
+	rts
+
+; A quiet noise-only voice, with no hardware envelope or game RNG use.
+; This runs in VBL alongside the beam. Ordinary effects may steal it at once.
+	q_subr update_rcs_sound
+
+	btst #f_no_rcs,user(a6)
+	bne .disabled
+	cmp.w #1,sound_type(a6)
+	beq .disabled
+	btst #f_fx,user(a6)
+	beq .disabled
+	tst game_frozen(a6)
+	bne .disabled
+	tst game_over(a6)
+	bne .disabled
+	tst docked(a6)
+	bne .disabled
+	tst cockpit_on(a6)
+	beq .disabled
+	tst controls_locked(a6)
+	bne .disabled
+	tst sound_type(a6)
+	bne.s .check_mixer
+	tst rcs_request(a6)
+	beq .done
+	bsr init_effects
+.check_mixer:
+; Noise bits are active-low. Ignore our own gate, but never change the noise
+; period while another effect has its noise gate enabled, even on a free voice.
+	move.b #7,psg_select
+	move.b psg_read,d1
+	move.l rcs_channel(a6),d0
+	beq.s .noise_check
+	movea.l d0,a5
+	move.w reg_volume(a5),d2
+	subq.w #5,d2
+	bset d2,d1
+.noise_check:
+	and.w #$38,d1
+	cmp.w #$38,d1
+	bne .stop
+	tst rcs_request(a6)
+	beq .release
+	tst.l rcs_channel(a6)
+	bne.s .attack_existing
+	bsr init_effects
+	lea chan_1(a6),a5
+	moveq #2,d7
+.find_free:
+	tst chn_active(a5)
+	beq.s .start
+	lea fx_len(a5),a5
+	dbra d7,.find_free
+	tst.l engine_channel(a6)
+	beq .done
+	move.l engine_channel(a6),a5
+	bsr silence_effect ; reclaim only the lower-priority motor
+.start:
+	move.l a5,rcs_channel(a6)
+	clr hold_chan(a5)
+	clr flag_ptr(a5)
+	st clear_env(a5)
+	clr volume(a5)
+	move.l #rcs_idle,service(a5)
+	st chn_active(a5)
+	moveq #0,d0
+	bsr set_volume
+	moveq #6,d0
+	moveq #8,d1 ; soft, fairly bright gas hiss
+	bsr psg_output
+	bsr noise_on
+	move.w reg_volume(a5),d2
+	subq.w #8,d2
+	move.b #7,psg_select
+	move.b psg_read,d1
+	bset d2,d1 ; disable our tone, leaving only noise
+	moveq #7,d0
+	bsr psg_output
+.attack_existing:
+	move.l rcs_channel(a6),a5
+	move.w volume(a5),d0
+	cmp.w #5,d0 ; quieter RCS ceiling on the PSG's logarithmic volume scale
+	bhs.s .done
+	addq.w #1,d0
+	move.w d0,volume(a5)
+	bra set_volume
+.release:
+	tst.l rcs_channel(a6)
+	beq.s .done
+	move.l rcs_channel(a6),a5
+	move.w volume(a5),d0
+	subq.w #2,d0
+	ble.s .stop
+	move.w d0,volume(a5)
+	bra set_volume
+.disabled:
+	clr rcs_request(a6)
+	clr rcs_valid(a6)
+.stop:
+	tst.l rcs_channel(a6)
+	beq.s .done
+	move.l rcs_channel(a6),a5
+	bra silence_effect
+.done:
+	rts
+
+	q_subr update_engine_sound
+
+	cmp.w #1,sound_type(a6)
+	beq .disabled
+	btst #f_no_rcs,user(a6)
+	bne .disabled
+	btst #f_fx,user(a6)
+	beq .disabled
+	tst game_frozen(a6)
+	bne .disabled
+	tst game_over(a6)
+	bne .disabled
+	tst docked(a6)
+	bne .disabled
+	tst cockpit_on(a6)
+	beq .disabled
+	tst controls_locked(a6)
+	bne .disabled
+	tst jettison_pending(a6)
+	bne .disabled
+	tst engine_request(a6)
+	beq .stop
+	tst.b key_states+$39(a6)
+	beq.s .decelerate
+	cmp.w #max_speed,speed(a6)
+	blt.s .speed
+.decelerate:
+	tst.b key_states+$35(a6)
+	beq .stop ; do not wait for the next gameplay frame on key release
+	tst.w speed(a6)
+	ble .stop ; the held key cannot slow the ship below zero
+.speed:
+	move.w speed(a6),d3
+	bpl.s .positive
+	moveq #0,d3
+.positive:
+	cmp.w #max_speed,d3
+	bls.s .speed_ok
+	move.w #max_speed,d3
+.speed_ok:
+	mulu.w #600,d3
+	divu.w #max_speed,d3
+	neg.w d3
+	add.w #1200,d3
+	tst.l engine_channel(a6)
+	bne.s .running
+	bsr init_effects
+	lea chan_1(a6),a5
+	moveq #2,d7
+.find:
+	tst chn_active(a5)
+	beq.s .start
+	lea fx_len(a5),a5
+	dbra d7,.find
+	rts
+.start:
+	move.l a5,engine_channel(a6)
+	clr hold_chan(a5)
+	clr flag_ptr(a5)
+	st clear_env(a5)
+	clr volume(a5)
+	move.l #rcs_idle,service(a5)
+	st chn_active(a5)
+	moveq #0,d0
+	bsr set_volume
+	bsr reg7_mask
+	or.b d0,d1 ; tone only, no shared noise or envelope
+	moveq #7,d0
+	bsr psg_output
+.running:
+	move.l engine_channel(a6),a5
+	move.w d3,d0
+	bsr set_tone
+	move.w volume(a5),d0
+	cmp.w #3,d0
+	bhs.s .done
+	addq.w #1,d0
+	move.w d0,volume(a5)
+	bra set_volume
+.disabled:
+	clr engine_request(a6)
+.stop:
+	tst.l engine_channel(a6)
+	beq.s .done
+	move.l engine_channel(a6),a5
+	bra silence_effect
+.done:
+	rts
+
+	q_subr rcs_idle
+	rts
+
+; NOISE_ON may be called during an effect's setup or its interrupt service.
+; Stop RCS before enabling another noise voice; preserve the caller's state.
+	q_subr yield_rcs_noise
+
+	tst.l rcs_channel(a6)
+	beq.s .done
+	cmpa.l rcs_channel(a6),a5
+	beq.s .done
+	movem.l d0-d2/a5,-(sp)
+	move.l rcs_channel(a6),a5
+	bsr silence_effect
+	movem.l (sp)+,d0-d2/a5
+.done:
+	rts
 
 ; A held laser reserves one normal effect channel, leaving two for impacts
 ; and other sounds. Modulation is deterministic and never consumes game RNG.
@@ -717,6 +1009,25 @@ q_sounds_m68_27:
 
 	q_subr silence_effect
 
+	cmpa.l engine_channel(a6),a5
+	bne.s .check_rcs
+	clr.l engine_channel(a6)
+.check_rcs:
+	cmpa.l rcs_channel(a6),a5
+	bne.s .ordinary
+	clr.l rcs_channel(a6)
+	moveq #0,d0
+	bsr set_volume
+; RCS alone disables its tone gate. Restore it before a normal effect reuses it.
+	move.w reg_volume(a5),d2
+	subq.w #8,d2
+	move.b #7,psg_select
+	move.b psg_read,d1
+	bclr d2,d1
+	moveq #7,d0
+	bsr psg_output
+.ordinary:
+
 	bsr reg7_mask ; stop noise
 	or.b d0,d1
 	moveq #7,d0
@@ -813,6 +1124,7 @@ q_sounds_m68_37:
 
 	q_subr noise_on
 
+	bsr yield_rcs_noise ; the shared noise generator belongs to ordinary effects
 	bsr reg7_mask ; build mask
 	and.b d2,d0 ; enable noise
 	move.b d0,d1
@@ -895,6 +1207,11 @@ q_sounds_m68_37:
 	clr laser_audio_request(a6)
 	clr beam_kind(a6)
 	clr.l beam_channel(a6)
+	clr.l rcs_channel(a6)
+	clr rcs_request(a6)
+	clr rcs_valid(a6)
+	clr.l engine_channel(a6)
+	clr engine_request(a6)
 	tst sound_type(a6) ; effects active ?
 ; Quelo: 	if <mi> then.s						yes
 	bpl.s q_sounds_m68_39
@@ -954,7 +1271,7 @@ q_sounds_m68_39:
 * of the three sound channels. The effect is then  created on this channel. If
 * all three channels are  currently  in  use,  the next channel in sequence is
 * silenced and then allocated. This sequence just  cycles  through	the  three
-* channels and doesn't use any kind of priority.
+* channels after first reclaiming the lowest-priority RCS voice, if present.
 
 * Entry: None
 * Exit:  A5 = ptr: channel record to use
@@ -970,6 +1287,16 @@ q_sounds_m68_39:
 	q_ret eq ; no, use this channel
 	add.l #fx_len,a5 ; next channel
 	q_next 1
+	tst.l engine_channel(a6) ; motor loses its voice before RCS
+	beq.s .try_rcs
+	move.l engine_channel(a6),a5
+	bra silence_effect
+.try_rcs:
+	tst.l rcs_channel(a6)
+	beq.s .ordinary_allocation
+	move.l rcs_channel(a6),a5
+	bra silence_effect
+.ordinary_allocation:
 	lea chan_1(a6),a5 ; all used, use next in sequence
 q_sounds_m68_45:
 	move alloc_ctr(a6),d0 ; advance the counter (backwards)

@@ -4,6 +4,33 @@ See the [main README in the project root](../README.md) for building and running
 
 Run all commands below from the project root. Paths in the tables and text are also relative to the root.
 
+## RCS sound
+
+RCS FX also enables a quiet motor tone while the player holds Space (accelerate)
+or slash (decelerate). Releasing both keys silences it on the next VBL. Actual
+speed changes, including mouse throttle and automatic changes, do not trigger
+it. Acceleration is silent at maximum speed, and deceleration is silent at
+zero speed; the opposite direction remains audible. Current speed sets the
+pitch. The motor has priority below RCS and all ordinary effects. Both RCS FX
+OFF and Effects OFF mute it. Docking, either hyperspace jump and death clear
+its gameplay request immediately, even if a throttle key remains held.
+
+The Atari build includes a quiet RCS hiss whenever the roll or pitch control
+value changes, including automatic damping back to zero. A steady nonzero
+value is silent. The request stays continuous between game frames, with a
+`RCS FX: ON / OFF` option beneath Effects; it defaults to ON and is saved in
+the Commander using bit 7 of the existing user preference byte. Effects OFF
+still mutes RCS. The sound has a
+short volume ramp. RCS uses only a free sound channel and is the first voice
+replaced when another effect needs one. It also yields the shared PSG noise
+generator to other noise effects, even when a channel is free. It resumes only
+while steering is still changing. Effects OFF, pause, docking, locked controls,
+hidden cockpit and game over silence it.
+Docking, hyperspace (including galactic jumps), and death animation entry points
+also stop RCS immediately and discard pending steering audio before drawing.
+`tests/test_beam_sound.py` exercises
+the assembled driver and real damping routine on MC68000 and MC68020 models.
+
 ## Directory contents
 
 | Path | Purpose |

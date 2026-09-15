@@ -36,6 +36,7 @@ i_sequence: rs.b 2
 i_reset: rs.b 1
 i_quit: rs.b 1
 i_stars: rs.b 2
+i_rcs: rs.b 2
 
 * ---- LOCAL VARIABLES ----
 
@@ -120,6 +121,8 @@ q_options_m68_7:
 	q_pop.l a0 ; next option
 	bra q_options_m68_5
 q_options_m68_6:
+	bsr rcs_icon
+	bsr highlight_icon
 	bsr stars_icon
 	bsr highlight_icon
 	lea options_table(pc),a0 ; initialise cursor
@@ -288,6 +291,32 @@ q_options_m68_14:
 	bra highlight_icon ; highlight icon and return
 
 
+; RCS uses an inverted saved flag so zero-bit commanders default ON.
+	q_subr change_rcs
+
+	q_push d0
+	bsr rcs_icon
+	bsr no_highlight
+	q_pop d0
+	tst.w d0
+	beq.s .off
+	bclr #f_no_rcs,user(a6)
+	bra.s .highlight
+.off:
+	bset #f_no_rcs,user(a6)
+.highlight:
+	bsr rcs_icon
+	bra highlight_icon
+
+	q_subr rcs_icon
+
+	moveq #i_rcs,d0
+	btst #f_no_rcs,user(a6)
+	beq.s .done
+	addq.w #1,d0
+.done:
+	rts
+
 * Stars use the saved user/f_no_stars flag and the sky renderer's cached state.
 * D0 = 1 for ON, 0 for OFF. Use the same highlight boxes as other options.
 
@@ -416,6 +445,8 @@ icon_draw_data:
 	dc bit_yes,268,icon_y+120-3 ; quit program
 	dc bit_on,228,icon_y-3 ; distant stars
 	dc bit_off,261,icon_y-3
+	dc bit_on,228,icon_y+40-3 ; RCS sound effects
+	dc bit_off,261,icon_y+40-3
 	dc -1
 
 * Highlight coordinate table.
@@ -441,6 +472,8 @@ highlight_coords:
 	dc 268-2,icon_y-5+120,268+33,icon_y+120+13 ; YES
 	dc 228-2,icon_y-5,228+25,icon_y+13 ; stars ON
 	dc 261-2,icon_y-5,261+33,icon_y+13 ; stars OFF
+	dc 228-2,icon_y-5+40,228+25,icon_y+40+13 ; RCS ON
+	dc 261-2,icon_y-5+40,261+33,icon_y+40+13 ; RCS OFF
 	dc -1
 
 * Option mouse action table.
@@ -466,6 +499,8 @@ options_table:
 	q_action 268-2,icon_y-5+120,268+33,icon_y+120+13,0,0,quit
 	q_action 228-2,icon_y-5,228+25,icon_y+13,1,0,change_stars
 	q_action 261-2,icon_y-5,261+33,icon_y+13,0,0,change_stars
+	q_action 228-2,icon_y-5+40,228+25,icon_y+40+13,1,0,change_rcs
+	q_action 261-2,icon_y-5+40,261+33,icon_y+40+13,0,0,change_rcs
 	include "icons.m68"
 	dc.w -1
 	dc.l 0
@@ -490,6 +525,7 @@ text1: dc.b c_cursor,14,title_y,'Game Options'
 	dc.b c_ink,orange,c_cursor,0,icon_y+20,'Damping:'
 	dc.b c_ink,lgt_green,c_cursor,20,icon_y+20,'Effects:'
 	dc.b c_ink,magenta,c_cursor,0,icon_y+40,'Auto-centre:'
+	dc.b c_ink,lgt_green,c_cursor,21,icon_y+40,'RCS FX:'
 	dc.b c_ink,lgt_blue,c_cursor,0,icon_y+60,'Reverse dive/climb:'
 	dc.b c_ink,mid_green,c_cursor,0,icon_y+80,'Docking Computer:'
 	dc.b c_ink,red,c_cursor,0,icon_y+100,'Docking sequence:'
