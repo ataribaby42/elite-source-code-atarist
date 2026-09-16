@@ -61,7 +61,13 @@ dot macro
 	move \1+k(a5),d1 ; Dz * Vk
 	muls d5,d1
 	add.l d1,d0
+	tst magnitude(a6) ; target point reached ?
+	beq.s q_auto_dot_1\@ ; yes, the dot product is undefined
 	divs magnitude(a6),d0 ; divide by magnitude
+	bra.s q_auto_dot_2\@
+q_auto_dot_1\@:
+	clr d0 ; no angle to turn away
+q_auto_dot_2\@:
 
 	endm
 
@@ -361,7 +367,13 @@ q_auto_m68_45:
 	move.l d3,d0 ; calculate dot product with x vector
 	swap d0
 	asr.l #2,d0
+	tst d2 ; target on the line of sight ?
+	beq.s .no_roll_error ; yes, the dot product is undefined
 	divs d2,d0
+	bra.s .roll_error
+.no_roll_error:
+	clr d0 ; no angle to roll away
+.roll_error:
 	move d0,d1 ; calculate abs(angle)
 ; Quelo: 	if <mi> then.s
 	bpl.s q_auto_m68_47
@@ -398,7 +410,13 @@ q_auto_m68_49:
 	move.l d4,d0 ; calculate dot product with y vector
 	swap d0
 	asr.l #2,d0
+	tst d2 ; target reached ?
+	beq.s .no_climb_error ; yes, the dot product is undefined
 	divs d2,d0
+	bra.s .climb_error
+.no_climb_error:
+	clr d0 ; no angle to climb away
+.climb_error:
 	tst d5 ; z signs different ?
 ; Quelo: 		if <mi> then.s					yes
 	bpl.s q_auto_m68_55

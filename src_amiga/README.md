@@ -176,6 +176,27 @@ Real hardware, extended gameplay and audible quality of the new music replay rem
 
 Original game and asset credits and bundled tool licences are documented in the [main README](../README.md#legal-information-and-credits).
 
+## Docking computer
+
+`auto_rotate` steers the Cobra by dividing each reduced axis distance by the
+length of the target vector, and the `dot` macro divides the object auto-pilot's
+dot products by the same kind of length. That length is zero whenever the target
+sits on the axis being measured, and both auto-pilots reached such a division.
+Launching places the space station at (0,0,-2500) with an identity orientation,
+so the docking computer's first turning point is exactly axial: engaging the
+computer without touching the controls reached the division every time, and an
+approach that lines the ship up on the station axis reached it as well. The
+object auto-pilot reaches it when an object arrives at its target point, which
+the missile and attack logics in `logic.m68` can do because they aim at the
+player at the origin.
+
+On the Amiga the zero divide is fatal: the CPU exception becomes a dead-end
+alert, `Guru Meditation #00000005`, and the game stops. Every one of these dot
+products now treats a zero-length target vector as no angle to correct.
+
+`tests/test_docking.py` executes both actual routines on MC68000 and MC68020
+CPU models for axial, near-axial, reached and ordinary off-axis targets.
+
 ## Cargo inspections
 
 Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
