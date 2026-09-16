@@ -980,6 +980,7 @@ q_combat_m68_107:
 	q_ret cc ; none left
 	move #log_none,logic(a5) ; mothership just drifts
 	move #act_nothing,attack_type(a5) ; do nothing when hit
+	clr no_missiles(a5) ; abandoned hull cannot retaliate on this or later hits
 	jsr copy_object ; copy current object's record
 	move.b #1,flags(a4) ; in use
 	st velocity(a4) ; move at full speed
