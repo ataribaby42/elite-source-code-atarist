@@ -35,7 +35,7 @@ missile_range: equ 300 ; missile hit range before detonate
 missile_damage: equ 48 ; damage to shields from missile
 dist_peel_off: equ 480 ; distance to peel off (max)
 max_rad: equ 255 ; maximum explosion radius
-fire_range: equ 7000 ; distance to start firing
+fire_range: equ radar_range/2 ; 12288 world units: half the scanner range at x1
 run_limit: equ $1200 ; min. run away distance
 run_range: equ $1000 ; range of run away distances
 avoid_range: equ 32 ; range of avoid distances
@@ -375,7 +375,7 @@ q_logic_m68_33:
 * Flies towards the player, lasers blasting.
 
 ; BBC's two aim cones, expressed in the game's Q14 orientation vectors.
-; The original fire-range guard keeps positions safely inside signed words.
+; The 12288-unit fire-range guard keeps positions safely inside signed words.
 ; Compare dot products directly: no square root or division is needed.
 	q_subr ai_laser_aim
 

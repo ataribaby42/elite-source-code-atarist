@@ -61,15 +61,16 @@ class LaserTests(unittest.TestCase):
     def setUpClass(cls):
         src = {name: (ROOT / 'asm' / (name + '.m68')).read_text()
                for name in ('combat', 'special', 'logic', 'main', 'vector',
-                            'graphics', 'maths', 'cockpit')}
+                            'graphics', 'maths', 'cockpit', 'flight', 'data')}
         groups = {
             'combat': ['fire', 'laser_in_sights', 'check_hit', 'reduce_shields', 'reduce_energy'],
             'special': ['draw_lasers', 'draw_laser_wedge', 'draw_ai_laser'],
             'logic': ['ai_laser_aim', 'ai_laser_miss_threshold', 'do_attack'],
-            'main': ['game_logic'],
+            'main': ['game_logic', 'magnification'],
+            'flight': ['get_range'],
             'vector': ['transform', 'calc_yvector'] +
                       [f'{size}_swap_{view}' for view in VIEWS for size in ('w', 'l')],
-            'maths': ['random', 'rand'],
+            'maths': ['random', 'rand', 'calc_distance', 'sqrt'],
             'graphics': ['c_line', 'line', 'horiz_line', 'vert_line', 'mask_plot',
                          'dot_to_addr', 'solid_polygon', 'set_colour'],
         }
@@ -84,6 +85,7 @@ class LaserTests(unittest.TestCase):
                      'log_cruise', 'log_exploding', 'health', 'pre_attack',
                      'attack_type', 'act_nothing', 'obj_ctr', 'viper', 'constr', 'thargoid', 'thargon',
                      'mood', 'rating', 'obj_range', 'xpos', 'ypos', 'zpos',
+                     'radar_scale', 'radar_range', 'fire_range',
                      'this_xpos', 'this_ypos', 'this_zpos', 'in_sights', 'hits_rad',
                      'gun_node', 'no_nodes', 'nodes', 'x_vector', 'y_vector',
                      'z_vector', 'w_view_ptr', 'l_view_ptr', 'unit', 'view',
@@ -108,6 +110,7 @@ class LaserTests(unittest.TestCase):
         assembly += '\torg $10000\n\tdc.l ' + ','.join(names + constants) + '\n'
         for file, group in groups.items():
             assembly += '\n'.join(routine(src[file], name) for name in group)
+        assembly += src['data'][src['data'].index('\tq_global magnitude_table'):].split('* Table of cosines', 1)[0]
         assembly += re.search(r'^damage:\s*\n\s*dc.w[^\n]+', logic, re.M)[0] + '\n'
         assembly += re.search(r'^laser_info:\s*\n(?:\s*dc [^\n]+\n)+',
                               src['cockpit'], re.M)[0] + '\n'
@@ -134,7 +137,7 @@ peel_off_check:
                  'release_cargo', 'low_energy', 'prepare_vipers',
                  'disp_message', 'find_table', 'str_copy', 'str_cat', 'speed_control',
                  'clear_image', 'remove_radar', 'update_inst', 'do_countdown',
-                 'damping', 'publish_rcs_sound', 'flash_message', 'torus_drive', 'get_range', 'collision',
+                 'damping', 'publish_rcs_sound', 'flash_message', 'torus_drive', 'collision',
                  'radar', 'mini_radar', 'do_logic', 'world_z_rotate', 'world_x_rotate',
                  'orthogonal', 'move', 'queue_ai_laser', 'radar_lock', 'calc_altitude', 'warnings',
                  'ecm', 'docking', 'recharge', 'draw_space', 'draw_sight', 'text_blatt',
@@ -536,7 +539,8 @@ peel_off_check:
                                       begin=self.symbols['random'], end=self.symbols['random'])
                     for distance, threshold in ((500, 20), (1000, 20), (2000, 30),
                                                 (3000, 40), (4000, 50), (5000, 60),
-                                                (6000, 80), (7000, 100)):
+                                                (6000, 80), (7000, 100), (7001, 100),
+                                                (10000, 100), (12288, 100)):
                         self.obj('obj_range', distance, 4)
                         self.obj('zpos', -distance if behind else distance, 4)
                         self.obj('this_zpos', distance, 4)
@@ -583,7 +587,7 @@ peel_off_check:
             self.cpu.reg_write(UC_M68K_REG_D3, 0x12345678)
             previous = 20
             seed = self.read('random_seed', size=4)
-            for distance in range(0, 7101):
+            for distance in range(0, 12389):
                 self.obj('obj_range', distance, 4)
                 record = bytes(self.cpu.mem_read(self.ship, self.symbols['obj_len']))
                 self.call('ai_laser_miss_threshold')
@@ -618,7 +622,7 @@ peel_off_check:
                 cpu.reg_write(UC_M68K_REG_PC, destination)
             self.cpu.hook_add(UC_HOOK_CODE, random_value,
                               begin=self.symbols['random'], end=self.symbols['random'])
-            for distance in (1000, 3000, 5000, 7000):
+            for distance in (1000, 3000, 5000, 7000, 12288):
                 for angle, mood, fires, rolls in ((0, 127, False, 0), (0, 128, True, 1),
                                                 (20, 255, True, 0), (40, 255, False, 0)):
                     self.aim(angle)
@@ -635,8 +639,75 @@ peel_off_check:
                     self.assertEqual(len(calls), rolls)
                     self.assertEqual(bool(self.damage_calls), bool(rolls))
 
+    def test_ai_firing_range_boundaries_in_front_and_behind(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for behind in (False, True):
+                for distance in (7000, 7001, 12287, 12288, 12289, 14000):
+                    for angle, aim in ((0, 2), (20, 1), (40, 0)):
+                        with self.subTest(cpu=model, behind=behind, distance=distance, angle=angle):
+                            self.prepare(model)
+                            self.aim(angle, behind)
+                            self.obj('obj_range', distance, 4)
+                            self.obj('zpos', -distance if behind else distance, 4)
+                            expected = aim if distance <= 12288 else 0
+                            self.assertEqual(self.call('ai_laser_aim'), expected)
+                            self.call('do_attack')
+                            self.assertEqual(bool(self.read('ai_laser', True)), bool(expected))
+                            if expected != 2:
+                                self.assertEqual(self.damage_calls, [])
+                                self.assertEqual(self.read('front_shield'), self.symbols['max_shield'])
+                                self.assertEqual(self.read('aft_shield'), self.symbols['max_shield'])
+
+    def test_ai_real_3d_range_and_hits_are_independent_of_scanner_zoom(self):
+        self.assertEqual(self.symbols['fire_range'], 12288)
+        self.assertEqual(self.symbols['fire_range']*2, self.symbols['radar_range'])
+        directions = ((0,0,1), (0,0,-1), (1,0,0), (-1,0,0),
+                      (0,1,0), (0,-1,0), (1,1,1), (-1,1,-1))
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for direction in directions:
+                length = math.sqrt(sum(v*v for v in direction))
+                for radius in (7000, 12000, 12287, 12288, 12289, 14000):
+                    with self.subTest(cpu=model, direction=direction, radius=radius):
+                        self.prepare(model)
+                        position = tuple(round(radius*v/length) for v in direction)
+                        distance = math.isqrt(sum(v*v for v in position))
+                        for axis, value in zip('xyz', position):
+                            self.obj(axis+'pos', value, 4)
+                        forward = tuple(round(-16384*v/length) for v in direction)
+                        self.cpu.mem_write(self.ship+self.symbols['z_vector'],
+                                           struct.pack('>3h', *forward))
+                        self.call('get_range')
+                        self.assertEqual(self.read('obj_range', True, 4), distance)
+                        self.var('radar_scale', self.symbols['radar_range'], 4)
+                        previous = None
+                        for zoom in (1, 2, 1):
+                            self.assertEqual(self.read('radar_scale', size=4),
+                                             self.symbols['radar_range']//zoom)
+                            self.obj('ai_laser', 0)
+                            for shield in ('front_shield', 'aft_shield'):
+                                self.var(shield, self.symbols['max_shield'])
+                            self.var('energy', self.symbols['max_energy'])
+                            self.var('random_seed', 0x347ac9, 4)
+                            self.var('shields_fx', 0)
+                            self.damage_calls.clear(); self.sound_calls.clear()
+                            allowed = distance <= 12288
+                            self.assertEqual(self.call('ai_laser_aim'), 2 if allowed else 0)
+                            self.call('do_attack')
+                            self.assertEqual(bool(self.read('ai_laser', True)), allowed)
+                            snapshot = (self.read('front_shield'), self.read('aft_shield'),
+                                        self.read('energy'), self.read('random_seed', size=4),
+                                        tuple(self.damage_calls), tuple(self.sound_calls))
+                            if previous is not None:
+                                self.assertEqual(snapshot, previous)
+                            if not allowed:
+                                self.assertEqual(self.damage_calls, [])
+                                self.assertEqual(self.sound_calls, [])
+                                self.assertEqual(self.read('random_seed', size=4), 0x347ac9)
+                            previous = snapshot
+                            self.call('magnification')
+
     def test_ai_respects_range_cloaking_and_control_locks(self):
-        for variable, value, obj in [('obj_range', 7001, True),
+        for variable, value, obj in [('obj_range', 12289, True),
                                       ('obj_range', 0, True),
                                       ('cloaking_on', 1, False),
                                       ('controls_locked', 1, False)]:

@@ -1,7 +1,7 @@
 """Real culling, sorted draw queues and clipped AI beams on MC68000/020.
 
-Models/sky are reduced to deterministic fixtures. Projection, queue insertion,
-beam drawing and the native line raster are the actual platform routines.
+Large models/sky use deterministic fixtures. Small-ship dispatch, point/circle
+drawing, projection, sorted queues and beam raster use the platform routines.
 """
 from pathlib import Path
 import math
@@ -9,7 +9,7 @@ import re
 import struct
 import unittest
 from test_raster import BACKGROUND, GUARD, SCREEN, OTHER, paint, routine
-from test_viewport import assemble, preamble, variable_block
+from test_viewport import assemble, preamble, variable_block, circle_pixels
 try:
     from unicorn import Uc, UC_ARCH_M68K, UC_MODE_BIG_ENDIAN, UC_PROT_READ, UC_PROT_EXEC
     from unicorn.m68k_const import *
@@ -30,8 +30,9 @@ class AIBeamVisibilityTests(unittest.TestCase):
                          'draw_space','draw_space_layer','check_sights','visibility',
                          'perspective','transform','calc_yvector')+
                         tuple(f'{size}_swap_{view}' for view in VIEWS for size in ('w','l'))),
-                (special,('draw_ai_laser',)),
-                (graphics,('set_colour','c_line','line','horiz_line','vert_line','mask_plot','dot_to_addr'))]
+                (special,('draw_ai_laser','draw_point')),
+                (graphics,('set_colour','c_line','line','horiz_line','vert_line','mask_plot','dot_to_addr',
+                           'circle','circle_plotxy','circle_horiz'))]
         functions=[n for _,names in groups for n in names]
         constants='''objects obj_len obj_size type flags logic log_exploding cougar viper
             this_xpos this_ypos this_zpos xpos ypos zpos obj_range obj_rad hits_rad
@@ -48,11 +49,16 @@ class AIBeamVisibilityTests(unittest.TestCase):
         for source,names in groups:
             asm+='\n'.join(routine(source,n) for n in names)+'\n'
         asm+=graphics[graphics.index('\tq_global bit_masks'):graphics.index('clip_list:')]
+        # Run the real small-ship branch; only the full model path is replaced.
+        point_dispatch=routine(vector,'draw_it').split('q_vector_m68_33:',1)[0]
+        point_dispatch=point_dispatch.split('q_subr draw_it',1)[1]
         asm+=f'''
 draw_it:
  move.l {TRACE},a1
  move.l a5,(a1)+
  move.l a1,{TRACE}
+{point_dispatch}
+q_vector_m68_33:
  tst health(a5)
  beq .done
  moveq #2,d0
@@ -73,6 +79,10 @@ check_missile:
 disp_message:
 registration_message:
 amiga_poll:
+draw_explosion:
+ rts
+random:
+ moveq #0,d0
  rts
 text1: dc.w 0
 magnitude_table: dcb.w 512,0
@@ -166,6 +176,68 @@ mult_by_320: dc.w '''+','.join(str(y*320) for y in range(200))+'\n'
                         self.assert_viewport_only(actual)
                         self.reset_buffer();self.call('draw_ai_laser')
                         self.assertEqual(actual,self.buffer(),'queue lost/changed the clipped beam')
+
+    def test_point_sized_and_subpixel_emitters_show_beams_at_extended_range(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for view in VIEWS:
+                for screen in (SCREEN,OTHER):
+                    for radius in (1,40,56,80):
+                        with self.subTest(cpu=model,view=view,screen=screen,radius=radius):
+                            self.boot(model,view,screen)
+                            self.setup_ship(x=0,z=12288)
+                            self.obj('obj_rad',radius)
+                            self.queue()
+                            projected=radius*512//12288
+                            self.assertEqual(self.read('scr_radius',True),projected)
+                            self.assertLess(projected,4) # the real renderer uses a point below 4
+                            self.assertEqual(self.entries(),[(self.ship,0 if projected else 65535)])
+                            self.call('draw_space')
+                            actual=self.buffer()
+                            self.assertNotEqual(actual,BACKGROUND)
+                            self.assertEqual(self.models_drawn(),[self.ship] if projected else [])
+                            self.assert_viewport_only(actual)
+                            # Compare the real point/circle against an independent
+                            # pixel reference, then draw the beam over that body.
+                            expected=bytearray(BACKGROUND)
+                            if projected:
+                                paint(expected,circle_pixels(0,0,projected-1,0),
+                                      (65535,0,0,0),self.screen)
+                                self.reset_buffer();self.call('draw_point',d0=self.s['viper'])
+                                self.assertEqual(self.buffer(),expected)
+                            self.reset_buffer();self.cpu.mem_write(GUARD,bytes(expected))
+                            self.call('draw_ai_laser')
+                            self.assertEqual(actual,self.buffer())
+
+    def test_point_and_circle_occlusion_follows_depth_in_every_view_and_buffer(self):
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for view in VIEWS:
+                for screen in (SCREEN,OTHER):
+                    for projected in (1,2,3):
+                        for nearer in (False,True):
+                            with self.subTest(cpu=model,view=view,screen=screen,
+                                              radius=projected,nearer=nearer):
+                                self.boot(model,view,screen)
+                                self.setup_ship(x=0,z=12288)
+                                self.obj('obj_rad',24*projected)
+                                self.queue();emitter=self.ship
+                                self.call('draw_space');beam=self.buffer();self.reset_buffer()
+                                z=6144 if nearer else 18432
+                                self.setup_ship(x=0,z=z,index=1)
+                                self.obj('obj_rad',z*projected//512)
+                                self.queue(shot=False);body=self.ship
+                                self.assertEqual(self.read('scr_radius',True),projected)
+                                self.call('draw_space');actual=self.buffer()
+                                expected=bytearray(beam)
+                                if nearer:
+                                    paint(expected,circle_pixels(0,0,projected-1,0),
+                                          (65535,0,0,0),self.screen)
+                                    self.assertNotEqual(bytes(expected),beam,
+                                                        'foreground body did not cover any beam pixels')
+                                self.assertEqual(actual,expected)
+                                order=[emitter,body] if nearer else [body,emitter]
+                                self.assertEqual(self.entries(),[(obj,0) for obj in order])
+                                self.assertEqual(self.models_drawn(),order)
+                                self.assert_viewport_only(actual)
 
     def test_nonfiring_hidden_behind_and_nonflight_emitters_do_not_add_beams(self):
         for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):

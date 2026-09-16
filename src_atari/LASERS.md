@@ -118,7 +118,12 @@ Random bytes 200..255 are retried; accepted values 0..199 are compared with
 twice the miss percentage. The anchor probabilities are therefore exact.
 Geometric misses do not make this extra roll and can never become hits.
 
-The original firing range, random firing opportunity, cloaking check and control
+AI lasers can fire at up to 12,288 world units, exactly half the scanner's
+24,576-unit range at x1. Scanner zoom does not change the firing range.
+The accuracy table is unchanged: its existing cap keeps the additional
+miss chance at 50% from 7,000 through 12,288 units. Firing does not require a
+full ship model; point-sized and subpixel ships can also fire.
+The original random firing opportunity, cloaking check and control
 lock remain in effect. A hit is applied immediately to the front or aft shield
 according to the shooter's position. Every shot still draws its beam, including
 both kinds of miss. The build option `aifiresound=no` (default) disables only the
