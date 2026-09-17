@@ -116,6 +116,150 @@ Alternate retains its original hyperspace shortcut and does not fire the laser.
 
 In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.
 
+## ECM
+
+ECM destroys every missile in the world for as long as the wave lasts, whether
+the player triggered it or a ship defended itself against his missile. The wave
+is timed rather than tied to the ECM sound, so it also runs with Effects
+switched off, which the original game did not. It lasts 116 VBL ticks, 2.32 seconds at PAL 50 Hz,
+the length of the original effect.
+
+`tests/test_beam_sound.py` covers the wave starting, expiring and being cleared
+by a reset.
+
+## Random encounters
+
+Half of the pirate waves deep space would have thrown at the player become a
+small group that is **already fighting itself**. Nothing is announced, nothing
+is aimed at him, and he decides whether to join in, pick off the survivor or
+wait for the cargo.
+
+| Group | Weight | Needs a government of |
+| --- | ---: | --- |
+| 1 Thargoid, 1-2 pirates | 1 | any |
+| 1 Thargoid, 1-2 traders | 1 | any |
+| 1-2 pirates, 1-2 traders | 4 | any |
+| 1-2 pirates, 1-2 Vipers | 3 | Multi-government or better |
+| 1-2 pirates, 1 Viper | 3 | Feudal or better |
+| 1-2 pirates, 1 bounty hunter | 2 | any |
+| 1-2 pirates, 1 bounty hunter, 1 trader | 2 | any |
+
+Police only turn up where there is law to enforce, so anarchies see neither
+Viper group and meet a Thargoid in a fifth of their encounters instead of an
+eighth. The bounty hunter is a Fer-de-Lance, an ordinary trader by faction, so
+it hunts the raiders and they hunt it back without any new rule.
+
+The pirates are rolled from Krait, Gecko, Moray Star Boat, Adder, Mamba, Asp
+MkII and Sidewinder, and the traders from Cobra MkIII, Python, Anaconda and
+Cobra MK1. Neither table holds the Thargoid, which a group names where it wants
+one, and the pirates leave out the Boa and the Wolf: these are the small and
+medium raiders. The original "Condition RED!" ambush is untouched and keeps its
+own wider table, Thargoid included.
+
+A group appears at the ambush's range, 16384 to 24576 units away, but always in
+the half of space the player is facing, with its members a thousand units
+apart. They are created cruising rather than attacking, and the faction rules
+turn them on each other within a second. At most four ships arrive, fewer than
+the ambush already brings at a high combat rating.
+
+Every mission spawn keeps the old path: the Constrictor, the Cougar and both
+Thargoid missions are checked before the substitution is even rolled, and
+encounters never happen in witch space or inside station space.
+
+`tests/test_faction_ai.py` covers the two ship tables, the group table, the
+government filter and the weights, the placement and spacing, and that a
+mission wave is never replaced whichever way the coin falls.
+
+## Faction AI targeting
+
+Ships no longer attack the player and nothing else. Each combat ship picks the
+**nearest hostile ship**, and the player is one ordinary candidate among them.
+
+| Faction (`SHIP_TYPE`) | Ships | Attacks |
+| --- | --- | --- |
+| Trader | Cobra Mk III, Cobra Mk I, Python, Fer-de-Lance, Anaconda | pirates, Thargoids |
+| Pirate | Krait, Boa, Gecko, Moray, Adder, Mamba, Asp, Sidewinder, Wolf | traders, shuttles, police, Thargoids |
+| Shuttle | Shuttle, Transporter | pirates, Thargoids |
+| Police | Viper | pirates, Thargoids |
+| Alien | Thargoid, Thargon | everything except Thargoids and Thargons |
+
+Hunting and being hunted are separate roles. A ship hunts only when its
+`ATTACK_TYPE` is `ACT_ATTACK`, so the Python, the Shuttle and the Transporter
+are targets but never attackers, exactly as their reaction to the player has
+always been: shoot them and they run. The Cougar and the Constrictor stand
+outside the system entirely, so nothing targets them and they still pursue only
+the player.
+
+The player is always a candidate for pirates and Thargoids, and becomes one for
+a trader, shuttle or Viper once he has shot at it, which is the existing `ANGRY`
+flag. `ANGRY` only adds him to the candidate set; it never locks the choice, so
+a trader the player has hit may still break off for a closer pirate. The rule
+has no other exceptions: an ambush spawned on the player, or a Viper launched
+because of his police record, also takes the nearest target. Candidates are
+limited to the player's scanner range, so fights only happen where he can see
+them, and no ship chases another out of the world.
+
+One ship re-targets per game frame, round robin, and candidates are ranked by
+the largest axis difference rather than a true distance, so no square root or
+division is needed. Nothing else in the flight loop got slower.
+
+A hunter flies the same attack run at a ship as it flies at the player: it
+steers at whatever its target is, closes, peels off, runs off and turns back.
+Nothing about the player's own situation reaches that fight any more: two ships
+keep shooting at each other while he is cloaked, while the docking computer
+flies him in, and after he has ejected. Pirates still break off near the space
+station, because station space is nearly six times the scanner range, so that
+rule is about where everyone is rather than about him.
+
+Taking fire from another ship provokes the same reaction as taking fire from the
+player, because both go through the same routine. A ship already on an attack
+run or in the middle of a peel off presses on; anything else breaks off, into
+`LOG_CRUISE` if it is a runner, into `LOG_AVOID` if it was already running off,
+otherwise into a fresh attack run. Lose more than half your energy in one attack
+run and the ship may launch an escape capsule and leg it, exactly as it does
+under the player's lasers. A hull whose crew has already bailed out still does
+nothing.
+
+A ship fires its missile at whatever it is fighting, and the ship it is aimed
+at answers with ECM if it carries one, exactly as it would against the player's
+missile. Such a missile is silent: "Incoming missile" and the cockpit alert only
+ever announce a missile aimed at the player, and a ship that happens to be
+fighting him does not fire one at him because a third ship shot it. A missile
+destroys the ship it reaches, which is what the player's missiles have always
+done, so a well-armed pirate is dangerous to traders that cannot answer.
+
+The energy bomb remains player equipment. Damage between two ships uses a fixed
+fixed strength instead of the player's combat rating, which has no meaning in a
+fight he is not part of. It is deliberately lighter than his own: a hit lands
+somewhere in 2 to 12 and averages six, against the nine an average-rated
+commander takes, so two ships take a while over each other and the fight is
+worth flying into. Damage taken by the player, his shields and the
+rating-dependent damage table are untouched.
+
+A Thargon is a ship rather than a missile, so a Thargoid worn down by a Viper or
+a pirate still lets its Thargons go, and they then hunt by the same faction
+rules as anything else. Away from the player the release is smaller, two or
+three instead of four to seven, so one Thargoid cannot claim the thirty object
+slots on its own, and its chance no longer rides on the player's combat rating.
+Under his own lasers a Thargoid behaves exactly as it always has. When a
+Thargoid dies its Thargons scatter and drift out of range, returning their
+slots.
+
+An NPC kill awards the player no score, rating, bounty or police-record change,
+but cargo canisters still drop, so waiting for two ships to fight can pay. It is also silent: the explosion sound
+belongs to the ships he destroys himself, with a laser, a missile, by ramming or
+with the energy bomb, so a distant fight does not announce itself. An
+enemy beam is drawn from its gun to its actual target, with a small random
+offset when the shot misses; beams aimed at the player are drawn as before.
+
+`tests/test_faction_ai.py` covers the faction matrix, the whitelist, nearest-
+target selection, the `ANGRY` rule, combat entry and exit, the attack run's
+steering, the reaction to being hit, NPC damage and the suppressed bookkeeping.
+The break-off table is pinned against the 1988 original, which guards the
+player's own fire too, because both now run the same routine.
+`tests/test_lasers.py` covers the beam drawing and proves combat against the
+player is unchanged.
+
 ## Verification
 
 Tests and original-file verification can be run independently:
@@ -199,3 +343,4 @@ CPU models for axial, near-axial, reached and ordinary off-axis targets.
 ## Cargo inspections
 
 Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
+

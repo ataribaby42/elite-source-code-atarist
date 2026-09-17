@@ -38,6 +38,23 @@ launch_range: equ $1800 ; player range before launch
 platlet_life: equ 50 ; life of platlet
 platlet_vel: equ 50 ; speed of platlet
 spacing1: equ 700 ; spacing of squadrons
+spacing2: equ 1000 ; spacing of encounter groups
+; Roles a random encounter's template can ask for. The pirate and trader roles
+; roll from their own tables, which are narrower than RANDOM_PIRATE's type
+; range on purpose; the other three name one ship and are never rolled.
+; Numbered from one: a zero byte ends a row of ENCOUNTER_GROUPS, so no role
+; may be zero or the walk would stop in the middle of a template.
+role_pirate: equ 1
+role_trader: equ 2
+role_thargoid: equ 3
+role_viper: equ 4
+role_bounty: equ 5
+; The player's own fire rolls RATING*4+MISSILE_PROB before a ship lets go of a
+; missile or a group of thargons. His combat rating means nothing in a fight he
+; is not part of, so ship against ship uses the middle rating band, as
+; NPC_DAMAGE is the middle of the DAMAGE table. A thargon release is also
+; smaller there; see THARGONS.
+npc_launch_prob: equ 4*4+missile_prob
 
 ; ---- LOCAL VARIABLES ----
 
@@ -49,6 +66,11 @@ launch_rate: rs.w 1 ; rate of viper launch
 next_pos: rs.w 1 ; next position for pirate
 obj_hit: rs.w 1 ; flag: object hit with this laser
 magnitude: rs.w 1 ; magnitude of vector
+encounter_row: rs.l 1 ; ptr: the chosen template's next role/count pair
+encounter_lead: rs.l 1 ; ptr: the group's first member, zero until it exists
+encounter_role: rs.w 1 ; the role being placed
+encounter_left: rs.w 1 ; how many of that role are still to come
+encounter_seat: rs.w 1 ; which offset the next follower takes
 
 	q_end_vars combat
 
@@ -189,6 +211,394 @@ q_combat_m68_11:
 	q_ret
 
 
+; ***************************************************
+; **											   **
+; ** IS_COMBAT_SHIP - DOES THIS OBJECT TAKE PART ? **
+; **											   **
+; ***************************************************
+
+; Tests whether an object takes part in faction targeting, either as a hunter
+; or as a victim. The contiguous type range covers the traders, the pirates
+; and the shuttles; VIPER and THARGON sit outside it. The station, canisters,
+; missiles, title letters, panels and both mission ships are excluded.
+
+; Entry: A4 = ptr: object record
+; Exit:  D0 = 1 when the object takes part, 0 otherwise (Z set)
+
+; Regs: D0 corrupt.
+
+	q_subr is_combat_ship,global
+
+	move type(a4),d0
+	cmp #viper,d0 ; police
+	beq.s .yes
+	cmp #thargon,d0 ; tharglet
+	beq.s .yes
+	cmp #first_combat,d0 ; traders, pirates and shuttles
+	blo.s .no
+	cmp #last_combat,d0
+	bhi.s .no
+.yes:
+	moveq #1,d0
+	rts
+.no:
+	moveq #0,d0
+	rts
+
+
+; ******************************************
+; **									  **
+; ** IS_HOSTILE - FACTION RELATION TEST	  **
+; **									  **
+; ******************************************
+
+; Tests whether the hunter's faction attacks the candidate's faction. Bit n of
+; a mask entry means "hostile to SHIP_TYPE n". The Constrictor also carries
+; TYP_ALIEN, but IS_COMBAT_SHIP rejects it, so inside this system TYP_ALIEN
+; means a Thargoid or a Thargon.
+
+; Entry: A5 = ptr: hunter's record
+;		 A4 = ptr: candidate's record
+; Exit:  D0 = 1 when hostile, 0 otherwise (Z set)
+
+; Regs: D0, D1, D2, A0 corrupt.
+
+	q_subr is_hostile,global
+
+	moveq #0,d0
+	move ship_type(a5),d1
+	lea faction_mask(pc),a0
+	move.b 0(a0,d1.w),d1 ; hunter's hostility mask
+	move ship_type(a4),d2
+	btst d2,d1
+	beq.s .done
+	moveq #1,d0
+.done:
+	rts
+
+; Hostility masks indexed by SHIP_TYPE.
+
+faction_mask:
+
+	dc.b $82,$95,$82,$00,$82,$00,$00,$17
+	; trader pirate shuttle debris police bounty missile alien
+
+	even
+
+
+; ***********************************************
+; **										   **
+; ** CHEBYSHEV_RANGE - CHEAP DISTANCE RANKING  **
+; **										   **
+; ***********************************************
+
+; Largest axis difference between two objects. Used only to rank candidates
+; against each other, so no square root and no division are needed. Ships stay
+; within a few tens of thousands of units because anything beyond scanner
+; range is removed, so the signed subtraction cannot overflow.
+
+; Entry: A5 = ptr: first object
+;		 A4 = ptr: second object
+; Exit:  D0.L = max(|dx|,|dy|,|dz|)
+
+; Regs: D0, D1 corrupt.
+
+	q_subr chebyshev_range,global
+
+	move.l xpos(a4),d0
+	sub.l xpos(a5),d0
+	bpl.s .x_positive
+	neg.l d0
+.x_positive:
+	move.l ypos(a4),d1
+	sub.l ypos(a5),d1
+	bpl.s .y_positive
+	neg.l d1
+.y_positive:
+	cmp.l d1,d0
+	bhs.s .y_done
+	move.l d1,d0
+.y_done:
+	move.l zpos(a4),d1
+	sub.l zpos(a5),d1
+	bpl.s .z_positive
+	neg.l d1
+.z_positive:
+	cmp.l d1,d0
+	bhs.s .done
+	move.l d1,d0
+.done:
+	rts
+
+
+; ****************************************************
+; **												**
+; ** PICK_TARGET - CHOOSE THE NEAREST HOSTILE SHIP	**
+; **												**
+; ****************************************************
+
+; Selects the nearest hostile candidate for a hunter. The player is an
+; ordinary candidate whenever the hunter's faction attacks him, or whenever
+; the hunter is angry because the player has already shot at it; ANGRY only
+; adds him to the set and never locks the choice. Candidates are limited to
+; the player's scanner range, so fights only happen where the player can see
+; them. OBJ_RANGE is reused throughout: it is the distance from the player and
+; is already computed by GET_RANGE.
+
+; Entry: A5 = ptr: hunter's record
+; Exit:  TARGET updated, D0 = 1 when a target was found, 0 otherwise
+
+; Regs: D0, D1, D2, D3, A0, A1, A4 corrupt.
+; Subr: IS_COMBAT_SHIP, IS_HOSTILE, CHEBYSHEV_RANGE
+
+	q_subr pick_target,global
+
+	q_push d7 ; save the loop counter
+	move.l #no_target,target(a5) ; nothing chosen yet
+	move.l #$7fffffff,d3 ; best distance so far
+	btst #angry,flags(a5) ; player already provoked this ship ?
+	bne.s .player
+	cmp #typ_pirate,ship_type(a5) ; pirates and aliens always hunt him
+	beq.s .player
+	cmp #typ_alien,ship_type(a5)
+	bne.s .ships
+.player:
+	cmp.l #radar_range,obj_range(a5) ; he obeys the same scanner limit
+	bhi.s .ships
+	move.l obj_range(a5),d3 ; the player sits at the origin
+	clr.l target(a5)
+.ships:
+	lea objects(a6),a4 ; scan every object record
+	q_loop 1,max_objects
+	cmpa.l a4,a5 ; never target itself
+	beq.s .next
+	btst #in_use,flags(a4)
+	beq.s .next
+	btst #remove,flags(a4)
+	bne.s .next
+	cmp #log_exploding,logic(a4)
+	beq.s .next
+	cmp.l #radar_range,obj_range(a4) ; inside the player's scanner ?
+	bhi.s .next
+	bsr is_combat_ship
+	beq.s .next
+	bsr is_hostile
+	beq.s .next
+	bsr chebyshev_range ; D0.L = distance from the hunter
+	cmp.l d3,d0
+	bhs.s .next ; no closer than the best so far
+	move.l d0,d3
+	move.l a4,target(a5)
+.next:
+	lea obj_len(a4),a4 ; next object
+	q_next 1
+	moveq #0,d0
+	cmp.l #no_target,target(a5)
+	beq.s .done
+	moveq #1,d0
+.done:
+	q_pop d7 ; restore the loop counter
+
+	q_ret
+
+
+; ****************************************************
+; **												**
+; ** COMBAT_STATE - IS THIS LOGIC OPEN TO A FIGHT ? **
+; **												**
+; ****************************************************
+
+; Classifies a logic type for target selection. Launch, docking, explosion and
+; missile logics run to their end untouched; a cruising ship may be drawn into
+; a fight; a fighting ship only swaps targets.
+
+; Entry: D1 = logic type
+; Exit:  D0 = 0 ineligible, 1 passive, 2 already fighting
+
+; Regs: D0 corrupt.
+
+	q_subr combat_state,global
+
+	moveq #1,d0 ; passive, may be drawn in
+	cmp #log_cruise,d1
+	beq.s .done
+	cmp #log_fly_planet,d1
+	beq.s .done
+	moveq #2,d0 ; already in a fight
+	cmp #log_attack,d1
+	beq.s .done
+	cmp #log_peel_off,d1
+	beq.s .done
+	cmp #log_run_off,d1
+	beq.s .done
+	cmp #log_avoid,d1
+	beq.s .done
+	moveq #0,d0 ; leave this logic alone
+.done:
+	rts
+
+
+; **************************************************
+; **											  **
+; ** RETARGET - REFRESH ONE SHIP'S FACTION TARGET **
+; **											  **
+; **************************************************
+
+; Called for each object in the main loop. One slot re-targets per game frame,
+; so the whole scan costs about MAX_OBJECTS comparisons per frame instead of
+; MAX_OBJECTS squared. A ship must be a combat ship and able to fight back,
+; which excludes the Python, the Shuttle and the Transporter.
+
+; Entry: A5 = ptr: current object
+; Exit:  None
+
+; Regs: D0, D1, D2, D3, A0, A1, A4 corrupt.
+; Subr: IS_COMBAT_SHIP, COMBAT_STATE, PICK_TARGET
+
+	q_subr retarget,global
+
+	move this_obj(a6),d0 ; this slot's turn this frame ?
+	cmp retarget_slot(a6),d0
+	bne.s .done ; no
+	move.l a5,a4 ; a hunter must be a combat ship
+	bsr is_combat_ship
+	beq.s .done
+	cmp #act_attack,attack_type(a5) ; and must be able to fight back
+	bne.s .done
+	move logic(a5),d1 ; may this logic be disturbed ?
+	bsr combat_state
+	tst d0
+	beq.s .done ; no
+	move d0,-(sp) ; remember passive or fighting
+	bsr pick_target
+	move (sp)+,d1
+	tst d0 ; anything hostile in range ?
+	beq.s .nothing
+	cmp #1,d1 ; was it cruising ?
+; Quelo: 	if <eq> then.s						yes
+	bne.s .done
+	move #log_attack,logic(a5) ; turn to attack
+	clr on_course(a5)
+	move health(a5),pre_attack(a5)
+	bra.s .done
+.nothing:
+	cmp #2,d1 ; was it fighting ?
+	bne.s .done
+	move #log_cruise,logic(a5) ; nothing left to fight, fly off
+	move #1,on_course(a5)
+.done:
+	rts
+
+
+; ****************************************************
+; **												**
+; ** HIT_REACTION - BREAK OFF FROM AN INCOMING SHOT **
+; **												**
+; ****************************************************
+
+; The evasive turn a ship makes the moment a shot lands on it. A ship already
+; on an attack run or in the middle of a peel off presses on; anything else
+; breaks off in the direction its ATTACK_TYPE allows. Shared by CHECK_HIT and
+; DAMAGE_TARGET, so a ship reacts to another ship's fire exactly as it reacts
+; to the player's.
+
+; Entry: A5 = ptr: the ship that was hit
+; Exit:  None
+
+; Regs: D0, D1 corrupt.
+; Subr: START_PEEL_OFF
+
+	q_subr hit_reaction,global
+
+	move logic(a5),d0 ; on attack run ?
+	cmp #log_attack,d0
+; Quelo: 	if <ne> then.s						no
+	beq.s q_combat_m68_69
+	cmp #log_peel_off,d0 ; peeling off ?
+; Quelo: 		if <ne> then.s					no
+	beq.s q_combat_m68_71
+	move attack_type(a5),d1 ; decide on action to take
+	cmp #act_nothing,d1
+; Quelo: 			if <ne> then.s
+	beq.s q_combat_m68_73
+	cmp #act_runaway,d1
+; Quelo: 				if <eq> then.s
+	bne.s q_combat_m68_75
+	move #log_cruise,d0
+	bra.s q_combat_m68_76
+q_combat_m68_75:
+	cmp #log_run_off,d0
+; Quelo: 					if <ne> then.s
+	beq.s q_combat_m68_77
+	move #log_attack,d0
+	move health(a5),pre_attack(a5)
+	bra.s q_combat_m68_78
+q_combat_m68_77:
+	move #log_avoid,d0
+q_combat_m68_78:
+q_combat_m68_76:
+	move d0,next_logic(a5) ; store next logic type
+	bsr start_peel_off ; start to peel off
+q_combat_m68_73:
+q_combat_m68_71:
+q_combat_m68_69:
+	rts
+
+
+; *********************************************
+; **										 **
+; ** DAMAGE_TARGET - HIT ANOTHER SHIP		 **
+; **										 **
+; *********************************************
+
+; Applies laser damage from one ship to another. The player takes damage
+; through REDUCE_SHIELDS instead; this path exists only for AI against AI.
+; NPC_KILL tells EXPLODE_OBJECT that the player made no kill here, so his
+; score, rating, bounty and police record are all left alone.
+
+; The damaged ship reacts with the same two steps CHECK_HIT gives it when the
+; player scores the hit: the immediate break-off, and, once more than half its
+; energy has gone in one attack run, the LOW_ENERGY retreat. NPC_HIT holds the
+; missile back over that second step, so AI against AI stays a laser fight and
+; the player is never told about a missile he did not provoke.
+
+; Entry: A5 = ptr: shooter, whose TARGET is another ship
+;		 D0 = hit power
+; Exit:  None
+
+; Regs: D0, D1, D2, A0, A1, A4 corrupt.
+; Subr: HIT_REACTION, LOW_ENERGY, EXPLODE_OBJECT, TARGET_LOST, RELEASE_CARGO
+
+	q_subr damage_target,global
+
+	move.l a5,-(sp) ; the shooter; every reaction below works on A5
+	move d0,-(sp) ; HIT_REACTION corrupts the hit power
+	move.l target(a5),a5 ; A5 = ptr: the ship that was hit
+	bsr hit_reaction ; break off from the shot
+	move (sp)+,d0
+	sub d0,health(a5) ; reduce its health
+	bcs.s .destroyed
+	move health(a5),d0 ; lost over half its energy this attack run ?
+	add d0,d0
+	cmp pre_attack(a5),d0
+	bhs.s .done ; no
+	st npc_hit(a6) ; hold the missile back, this was not the player
+	bsr low_energy
+	clr npc_hit(a6)
+.done:
+	move.l (sp)+,a5
+	rts
+.destroyed:
+	move.l a5,a4 ; EXPLODE_OBJECT and its friends all take A4
+	move.l (sp)+,a5
+	st npc_kill(a6) ; the player gets no credit for this
+	bsr explode_object
+	bsr target_lost ; his missile may have been locked on it
+	jsr release_cargo ; containers still drop
+	clr npc_kill(a6)
+	rts
+
+
 ; ****************************************
 ; **									**
 ; ** EXPLODE_OBJECT - EXPLODE AN OBJECT **
@@ -206,14 +616,27 @@ q_combat_m68_11:
 	q_subr explode_object,global
 
 	q_save_all save ; all registers
-	cmp #dodec,type(a4) ; every destruction path must finish mission #5
-	bne.s .mission_checked
-	cmp #$52,mission(a6) ; only the active alien-station objective
-	bne.s .mission_checked
-	cmp #log_exploding,logic(a4) ; do not count an existing explosion again
+; Mission objectives belong to a ship's destruction, not to the weapon that
+; managed it, so they are counted here: laser, missile, ramming and the energy
+; bomb all arrive through EXPLODE_OBJECT. Both are guarded on the objective
+; actually being the active one, and on the wreck not already exploding, so
+; nothing is counted twice.
+	cmp #log_exploding,logic(a4) ; already going up ?
 	beq.s .mission_checked
+	move type(a4),d0
+	cmp #dodec,d0 ; alien space station, objective #5 ?
+	bne.s .not_the_station
+	cmp #$52,mission(a6)
+	bne.s .mission_checked
 	st station_destroyed(a6)
 	q_inc mission(a6) ; state #$53: reward at the next normal station
+	bra.s .mission_checked
+.not_the_station:
+	cmp #constr,d0 ; Constrictor, objective #1 ?
+	bne.s .mission_checked
+	cmp #$15,mission(a6)
+	bne.s .mission_checked
+	q_inc mission(a6) ; state #$16: reward at the next station
 .mission_checked:
 	move #15,force(a4) ; initialise explosion
 	move #rate,force_timer(a4)
@@ -225,7 +648,15 @@ q_combat_m68_11:
 	bset #point,flags(a4) ; not normal 3D object
 	bset #no_radar,flags(a4) ; remove from radar
 	st exploded(a6) ; object exploded
+	tst npc_kill(a6) ; did the player make this kill ?
+; Quelo: 	if <eq> then.s						yes
+	bne.s .no_credit
 	bsr add_kill ; add kill rating
+	bra.s .credited
+.no_credit:
+	bset #no_bounty,flags(a4) ; and pay no bounty either
+	bra.s q_combat_m68_13 ; never touch his police record
+.credited:
 	tst collided(a6) ; collided with object ?
 ; Quelo: 	if <eq> then.s						no
 	bne.s q_combat_m68_13
@@ -292,7 +723,10 @@ q_combat_m68_19:
 
 give_up:
 
+	tst npc_kill(a6) ; a kill he had no part in stays quiet: his laser,
+	bne.s .silent ; missile, ramming and energy bomb all leave this clear
 	q_sfx explosion ; sfx: explosion
+.silent:
 	clr collided(a6) ; clear collided flag
 	q_restore_all restore ; all registers
 
@@ -692,38 +1126,7 @@ q_combat_m68_67:
 	q_ret eq ; no, return
 	tst obj_hit(a6) ; object already hit ?
 	q_ret ne ; yes, return
-	move logic(a5),d0 ; on attack run ?
-	cmp #log_attack,d0
-; Quelo: 	if <ne> then.s						no
-	beq.s q_combat_m68_69
-	cmp #log_peel_off,d0 ; peeling off ?
-; Quelo: 		if <ne> then.s					no
-	beq.s q_combat_m68_71
-	move attack_type(a5),d1 ; decide on action to take
-	cmp #act_nothing,d1
-; Quelo: 			if <ne> then.s
-	beq.s q_combat_m68_73
-	cmp #act_runaway,d1
-; Quelo: 				if <eq> then.s
-	bne.s q_combat_m68_75
-	move #log_cruise,d0
-	bra.s q_combat_m68_76
-q_combat_m68_75:
-	cmp #log_run_off,d0
-; Quelo: 					if <ne> then.s
-	beq.s q_combat_m68_77
-	move #log_attack,d0
-	move health(a5),pre_attack(a5)
-	bra.s q_combat_m68_78
-q_combat_m68_77:
-	move #log_avoid,d0
-q_combat_m68_78:
-q_combat_m68_76:
-	move d0,next_logic(a5) ; store next logic type
-	bsr start_peel_off ; start to peel off
-q_combat_m68_73:
-q_combat_m68_71:
-q_combat_m68_69:
+	bsr hit_reaction ; break off from the shot
 	move laser_power(a6),d0 ; fetch laser power
 	move type(a5),d1 ; space station ?
 	cmp #spacestn,d1
@@ -740,11 +1143,6 @@ q_combat_m68_79:
 	sub d0,health(a5) ; reduce object's health
 ; Quelo: 	if <cs> then.s						dead
 	bcc.s q_combat_m68_83
-	cmp #constr,d1 ; constrictor ?
-; Quelo: 		if <eq> then.s					yes
-	bne.s q_combat_m68_86
-	q_inc mission(a6) ; state #16
-q_combat_m68_86:
 	move.l a5,a4 ; explode object
 	bsr explode_object
 	bsr target_lost ; check for lost target
@@ -807,6 +1205,30 @@ q_combat_m68_91:
 	q_subr low_energy
 
 	bsr launch_escape ; random launch of escape capsule
+	tst.l target(a5) ; is this ship fighting the player ?
+; Quelo: 	if <ne> then.s						no
+	bne.s .away_from_the_player
+	tst npc_hit(a6) ; and was it his shot that just landed ?
+	beq.s .player ; yes, the original path below
+.away_from_the_player:
+; The same two releases the player's fire provokes, at odds that do not depend
+; on his combat rating. LAUNCH_MISSILE aims at the ship being fought and keeps
+; the cockpit alert to itself.
+	tst no_missiles(a5) ; anything left to let go ?
+	beq.s q_combat_m68_97
+	jsr random ; fixed odds, free of the player's rating
+	cmp #npc_launch_prob,d0
+	bhs.s q_combat_m68_97
+	cmp #thargoid,type(a5) ; thargons need no target of their own
+	beq.s .npc_thargons
+	move.l target(a5),d0 ; a ship to aim a missile at ?
+	ble.s q_combat_m68_97 ; NO_TARGET, or the player, who is only ever
+	bsr launch_missile ; warned by a missile his own attacker fired
+	bra.s q_combat_m68_97
+.npc_thargons:
+	bsr thargons
+	bra.s q_combat_m68_97
+.player:
 	tst no_missiles(a5) ; any missiles left ?
 ; Quelo: 	if <ne> then.s				yes
 	beq.s q_combat_m68_97
@@ -895,22 +1317,43 @@ q_combat_m68_107:
 
 	q_subr launch_missile
 
+	move.l target(a5),d0 ; firing at a ship ?
+	bgt.s .at_a_ship ; yes; anything else is the player
 	cmp.l #2000,obj_range(a5) ; too close ?
 	q_ret lo ; yes, return
 	tst cloaking_on(a6) ; cloaking device on ?
 	q_ret ne ; yes, return
+	bra.s .allocate
+.at_a_ship:
+; The same guard, measured against the ship being fired at. OBJ_RANGE is the
+; distance from the player and the cloaking device hides only him, so neither
+; says anything about this launch.
+	move.l target(a5),a4
+	jsr get_dist ; D2.L = distance between A5 and A4
+	cmp.l #2000,d2 ; too close ?
+	q_ret lo ; yes, return
+.allocate:
 	jsr alloc_object ; allocate object record
 	q_ret cc ; no record free
 	jsr copy_object ; copy current objects record
 	move.b #%00100001,flags(a4) ; in use, no bounty
 	st velocity(a4) ; move at full speed
-	move #log_missile,logic(a4) ; fly towards player
 	move #missile,type(a4) ; it's a missile
+	move.l target(a5),d0 ; flying at a ship ?
+	bgt.s .track_the_ship
+	move #log_missile,logic(a4) ; fly towards player
 	jsr create_object ; create object
 	q_dec no_missiles(a5) ; reduce missile count
 	q_sfx alert ; trigger single alert
 	lea text7(pc),a0 ; print message and exit
 	jmp disp_message
+.track_the_ship:
+	move #log_ai_missile,logic(a4) ; DO_LOCKED, marked as not the player's
+	move.l target(a5),target(a4)
+	jsr create_object ; create object
+	q_dec no_missiles(a5) ; reduce missile count
+
+	q_ret ; no alert, no message: he is not the one being shot at
 
 
 ; **********************************************
@@ -931,8 +1374,13 @@ q_combat_m68_107:
 
 	clr no_missiles(a5) ; no more thargons please
 	jsr random ; release 4..7 thargons
-	and #3,d0
-	addq #3,d0
+	moveq #3,d1
+	tst npc_hit(a6) ; driven off by another ship ?
+	beq.s .count
+	moveq #1,d1 ; yes: 2..3 only, so one release cannot
+.count: ; empty the thirty object slots
+	and d1,d0
+	add d1,d0
 	q_loop 1 ; loop for each thargon
 	jsr alloc_object ; allocate a record for the thargon
 	q_ret cc ; none left, give up
@@ -1083,6 +1531,56 @@ q_combat_m68_107:
 ; Regs: ?
 ; Subr: ?
 
+; ****************************************************
+; **												**
+; ** DROP_MISSILES - CLEAR THE MISSILES CHASING IT  **
+; **												**
+; ****************************************************
+
+; Removes every missile flying at an object that is about to leave the world.
+; DO_LOCKED reads TARGET without checking it, so a missile left behind would
+; steer at a freed record. Ships fire missiles at each other, so most of them
+; are nothing to do with the player; the one case he is told about is reported
+; back to TARGET_LOST.
+
+; Entry: A4 = ptr: object record
+; Exit:  D0 = 1 when one of them was the player's, 0 otherwise
+
+; Regs: D0, D1, A0 corrupt.
+
+	q_subr drop_missiles
+
+	q_push d7 ; save the loop counter
+	moveq #0,d1 ; none of his so far
+	lea objects(a6),a0 ; scan every object record
+	q_loop 1,max_objects
+	btst #in_use,flags(a0)
+	beq.s .next
+	btst #remove,flags(a0) ; already leaving the world ?
+	bne.s .next ; yes, it chases nothing and reports nothing
+	cmp #missile,type(a0)
+	bne.s .next
+	move.l target(a0),d0 ; flying at this record ?
+	cmp.l a4,d0
+	bne.s .next
+	bset #remove,flags(a0) ; yes, it has nothing left to chase
+	cmp #log_locked,logic(a0) ; one of the player's ?
+	bne.s .next
+	moveq #1,d1
+.next:
+	lea obj_len(a0),a0 ; next object
+	q_next 1
+	move d1,d0
+	q_pop d7 ; restore the loop counter
+	rts
+
+
+; ************************************************
+; **											**
+; ** TARGET_LOST - CHECK IF MISSILE TARGET LOST **
+; **											**
+; ************************************************
+
 	q_subr target_lost,global
 
 	cmp #2,missile_state(a6) ; missile targetted ?
@@ -1093,14 +1591,13 @@ q_combat_m68_107:
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_combat_m68_113
 	bsr unarm_missile ; unarm missile
+	bsr drop_missiles
 	bra.s remove_missile
 q_combat_m68_113:
 q_combat_m68_111:
-	bsr check_missile ; any missile tracking object ?
-	tst d7
-; Quelo: 	if <pl> then.s						yes
-	bmi.s q_combat_m68_115
-	bset #remove,flags(a0) ; remove the missile
+	bsr drop_missiles ; every missile chasing it, whoever fired it
+	tst d0 ; was one of them the player's ?
+	beq.s q_combat_m68_115 ; no, he is told nothing
 
 remove_missile:
 
@@ -1140,6 +1637,8 @@ q_combat_m68_115:
 	beq.s q_combat_m68_117
 	cmp #missile,type(a0)
 ; Quelo: 			if <eq> then.s				yes
+	bne.s q_combat_m68_119
+	cmp #log_locked,logic(a0) ; one of his, not a ship's ?
 	bne.s q_combat_m68_119
 	move.l target(a0),d0 ; locked onto this object ?
 	cmp.l a4,d0
@@ -1367,6 +1866,13 @@ q_combat_m68_134:
 	move d0,type(a4)
 	move #log_police,logic(a4) ; attack launch
 	bsr launch_ship ; launch object
+; PREPARE_VIPERS sizes the wave from the player's combat rating, so a launch is
+; always about him, and the ship has to say so: PICK_TARGET offers him only to
+; a pirate, an alien or a ship already angry with him, and a policeman is none
+; of the three. Unmarked, RETARGET reads LOG_PEEL_OFF and LOG_RUN_OFF as
+; fighting, finds the viper nothing to fight, and sends it cruising out of
+; scanner range. Set after LAUNCH_SHIP, which writes FLAGS outright.
+	bset #angry,flags(a4) ; launched to arrest him
 
 	q_ret
 
@@ -1534,6 +2040,7 @@ q_combat_m68_138:
 	q_ret cc ; none left
 	move #thargoid,type(a4) ; create random thargoid
 	move #log_attack,logic(a4)
+	clr.l target(a4) ; the player, until RETARGET finds it something nearer
 	clr on_course(a4)
 	jmp random_position
 
@@ -1573,6 +2080,22 @@ q_combat_m68_141:
 	moveq #9,d1
 	asl d1,d0
 	move d0,pirate_ctr(a6)
+; Half of the ordinary deep space waves become an encounter instead. Every
+; mission that spawns a named ship keeps the old path: $21 and $52 want
+; Thargoids, $41 the Cougar, and $15 the Constrictor, which cannot reach this
+; point but is tested here so the guard survives an edit to the branch above.
+	move mission(a6),d0
+	cmp #$15,d0
+	beq pirate_attack
+	cmp #$21,d0
+	beq pirate_attack
+	cmp #$41,d0
+	beq pirate_attack
+	cmp #$52,d0
+	beq pirate_attack
+	jsr random ; a fair coin
+	btst #0,d0
+	bne random_encounter
 	bra pirate_attack ; attack by pirates
 
 
@@ -1627,6 +2150,7 @@ q_combat_m68_144:
 	move d0,type(a4)
 	move.b #1,flags(a4) ; in use
 	move #log_attack,logic(a4) ; attack player
+	clr.l target(a4) ; and say so: ALLOC_OBJECT leaves NO_TARGET
 	clr on_course(a4) ; not on course
 	st velocity(a4) ; attack at full speed
 	move #rand_range,d2 ; random orbit
@@ -1733,6 +2257,333 @@ q_combat_m68_157:
 	add #pirates,d0
 
 	q_ret return
+
+
+; ******************************************************
+; **												  **
+; ** ENCOUNTER_TYPE - CHOOSE A SHIP FOR A GROUP ROLE  **
+; **												  **
+; ******************************************************
+
+; Turns one of a template's roles into an object type. The pirate and trader
+; roles roll from their own tables; the other three name a single ship.
+
+; Entry: D0 = role
+; Exit:  D0 = object type
+
+; Regs: D0, D1, D2, A0 corrupt.
+; Subr: RAND
+
+	q_subr encounter_type,global
+
+	cmp #role_pirate,d0
+	beq.s .pirates
+	cmp #role_trader,d0
+	beq.s .traders
+	sub #role_thargoid,d0 ; the three a template names outright
+	add d0,d0
+	lea encounter_fixed(pc),a0
+	move (a0,d0),d0
+	rts
+.pirates:
+	lea encounter_pirates(pc),a0
+	moveq #no_encounter_pirates,d2
+	bra.s .roll
+.traders:
+	lea encounter_traders(pc),a0
+	moveq #no_encounter_traders,d2
+.roll:
+	jsr rand ; 0..D2-1
+	add d0,d0
+	move (a0,d0),d0
+	rts
+
+
+; Ships a random encounter may roll. Neither table holds the Thargoid, which a
+; template names where it wants one, and the pirates leave out the Boa and the
+; Wolf: the encounter's raiders are the small and medium ships.
+
+encounter_pirates:
+
+	dc.w krait,gecko,moray,adder,mamba,asp,sidewinder
+
+no_encounter_pirates: equ (*-encounter_pirates)/2
+
+encounter_traders:
+
+	dc.w cobra,python,anaconda,cobra_mk1
+
+no_encounter_traders: equ (*-encounter_traders)/2
+
+; Indexed by role minus ROLE_THARGOID.
+
+encounter_fixed:
+
+	dc.w thargoid,viper,ferdelance
+
+
+; Groups a random encounter may place, from section 4.3 of the design. Each row
+; is a weight, the lowest government it may appear under, then role and maximum
+; count pairs ended by a zero byte. The actual count is RAND(max)+1, which is 1
+; for a maximum of 1, so a fixed member and a variable one follow one rule.
+
+encounter_groups:
+
+	dc.b 1,0,role_thargoid,1,role_pirate,2,0
+	dc.b 1,0,role_thargoid,1,role_trader,2,0
+	dc.b 4,0,role_pirate,2,role_trader,2,0
+	dc.b 3,2,role_pirate,2,role_viper,2,0
+	dc.b 3,1,role_pirate,2,role_viper,1,0
+	dc.b 2,0,role_pirate,2,role_bounty,1,0
+	dc.b 2,0,role_pirate,2,role_bounty,1,role_trader,1,0
+	dc.b 0 ; end of the table
+
+	even
+
+
+; ***********************************************
+; **										   **
+; ** ENCOUNTER_SKIP - STEP TO THE NEXT TEMPLATE **
+; **										   **
+; ***********************************************
+
+; Entry: A0 = ptr: a row of ENCOUNTER_GROUPS
+; Exit:  A0 = ptr: the row after it
+
+; Regs: A0 corrupt.
+
+	q_subr encounter_skip
+
+	addq.l #2,a0 ; past the weight and the government
+.pairs:
+	tst.b (a0)
+	beq.s .done
+	addq.l #2,a0
+	bra.s .pairs
+.done:
+	addq.l #1,a0 ; past the terminator
+	rts
+
+
+; ********************************************************
+; **													**
+; ** ENCOUNTER_TEMPLATE - CHOOSE A GROUP FOR THE SYSTEM **
+; **													**
+; ********************************************************
+
+; Picks one row by weight, ignoring every row the system's government forbids.
+; Two passes: the first totals the weights allowed here, the second walks again
+; and stops where the roll runs out. The total is never zero, because five of
+; the seven rows carry no government condition.
+
+; Entry: None
+; Exit:  A0 = ptr: the chosen row's first role/count pair
+
+; Regs: D0, D1, D2, A0 corrupt.
+; Subr: RAND, ENCOUNTER_SKIP
+
+	q_subr encounter_template,global
+
+	move splanet+govern(a6),d1 ; the system the player is in
+	moveq #0,d2 ; weight available here
+	lea encounter_groups(pc),a0
+.total:
+	moveq #0,d0
+	move.b (a0),d0 ; this row's weight
+	beq.s .roll ; end of the table
+	cmp.b 1(a0),d1 ; government high enough for it ?
+	blo.s .total_next
+	add d0,d2
+.total_next:
+	bsr encounter_skip
+	bra.s .total
+.roll:
+	jsr rand ; 0..D2-1
+	move d0,d2 ; the roll
+	lea encounter_groups(pc),a0
+.pick:
+	moveq #0,d0
+	move.b (a0),d0
+	cmp.b 1(a0),d1 ; a row this government forbids spends no weight
+	blo.s .pick_next
+	sub d0,d2
+	bmi.s .chosen
+.pick_next:
+	bsr encounter_skip
+	bra.s .pick
+.chosen:
+	addq.l #2,a0 ; past the weight and the government
+	rts
+
+
+; **************************************************
+; **											  **
+; ** ENCOUNTER_PLACE - PUT THE FIRST MEMBER OUT   **
+; **											  **
+; **************************************************
+
+; The ambush's own range, but always in the half of space the player is facing
+; and pointing back at him. ORBIT computes z = r*sin(a)*cos(b), so the sign of
+; ZPOS is the only thing to correct and the radius is untouched. Facing him is
+; not decoration: the range reaches RADAR_RANGE, and DO_CRUISING removes an
+; object that passes it, so a group in LOG_CRUISE facing away would delete
+; itself within a frame or two.
+
+; Entry: A4 = ptr: the first member
+; Exit:  None
+
+; Regs: D0, D1, D2, A0 corrupt.
+; Subr: RAND, ORBIT, VECTOR_POS
+
+	q_subr encounter_place
+
+	move #rand_range,d2 ; range = rand(rand_range)+rand_limit
+	jsr rand
+	add #rand_limit,d0
+	ext.l d0
+	move #360,d1
+	jsr orbit
+	tst.l zpos(a4) ; did it land behind him ?
+	bpl.s .ahead
+	neg.l zpos(a4) ; mirror it in front
+.ahead:
+	jmp vector_pos ; point it at him and return
+
+
+; ****************************************************
+; **												**
+; ** ENCOUNTER_OFFSET - STEP A FOLLOWER ASIDE		**
+; **												**
+; ****************************************************
+
+; Moves a copied member one step along the first member's own axes, in the
+; manner of PIRATE_ATTACK's squadron. Four seats cover any group this design
+; can build.
+
+; Entry: A4 = ptr: a follower holding the first member's position and vectors
+; Exit:  None
+
+; Regs: D0, D1, D6, A0, A1, A2 corrupt.
+
+	q_subr encounter_offset
+
+	move encounter_seat(a6),d0
+	addq #1,encounter_seat(a6)
+	and #3,d0 ; four seats, wrapping
+	asl #2,d0
+	lea encounter_positions(pc),a0
+	move (a0,d0),d1 ; A1 = ptr: the vector to step along
+	lea (a4,d1.w),a1
+	move 2(a0,d0),d0 ; the spacing
+	lea xpos(a4),a2 ; A2 = ptr: the coordinates
+	q_loop 1,d6,3
+	move (a1)+,d1
+	muls d0,d1
+	asl.l #2,d1
+	swap d1
+	ext.l d1
+	add.l d1,(a2)+
+	q_next 1,d6
+	rts
+
+
+; Where a follower sits relative to the first member.
+
+encounter_positions:
+
+	dc.w x_vector,+spacing2
+	dc.w x_vector,-spacing2
+	dc.w y_vector,+spacing2
+	dc.w y_vector,-spacing2
+
+
+; ****************************************************
+; **												**
+; ** ENCOUNTER_MEMBER - CREATE ONE SHIP OF A GROUP	**
+; **												**
+; ****************************************************
+
+; Entry: ENCOUNTER_ROLE = the role to place
+; Exit:  IF a member was created THEN carry set ELSE carry clear
+
+; Regs: D0, D1, D2, D6, A0, A1, A2, A4, A5 corrupt.
+; Subr: ALLOC_OBJECT, ENCOUNTER_PLACE, COPY_OBJECT, ENCOUNTER_OFFSET,
+;		ENCOUNTER_TYPE, CREATE_OBJECT
+
+	q_subr encounter_member
+
+	jsr alloc_object ; a record for it
+	bcc.s .none ; none left
+	tst.l encounter_lead(a6) ; is this the first of the group ?
+	bne.s .follower
+	move.l a4,encounter_lead(a6)
+	bsr encounter_place
+	bra.s .build
+.follower:
+	move.l encounter_lead(a6),a5 ; its position and vectors
+	jsr copy_object
+	bsr encounter_offset
+.build:
+	move encounter_role(a6),d0
+	bsr encounter_type
+	move d0,type(a4)
+	move.b #1,flags(a4) ; in use
+	move #log_cruise,logic(a4) ; nobody here is attacking the player
+	move.l #no_target,target(a4) ; RETARGET gives it one of its own
+	st velocity(a4) ; CREATE_OBJECT raises it to VEL_MAX
+	jsr create_object
+	ori #1,ccr ; created
+	rts
+.none:
+	andi #$fe,ccr ; the pool is empty
+	rts
+
+
+; ****************************************************
+; **												**
+; ** RANDOM_ENCOUNTER - A GROUP ALREADY AT WAR		**
+; **												**
+; ****************************************************
+
+; Places a small group in deep space whose members are hostile to each other
+; under the faction rules, in front of the player and at the ambush's range.
+; Nothing is announced and nothing is aimed at him: he has flown into somebody
+; else's fight. RETARGET starts it, because the members are a thousand units
+; apart and he is at least sixteen thousand away.
+
+; Entry: None
+; Exit:  None
+
+; Regs: ?
+; Subr: ENCOUNTER_TEMPLATE, ENCOUNTER_MEMBER, RAND
+
+	q_subr random_encounter,global
+
+	bsr encounter_template ; A0 = the chosen row's first pair
+	move.l a0,encounter_row(a6)
+	clr.l encounter_lead(a6) ; no first member yet
+	clr encounter_seat(a6)
+.roles:
+	move.l encounter_row(a6),a0
+	moveq #0,d0
+	move.b (a0),d0 ; the role, zero ends the row
+	beq.s .done
+	move d0,encounter_role(a6)
+	moveq #0,d2
+	move.b 1(a0),d2 ; how many of it at most
+	addq.l #2,a0
+	move.l a0,encounter_row(a6)
+	jsr rand ; 0..max-1
+	q_inc d0 ; 1..max
+	move d0,encounter_left(a6)
+.one:
+	bsr encounter_member
+	bcc.s .done ; the pool is empty; the group ends here
+	q_dec encounter_left(a6)
+	bne.s .one
+	bra.s .roles
+.done:
+	rts
 
 
 ; ********************************************

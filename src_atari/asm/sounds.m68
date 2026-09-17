@@ -108,6 +108,7 @@ fade_out: rs.w 1 ; flag: fade out the music
 beam_kind: rs.w 1 ; active continuous laser type
 beam_channel: rs.l 1 ; channel reserved for the continuous laser
 warp_ticks: rs.w 1 ; hyperspace timer, independent of Effects and sound channels
+ecm_ticks: rs.w 1 ; ECM wave timer, likewise independent of both
 rcs_channel: rs.l 1 ; expendable channel; never held against other effects
 rcs_request: rs.w 1 ; stable request between game frames
 rcs_valid: rs.w 1 ; previous steering belongs to the current flight
@@ -286,9 +287,18 @@ q_sounds_m68_1:
 	q_subr fx,global
 
 	cmp.w #sfx_hyperspace,d0
-	bne.s .enabled
+	bne.s .not_warp
 	move.w #250,warp_ticks(a6) ; five seconds at PAL, even with Effects OFF
 	st end_hyperspace(a6)
+.not_warp:
+; ECM is a gameplay state, not a sound: ECM_ON is what makes ECM (COMBAT)
+; destroy every missile in the world. Started here, ahead of the Effects
+; switch, it no longer disappears when the player turns the sound off, and it
+; no longer ends early when another effect steals the channel.
+	cmp.w #sfx_ecm,d0
+	bne.s .enabled
+	move.w #ecm_wave,ecm_ticks(a6)
+	st ecm_on(a6)
 .enabled:
 	btst #f_fx,user(a6) ; effects enabled ?
 	q_ret eq ; no, return
@@ -419,10 +429,18 @@ q_sounds_m68_5:
 	q_subr sound,global
 
 	tst warp_ticks(a6)
-	beq.s .audio
+	beq.s .ecm
 	subq.w #1,warp_ticks(a6)
-	bne.s .audio
+	bne.s .ecm
 	clr end_hyperspace(a6)
+.ecm:
+	tst ecm_ticks(a6)
+	beq.s .audio
+	subq.w #1,ecm_ticks(a6)
+	bne.s .audio
+	clr ecm_on(a6) ; the wave is over: the same three things DO_ECM
+	clr who_ecm(a6) ; does when its effect reaches the end
+	clr f_echar(a6)
 .audio:
 	st fx_done(a6) ; effects done
 	tst hold_sound(a6) ; sounds held ?
@@ -1203,6 +1221,9 @@ q_sounds_m68_37:
 
 	clr warp_ticks(a6)
 	clr end_hyperspace(a6)
+	clr ecm_ticks(a6)
+	clr ecm_on(a6)
+	clr who_ecm(a6)
 	st hold_sound(a6) ; hold sounds from interrupts
 	clr laser_audio_request(a6)
 	clr beam_kind(a6)
@@ -1838,14 +1859,17 @@ do_hexagon:
 
 * Creates the ECM effect.
 
-ecm_length: equ ((ecm_max-ecm_min)/ecm_step+1)*ecm_dur*2
+; Length of the ECM wave in VBL ticks: DO_ECM below sweeps the tone from
+; ECM_MIN to ECM_MAX in ECM_STEP and back, ECM_DUR times, which takes this
+; many services. FX starts the wave on the timer instead of on the effect,
+; so it also runs with Effects OFF.
+ecm_wave: equ 116
 
 	q_subr fx_ecm
 
 	set_fx volume,12 ; initialise effect
 	set_fx tone,ecm_min
 	set_fx cycle,ecm_dur
-	set_fx flagptr,ecm_on
 	set_fx service,do_ecm
 	set_fx hold
 	set_fx done

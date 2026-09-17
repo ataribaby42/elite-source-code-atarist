@@ -36,6 +36,7 @@
 	xref flash_message,reduce_energy,object_logic,read_key,check_hit,well_done
 	xref draw_lasers,orthogonal,torus_drive,collision,update_inst,run_docking
 	xref check_cargo,check_police,check_inflight,draw_space,text_blatt,docking_sequence
+	xref retarget
 
 * ---- LOCAL CONSTANTS ----
 
@@ -124,6 +125,7 @@ q_main_m68_9:
 	jsr draw_object ; draw object
 	jsr radar ; plot on radar
 	jsr mini_radar
+	jsr retarget ; refresh this ship's faction target
 	jsr do_logic ; perform logic
 	jsr queue_ai_laser ; an off-screen ship may have fired this frame
 	jsr check_hit ; check for laser hit
@@ -138,6 +140,11 @@ q_main_m68_11:
 	q_inc this_obj(a6)
 	cmp #max_objects,this_obj(a6)
 	bne q_main_m68_9
+	q_inc retarget_slot(a6) ; next ship re-targets on the following frame
+	cmp #max_objects,retarget_slot(a6)
+	blo.s .slot_ok
+	clr retarget_slot(a6)
+.slot_ok:
 q_main_m68_10:
 	move.l last_ptr(a6),d0 ; store radar buffer last pointer
 	move.l scr_base(a6),d1
@@ -255,6 +262,7 @@ q_main_m68_20:
 	btst #in_use,flags(a4) ; record free ?
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_main_m68_25
+	move.l #no_target,target(a4) ; a fresh record has no AI target
 	q_pop d7 ; restore D7
 	q_sec set ; carry flag (alloc ok)
 	rts ; return

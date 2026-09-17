@@ -37,7 +37,7 @@ def compile_fixture(combat_source=None):
         'flight': ['mission_check', 'start_hyperspace', 'collision', 'hit_station', 'beep'],
         'main': ['create_object', 'alloc_object', 'copy_object'],
         'init': ['relocate', 'reset_system'],
-        'combat': ['check_hit', 'explode_object', 'add_kill', 'inc_record', 'launch_bomb'],
+        'combat': ['check_hit', 'hit_reaction', 'explode_object', 'add_kill', 'inc_record', 'launch_bomb'],
         'logic': ['do_locked'],
         'maths': ['random', 'rand'],
     }
@@ -53,6 +53,7 @@ def compile_fixture(combat_source=None):
     mother this_obj log_cruise attack_type act_nothing energy max_energy front_shield aft_shield
     typ_trader ship_type force exp_timer next_logic invincible no_bounty no_missiles
     trader_count pirate_count
+    log_locked obj_rad
     '''.split()
     assembly = preamble() + '\tinclude "bitlist.m68"\n'
     for module, start in [('combat', 'slow_charge:'), ('flight', 'torus_dur:'), ('logic', 'launch_dist:')]:
@@ -332,6 +333,81 @@ class MissionTests(unittest.TestCase):
             self.assertEqual(m.obj('health'), 1024)
             self.assertEqual(m.obj('logic'), s['log_rotating'])
             self.assertEqual((m.var('mission'), m.var('station_destroyed')), (0x52, 0))
+
+    def constrictor(self, m, state=0x15):
+        """The Constrictor in the station slot, one shot from death."""
+        m.var('mission', state)
+        m.obj('flags', 1 << (8 + s['in_use']))
+        m.obj('type', s['constr'])
+        m.obj('logic', s['log_cruise'])
+        m.obj('health', 10)
+        m.obj('obj_rad', 100)
+        m.obj('kill_rating', 5000)
+        m.long(m.station + s['this_zpos'], 3000)
+
+    def test_constrictor_completion_by_every_way_it_can_die(self):
+        """The objective belongs to the Constrictor's destruction, not to the
+        weapon that managed it. Laser, missile and ramming all end at
+        EXPLODE_OBJECT, so that is where it is counted."""
+        for m in self.machines():
+            for weapon in ('laser', 'missile', 'ram'):
+                with self.subTest(weapon=weapon):
+                    self.constrictor(m)
+                    if weapon == 'laser':
+                        m.var('hit_check', 1)
+                        m.var('in_sights', 1)
+                        m.var('obj_hit', 0)
+                        m.var('laser_power', 11)
+                        m.call('check_hit')
+                    elif weapon == 'missile':
+                        missile = VARIABLES + s['objects'] + 3 * s['obj_len']
+                        m.word(missile + s['flags'], 1 << (8 + s['in_use']))
+                        m.word(missile + s['type'], s['missile'])
+                        m.word(missile + s['logic'], s['log_locked'])
+                        m.long(missile + s['target'], m.station)
+                        m.call('do_locked', a5=missile)
+                    else:
+                        m.long(m.station + s['obj_range'], 10)
+                        m.call('collision')
+                    self.assertEqual(m.obj('logic'), s['log_exploding'],
+                                     'the %s did not destroy it' % weapon)
+                    self.assertEqual(m.var('mission'), 0x16,
+                                     'the objective did not advance on a %s kill' % weapon)
+
+    def test_constrictor_completion_only_while_the_objective_is_running(self):
+        """And never twice for the same wreck."""
+        for m in self.machines():
+            for state in (0x14, 0x16, 0x21):
+                with self.subTest(state=state):
+                    self.constrictor(m, state)
+                    m.var('hit_check', 1)
+                    m.var('in_sights', 1)
+                    m.var('obj_hit', 0)
+                    m.var('laser_power', 11)
+                    m.call('check_hit')
+                    self.assertEqual(m.obj('logic'), s['log_exploding'])
+                    self.assertEqual(m.var('mission'), state,
+                                     'state %#x must not move' % state)
+            # An explosion already under way is not counted a second time.
+            self.constrictor(m)
+            m.obj('logic', s['log_exploding'])
+            m.call('explode_object')
+            self.assertEqual(m.var('mission'), 0x15)
+
+    def test_the_energy_bomb_cannot_reach_the_constrictor(self):
+        """LAUNCH_BOMB skips it, as it skips the Thargoid and the Cougar, so
+        there is no bomb path to count."""
+        for m in self.machines():
+            slot = VARIABLES + s['objects'] + 5 * s['obj_len']
+            m.var('mission', 0x15)
+            m.word(VARIABLES + s['equip'] + s['energy_bomb'], 1)
+            m.word(slot + s['flags'], 1 << (8 + s['in_use']))
+            m.word(slot + s['type'], s['constr'])
+            m.word(slot + s['logic'], s['log_cruise'])
+            m.word(slot + s['health'], 10)
+            m.call('launch_bomb')
+            self.assertEqual(m.word(slot + s['logic']), s['log_cruise'])
+            self.assertEqual(m.var('mission'), 0x15)
 
     def test_scheduler_does_not_interrupt_other_missions_or_start_in_galaxy1(self):
         for m in self.machines():

@@ -162,6 +162,13 @@ new_ship:
 q_attract_m68_7:
 	jsr orthogonal ; check angles and unity
 	jsr clear_image ; clear screen image
+	jsr get_range ; get range to object
+	jsr draw_object ; draw ship (into list)
+; The ship is drawn first so the titles stay legible: TEXT_BLATT and DRAW_ALL
+; both write straight into the invisible screen, and whatever goes last wins.
+	q_push.l a5 ; DRAW_ALL takes A5 from the draw list
+	jsr draw_all
+	q_pop.l a5
 	clr text_row(a6) ; display object type
 	move.l text(a5),a0
 	jsr disp_message
@@ -179,9 +186,6 @@ q_attract_m68_10:
 	jsr disp_message
 	moveq #lgt_blue,d0
 	jsr text_blatt
-	jsr get_range ; get range to object
-	jsr draw_object ; draw ship (into list)
-	jsr draw_all
 	jsr update_inst ; update instruments
 	jsr swap_screen ; swap screen
 ; Use elapsed VBLs, as in GAME_LOGIC: slow frames do not wait again.

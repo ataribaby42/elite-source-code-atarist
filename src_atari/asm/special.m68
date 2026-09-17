@@ -324,8 +324,52 @@ laser_colours:
 	bgt .restore
 	cmp.w #-32000,d1
 	blt .restore
-; BBC sends the beam to the opposite screen edge. Its moving endpoint is
-; cosmetic; AI damage has already been decided from the actual firing angle.
+	move.l target(a5),d4 ; shooting at another ship ?
+	ble .screen_edge ; no, keep the original endpoint
+	move.l d4,a1
+	move.l this_zpos(a1),d6
+	ble .restore ; the target is behind the camera
+	cmp.l #32767,d6
+	bhi .restore
+	move.l this_xpos(a1),d4
+	move.l this_ypos(a1),d5
+	moveq #9,d7
+	asl.l d7,d4
+	divs.w d6,d4
+	bvs .restore
+	asl.l d7,d5
+	divs.w d6,d5
+	bvs .restore
+	cmp.w #32000,d4 ; keep deltas inside the 16-bit line clipper
+	bgt .restore
+	cmp.w #-32000,d4
+	blt .restore
+	cmp.w #32000,d5
+	bgt .restore
+	cmp.w #-32000,d5
+	blt .restore
+	cmp.w #2,ai_laser(a5) ; a hit lands exactly on the target
+	beq.s .aimed
+	movem.l d0-d1,-(sp) ; RANDOM's scratch registers are D0 and D1
+	jsr random ; the same magnitude as the player's tip jitter
+	and.w #7,d0
+	subq.w #4,d0
+	add.w d0,d4
+	jsr random
+	and.w #3,d0
+	subq.w #2,d0
+	add.w d0,d5
+	movem.l (sp)+,d0-d1
+.aimed:
+	move.w d4,d2
+	move.w d5,d3
+	jsr c_line
+	bra .restore
+
+; BBC sends the beam at the player to the opposite screen edge. Its moving
+; endpoint is cosmetic; AI damage has already been decided from the actual
+; firing angle.
+.screen_edge:
 	move.w #x_min,d2
 	tst.w d0
 	bpl.s .endpoint

@@ -37,6 +37,7 @@ class RegistrationTests(unittest.TestCase):
             police_record hold current galaxy_no gal_seed fluctuation random_seed player_name
             obj_range this_xpos this_ypos centre_x centre_y obj_rad hits_rad in_sights laser_type
             id_trigger missile_state target_ptr target text_buffer text_offset text_frames
+            log_locked log_ai_missile logic
             max_objects max_obj_num req_planet player_record witch_space mission count_down
             jump_trigger speed no_cols text_top user f_no_stars sky_enabled sky_basis'''.split()
         names = ['registration_assign', 'registration_next', 'registration_generate',
@@ -343,6 +344,50 @@ fixture_name: dc.b 'Cobra MkIII',0
         self.assertEqual(self.word(self.at('id_trigger')), 1)
         self.assertEqual(self.word(self.at('missile_state')), 1)
         self.assertEqual(self.word(self.at('in_sights')), 0)
+
+    def test_a_missile_of_his_already_on_intercept_refuses_a_second_lock(self):
+        """CHECK_SIGHTS asks CHECK_MISSILE before granting a lock. Narrowing
+        that routine to his own missiles must not cost him the refusal."""
+        target = self.obj()
+        self.long(target + self.s['obj_range'], 1000)
+        self.word(target + self.s['obj_rad'], 100)
+        self.word(target + self.s['hits_rad'], 20)
+        for kind, locks in (('log_locked', False), ('log_ai_missile', True)):
+            with self.subTest(missile=kind):
+                flying = self.at('objects') + 1 * self.s['obj_len']
+                self.cpu.mem_write(flying, bytes(self.s['obj_len']))
+                self.cpu.mem_write(flying + self.s['flags'],
+                                   bytes([1 << self.s['in_use']]))
+                self.word(flying + self.s['type'], self.s['missile'])
+                self.word(flying + self.s['logic'], self.s[kind])
+                self.long(flying + self.s['target'], target)
+                self.word(self.at('laser_type'), 0)
+                self.word(self.at('missile_state'), 1)
+                self.word(self.at('id_trigger'), 0)
+                self.long(self.at('target_ptr'), 0)
+                self.call('check_sights', a5=target)
+                self.assertEqual(self.word(self.at('missile_state')),
+                                 2 if locks else 1)
+                self.assertEqual(self.long(self.at('target_ptr')),
+                                 target if locks else 0)
+
+    def test_a_missile_of_his_at_another_ship_does_not_refuse_the_lock(self):
+        target = self.obj()
+        self.long(target + self.s['obj_range'], 1000)
+        self.word(target + self.s['obj_rad'], 100)
+        self.word(target + self.s['hits_rad'], 20)
+        elsewhere = self.at('objects') + 2 * self.s['obj_len']
+        flying = self.at('objects') + 1 * self.s['obj_len']
+        self.cpu.mem_write(flying, bytes(self.s['obj_len']))
+        self.cpu.mem_write(flying + self.s['flags'], bytes([1 << self.s['in_use']]))
+        self.word(flying + self.s['type'], self.s['missile'])
+        self.word(flying + self.s['logic'], self.s['log_locked'])
+        self.long(flying + self.s['target'], elsewhere)
+        self.word(self.at('laser_type'), 0)
+        self.word(self.at('missile_state'), 1)
+        self.word(self.at('id_trigger'), 0)
+        self.call('check_sights', a5=target)
+        self.assertEqual(self.word(self.at('missile_state')), 2)
 
     def test_save_round_trip_preserves_old_prefix_and_stays_256_bytes(self):
         self.call('registration_new_player')

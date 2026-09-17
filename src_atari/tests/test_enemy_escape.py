@@ -32,14 +32,15 @@ class EnemyEscapeTests(unittest.TestCase):
         src = {name: (ROOT/'asm'/f'{name}.m68').read_text()
                for name in ('combat', 'main', 'init')}
         groups = {
-            'combat': ['laser_in_sights', 'check_hit', 'low_energy',
+            'combat': ['laser_in_sights', 'check_hit', 'hit_reaction', 'low_energy',
                        'launch_escape', 'launch_missile', 'thargons'],
             'main': ['alloc_object', 'copy_object', 'create_object'],
             'init': ['relocate'],
         }
         stubs = ['random', 'random_direction', 'registration_assign', 'fx',
                  'disp_message', 'start_peel_off', 'start_run_off',
-                 'explode_object', 'target_lost', 'release_cargo', 'prepare_vipers']
+                 'explode_object', 'target_lost', 'release_cargo', 'prepare_vipers',
+                 'get_dist']
         constants = '''objects obj_len max_objects flags in_use type ship_type
             cobra viper thargoid thargon worm missile typ_trader typ_pirate typ_shuttle
             typ_police typ_bounty typ_alien logic log_attack log_none log_cruise log_missile

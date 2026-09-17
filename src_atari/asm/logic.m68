@@ -20,7 +20,8 @@
 	xref build_number,disp_message,str_copy,str_cat,local_z_rotate
 	xref explode_object,find_object,release_cargo,fx,do_circle
 	xref random,auto_pilot,inst_echar,get_dist,reduce_shields
-	xref target_lost,local_x_rotate,rand,move_object,alloc_object
+	xref target_lost,local_x_rotate,rand,move_object,alloc_object,damage_target
+	xref is_combat_ship
 	xref create_object,copy_object,monst,transform,random_direction
 	xref do_launch1a,do_launch1b,do_launch2a,do_launch2b,do_launch3a
 	xref do_launch3b,do_launch4a,do_launch4b,do_dock1a,do_dock1b,do_dock1c
@@ -36,6 +37,10 @@ missile_damage: equ 48 ; damage to shields from missile
 dist_peel_off: equ 480 ; distance to peel off (max)
 max_rad: equ 255 ; maximum explosion radius
 fire_range: equ radar_range/2 ; 12288 world units: half the scanner range at x1
+npc_damage: equ 3 ; fixed AI to AI strength, below the DAMAGE table's own
+; range: a hit between two ships is 1..3 times the 2..4 multiplier, so it
+; averages 6 against the 9 an average-rated player takes. Their fights are
+; meant to last long enough to be worth flying into.
 run_limit: equ $1200 ; min. run away distance
 run_range: equ $1000 ; range of run away distances
 avoid_range: equ 32 ; range of avoid distances
@@ -374,35 +379,102 @@ q_logic_m68_33:
 
 * Flies towards the player, lasers blasting.
 
+; The one place that knows TARGET = 0 means the player, who is the origin of
+; every object coordinate. NO_TARGET also reads back as the origin; callers
+; must establish that a target exists before relying on the result.
+	q_subr target_coords,global
+
+	move.l target(a5),d0
+	ble.s .player
+	move.l d0,a0
+	move.l xpos(a0),d0
+	move.l ypos(a0),d1
+	move.l zpos(a0),d2
+	rts
+.player:
+	moveq #0,d0
+	moveq #0,d1
+	moveq #0,d2
+	rts
+
+; A target can vanish without any destruction event, because DO_CRUISING and
+; REMOVE_OBJECT free records silently. Two tests per frame cover every path.
+	q_subr validate_target,global
+
+	move.l target(a5),d0
+	beq.s .usable ; 0 is the player, who never vanishes
+	cmp.l #no_target,d0
+	beq.s .none
+	move.l d0,a0
+	btst #in_use,flags(a0)
+	beq.s .none
+	btst #remove,flags(a0)
+	bne.s .none
+	cmp #log_exploding,logic(a0)
+	beq.s .none
+.usable:
+	moveq #1,d0
+	rts
+.none:
+	move.l #no_target,target(a5)
+	moveq #0,d0
+	rts
+
+
+; OBJ_RANGE must keep meaning "distance from the player", because RADAR,
+; COLLISION and DO_CRUISING all depend on it. The attacker's distance to its
+; own target therefore lives in its own scratch variable.
+	q_subr target_range_calc,global
+
+	move.l target(a5),d0
+	bne.s .ship
+	move.l obj_range(a5),target_range(a6) ; the player is the origin
+	rts
+.ship:
+	move.l d0,a4
+	jsr get_dist ; D2.L = distance between A5 and A4
+	move.l d2,target_range(a6)
+	rts
+
+
 ; BBC's two aim cones, expressed in the game's Q14 orientation vectors.
-; The 12288-unit fire-range guard keeps positions safely inside signed words.
-; Compare dot products directly: no square root or division is needed.
+; The 12288-unit fire-range guard keeps each component of the line of fire
+; safely inside signed words. Compare dot products directly: no square root
+; or division is needed.
 	q_subr ai_laser_aim
 
 	moveq #0,d0
-	tst.l obj_range(a5)
+	tst.l target_range(a6)
 	ble.s .done
-	cmp.l #fire_range,obj_range(a5)
+	cmp.l #fire_range,target_range(a6)
 	bhi.s .done
-	move.w xpos+2(a5),d1
-	muls.w z_vector+i(a5),d1
-	move.w ypos+2(a5),d2
-	muls.w z_vector+j(a5),d2
-	add.l d2,d1
-	move.w zpos+2(a5),d2
-	muls.w z_vector+k(a5),d2
-	add.l d2,d1
-	neg.l d1 ; direction from the enemy to the player
-	move.w obj_range+2(a5),d2
-	mulu.w #unit*32/36,d2
-	cmp.l d2,d1
-	blt.s .done
-	moveq #1,d0 ; within the firing cone, but can still miss
-	move.w obj_range+2(a5),d2
-	mulu.w #unit*35/36,d2
-	cmp.l d2,d1
-	blt.s .done
-	moveq #2,d0 ; within the narrower hit cone
+	movem.l d3-d5,-(sp)
+	moveq #0,d5
+	bsr target_coords ; (D0,D1,D2) = the target's position
+	sub.l xpos(a5),d0 ; direction from the shooter to the target
+	sub.l ypos(a5),d1
+	sub.l zpos(a5),d2
+	move.w d0,d3
+	muls.w z_vector+i(a5),d3
+	move.w d1,d4
+	muls.w z_vector+j(a5),d4
+	add.l d4,d3
+	move.w d2,d4
+	muls.w z_vector+k(a5),d4
+	add.l d4,d3
+	move.w target_range+2(a6),d4
+	mulu.w #unit*32/36,d4
+	cmp.l d4,d3
+	blt.s .restore
+	moveq #1,d5 ; within the firing cone, but can still miss
+	move.w target_range+2(a6),d4
+	mulu.w #unit*35/36,d4
+	cmp.l d4,d3
+	blt.s .restore
+	moveq #2,d5 ; within the narrower hit cone
+.restore:
+	move.l d5,d0
+	movem.l (sp)+,d3-d5
 .done:
 	rts
 
@@ -412,7 +484,7 @@ q_logic_m68_33:
 ; Clobbers D0/D1/D2/A0; random preserves D2. All other registers are unchanged.
 	q_subr ai_laser_miss_threshold
 
-	move.l obj_range(a5),d0
+	move.l target_range(a6),d0
 	moveq #20,d2
 	cmp.l #1000,d0
 	ble.s .done
@@ -442,7 +514,35 @@ q_logic_m68_33:
 
 	q_subr do_attack
 
-	bset #angry,flags(a5) ; angry with player
+	bsr validate_target ; is there still something to fight ?
+	tst d0
+; Quelo: 	if <eq> then.s						no
+	bne.s .have_target
+; RETARGET only looks after ships inside the faction whitelist. For anything
+; else -- the Cougar and the Constrictor -- NO_TARGET is all it will ever hold,
+; and LOG_ATTACK has always meant "attack the player", so say so. A ship
+; RETARGET does look after has genuinely run out of things to fight and falls
+; back to cruising, which is section 5.1 of the design.
+	move.l a5,a4
+	jsr is_combat_ship
+	tst d0
+	beq.s .hunts_the_player
+	move #log_cruise,logic(a5) ; fly off
+	move #1,on_course(a5)
+	rts
+.hunts_the_player:
+	clr.l target(a5)
+.have_target:
+	tst.l target(a5) ; fighting the player ?
+	bne.s .not_player
+	bset #angry,flags(a5) ; only he gets the cockpit warning
+.not_player:
+	bsr target_range_calc ; distance to whatever is being fought
+; RADAR_OBJ is set from the player's own distance to the station, but station
+; space ($22500) is nearly six times the scanner range ($6000), so when it is
+; set every ship he can see is inside it too. It therefore describes the
+; region, not the player, and a pirate breaking off applies just as well to a
+; fight between two other ships. Deliberately not narrowed to TARGET = 0.
 	tst radar_obj(a6) ; within space station space ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_logic_m68_35
@@ -452,19 +552,22 @@ q_logic_m68_33:
 	move #log_cruise,logic(a5) ; bugger off
 q_logic_m68_37:
 q_logic_m68_35:
-	cmp.l #fire_range,obj_range(a5) ; close enough to fire ?
+	cmp.l #fire_range,target_range(a6) ; close enough to fire ?
 	bhi no_fire ; no
+	tst.l target(a5) ; shooting at the player ?
+	bne.s .may_fire ; no, and neither of his states hides another ship
 	tst cloaking_on(a6) ; cloaking device on ?
 	bne no_fire ; yes
 	tst controls_locked(a6)
 	bne no_fire
+.may_fire:
 	jsr random ; preserve the original chance of firing
 	cmp mood(a5),d0
 	bhi no_fire
 	bsr ai_laser_aim ; fresh aim: 0 = no shot, 1 = miss, 2 = hit
 	tst.w d0
 	beq no_fire
-	st ai_laser(a5)
+	move d0,ai_laser(a5) ; 1 = miss, 2 = hit
 	cmp.w #2,d0
 	bne.s .laser_sound
 	bsr ai_laser_miss_threshold ; distance-dependent chance, D2 survives random
@@ -473,7 +576,12 @@ q_logic_m68_35:
 	cmp.w #200,d0
 	bhs.s .accuracy_roll ; reject 200..255 for 200 equally weighted outcomes
 	cmp.w d2,d0
-	blo.s .laser_sound ; keep the beam and optional firing sound, skip all damage
+	bhs.s .on_target
+	move #1,ai_laser(a5) ; drawn as a miss, no damage
+	bra.s .laser_sound
+.on_target:
+	tst.l target(a5) ; shooting at the player ?
+	bne.s .npc_power ; no, another ship
 	cmp #constr,type(a5)
 	bne.s .ordinary_power
 	moveq #6,d0 ; original Constrictor projectile strength
@@ -483,6 +591,10 @@ q_logic_m68_35:
 	add d0,d0
 	lea damage(pc),a0
 	move (a0,d0),d2
+	bra.s .roll
+.npc_power:
+	moveq #npc_damage,d2 ; the player's rating means nothing here
+.roll:
 	jsr rand
 	q_inc d0 ; original per-projectile damage, unchanged
 .damage:
@@ -494,7 +606,12 @@ q_logic_m68_35:
 	beq.s .damage_multiplier ; reject fourth choice: equal chances for 2, 3, 4
 	addq.w #2,d0
 	mulu.w (sp)+,d0 ; combine the old projectile's repeated hits into one hit
+	tst.l target(a5) ; the player or another ship ?
+	bne.s .hit_ship
 	jsr reduce_shields ; A5 is the shooter: selects front/aft by its position
+	bra.s .laser_sound
+.hit_ship:
+	bsr damage_target
 .laser_sound:
 	ifne aifiresound
 	q_sfx laser ; only the AI firing sound; impacts are handled by reduce_shields
@@ -508,9 +625,7 @@ no_fire:
 	move #log_run_off,next_logic(a5)
 	bra start_peel_off
 q_logic_m68_41:
-	moveq #0,d0 ; auto-pilot towards player
-	moveq #0,d1
-	moveq #0,d2
+	bsr target_coords ; auto-pilot towards whatever is being fought
 	bsr auto_pilot
 	moveq #6,d0 ; adjust speed and exit
 	bra speed_control
@@ -605,6 +720,10 @@ q_logic_m68_43:
 	beq ecm_missile ; yes
 	cmp #cougar,d0 ; cougar ?
 	beq ecm_missile ; yes
+; The ECM jammer silences the use of ECM in the space around the player, his
+; own included: ENGAGE_ECM refuses him while it is on. So it is read for every
+; missile, not only his, and belongs with RADAR_OBJ among the globals that
+; describe where everyone is rather than what the player is doing.
 	tst ecm_jammed(a6) ; ECM jammed ?
 	bne no_ecm ; yes
 	jsr random ; random chance to ECM
@@ -626,10 +745,15 @@ no_ecm:
 	q_ret hi ; definately not!
 	cmp obj_rad(a4),d2
 	q_ret hi ; no
-	jsr explode_object ; explode target
+	cmp #log_locked,logic(a5) ; one of the player's own missiles ?
+	beq.s q_logic_m68_48
+	st npc_kill(a6) ; no, so no score, rating, bounty or record
+q_logic_m68_48:
+	bset #remove,flags(a5) ; this missile is spent; flag it before
+	jsr explode_object ; TARGET_LOST so it does not report itself
+	jsr target_lost ; nothing else may keep chasing the record
 	jsr release_cargo ; release any cargo
-	q_sfx explosion ; trigger explosion effect
-	bset #remove,flags(a5) ; remove missile
+	clr npc_kill(a6) ; EXPLODE_OBJECT already decided whether it was heard
 
 	q_ret
 
@@ -843,6 +967,13 @@ q_logic_m68_59:
 
 	q_subr peel_off_check
 
+	lea target_range(a6),a0 ; range this peel distance is compared against
+	move.l target(a5),d0 ; chasing another ship ?
+	ble.s q_logic_m68_60 ; NO_TARGET and the player both mean the origin
+	move velocity(a5),d0 ; a pair of ships has no closing speed
+	bra.s q_logic_m68_61
+q_logic_m68_60:
+	lea obj_range(a5),a0
 	move approach(a6),d0 ; flying away from us ?
 ; Quelo: 	if <mi> then.s						yes
 	bpl.s q_logic_m68_61
@@ -854,7 +985,7 @@ q_logic_m68_61:
 	add #1024,d0
 q_logic_m68_62:
 	q_hclr d0 ; set carry if within distance
-	cmp.l obj_range(a5),d0
+	cmp.l (a0),d0
 
 	q_ret
 
@@ -882,7 +1013,10 @@ q_logic_m68_62:
 
 * ---- LOCAL DATA ----
 
-* Table of logic vectors. The former photon slot is reserved and inert.
+* Table of logic vectors. The former photon slot is reserved and inert. The
+* last entry, LOG_AI_MISSILE, runs DO_LOCKED as well: a missile a ship fired
+* at another ship flies and detonates exactly like the player's, and the
+* separate logic value is what tells the two apart.
 
 logic_vectors:
 
@@ -892,7 +1026,7 @@ logic_vectors:
 	dc.l do_launch1a,do_launch1b,do_launch2a,do_launch2b,do_launch3a
 	dc.l do_launch3b,do_launch4a,do_launch4b,do_circle,do_dock1a,do_dock1b
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c
-	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a
+	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a,do_locked
 
 * Table of laser damage range for ratings.
 

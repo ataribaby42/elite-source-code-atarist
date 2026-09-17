@@ -56,7 +56,8 @@ class BeamSoundTests(unittest.TestCase):
                  'rcs_valid', 'roll_angle', 'climb_angle', 'sfx_error', 'silence_effect',
                  'damping', 'f_damping', 'stop_rcs_sound', 'hold_sound',
                  'end_game', 'hyperspace_effect', 'docking_sequence',
-                 'engine_channel', 'speed', 'key_states']
+                 'engine_channel', 'speed', 'key_states',
+                 'ecm_on', 'who_ecm', 'f_echar', 'ecm_ticks', 'ecm_wave']
         source = (ROOT/'asm/sounds.m68').read_text()
         source = re.sub(r'^\s*xref random\s*$', '', source, flags=re.M)
         source = source.replace('\tq_module sounds',
@@ -508,6 +509,46 @@ class BeamSoundTests(unittest.TestCase):
             self.call('quiet')
             self.assertEqual(self.read('laser_audio_request'), 0)
             self.assertEqual(self.hardware.registers[8:11], [0]*3)
+
+    def start_ecm(self, effects=True):
+        """Request the ECM effect the way COMBAT and LOGIC do."""
+        self.var('user', 0x100 if effects else 0)
+        self.effect('sfx_ecm')
+
+    def test_the_ecm_wave_does_not_depend_on_the_sound(self):
+        """ECM_ON is what clears missiles in COMBAT. Tying it to the PSG effect
+        left it unset whenever the player had Effects switched off."""
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for effects in (True, False):
+                with self.subTest(cpu=model, effects=effects):
+                    self.prepare(model)
+                    self.start_ecm(effects)
+                    self.assertNotEqual(self.read('ecm_on'), 0)
+
+    def test_the_ecm_wave_ends_after_the_length_of_the_effect(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            with self.subTest(cpu=model):
+                self.prepare(model)
+                self.start_ecm(effects=False)  # no channel, only the timer
+                self.var('who_ecm', 0xffff)
+                for tick in range(self.symbols['ecm_wave']-1):
+                    self.call('sound')
+                    self.assertNotEqual(self.read('ecm_on'), 0, tick)
+                self.call('sound')
+                self.assertEqual(self.read('ecm_on'), 0)
+                self.assertEqual(self.read('who_ecm'), 0)
+                for _ in range(10):  # and it stays off
+                    self.call('sound')
+                    self.assertEqual(self.read('ecm_on'), 0)
+
+    def test_quiet_ends_the_ecm_wave(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            with self.subTest(cpu=model):
+                self.prepare(model)
+                self.start_ecm()
+                self.call('quiet')
+                self.assertEqual(self.read('ecm_on'), 0)
+                self.assertEqual(self.read('who_ecm'), 0)
 
 
 if __name__ == '__main__':

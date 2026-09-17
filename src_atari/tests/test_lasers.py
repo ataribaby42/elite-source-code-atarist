@@ -63,9 +63,11 @@ class LaserTests(unittest.TestCase):
                for name in ('combat', 'special', 'logic', 'main', 'vector',
                             'graphics', 'maths', 'cockpit', 'flight', 'data')}
         groups = {
-            'combat': ['fire', 'laser_in_sights', 'check_hit', 'reduce_shields', 'reduce_energy'],
+            'combat': ['fire', 'laser_in_sights', 'check_hit', 'hit_reaction',
+                       'is_combat_ship', 'reduce_shields', 'reduce_energy'],
             'special': ['draw_lasers', 'draw_laser_wedge', 'draw_ai_laser'],
-            'logic': ['ai_laser_aim', 'ai_laser_miss_threshold', 'do_attack'],
+            'logic': ['ai_laser_aim', 'ai_laser_miss_threshold', 'do_attack',
+                      'target_coords', 'validate_target', 'target_range_calc'],
             'main': ['game_logic', 'magnification'],
             'flight': ['get_range'],
             'vector': ['transform', 'calc_yvector'] +
@@ -79,7 +81,7 @@ class LaserTests(unittest.TestCase):
                      'laser_flash', 'laser_flash_end', 'laser_tip_x', 'laser_tip_y', 'laser_audio_request',
                      'laser_temp', 'laser_type', 'laser_rate', 'laser_power',
                      'max_ltemp', 'game_frozen', 'docked', 'cockpit_on',
-                     'scr_base', 'colour_ptr', 'random_seed', 'obj_hit',
+                     'scr_base', 'colour_ptr', 'random_seed', 'obj_hit', 'target', 'target_range', 'no_target',
                      'objects', 'obj_len', 'max_objects', 'type', 'flags', 'in_use',
                      'invincible', 'yvector_ok', 'ai_laser', 'logic', 'log_attack',
                      'log_cruise', 'log_exploding', 'health', 'pre_attack',
@@ -134,6 +136,7 @@ peel_off_check:
     rts
 '''
         stubs = ['auto_pilot', 'short_equip', 'fx', 'start_peel_off', 'explode_object', 'target_lost',
+                 'retarget', 'damage_target', 'get_dist',
                  'release_cargo', 'low_energy', 'prepare_vipers',
                  'disp_message', 'find_table', 'str_copy', 'str_cat', 'speed_control',
                  'clear_image', 'remove_radar', 'update_inst', 'do_countdown',
@@ -166,6 +169,13 @@ peel_off_check:
                                                 self.symbols[name], size), 'big')
 
     def call(self, name):
+        # DO_ATTACK establishes TARGET_RANGE before aiming, so mirror that
+        # precondition for routines the tests call in isolation. While the
+        # target is the player it is simply his range, as DO_ATTACK sets it.
+        if int.from_bytes(self.cpu.mem_read(
+                self.ship + self.symbols['target'], 4), 'big') == 0:
+            self.var('target_range', int.from_bytes(self.cpu.mem_read(
+                self.ship + self.symbols['obj_range'], 4), 'big'), 4)
         self.cpu.reg_write(UC_M68K_REG_SR, 0x2700)
         self.cpu.reg_write(UC_M68K_REG_A5, self.ship)
         self.cpu.reg_write(UC_M68K_REG_A6, VARIABLES)
@@ -602,6 +612,63 @@ peel_off_check:
                 self.assertEqual(self.cpu.reg_read(UC_M68K_REG_A6), VARIABLES)
                 self.assertEqual(bytes(self.cpu.mem_read(self.ship, self.symbols['obj_len'])), record)
             self.assertEqual(self.read('random_seed', size=4), seed)
+
+    def aim_at_ship(self, x=1000, y=500, z=6000):
+        """Point the shooter's TARGET at a second ship at the given view position."""
+        target = self.ship + self.symbols['obj_len']
+        self.cpu.mem_write(target + self.symbols['flags'],
+                           struct.pack('>H', (1 << self.symbols['in_use']) << 8))
+        for axis, value in zip(('x', 'y', 'z'), (x, y, z)):
+            self.cpu.mem_write(target + self.symbols['this_' + axis + 'pos'],
+                               struct.pack('>i', value))
+        self.cpu.mem_write(self.ship + self.symbols['target'],
+                           struct.pack('>I', target))
+        return target
+
+    def test_ai_beam_at_a_ship_ends_on_the_target(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            with self.subTest(cpu=model):
+                self.prepare(model)
+                self.aim_at_ship()
+                self.obj('ai_laser', 2)
+                self.lines.clear()
+                self.call('draw_ai_laser')
+                # 512 * 1000 / 6000 and 512 * 500 / 6000, the game's projection,
+                # which lands inside the viewport so C_LINE never has to clip.
+                self.assertEqual(len(self.lines), 1)
+                self.assertEqual(self.lines[0][2:], (85, 42))
+
+    def test_ai_beam_at_the_player_is_unchanged(self):
+        self.prepare()
+        self.cpu.mem_write(self.ship + self.symbols['target'], struct.pack('>I', 0))
+        self.obj('ai_laser', 2)
+        self.lines.clear()
+        self.call('draw_ai_laser')
+        self.assertEqual(len(self.lines), 1)
+        self.assertIn(self.lines[0][2], (-128, 127))  # still sent to a screen edge
+
+    def test_a_missed_ai_beam_lands_near_but_not_on_the_target(self):
+        offsets = set()
+        for seed in (0x347ac9, 0x112233, 0x7f00ff, 0x010203, 0x654321):
+            self.prepare()
+            self.var('random_seed', seed, 4)
+            self.aim_at_ship()
+            self.obj('ai_laser', 1)
+            self.lines.clear()
+            self.call('draw_ai_laser')
+            x, y = self.lines[0][2:]
+            self.assertTrue(-4 <= x - 85 <= 3, x)
+            self.assertTrue(-2 <= y - 42 <= 1, y)
+            offsets.add((x - 85, y - 42))
+        self.assertGreater(len(offsets), 1)  # genuinely jittered, not a constant
+
+    def test_a_target_behind_the_camera_draws_nothing(self):
+        self.prepare()
+        self.aim_at_ship(z=-500)
+        self.obj('ai_laser', 2)
+        self.lines.clear()
+        self.call('draw_ai_laser')
+        self.assertEqual(self.lines, [])
 
     def test_ai_mood_gate_and_geometric_misses_skip_distance_roll(self):
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):

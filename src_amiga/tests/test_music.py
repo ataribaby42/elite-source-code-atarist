@@ -45,7 +45,8 @@ def assemble(directory):
              'rcs_volume', 'prepare_rcs_frame', 'publish_rcs_sound', 'stop_rcs_sound',
              'roll_angle', 'climb_angle', 'damping', 'f_damping', 'sfx_error',
              'end_game', 'hyperspace_effect', 'docking_sequence',
-             'engine_samples', 'engine_voice', 'speed', 'key_states']
+             'engine_samples', 'engine_voice', 'speed', 'key_states',
+             'sfx_ecm', 'ecm_on', 'who_ecm', 'f_echar', 'ecm_ticks', 'ecm_wave']
     music = (ROOT/'asm/music.m68').read_text()
     sounds = (ROOT/'asm/sounds.m68').read_text()
     # Keep executable pages separate so writes to instructions fail even when
@@ -130,6 +131,55 @@ class MusicTests(unittest.TestCase):
         machine.mem_protect(CODE, self.symbols['music_code_end']-CODE,
                             UC_PROT_READ | UC_PROT_EXEC)
         return machine
+
+    def workspace(self, machine, name, value=None):
+        address = VARIABLES + self.symbols[name]
+        if value is not None:
+            machine.mem_write(address, struct.pack('>H', value))
+        return int.from_bytes(machine.mem_read(address, 2), 'big')
+
+    def start_ecm(self, machine, effects=True, music=False):
+        """Request the ECM effect the way COMBAT and LOGIC do."""
+        self.workspace(machine, 'user', 0x100 if effects else 0)
+        machine.mem_write(self.symbols['music_playing'],
+                          struct.pack('>H', 1 if music else 0))
+        machine.reg_write(UC_M68K_REG_D0, self.symbols['sfx_ecm'])
+        call(machine, self.symbols['fx'])
+
+    def test_the_ecm_wave_does_not_depend_on_the_sound(self):
+        """ECM_ON is what clears missiles in COMBAT, so it has to be set even
+        with Effects switched off and while the music has the channels."""
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            for effects, music in ((True, False), (False, False), (True, True)):
+                with self.subTest(cpu=model, effects=effects, music=music):
+                    machine, _ = self.output_machine(model)
+                    self.start_ecm(machine, effects, music)
+                    self.assertNotEqual(self.workspace(machine, 'ecm_on'), 0)
+
+    def test_the_ecm_wave_ends_after_the_length_of_the_effect(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            with self.subTest(cpu=model):
+                machine, _ = self.output_machine(model)
+                self.start_ecm(machine)
+                self.workspace(machine, 'who_ecm', 0xffff)
+                for tick in range(self.symbols['ecm_wave'] - 1):
+                    call(machine, self.symbols['sound'])
+                    self.assertNotEqual(self.workspace(machine, 'ecm_on'), 0, tick)
+                call(machine, self.symbols['sound'])
+                self.assertEqual(self.workspace(machine, 'ecm_on'), 0)
+                self.assertEqual(self.workspace(machine, 'who_ecm'), 0)
+                for _ in range(10):  # and it stays off
+                    call(machine, self.symbols['sound'])
+                    self.assertEqual(self.workspace(machine, 'ecm_on'), 0)
+
+    def test_quiet_ends_the_ecm_wave(self):
+        for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):
+            with self.subTest(cpu=model):
+                machine, _ = self.output_machine(model)
+                self.start_ecm(machine)
+                call(machine, self.symbols['quiet'])
+                self.assertEqual(self.workspace(machine, 'ecm_on'), 0)
+                self.assertEqual(self.workspace(machine, 'who_ecm'), 0)
 
     def test_complete_arrangement_matches_original(self):
         for model in (UC_CPU_M68K_M68000, UC_CPU_M68K_M68020):

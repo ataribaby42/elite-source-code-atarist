@@ -52,7 +52,7 @@ vector_vsize: equ 640
 init_vsize: equ 600
 rotate_vsize: equ 8
 attract_vsize: equ 16
-sounds_vsize: equ 84
+sounds_vsize: equ 85 ; one word more than the original for ECM_TICKS
 except_vsize: equ 16
 bios_vsize: equ 64
 sprites_vsize: equ 48
@@ -331,6 +331,12 @@ panels: rs.b 11 ; launch bay panels
 
 max_obj_num: equ __RS ; max no. of objects in data base
 
+; Types that take part in faction targeting. THARGON sits outside the range
+; and is tested separately; COUGAR and CONSTR fall outside it on purpose.
+
+first_combat: equ cobra ; first type in the contiguous combat range
+last_combat: equ transporter ; last type in the contiguous combat range
+
 	rsset 100
 
 planet: rs.b 1 ; Planet and sun
@@ -386,6 +392,7 @@ log_endgame1: rs.b 1 ; move Cobra closer
 log_takeoff: rs.b 8 ; launch takeoff logics
 log_circle: rs.b 1 ; hyperspace circle logic
 log_docking: rs.b 12 ; docking sequence logics
+log_ai_missile: rs.b 1 ; DO_LOCKED, but fired by a ship rather than the player
 
 ; Possible displays.
 
@@ -542,6 +549,11 @@ kill_rating: rs.w 1 ; kill rating when detroyed
 obj_len: equ __RS
 obj_data_len: equ __RS-nodes
 obj_size: equ obj_len*max_objects
+
+; TARGET holds NO_TARGET when nothing is selected, 0 for the player, or a
+; pointer to the target's object record.
+
+no_target: equ -1
 
 ; Flag usage in object flags.
 
@@ -859,6 +871,10 @@ last2_ptr: rs.l 1
 last_ptr: rs.l 1 ; ptr  last record stored
 approach: rs.w 1 ; object approach speed
 hit_check: rs.w 1 ; flag  check for laser hit
+retarget_slot: rs.w 1 ; slot whose ship re-targets on this frame
+npc_kill: rs.w 1 ; flag  this kill was inflicted by another ship
+npc_hit: rs.w 1 ; flag  this hit was inflicted by another ship
+target_range: rs.l 1 ; scratch  distance from the attacker to its target
 laser_pending: rs.w 1 ; shot accepted before the current game frame
 laser_beam: rs.w 1 ; held beam/military visual request for this frame
 laser_audio_request: rs.w 1 ; stable VBL request: 0=off, 2=Beam, 3=Military

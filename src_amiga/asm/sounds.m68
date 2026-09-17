@@ -11,14 +11,27 @@
     include "engine-loop.inc"
     xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
+; Length of the ECM wave in VBL ticks, 2.32 seconds at PAL 50 Hz. The Atari
+; driver keeps ECM_ON set for exactly as long as its PSG effect plays, which
+; is this many ticks: DO_ECM sweeps the tone from 100 to 200 in steps of 50
+; and back, ECM_DUR (20) times. Paula has no equivalent, so the wave is timed.
+ecm_wave: equ 116
     section text,code
 fx:
     tst audio_resetting
     bne .return
     cmp.w #sfx_hyperspace,d0
-    bne .enabled
+    bne .not_warp
     move.w #250,warp_ticks      ; five seconds at PAL 50 Hz
     st end_hyperspace(a6)
+.not_warp:
+; ECM is a gameplay state, not a sound: ECM_ON is what makes ECM (COMBAT)
+; destroy every missile in the world. It is started here, ahead of the Effects
+; switch and of the music, so the wave runs whatever the player is listening to.
+    cmp.w #sfx_ecm,d0
+    bne .enabled
+    move.w #ecm_wave,ecm_ticks
+    st ecm_on(a6)
 .enabled:
     btst #f_fx,user(a6)
     beq .return
@@ -200,6 +213,9 @@ quiet:
     clr fade_ticks
     clr warp_ticks
     clr end_hyperspace(a6)
+    clr ecm_ticks
+    clr ecm_on(a6)
+    clr who_ecm(a6)
     clr.l effect_ticks
     clr.l effect_ticks+4
     lea effect_requests,a0
@@ -238,10 +254,18 @@ sound:
     tst audio_resetting
     bne .return
     tst warp_ticks
-    beq .music
+    beq .ecm
     subq.w #1,warp_ticks
-    bne .music
+    bne .ecm
     clr end_hyperspace(a6)
+.ecm:
+    tst ecm_ticks
+    beq .music
+    subq.w #1,ecm_ticks
+    bne .music
+    clr ecm_on(a6)              ; the three things DO_ECM does on the Atari
+    clr who_ecm(a6)             ; when its effect reaches the end
+    clr f_echar(a6)
 .music:
     tst music_playing
     bne play_music
@@ -857,6 +881,7 @@ next_channel: ds.w 1
 music_playing: ds.w 1
 fade_ticks: ds.w 1
 warp_ticks: ds.w 1
+ecm_ticks: ds.w 1
 music_dma: ds.w 1
 audio_resetting: ds.w 1
 beam_kind: ds.w 1
