@@ -8,6 +8,14 @@
 
 **Spec:** `docs/2026-09-17-faction-ai-targeting-design.md`
 
+**Status:** executed. This file is the record of the plan as it was carried
+out, and its code listings are that snapshot, not the current source. Several
+behaviours were changed afterwards on play testing -- `npc_damage` is 5 here
+and 3 in the tree, and the missile, Thargon, provocation and police-launch
+rules all moved. The spec's body is the current statement of behaviour and its
+final section lists every amendment with its reason; read that, not this, to
+learn how the game behaves today.
+
 ## Global Constraints
 
 - **Git is the user's job.** Per `AGENTS.md`: "The user handles all Git operations exclusively. Do not run any Git commands." No task commits, stages, branches or inspects git. Each task ends by reporting the changed files so the user can commit.

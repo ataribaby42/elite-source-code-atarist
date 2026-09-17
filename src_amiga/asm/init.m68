@@ -641,6 +641,7 @@ reset_table:
 
 	dc.w station_destroyed,ecm_jammed,cloaking_on,id_trigger,no_entry
 	dc.w controls_locked,launch_count,text_frames,dust_type,torus_on
+	dc.w police_hunt
 	dc.w count_down,computer_on,jump_trigger,just_docked,docked,laser_pending
 	dc.w missile_state,laser_temp,roll_angle,climb_angle,launch_spin
 	dc.w checkpoint,radar_obj,check_key,retro_count,torus_ctr,-1

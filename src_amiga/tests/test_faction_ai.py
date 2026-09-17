@@ -39,7 +39,8 @@ COMBAT = ['is_combat_ship', 'is_hostile', 'chebyshev_range', 'pick_target',
           'ecm_check', 'create_thargoids', 'encounter_type',
           'encounter_skip', 'encounter_template', 'encounter_place',
           'encounter_offset', 'encounter_member', 'random_encounter',
-          'create_pirates', 'launch_vipers']
+          'create_pirates', 'launch_vipers', 'check_hit',
+          'check_police']
 LOGIC = ['target_coords', 'validate_target', 'target_range_calc',
          'ai_laser_aim', 'ai_laser_miss_threshold', 'do_attack',
          'peel_off_check', 'speed_control', 'do_locked']
@@ -70,7 +71,8 @@ CONSTANTS = [
     'boa', 'wolf', 'encounter_groups', 'splanet', 'govern',
     'encounter_lead', 'encounter_seat', 'rand_limit', 'rand_range',
     'mission', 'pirate_ctr', 'pirate_count', 'sfx_explosion',
-    'npc_damage', 'launch_count', 'launch_rate',
+    'npc_damage', 'launch_count', 'launch_rate', 'police_hunt',
+    'hit_check', 'obj_hit', 'laser_power', 'police_record',
 ]
 
 # Faction relation from the spec, section 4.2.
@@ -139,7 +141,7 @@ class FactionTests(unittest.TestCase):
                'auto_pilot', 'reduce_shields', 'local_x_rotate',
                'local_z_rotate', 'unarm_missile', 'reduce_energy',
                'random_position', 'orbit', 'vector_pos', 'pirate_attack',
-               'launch_ship')
+               'launch_ship', 'prepare_vipers', 'laser_in_sights')
 
     #: Assembled routines worth tracing as well as the stubs.
     WATCHED = STUBBED + ('thargons', 'launch_missile', 'target_lost')
@@ -201,7 +203,11 @@ class FactionTests(unittest.TestCase):
                  '\tmulu d2,d0\n'
                  '\tswap d0\n'
                  '\trts\n' % cls.RAND_VALUE)
-        done = {'alloc_object', 'get_dist', 'random', 'rand', 'orbit'}
+        text += ('\nlaser_in_sights:\n'
+                 '\tmoveq #1,d0\n'
+                 '\trts\n')
+        done = {'alloc_object', 'get_dist', 'random', 'rand', 'orbit',
+                'laser_in_sights'}
         return text + ''.join('\n%s:\n\trts\n' % name for name in cls.STUBBED
                               if name not in done)
 
@@ -358,6 +364,30 @@ class FactionTests(unittest.TestCase):
                 self.aimed_shot(at_player)
                 self.call('do_attack')
                 self.assertNotEqual(self.read(self.ship, 'ai_laser'), 0)
+
+    def test_the_fire_range_gate_measures_the_target_not_the_player(self):
+        """AIMED_SHOT parks the hunter so that its distance to the player and
+        to its target are deliberately the same, which is what makes it a fair
+        comparison -- and leaves the gate's source untested. Here they differ:
+        two ships fighting at the far edge of the scanner are thirty thousand
+        units from the player and five hundred from each other. Reading
+        OBJ_RANGE would silence every fight he is not standing next to."""
+        self.prepare()
+        self.ship_at(self.ship, 'krait', 0, 0, -30000, 'typ_pirate')
+        self.ship_at(self.slot(1), 'cobra', 0, 0, -29500, 'typ_trader')
+        self.field(self.ship, 'logic', self.symbols['log_attack'])
+        self.field(self.ship, 'target', self.slot(1), 4)
+        self.field(self.slot(1), 'health', 500)
+        self.field(self.ship, 'turn_rate', 3)
+        self.field(self.ship, 'mood', 200)      # the firing roll always passes
+        self.cpu.mem_write(self.ship + self.symbols['z_vector'],
+                           struct.pack('>3h', 0, 0, self.symbols['unit']))
+        self.long(self.DIST_VALUE, 500)
+        self.assertGreater(self.read(self.ship, 'obj_range', 4),
+                           self.symbols['fire_range'])
+        self.call('do_attack')
+        self.assertNotEqual(self.read(self.ship, 'ai_laser'), 0,
+                            'the hunter must fire at a target 500 units away')
 
     def test_the_players_cloak_and_locked_controls_only_cover_the_player(self):
         """Neither state hides one ship from another."""
@@ -600,18 +630,44 @@ class FactionTests(unittest.TestCase):
         self.assertNotIn('create_object', self.entered)
         self.assertEqual(self.read(self.ship, 'no_missiles'), 3)
 
-    def test_a_ship_without_a_target_launches_nothing(self):
-        """NO_TARGET is -1, so a bare "not the player" test would have sent
-        LAUNCH_MISSILE looking for a record at $FFFFFFFF."""
+    def test_a_ship_without_a_target_launches_nothing_for_another_ship(self):
+        """Driven low by another ship's fire with nobody of its own to shoot
+        at, it keeps the missile. NO_TARGET is -1, so a bare "not the player"
+        test would have sent LAUNCH_MISSILE looking for a record at
+        $FFFFFFFF."""
         self.prepare()
         self.watch_stubs()
         self.ship_at(self.ship, 'krait', 0, 0, 10000)
         self.field(self.ship, 'target', self.symbols['no_target'], 4)
         self.field(self.ship, 'no_missiles', 3)
         self.scratch(self.ALLOC_BUDGET, 1)
+        self.var('npc_hit', 1)
         self.call('low_energy')
         self.assertNotIn('launch_missile', self.entered)
         self.assertEqual(self.read(self.ship, 'no_missiles'), 3)
+
+    def test_his_own_shot_still_brings_a_missile_from_a_ship_fighting_nobody(self):
+        """RETARGET never gives the Python, the Shuttle or the Transporter a
+        target, so TARGET stays at NO_TARGET for their whole lives, and any
+        ship has it between fights. 1988 answered the player's fire with the
+        ship's missile whatever it was doing at the time. Which fight the ship
+        is in is TARGET's question; whose shot just landed is NPC_HIT's, and
+        only the second one decides who the missile is for."""
+        self.prepare()
+        self.watch_stubs()
+        self.ship_at(self.ship, 'python', 0, 0, 10000, 'typ_trader',
+                     'act_runaway')
+        self.field(self.ship, 'target', self.symbols['no_target'], 4)
+        self.field(self.ship, 'no_missiles', 1)
+        self.scratch(self.ALLOC_BUDGET, 1)
+        self.call('low_energy')
+        self.assertIn('launch_missile', self.entered)
+        self.assertEqual(self.read(self.ship, 'no_missiles'), 0)
+        # It flies at the player and announces itself, as his own attacker's
+        # missile does, rather than becoming a silent LOG_AI_MISSILE.
+        self.assertEqual(self.read(self.ALLOC_POOL, 'logic'),
+                         self.symbols['log_missile'])
+        self.assertIn('disp_message', self.entered)
 
     def missile_at(self, victim, logic='log_ai_missile', distance=10):
         """A missile in flight, close enough to detonate on its target."""
@@ -1286,6 +1342,7 @@ class FactionTests(unittest.TestCase):
         self.scratch(self.ALLOC_BUDGET, 1)
         self.var('launch_count', 1)
         self.var('launch_rate', 1)      # the countdown expires on this call
+        self.var('police_hunt', 1)      # launched to arrest him
         self.var('mission', mission)
         self.call('launch_vipers')
         return self.ALLOC_POOL
@@ -1374,6 +1431,157 @@ class FactionTests(unittest.TestCase):
         for member in members:
             self.assertFalse(self.read(member, 'flags') & angry,
                              'encounter ship inherited a launch mark')
+
+    def global_word(self, name):
+        return int.from_bytes(
+            self.cpu.mem_read(VARIABLES + self.symbols[name], 2), 'big')
+
+    def shoot(self, kind, ship_type, attack='act_attack'):
+        """One accepted player shot landing inside station space."""
+        self.prepare()
+        self.watch_stubs()
+        self.ship_at(self.ship, kind, 0, 0, 2000, ship_type, attack)
+        self.field(self.ship, 'health', 500)   # survives the shot
+        self.var('hit_check', 1)
+        self.var('laser_power', 1)
+        self.var('radar_obj', 1)               # inside station space
+        self.call('check_hit')
+
+    def test_an_alien_in_the_zone_scrambles_vipers_that_are_not_after_him(self):
+        """1988 launches vipers whenever the player's shot lands on an alien
+        inside station space: the station is scrambling against the alien, not
+        arresting him. He may be perfectly clean, so the launch must not mark
+        the ships for him or they turn on him once the aliens are dead."""
+        self.shoot('thargoid', 'typ_alien')
+        self.assertIn('prepare_vipers', self.entered)
+        self.assertEqual(self.global_word('police_hunt'), 0)
+
+    def test_shooting_the_station_or_its_own_launches_the_vipers_at_him(self):
+        for kind, ship_type in (('spacestn', 'typ_trader'),
+                                ('cobra', 'typ_trader'),
+                                ('viper', 'typ_police')):
+            with self.subTest(kind=kind):
+                self.shoot(kind, ship_type)
+                self.assertIn('prepare_vipers', self.entered)
+                self.assertNotEqual(self.global_word('police_hunt'), 0)
+
+    def test_his_police_record_launches_them_at_him_too(self):
+        self.prepare()
+        self.watch_stubs()
+        self.var('police_record', 255)
+        self.government(7)
+        self.scratch(self.RANDOM_VALUE, 0)   # inside the probability
+        self.call('check_police')
+        self.assertIn('prepare_vipers', self.entered)
+        self.assertNotEqual(self.global_word('police_hunt'), 0)
+
+    def test_a_scrambled_viper_leaves_the_dock_unmarked(self):
+        """The other half of the same rule, at the launch itself."""
+        self.prepare()
+        self.scratch(self.ALLOC_BUDGET, 1)
+        self.var('launch_count', 1)
+        self.var('launch_rate', 1)
+        self.var('police_hunt', 0)           # scrambled against an alien
+        self.call('launch_vipers')
+        self.assertFalse(self.read(self.ALLOC_POOL, 'flags')
+                         & (1 << (8 + self.symbols['angry'])),
+                         'a scrambled viper must not hunt a clean player')
+
+    def angry_bit(self, slot):
+        return bool(self.read(slot, 'flags')
+                    & (1 << (8 + self.symbols['angry'])))
+
+    def test_his_own_shot_provokes_the_ship_it_lands_on(self):
+        """ANGRY is what PICK_TARGET reads to decide whether the player is a
+        candidate, and nothing used to set it except DO_ATTACK, which a ship
+        only reaches once it already hunts him. A ship he shoots therefore
+        never fought back: it broke off, found no target, and cruised away."""
+        for kind, ship_type in (('cobra', 'typ_trader'), ('viper', 'typ_police')):
+            with self.subTest(kind=kind):
+                self.shoot(kind, ship_type)
+                self.assertTrue(self.angry_bit(self.ship),
+                                'his shot must provoke the ship')
+                # And the provoked ship now takes him as a candidate.
+                self.field(self.ship, 'target', self.symbols['no_target'], 4)
+                self.call('pick_target')
+                self.assertEqual(self.read(self.ship, 'target', 4), 0)
+
+    def test_his_shot_does_not_provoke_what_cannot_fight_back(self):
+        """The station, asteroids, canisters and the rest carry ACT_NOTHING.
+        Marking them would light the cockpit attack indicator, which DO_LOGIC
+        drives straight off ANGRY, every time he shoots a rock."""
+        for kind, ship_type, attack in (('spacestn', 'typ_trader', 'act_nothing'),
+                                        ('cobra', 'typ_trader', 'act_nothing'),
+                                        ('python', 'typ_trader', 'act_runaway')):
+            with self.subTest(kind=kind, attack=attack):
+                self.shoot(kind, ship_type, attack)
+                self.assertFalse(self.angry_bit(self.ship))
+
+    def test_another_ships_shot_provokes_nobody(self):
+        """ANGRY means the player provoked this ship, so an AI-versus-AI hit
+        must leave it alone however hard it lands."""
+        self.prepare()
+        self.ship_at(self.ship, 'krait', 0, 0, 2000)
+        self.ship_at(self.other, 'cobra', 0, 0, 3000, 'typ_trader')
+        self.field(self.other, 'health', 500)
+        self.field(self.ship, 'target', self.other, 4)
+        self.call('damage_target', d0=5)
+        self.assertFalse(self.angry_bit(self.other))
+        self.assertFalse(self.angry_bit(self.ship))
+
+    def test_a_provoked_ship_does_not_need_to_wait_for_retarget(self):
+        """RETARGET reaches one slot every MAX_OBJECTS frames, but START_PEEL_OFF
+        can be over in as few as 450/turn_rate -- eleven frames for a Thargoid,
+        fourteen for a Krait. A ship the player shot therefore often arrives in
+        DO_ATTACK before RETARGET has given it a target, and without this the
+        IS_COMBAT_SHIP fallback would send it cruising, where DO_CRUISING clears
+        ANGRY and the provocation is lost for good."""
+        for angry, logic, target in ((True, 'log_attack', 0),
+                                     (False, 'log_cruise', None)):
+            with self.subTest(angry=angry):
+                self.prepare()
+                self.attacker(0, 0, 2000)
+                self.field(self.ship, 'target', self.symbols['no_target'], 4)
+                if angry:
+                    self.set_flags(self.ship, 'in_use', 'angry')
+                self.call('do_attack')
+                self.assertEqual(self.read(self.ship, 'logic'),
+                                 self.symbols[logic])
+                self.assertEqual(self.read(self.ship, 'target', 4),
+                                 self.symbols['no_target'] if target is None
+                                 else target)
+
+    def test_provoking_a_ship_does_not_pull_it_out_of_its_own_fight(self):
+        """ANGRY makes the player a candidate, and DO_ATTACK's fallback names
+        him outright when RETARGET has not got there yet. Neither may touch a
+        ship that already holds a live target: it keeps the fight it is in,
+        and PICK_TARGET decides between the two on distance like any other."""
+        self.prepare()
+        self.watch_stubs()
+        pirate, trader = self.ship, self.slot(1)
+        self.ship_at(pirate, 'krait', 0, 0, 9000, 'typ_pirate')
+        self.ship_at(trader, 'cobra', 0, 0, 9500, 'typ_trader')
+        self.field(pirate, 'logic', self.symbols['log_attack'])
+        self.field(pirate, 'target', trader, 4)
+        self.field(pirate, 'turn_rate', 3)
+        self.set_flags(pirate, 'in_use', 'angry')
+        self.long(self.DIST_VALUE, 500)
+
+        # The fallback is never reached: VALIDATE_TARGET is happy.
+        self.call('do_attack')
+        self.assertEqual(self.read(pirate, 'target', 4), trader)
+        self.assertEqual(self.read(pirate, 'logic'), self.symbols['log_attack'])
+
+        # And its missile still belongs to that fight, not to the player.
+        self.field(pirate, 'no_missiles', 2)
+        self.long(self.DIST_VALUE, 5000)   # LAUNCH_MISSILE wants 2000 clear
+        self.var('npc_hit', 1)
+        self.scratch(self.ALLOC_BUDGET, 1)
+        self.call('low_energy')
+        self.assertEqual(self.read(self.ALLOC_POOL, 'logic'),
+                         self.symbols['log_ai_missile'])
+        self.assertEqual(self.read(self.ALLOC_POOL, 'target', 4), trader)
+        self.assertNotIn('disp_message', self.entered)
 
     def test_damage_target_reduces_the_targets_health(self):
         for cpu in CPUS:

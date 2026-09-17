@@ -230,6 +230,17 @@ ambush it replaced:
 None of these counters gates a mission spawn except through `create_pirates`
 itself, and there the Constrictor is checked first (§7.2).
 
+### 7.4 An encounter's police are not after the player
+
+A station launch marks the ships it sends out with `angry` when the launch is
+about the player, which is what makes `pick_target` offer him to a policeman at
+all. An encounter's Vipers are created by `encounter_member`, which writes
+`flags` outright and never sets that mark, so they hunt the raiders they were
+placed against and leave a clean player alone. He can be nearer than the pirate
+and still be passed over. If he shoots one, `check_hit` marks it like any other
+ship and it fights him -- which is the ordinary rule, not a special case for
+encounters.
+
 ## 8. Performance
 
 The work happens once per replaced wave, not per frame: two walks over a seven

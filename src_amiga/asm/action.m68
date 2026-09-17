@@ -795,4 +795,4 @@ text9: dc.b ' hours and ',0
 text10: dc.b ' minutes.        '
 	dc.b 'Amiga Conversion by Rob Nicholson of Mr. Micro Ltd.        '
 	dc.b 'With Assistance From Gary Patchen.        '
-	dc.b 'All Graphix by James McDermott.        Modded by Ataribaby 2026        ',0
+	dc.b 'All Graphix by James McDermott.        Modified by Ataribaby 2026        ',0

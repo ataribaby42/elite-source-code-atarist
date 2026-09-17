@@ -874,6 +874,7 @@ hit_check: rs.w 1 ; flag  check for laser hit
 retarget_slot: rs.w 1 ; slot whose ship re-targets on this frame
 npc_kill: rs.w 1 ; flag  this kill was inflicted by another ship
 npc_hit: rs.w 1 ; flag  this hit was inflicted by another ship
+police_hunt: rs.w 1 ; flag  the pending viper launch is about the player
 target_range: rs.l 1 ; scratch  distance from the attacker to its target
 laser_pending: rs.w 1 ; shot accepted before the current game frame
 laser_beam: rs.w 1 ; held beam/military visual request for this frame

@@ -527,6 +527,12 @@ q_logic_m68_33:
 	jsr is_combat_ship
 	tst d0
 	beq.s .hunts_the_player
+; RETARGET reaches a slot once every MAX_OBJECTS frames, and START_PEEL_OFF can
+; be done in 450/turn_rate -- eleven frames for a Thargoid. A ship the player
+; provoked often gets here first, and cruising away would clear ANGRY in
+; DO_CRUISING and lose the provocation for good.
+	btst #angry,flags(a5) ; did the player provoke it ?
+	bne.s .hunts_the_player ; yes, whatever RETARGET has managed so far
 	move #log_cruise,logic(a5) ; fly off
 	move #1,on_course(a5)
 	rts

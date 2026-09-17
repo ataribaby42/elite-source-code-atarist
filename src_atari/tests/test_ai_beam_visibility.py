@@ -40,7 +40,8 @@ class AIBeamVisibilityTests(unittest.TestCase):
             ai_laser health rating random_seed cockpit_on visible invisible in_sights
             l_view_ptr w_view_ptr loop_ctr scr_base colour_ptr reverse_draw
             draw_list draw_len draw_size laser_only obj_ptr prev_ptr next_ptr
-            next_record list_ptr laser_candidate vector_vars vector_vsize vector_used'''.split()
+            next_record list_ptr laser_candidate vector_vars vector_vsize vector_used
+            target no_target ship_type'''.split()
         asm=preamble()+'max_lines equ 10\nmax_vert equ 15\n'+vector[vector.index('\trsset 0'):vector.index('* ---- LOCAL MACROS ----')]
         asm+=variable_block(graphics,'graphics')
         for source,macro in ((vector,'cross'),(graphics,'outcodes')):
@@ -207,6 +208,61 @@ mult_by_320: dc.w '''+','.join(str(y*320) for y in range(200))+'\n'
                             self.reset_buffer();self.cpu.mem_write(GUARD,bytes(expected))
                             self.call('draw_ai_laser')
                             self.assertEqual(actual,self.buffer())
+
+    def beam_from_offscreen(self,target,victim_drawn=True):
+        """One offscreen emitter's beam, so the raster holds nothing else.
+
+        The victim is on screen but contributes no pixels of its own: the
+        harness's DRAW_IT draws nothing for a model with no health.
+        """
+        self.setup_ship(300,0,3000,index=1);victim=self.ship # inside the viewport
+        self.obj('health',0)
+        if victim_drawn:self.call('draw_object') # fills its THIS_* for this frame
+        self.setup_ship(1000,600,3000,index=0) # off screen: a beam-only record
+        self.obj('health',0)
+        self.call('draw_object')
+        self.put(self.ship+self.s['target'],{'player':0,'none':self.s['no_target'],
+                                             'ship':victim}[target],4)
+        self.obj('ai_laser',2)
+        self.call('queue_ai_laser')
+        # The emitter is queued for its beam alone; both ships have no health,
+        # so the harness's DRAW_IT paints nothing and the beam is all there is.
+        self.assertIn((self.ship,65535),self.entries())
+        self.reset_buffer();self.call('draw_space')
+        return self.buffer()
+
+    def test_a_beam_at_a_ship_is_drawn_and_differs_from_one_at_the_player(self):
+        """DRAW_AI_LASER has two arms. TARGET <= 0 sends the beam to the
+        opposite screen edge, which is what every other test here exercises,
+        because none of them sets TARGET and a fresh record reads zero -- the
+        player. TARGET > 0 draws between the two ships instead, and that arm
+        went unexercised until AI-versus-AI targeting made it the common one.
+        """
+        for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):
+            for view in VIEWS:
+                self.boot(model,view)
+                at_ship=self.beam_from_offscreen('ship')
+                self.assertNotEqual(at_ship,BACKGROUND,'no ship-to-ship beam')
+                self.assert_viewport_only(at_ship)
+
+                self.boot(model,view)
+                at_player=self.beam_from_offscreen('player')
+                self.assertNotEqual(at_player,BACKGROUND)
+                # NO_TARGET is -1, so it takes the player's arm as well.
+                self.boot(model,view)
+                self.assertEqual(self.beam_from_offscreen('none'),at_player)
+
+                self.assertNotEqual(at_ship,at_player,
+                                    'the two arms drew the same beam')
+
+    def test_no_beam_at_a_ship_the_camera_cannot_see(self):
+        """The arm needs the victim's view coordinates, and DRAW_OBJECT writes
+        them only for an object in front of the camera. Without the guard the
+        beam would be aimed at whatever last frame left behind."""
+        for view in VIEWS:
+            self.boot(UC_CPU_M68K_M68000,view)
+            self.assertEqual(self.beam_from_offscreen('ship',victim_drawn=False),
+                             BACKGROUND)
 
     def test_point_and_circle_occlusion_follows_depth_in_every_view_and_buffer(self):
         for model in (UC_CPU_M68K_M68000,UC_CPU_M68K_M68020):

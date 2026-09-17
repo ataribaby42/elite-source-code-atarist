@@ -1126,6 +1126,18 @@ q_combat_m68_67:
 	q_ret eq ; no, return
 	tst obj_hit(a6) ; object already hit ?
 	q_ret ne ; yes, return
+; ANGRY is what PICK_TARGET reads to decide whether the player is a candidate
+; for this ship, and DO_ATTACK was the only thing setting it -- which a ship
+; reaches only once it already hunts him. A ship he shot therefore broke off,
+; found nothing to fight and cruised away instead of fighting back. His own
+; shot is the provocation the flag is named for. Only ACT_ATTACK is marked:
+; ANGRY also drives the cockpit attack indicator and the flashing scanner
+; blip, which have no business answering a shot at the station, an asteroid,
+; a canister or a Thargon left dormant by its mother's death.
+	cmp #act_attack,attack_type(a5) ; can it fight back ?
+	bne.s .no_quarrel
+	bset #angry,flags(a5) ; provoked by the player
+.no_quarrel:
 	bsr hit_reaction ; break off from the shot
 	move laser_power(a6),d0 ; fetch laser power
 	move type(a5),d1 ; space station ?
@@ -1175,11 +1187,21 @@ q_combat_m68_84:
 	cmp #typ_police,d0 ; police ?
 	beq prep ; yes
 	cmp #typ_alien,d0 ; alien ?
-	beq prep ; yes
+	beq.s scramble ; yes
 	cmp #$52,mission(a6) ; mission #5, state #2 ?
 ; Quelo: 			if <eq> then.s				yes
 	bne.s q_combat_m68_95
-prep: bsr prepare_vipers
+prep:
+	st police_hunt(a6) ; the station is coming for him
+	bsr prepare_vipers
+	bra.s q_combat_m68_95
+; An alien inside station space is the station's business and not necessarily
+; his: 1988 scrambles the vipers whenever his shot lands on one, and he may be
+; perfectly clean. Leaving the flag clear is what stops them turning on him
+; once the aliens are dead, now that a launch can mark its ships for him.
+scramble:
+	clr police_hunt(a6) ; scrambled against the alien
+	bsr prepare_vipers
 q_combat_m68_95:
 q_combat_m68_93:
 q_combat_m68_91:
@@ -1205,9 +1227,14 @@ q_combat_m68_91:
 	q_subr low_energy
 
 	bsr launch_escape ; random launch of escape capsule
-	tst.l target(a5) ; is this ship fighting the player ?
-; Quelo: 	if <ne> then.s						no
-	bne.s .away_from_the_player
+; TARGET says which fight the ship is in, NPC_HIT whose shot just landed, and
+; only the second one decides who a missile is for. Testing TARGET alone left
+; NO_TARGET -- every ship between fights, and the Python, the Shuttle and the
+; Transporter for their whole lives, since RETARGET passes over ACT_RUNAWAY --
+; on the NPC path, where the launch needs a ship to aim at and is skipped. The
+; player could empty a Python without it ever using its missile on him.
+	move.l target(a5),d0 ; fighting another ship ?
+	bgt.s .away_from_the_player ; yes, that fight is its own
 	tst npc_hit(a6) ; and was it his shot that just landed ?
 	beq.s .player ; yes, the original path below
 .away_from_the_player:
@@ -1871,8 +1898,13 @@ q_combat_m68_134:
 ; a pirate, an alien or a ship already angry with him, and a policeman is none
 ; of the three. Unmarked, RETARGET reads LOG_PEEL_OFF and LOG_RUN_OFF as
 ; fighting, finds the viper nothing to fight, and sends it cruising out of
-; scanner range. Set after LAUNCH_SHIP, which writes FLAGS outright.
+; scanner range. Set after LAUNCH_SHIP, which writes FLAGS outright, and only
+; for a launch POLICE_HUNT says is about him: the same door sends vipers out
+; against an alien in the zone, and those have no quarrel with a clean player.
+	tst police_hunt(a6) ; is this launch about him ?
+	beq.s .scrambled ; no, it answers an alien in the zone
 	bset #angry,flags(a4) ; launched to arrest him
+.scrambled:
 
 	q_ret
 
@@ -2611,7 +2643,10 @@ encounter_positions:
 	add d0,d2
 	jsr random ; within probability range ?
 	cmp d2,d0
-	blo prepare_vipers ; yes, prepare vipers
+	bhs.s .clean ; no
+	st police_hunt(a6) ; his own police record brought them out
+	bra prepare_vipers ; yes, prepare vipers
+.clean:
 
 	q_ret return
 

@@ -148,8 +148,17 @@ them and they flee.
 The player is a candidate for a hunter when:
 
 - the hunter's `ship_type` is `typ_pirate` or `typ_alien`, or
-- the hunter has the `angry` flag set, which the game sets when the player has
-  attacked that ship.
+- the hunter has the `angry` flag set.
+
+Two things set `angry`, and both say "the player is this ship's business".
+`check_hit` sets it on the ship his shot lands on, provided that ship carries
+`act_attack`: the flag also drives the cockpit attack indicator through
+`do_logic` and the flashing scanner blip through `radar`, and neither should
+answer a shot at the station, an asteroid, a canister, a platlet or a Thargon
+left dormant by its mother's death. `launch_vipers` sets it on a ship the
+station sends out for him, which `police_hunt` tells apart from a scramble
+against an alien in its zone (§4.5). `do_cruising` clears it, so a ship that
+disengages forgets the provocation.
 
 `angry` does **not** lock the target. It only puts the player into the
 candidate set; the nearest candidate still wins. A trader the player has hit
@@ -186,7 +195,14 @@ New global variables in the workspace block of `common.def`:
 - `retarget_slot: rs.w 1` — round-robin cursor over object slots.
 - `npc_kill: rs.w 1` — set while an NPC-inflicted kill is being processed.
 - `npc_hit: rs.w 1` — set while an NPC-inflicted, non-fatal hit is being
-  processed, so `low_energy` holds the missile back (§6.4.1).
+  processed. It answers "whose shot just landed?", which is the question that
+  decides who a missile is for; `target` answers the different question of
+  which fight the ship is in (§6.4.1, §6.6).
+- `police_hunt: rs.w 1` — set while the viper launch waiting in `launch_count`
+  is one the player himself caused, clear when the station is scrambling
+  against an alien inside its zone. `launch_vipers` marks only the first kind.
+  It is reset beside `launch_count` in `init.m68`'s table, because the two
+  describe the same pending launch.
 - `target_range: rs.l 1` — scratch distance from the current attacker to its
   target, valid only while that object is being processed. It exists because
   `obj_range` must keep meaning "distance from the player": `radar`,
@@ -250,6 +266,12 @@ the ship becomes eligible.
 A hunter that finds no valid candidate and is currently in `log_attack`,
 `log_peel_off`, `log_run_off` or `log_avoid` falls back to `log_cruise` and
 flies off, which is the existing behaviour when a fight ends.
+
+`do_attack` applies the same fallback when it finds `no_target`, with one
+exception: a ship carrying `angry` names the player instead. `retarget` reaches
+a slot once every `max_objects` frames while a peel-off can be over in eleven,
+so a ship the player provoked regularly arrives here first, and cruising away
+would have `do_cruising` clear the flag and lose the provocation for good.
 
 ## 6. Combat generalisation
 
@@ -399,12 +421,17 @@ player equipment, and the cockpit alert stays a statement about the player.
 - **The cockpit alert belongs to the player.** `launch_missile` plays
   `sfx_alert` and prints "Incoming missile" (`combat.m68:912`) only on the
   player-facing branch. A missile flying between two ships is silent.
-- **No missile reaches the player unless he provoked it.** `low_energy` still
-  requires `target = 0` *and* `npc_hit` clear before the player-facing missile,
-  so a ship that happens to be fighting him does not fire one because a third
-  ship shot it (§6.4.1). Away from him the roll uses `npc_launch_prob`, and it
-  needs a real ship to aim at: `target` must be greater than zero, which
-  excludes both the player and `no_target`.
+- **No missile reaches the player unless he provoked it.** `low_energy` takes
+  the player-facing branch when the ship is not fighting another ship --
+  `target` not greater than zero, so the player or `no_target` -- *and*
+  `npc_hit` is clear. The two tests answer different questions: `target` says
+  which fight the ship is in, `npc_hit` whose shot just landed, and only the
+  second decides who a missile is for. So a ship fighting him does not fire one
+  because a third ship shot it (§6.4.1), while a ship fighting nobody still
+  answers his fire, as it did in 1988. `launch_missile` then takes its own
+  player path on `no_target`, with the alert and the message. Away from him the
+  roll uses `npc_launch_prob` and needs a real ship to aim at, so there `target`
+  must be greater than zero.
 - **Ships' missiles must not follow a freed record.** `do_locked` reads
   `target` without checking it, and until now only the player could leave a
   missile in flight. `target_lost` therefore drops **every** missile flying at
@@ -763,3 +790,120 @@ random encounter (§4.3 of the encounter design) is *not* marked, so it keeps
 fighting pirates and leaves a clean player alone. The station's S zone plays no
 part in any of this: `do_attack`'s station-space break-off has always applied
 to `typ_pirate` only, and a viper is `typ_police`.
+
+**2026-09-17, a scramble is not an arrest.** Reported from play, one step on
+from the launch mark above: a Thargoid followed the player into station space,
+he and a passing trader destroyed it, its Thargons went dormant with their
+mother, the station launched four vipers, the vipers destroyed the Thargons --
+and then one of them flashed on the scanner and attacked him, with a clean
+record and nothing illegal aboard.
+
+Everything up to the last step is 1988. `check_hit` launches vipers whenever
+the player's shot lands inside station space on the station itself, on a
+trader, on a policeman, *or on an alien*; the alien branch is the station
+scrambling against the alien, and it fires however clean he is.
+`explode_object` putting a dead Thargoid's Thargons into `log_cruise` with
+`act_nothing` is 1988 as well. What was new was the ending: `launch_vipers`
+marked every launch as being about the player, so once the faction rules had
+the vipers finish the Thargons, `pick_target` handed them the only candidate
+left, which was him.
+
+A launch now carries its reason. `police_hunt` is set beside `launch_count` by
+the two call sites that really are about him -- `check_police`, which acts on
+his police record, and `check_hit`'s station, trader and police branches -- and
+cleared by `check_hit`'s alien branch. `launch_vipers` sets `angry` only when
+the flag is set. A scrambled viper is therefore an ordinary `typ_police` ship:
+it hunts the aliens it was sent for and, when they are gone, `retarget` finds
+it nothing and it flies home, which is section 5.1. Mission 5's launch keeps
+the mark, though it makes no difference there -- the station sends Thargoids,
+and `typ_alien` hunts him regardless. `police_hunt` joins `launch_count` in
+`init.m68`'s reset table, because the two describe the same pending launch.
+
+This is a deliberate departure from 1988, where the same scramble ended with
+the vipers attacking him too -- not by any rule about police, but because
+`log_attack` simply meant the player. Once that stopped being true, the
+question of who a launch is for had to be answered, and answering it with "the
+player, always" is what produced the report.
+
+**2026-09-17, his own shot now provokes the ship it lands on.** Found while
+tracing the scramble above, and fixed on the user's decision. `angry` is what
+§4.4 reads to decide whether the player is a candidate for a given ship, and
+`do_attack` was the only thing that set it -- which a ship reaches only once it
+already hunts him. Nothing anywhere turned "he shot me" into "he is my enemy",
+so the flag could only be acquired by a ship that did not need it. A ship he
+shot broke off through `hit_reaction`, turned to attack, found `no_target`,
+and was sent cruising away by the `is_combat_ship` fallback. Shoot a viper the
+station had scrambled and it fled; in 1988 it would have turned and fought,
+because `log_attack` meant the player.
+
+`check_hit` now sets `angry` on the ship the shot lands on, which is the
+provocation the flag is named for and the one thing that was missing. It is
+guarded by `attack_type = act_attack`. The flag also drives the cockpit attack
+indicator through `do_logic` and the flashing scanner blip through `radar`, and
+neither should answer a shot at the space station, an asteroid, a cargo
+canister, a platlet or a Thargon already left dormant by its mother's death --
+all of which carry `act_nothing`. The guard also passes over the Python, the
+Shuttle and the Transporter, which `retarget` excludes for the same reason.
+
+This restores 1988 rather than departing from it. `hit_reaction`'s opening
+test reads the other way round from how it first appears: it declines to
+disturb a ship already in `log_attack` or `log_peel_off`, and *every other*
+logic, cruising included, goes on to the `attack_type` dispatch. A cruising
+`act_attack` ship the player shot therefore always peeled off with
+`next_logic = log_attack` -- and in this tree it then reached `do_attack`,
+found `no_target`, and was turned straight round into `log_cruise` by the
+`is_combat_ship` fallback. It made the turn and fled in the same breath. With
+the flag set it fights, which is what the original did.
+
+`act_runaway` is untouched by all of this and needs to be: a Python or a
+Shuttle peels off with `next_logic = log_cruise` and runs, exactly as in 1988,
+without ever wanting the flag.
+
+AI-versus-AI fire is unaffected -- `damage_target` does not pass through
+`check_hit`, so `angry` keeps meaning "provoked by the player" and nothing
+else.
+
+**2026-09-17, the provocation had to reach `do_attack` as well.** Setting
+`angry` alone left the fix above working only some of the time, because the
+flag is read by `pick_target`, and `pick_target` runs from `retarget`, which
+reaches one slot every `max_objects` -- thirty -- frames. The provoked ship
+does not wait that long: `hit_reaction` starts a peel-off whose length is
+`rand(45..180) * 10 / turn_rate` frames, and the minimum is eleven frames for
+a Thargoid, twelve for a Mamba or a Cougar and fourteen for a Krait or a
+Cobra. Most fighters therefore finish peeling off and arrive in `do_attack`
+before `retarget` has given them anything, where the `is_combat_ship` fallback
+sent them to `log_cruise` -- and `do_cruising` opens by clearing `angry`, so
+the provocation was destroyed rather than merely postponed. Whether a ship
+fought back came down to which of the two happened to land first.
+
+`do_attack`'s fallback now checks the flag before cruising away: a ship the
+player provoked names him and fights, whatever `retarget` has managed so far.
+An unprovoked ship still disengages, which is section 5.1 unchanged. The
+fallback's two other readers are unaffected -- the Cougar and the Constrictor
+never reach the test, because `is_combat_ship` rejects them one instruction
+earlier.
+
+**2026-09-17, the missile a ship owed the player.** Found while answering what
+a Python does when he shoots it. `low_energy` asked "is this ship fighting the
+player?" with `tst.l target(a5)`, and `no_target` is -1, so every ship that was
+not fighting him at that moment took the AI branch -- where the launch needs a
+ship record to aim at and is skipped. The player could empty a Python without
+it ever using its one missile on him, where 1988 fired it at him on the usual
+rating-dependent roll. `retarget` passes over `act_runaway`, so the Python, the
+Shuttle and the Transporter hold `no_target` for their whole lives and lost the
+missile permanently; every other ship lost it whenever it happened to be
+between fights.
+
+The two questions had been conflated. `target` says which fight the ship is
+in; `npc_hit` says whose shot just landed, and only the second decides who a
+missile is for. The test is now `move.l target(a5),d0 / bgt` -- a ship busy
+with another ship keeps that fight, and `no_target` falls through to `npc_hit`
+like `target = 0` always did. `launch_missile` then takes its own player path
+on `no_target`, so the missile flies at him as `log_missile` with the alert and
+"INCOMING MISSILE", which is what 1988 sent.
+
+`test_a_ship_without_a_target_launches_nothing` was rewritten rather than
+deleted. Its subject was the -1 guard on the AI path -- a bare "not the player"
+test would have sent `launch_missile` looking for a record at `$FFFFFFFF` --
+and that guard still holds; the test now states it for another ship's fire,
+which is the case it was always about.
