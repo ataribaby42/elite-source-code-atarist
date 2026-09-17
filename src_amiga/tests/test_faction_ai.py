@@ -1889,5 +1889,80 @@ class FactionTests(unittest.TestCase):
                                          victim in hostile)
 
 
+    # ---- A Thargoid's brood, whoever killed her -------------------------
+
+    def thargon_at(self, slot, mother_slot, z=1000):
+        """A Thargon still in the fight, tied to the mother in MOTHER_SLOT."""
+        self.ship_at(slot, 'thargon', 0, 0, z, 'typ_alien')
+        self.field(slot, 'logic', self.symbols['log_attack'])
+        self.field(slot, 'mother', mother_slot)
+
+    def asleep(self, slot):
+        """What EXPLODE_OBJECT leaves a Thargon whose mother has died: it
+        cruises away and HIT_REACTION and LOW_ENERGY both pass over it."""
+        return (self.read(slot, 'logic') == self.symbols['log_cruise']
+                and self.read(slot, 'attack_type') == self.symbols['act_nothing'])
+
+    def test_a_thargoid_the_player_shot_down_puts_her_brood_to_sleep(self):
+        """CHECK_HIT explodes the very ship the main loop is servicing, so the
+        cursor and the dying mother have always agreed on this path."""
+        for cpu in CPUS:
+            with self.subTest(cpu=cpu):
+                self.prepare(cpu)
+                self.ship_at(self.slot(2), 'thargoid', 0, 0, 1000, 'typ_alien')
+                self.thargon_at(self.slot(3), 2)
+                self.var('this_obj', 2)
+                self.call_with('explode_object', self.slot(2), self.slot(2))
+                self.assertTrue(self.asleep(self.slot(3)))
+
+    def test_the_brood_that_sleeps_is_the_one_whose_mother_died(self):
+        """A4 is the mother that died; THIS_OBJ is only the main loop's
+        cursor, and the two part company as soon as something other than the
+        dying ship is being serviced. Reading the cursor left her own brood
+        hunting and put another mother's brood to sleep instead."""
+        for cpu in CPUS:
+            with self.subTest(cpu=cpu):
+                self.prepare(cpu)
+                self.ship_at(self.slot(1), 'thargoid', 0, 0, 1000, 'typ_alien')
+                self.thargon_at(self.slot(2), 1)  # hers
+                self.thargon_at(self.slot(3), 0)  # another mother's
+                self.var('this_obj', 0)
+                self.call_with('explode_object', self.ship, self.slot(1))
+                self.assertTrue(self.asleep(self.slot(2)))
+                self.assertFalse(self.asleep(self.slot(3)))
+
+    def test_a_missile_kill_puts_the_thargoids_brood_to_sleep(self):
+        """DO_LOCKED runs while the main loop services the missile, not the
+        mother it detonates on."""
+        for cpu in CPUS:
+            for logic in ('log_locked', 'log_ai_missile'):
+                with self.subTest(cpu=cpu, logic=logic):
+                    self.prepare(cpu)
+                    self.watch_stubs()
+                    self.ship_at(self.slot(1), 'thargoid', 0, 0, 0, 'typ_alien')
+                    self.thargon_at(self.slot(2), 1)
+                    self.missile_at(self.slot(1), logic)
+                    self.call('do_locked')
+                    self.assertEqual(self.read(self.slot(1), 'logic'),
+                                     self.symbols['log_exploding'])
+                    self.assertTrue(self.asleep(self.slot(2)))
+
+    def test_a_thargoid_another_ship_shot_down_puts_her_brood_to_sleep(self):
+        """DAMAGE_TARGET runs while the main loop services the shooter."""
+        for cpu in CPUS:
+            with self.subTest(cpu=cpu):
+                self.prepare(cpu)
+                self.watch_stubs()
+                self.ship_at(self.ship, 'cobra', 0, 0, 10000, 'typ_trader')
+                self.ship_at(self.slot(1), 'thargoid', 0, 0, 12000, 'typ_alien')
+                self.thargon_at(self.slot(2), 1)
+                self.field(self.ship, 'target', self.slot(1), 4)
+                self.field(self.slot(1), 'health', 4)
+                self.call('damage_target', d0=9)
+                self.assertEqual(self.read(self.slot(1), 'logic'),
+                                 self.symbols['log_exploding'])
+                self.assertTrue(self.asleep(self.slot(2)))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -273,9 +273,11 @@ a pirate still lets its Thargons go, and they then hunt by the same faction
 rules as anything else. Away from the player the release is smaller, two or
 three instead of four to seven, so one Thargoid cannot claim the thirty object
 slots on its own, and its chance no longer rides on the player's combat rating.
-Under his own lasers a Thargoid behaves exactly as it always has. When a
-Thargoid dies its Thargons scatter and drift out of range, returning their
-slots.
+Under his own lasers a Thargoid behaves exactly as it always has. However a
+Thargoid dies -- his laser, his missile, another ship's fire or a collision --
+its Thargons go dormant, scatter and drift out of range, returning their
+slots. See
+[../docs/2026-09-17-thargon-dormancy-on-mother-death.md](../docs/2026-09-17-thargon-dormancy-on-mother-death.md).
 
 An NPC kill awards the player no score, rating, bounty or police-record change,
 but cargo canisters still drop, so waiting for two ships to fight can pay. It is also silent: the explosion sound

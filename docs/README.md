@@ -11,6 +11,7 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 | [2026-09-17-random-encounter-design.md](2026-09-17-random-encounter-design.md) | Design: deep space also produces small groups that are already fighting each other, beside the existing pirate ambush |
 | [2026-09-17-random-encounter-plan.md](2026-09-17-random-encounter-plan.md) | The implementation plan for that design, task by task |
 | [2026-09-17-title-screen-draw-order.md](2026-09-17-title-screen-draw-order.md) | Fix: the attract screen drew the rotating ship over its captions instead of behind them |
+| [2026-09-17-thargon-dormancy-on-mother-death.md](2026-09-17-thargon-dormancy-on-mother-death.md) | Fix: a Thargoid killed by a missile or by another ship left its Thargons fighting on instead of dormant |
 
 Each tree's own `README.md` describes the shipped behaviour; these documents
 record why it is the way it is.

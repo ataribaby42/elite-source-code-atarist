@@ -678,7 +678,18 @@ q_combat_m68_13:
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_combat_m68_19
 	lea objects(a6),a0 ; scatter any thargons
-	move this_obj(a6),d0
+; THIS_OBJ is the main loop's cursor, not the slot of the ship that just died.
+; The two agree only while the loop services the dying ship itself, which is
+; the player's laser and a collision. A missile detonating in DO_LOCKED and an
+; NPC laser in DAMAGE_TARGET both arrive here while the loop is servicing the
+; missile or the shooter, so MOTHER matched nothing and the brood of a mother
+; killed either way stayed in the fight, hunting and evading as before. The
+; cursor is a valid slot too, so it could equally match the mother of another,
+; still living Thargoid and put the wrong brood to sleep. A4 is the ship that
+; died; take the slot from it.
+	move.l a4,d0 ; slot of the mother that actually died
+	sub.l a0,d0
+	divu #obj_len,d0 ; D0.w = its index; MOTHER is compared as a word
 	q_loop 1,max_objects
 	btst #in_use,flags(a0)
 ; Quelo: 			if <ne> then.s

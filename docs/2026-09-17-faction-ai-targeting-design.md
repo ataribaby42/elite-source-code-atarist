@@ -907,3 +907,16 @@ deleted. Its subject was the -1 guard on the AI path -- a bare "not the player"
 test would have sent `launch_missile` looking for a record at `$FFFFFFFF` --
 and that guard still holds; the test now states it for another ship's fire,
 which is the case it was always about.
+
+**2026-09-17, the Thargons of a mother killed by anyone else.** Reported from
+play: a Thargon that had stopped firing still broke off and wove whenever an AI
+trader shot at it. `explode_object` identified the dead mother by `this_obj`,
+the main loop's cursor, rather than by A4, the ship it was actually exploding.
+The two agree only while the loop is servicing the dying ship, which is the
+player's laser and a collision; a missile in `do_locked` and an NPC laser in
+`damage_target` both arrive with the cursor on the missile or the shooter, so
+the brood was never put to sleep and fought on. The missile half is original --
+`src_orig` reads the same -- but this feature added the `damage_target` path and
+made it common, since a Viper or a trader can now finish a Thargoid off. Fixed
+by deriving the slot from A4. Written up separately in
+[2026-09-17-thargon-dormancy-on-mother-death.md](2026-09-17-thargon-dormancy-on-mother-death.md).
