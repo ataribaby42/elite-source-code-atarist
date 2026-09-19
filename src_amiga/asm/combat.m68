@@ -1464,7 +1464,7 @@ q_combat_m68_107:
 	q_ret eq ; yes
 	jsr alloc_object ; allocate a record
 	q_ret cc ; none left
-	move #log_none,logic(a5) ; mothership just drifts
+	move #log_abandoned,logic(a5) ; drift, then reclaim beyond scanner range
 	move #act_nothing,attack_type(a5) ; do nothing when hit
 	clr no_missiles(a5) ; abandoned hull cannot retaliate on this or later hits
 	jsr copy_object ; copy current object's record

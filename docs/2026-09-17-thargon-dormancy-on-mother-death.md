@@ -1,5 +1,10 @@
 # Thargon dormancy on the mother's death
 
+> Historical design/implementation record. The optional CPU-emulation test
+> suite was removed on 2026-09-19. References below to its dependency, test
+> files, sample harness code and commands are historical, not current setup
+> instructions. Use each source tree's README for current checks.
+
 Date: 2026-09-17
 Status: implemented
 Trees: `src_atari`, `src_amiga`. `src_orig` carries the same fault and keeps

@@ -988,124 +988,19 @@ inst_list:
 no_flags: equ (*-inst_list)/4
 
 * Missile - not installed.
-
-* Colour - currently white (%1111)
-
-emp_c0: equ $ffff
-emp_c1: equ $ffff
-emp_c2: equ $ffff
-emp_c3: equ $ffff
-
-* Bit map definition.
-
-emp_0: equ %1111111111000000
-emp_1: equ %1100000011000000
-emp_2: equ %1100000011000000
-emp_3: equ %1100000011000000
-emp_4: equ %1100000011000000
-emp_5: equ %1111111111000000
-
-* The actual sprite defintion.
+* Sprite data generated from gfx/gadgets.png; edit the PNG source.
 
 empty_defn:
-
-	dc.w 1,6
-	dc.w %111111,emp_0&emp_c0,emp_0&emp_c1,emp_0&emp_c2,emp_0&emp_c3
-	dc.w %111111,emp_1&emp_c0,emp_1&emp_c1,emp_1&emp_c2,emp_1&emp_c3
-	dc.w %111111,emp_2&emp_c0,emp_2&emp_c1,emp_2&emp_c2,emp_2&emp_c3
-	dc.w %111111,emp_3&emp_c0,emp_3&emp_c1,emp_3&emp_c2,emp_3&emp_c3
-	dc.w %111111,emp_4&emp_c0,emp_4&emp_c1,emp_4&emp_c2,emp_4&emp_c3
-	dc.w %111111,emp_5&emp_c0,emp_5&emp_c1,emp_5&emp_c2,emp_5&emp_c3
-
-* Missile sprite - installed but no in use.
-
-* Colour - currently green (%1000)
-
-ins_c0: equ $0000
-ins_c1: equ $0000
-ins_c2: equ $0000
-ins_c3: equ $ffff
-
-* Bit map definition.
-
-ins_0: equ %1111111111000000
-ins_1: equ %1111111111000000
-ins_2: equ %1111111111000000
-ins_3: equ %1111111111000000
-ins_4: equ %1111111111000000
-ins_5: equ %1111111111000000
-
-* The actual sprite defintion.
+	incbin "MISSILE_EMPTY.IMG"
 
 installed_defn:
-
-	dc.w 1,6
-	dc.w %111111,ins_0&ins_c0,ins_0&ins_c1,ins_0&ins_c2,ins_0&ins_c3
-	dc.w %111111,ins_1&ins_c0,ins_1&ins_c1,ins_1&ins_c2,ins_1&ins_c3
-	dc.w %111111,ins_2&ins_c0,ins_2&ins_c1,ins_2&ins_c2,ins_2&ins_c3
-	dc.w %111111,ins_3&ins_c0,ins_3&ins_c1,ins_3&ins_c2,ins_3&ins_c3
-	dc.w %111111,ins_4&ins_c0,ins_4&ins_c1,ins_4&ins_c2,ins_4&ins_c3
-	dc.w %111111,ins_5&ins_c0,ins_5&ins_c1,ins_5&ins_c2,ins_5&ins_c3
-
-* Missile sprite - actived but not locked.
-
-* Colour - currently magenta (%0100)
-
-act_c0: equ $0000
-act_c1: equ $0000
-act_c2: equ $ffff
-act_c3: equ $0000
-
-* Bit map definition.
-
-act_0: equ %1111111111000000
-act_1: equ %1111111111000000
-act_2: equ %1111111111000000
-act_3: equ %1111111111000000
-act_4: equ %1111111111000000
-act_5: equ %1111111111000000
-
-* The actual sprite defintion.
+	incbin "MISSILE_INSTALLED.IMG"
 
 active_defn:
-
-	dc.w 1,6
-	dc.w %111111,act_0&act_c0,act_0&act_c1,act_0&act_c2,act_0&act_c3
-	dc.w %111111,act_1&act_c0,act_1&act_c1,act_1&act_c2,act_1&act_c3
-	dc.w %111111,act_2&act_c0,act_2&act_c1,act_2&act_c2,act_2&act_c3
-	dc.w %111111,act_3&act_c0,act_3&act_c1,act_3&act_c2,act_3&act_c3
-	dc.w %111111,act_4&act_c0,act_4&act_c1,act_4&act_c2,act_4&act_c3
-	dc.w %111111,act_5&act_c0,act_5&act_c1,act_5&act_c2,act_5&act_c3
-
-* Missile sprite - locked on target.
-
-* Colour - currently red (%0110)
-
-lck_c0: equ $0000
-lck_c1: equ $ffff
-lck_c2: equ $ffff
-lck_c3: equ $0000
-
-* Bit map definition.
-
-lck_0: equ %1111111111000000
-lck_1: equ %1111111111000000
-lck_2: equ %1111111111000000
-lck_3: equ %1111111111000000
-lck_4: equ %1111111111000000
-lck_5: equ %1111111111000000
-
-* The actual sprite defintion.
+	incbin "MISSILE_ACTIVE.IMG"
 
 locked_defn:
-
-	dc.w 1,6
-	dc.w %111111,lck_0&lck_c0,lck_0&lck_c1,lck_0&lck_c2,lck_0&lck_c3
-	dc.w %111111,lck_1&lck_c0,lck_1&lck_c1,lck_1&lck_c2,lck_1&lck_c3
-	dc.w %111111,lck_2&lck_c0,lck_2&lck_c1,lck_2&lck_c2,lck_2&lck_c3
-	dc.w %111111,lck_3&lck_c0,lck_3&lck_c1,lck_3&lck_c2,lck_3&lck_c3
-	dc.w %111111,lck_4&lck_c0,lck_4&lck_c1,lck_4&lck_c2,lck_4&lck_c3
-	dc.w %111111,lck_5&lck_c0,lck_5&lck_c1,lck_5&lck_c2,lck_5&lck_c3
+	incbin "MISSILE_LOCKED.IMG"
 
 * Laser sight information. Format:
 

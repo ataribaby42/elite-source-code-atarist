@@ -29,12 +29,11 @@ The object record contains a `cargo_mass` longword before the model header. Zero
 
 `bios.m68` exposes `confirm_yn` for the keyboard-enabled confirmation. Existing `confirm` callers keep their mouse-only behaviour. The Amiga copy retains its native input polling and sprite-buffer calculation.
 
-`tests/test_jettison.py` executes the actual routines on MC68000 and MC68020 using optional `unicorn==2.1.4`. Coverage includes all 20 cargo types, single-gram and fractional-tonne boundaries; exact prompt formatting; mixed-mass canisters; round-trip scooping and exact capacity boundaries in both hold sizes; full and deferred-removal slots; 20 cycles of 30 ejections and recoveries per CPU; register preservation; normal salvage; display mapping after cargo loss; Y/N/Esc and mouse confirmation; docked selling; sound requests; and every legal-status value under all eight governments. UI raster drawing and sound playback are stubbed in those CPU tests.
-
 The reference behaviour was checked against `JettisonCargoSpawn`, `JettisonCargoType`, `JettisonCargoPenalty` and the confirmation handler in the local Elite C64 Unbound source. This port uses the existing Inventory mouse interface rather than introducing the C64 keyboard screen.
 
-Native checks used a private 1 MB Atari ST session in Hatari and a private Amiga session in WinUAE. Both exercised in-flight Inventory, cancellation, confirmed 1 t Medical Supplies, 300 kg Gold and 157 g Gem-Stones ejections, the +15 penalty for each, and return to the rear view. Runtime object records retained the exact commodity and gram payload. CPU tests separately verified recovery, full-slot failure and lifecycle stress. Existing registration, mission, laser, saved-option and startup tests also passed. Diagnostic scripts, screenshots and results for the exact-mass extension are under each source tree's `build/jettison-mass-qa` directory.
+Native checks used a private 1 MB Atari ST session in Hatari and a private Amiga session in WinUAE. Both exercised in-flight Inventory, cancellation, confirmed 1 t Medical Supplies, 300 kg Gold and 157 g Gem-Stones ejections, the +15 penalty for each, and return to the rear view. Runtime object records retained the exact commodity and gram payload. Diagnostic scripts, screenshots and results for the exact-mass extension are under each source tree's `build/jettison-mass-qa` directory.
 
-The drift extension is covered by 512 seeded ejections per CPU model, checking rearward movement, direction diversity, nonzero speed, orientation vectors, repeated cruise updates, exact recovery and unchanged random state on full-slot failure. Recreating an ordinary canister restores its normal speed limit of 11. A diagnostic scene also runs 12 successive ejections and actual tumbling with the distributed Atari executable. Results are under `build/jettison-drift-qa`.
-
-Initial roll is checked on MC68000 and MC68020 with zero, near-zero and all-quadrant random coefficients, including full register preservation and unchanged drift, speed and payload. Coefficients are scaled before normalization to retain precision with small random values. Tests and native rendering diagnostics are under `build/jettison-orientation-qa`.
+The former CPU-emulation tests have been removed. Repeat ejection, cancellation,
+recovery, full-hold/full-slot failure and drift/orientation checks in Hatari
+or on original hardware. The native checks above are historical results, not a
+new runtime verification of the current build.

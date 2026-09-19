@@ -1,5 +1,10 @@
 # Faction AI Targeting Implementation Plan
 
+> Historical design/implementation record. The optional CPU-emulation test
+> suite was removed on 2026-09-19. References below to its dependency, test
+> files, sample harness code and commands are historical, not current setup
+> instructions. Use each source tree's README for current checks.
+
 **Goal:** Let every combat ship attack the nearest hostile ship of another faction, with the player as one ordinary candidate, instead of always attacking the player.
 
 **Architecture:** The object record's existing `target` pointer gains three meanings: `no_target` (-1), `0` for the player, or a pointer to another object record. A new group of small routines in `combat.m68` classifies ships and picks the nearest hostile candidate once per frame per ship, round robin. `do_attack` in `logic.m68` stops assuming the enemy is at the world origin and works from `target` instead. Damage branches on whether the target is the player or a ship.

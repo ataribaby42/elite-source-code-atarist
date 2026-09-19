@@ -1,0 +1,210 @@
+"""Compile editable, fixed-palette PNG sources into the game's original formats."""
+from pathlib import Path
+import json
+import struct
+
+
+# Editor colours identify game indices, independently of PNG palette order.
+# The PC1 hardware palettes stay in layout.json; these are editing swatches.
+PNG_PALETTE = tuple(tuple(bytes.fromhex(colour)) for colour in (
+    '00FFFF', '929292', '494949', 'FF6D00', 'FF00FF', 'FFFF00', 'DB0000', '92FF00',
+    '66AA00', '496D00', '92B6FF', '496DDB', '0024DB', '000000', 'FF0000', 'FFFFFF'))
+
+
+def pillow():
+    try:
+        from PIL import Image
+    except ImportError as exc:
+        raise RuntimeError('PNG graphics require Pillow. Install it with your build Python: '
+                           'python -m pip install Pillow') from exc
+    return Image
+
+
+def palette_rgb(words):
+    return [tuple(round(((word >> shift) & 7) * 255 / 7)
+                  for shift in (8, 4, 0)) for word in words]
+
+
+def read_png(path, size, allowed=None):
+    """Map exact RGB swatches to game indices in RGB, RGBA or indexed PNGs."""
+    Image = pillow()
+    with Image.open(path) as image:
+        if image.format != 'PNG' or image.size != tuple(size):
+            raise ValueError(f'{path}: expected a {size[0]} x {size[1]} PNG')
+        rgba = image.convert('RGBA')
+        lookup = {colour: index for index, colour in enumerate(PNG_PALETTE)}
+        pixels = []
+        for position, colour in enumerate(zip(*[iter(rgba.tobytes())]*4)):
+            rgb, alpha = colour[:3], colour[3]
+            x, y = position % size[0], position // size[0]
+            if alpha == 0:
+                pixels.append(0)  # Fully transparent pixels mean the same as cyan.
+            elif alpha != 255:
+                raise ValueError(f'{path}: partial transparency at ({x}, {y}); '
+                                 'use opaque palette colours or fully transparent pixels')
+            elif rgb not in lookup:
+                colour_hex = '#' + bytes(rgb).hex().upper()
+                raise ValueError(f'{path}: colour {colour_hex} at ({x}, {y}) is outside the PNG palette; '
+                                 'use exact RGB swatches without antialiasing or colour conversion')
+            else:
+                pixels.append(lookup[rgb])
+        if allowed is not None and not set(pixels) <= set(allowed):
+            raise ValueError(f'{path}: only palette indices {allowed} are allowed')
+        return pixels
+
+
+def planar_decode(data, width, height):
+    pixels = []
+    for offset in range(0, len(data), 8):
+        words = struct.unpack_from('>4H', data, offset)
+        pixels.extend(sum(((word >> bit) & 1) << plane for plane, word in enumerate(words))
+                      for bit in range(15, -1, -1))
+    if len(pixels) != width * height:
+        raise ValueError('Invalid planar bitmap length')
+    return pixels
+
+
+def planar_encode(pixels, width, height):
+    if width % 16 or len(pixels) != width * height:
+        raise ValueError('Invalid planar bitmap dimensions')
+    data = bytearray()
+    for offset in range(0, len(pixels), 16):
+        group = pixels[offset:offset+16]
+        data.extend(struct.pack('>4H', *(sum(((value >> plane) & 1) << (15-x)
+                                           for x, value in enumerate(group)) for plane in range(4))))
+    return bytes(data)
+
+
+def decode_pc1(data):
+    """Return indices and packet layout; Elite requires packets within 40-byte rows."""
+    if data[:2] != b'\x80\x00':
+        raise ValueError('Expected compressed low-resolution DEGAS PC1')
+    position, rows, controls = 34, [], []
+    for _ in range(800):
+        row, commands = bytearray(), bytearray()
+        while len(row) < 40:
+            control = data[position]
+            position += 1
+            commands.append(control)
+            count = control + 1 if control < 128 else 257-control
+            if control < 128:
+                row.extend(data[position:position+count])
+                position += count
+            else:
+                row.extend(data[position:position+1] * count)
+                position += 1
+        if len(row) != 40:
+            raise ValueError('PC1 packet crosses a plane scanline')
+        rows.append(row)
+        controls.append(commands.hex())
+    planar = bytearray()
+    for y in range(200):
+        for word in range(20):
+            for plane in range(4):
+                planar.extend(rows[y*4+plane][word*2:word*2+2])
+    metadata = {'palette': list(struct.unpack_from('>16H', data, 2)),
+                'packets': controls, 'trailer': data[position:].hex()}
+    return planar_decode(planar, 320, 200), metadata
+
+
+def pack_row(row):
+    """Optimal bounded PackBits encoding, without the unsupported $80 command."""
+    costs, choices = [0] * (len(row)+1), [None] * len(row)
+    for start in range(len(row)-1, -1, -1):
+        candidates = [(1+n+costs[start+n], n, False) for n in range(1, len(row)-start+1)]
+        run = 1
+        while start+run < len(row) and row[start+run] == row[start]:
+            run += 1
+        candidates += [(2+costs[start+n], n, True) for n in range(2, run+1)]
+        costs[start], count, repeated = min(candidates)
+        choices[start] = count, repeated
+    result, start = bytearray(), 0
+    while start < len(row):
+        count, repeated = choices[start]
+        result.append(257-count if repeated else count-1)
+        result.extend(row[start:start+1] if repeated else row[start:start+count])
+        start += count
+    return bytes(result)
+
+
+def encode_pc1(pixels, metadata):
+    planar = planar_encode(pixels, 320, 200)
+    result = bytearray(b'\x80\x00' + struct.pack('>16H', *metadata['palette']))
+    for y in range(200):
+        for plane in range(4):
+            row = b''.join(planar[y*160+word*8+plane*2:y*160+word*8+plane*2+2]
+                           for word in range(20))
+            packed, position, valid = bytearray(), 0, True
+            for control in bytes.fromhex(metadata['packets'][y*4+plane]):
+                count = control+1 if control < 128 else 257-control
+                part = row[position:position+count]
+                if len(part) != count or (control >= 128 and len(set(part)) != 1):
+                    valid = False
+                    break
+                packed.append(control)
+                packed.extend(part if control < 128 else part[:1])
+                position += count
+            # Retain historical packet boundaries when they represent the new pixels.
+            # An edited run is recompressed, never replaced with historical artwork.
+            result.extend(packed if valid and position == 40 else pack_row(row))
+    result.extend(bytes.fromhex(metadata['trailer']))
+    return bytes(result)
+
+
+def crop(pixels, size, rect):
+    x, y, width, height = rect
+    if x < 0 or y < 0 or x+width > size[0] or y+height > size[1]:
+        raise ValueError('Bitmap rectangle is outside its PNG sheet')
+    return [value for line in range(y, y+height)
+            for value in pixels[line*size[0]+x:line*size[0]+x+width]]
+
+
+def compile_assets(root):
+    """Validate every PNG before replacing any generated asset. No baseline hash gate."""
+    root = Path(root)
+    gfx, assets = root / 'gfx', root / 'assets'
+    layout = json.loads((gfx / 'layout.json').read_text(encoding='utf-8'))
+    outputs = {}
+    for name, metadata in layout['screens'].items():
+        pixels = read_png(gfx / f'{name}.png', (320, 200))
+        outputs[name.upper()+'.PC1'] = encode_pc1(pixels, metadata)
+    sheets = {name: read_png(gfx / f'{name}.png', size)
+              for name, size in layout['sheets'].items()}
+    entries = layout['bitmaps']
+    data = bytearray(layout['bitmap_bytes'])
+    struct.pack_into('>'+str(len(entries))+'I', data, 0, *(entry['offset'] for entry in entries))
+    for entry in entries:
+        sheet, rect, offset = entry['sheet'], entry['rect'], entry['offset']
+        width, height = rect[2:]
+        pixels = crop(sheets[sheet], layout['sheets'][sheet], rect)
+        encoded = struct.pack('>HH', width//16, height) + planar_encode(pixels, width, height)
+        data[offset:offset+len(encoded)] = encoded
+    outputs['BITMAPS.IMG'] = bytes(data)
+    font = read_png(gfx / 'font.png', (128, 48), [0, 15])
+    outputs['ELITECHR.IMG'] = bytes(sum((font[(glyph//16*8+y)*128+glyph%16*8+x] == 15)
+                                      << (7-x) for x in range(8))
+                                    for glyph in range(96) for y in range(8))
+    for entry in layout['missiles']:
+        pixels = crop(sheets['gadgets'], layout['sheets']['gadgets'], entry['rect'])
+        # The 10-pixel missile cell is opaque, including black; six padding pixels
+        # are transparent. The original mask is therefore not the bitmap OR mask.
+        if any(pixels[y*16+x] != 0 for y in range(6) for x in range(10, 16)):
+            raise ValueError('gadgets.png: missile padding (last six columns) must remain '
+                             'index 0 (#00FFFF or fully transparent)')
+        planar = planar_encode(pixels, 16, 6)
+        outputs[entry['file']] = struct.pack('>HH', 1, 6) + b''.join(
+            b'\x00\x3f' + planar[y*8:y*8+8] for y in range(6))
+    assets.mkdir(parents=True, exist_ok=True)
+    for name, data in outputs.items():
+        target = assets / name
+        if not target.exists() or target.read_bytes() != data:
+            target.write_bytes(data)
+    return {name: len(data) for name, data in outputs.items()}
+
+
+if __name__ == '__main__':
+    try:
+        report = compile_assets(Path(__file__).resolve().parents[1])
+        print('Generated PNG graphics: ' + ', '.join(f'{name} ({size} bytes)' for name, size in report.items()))
+    except (ValueError, RuntimeError, OSError) as error:
+        raise SystemExit(str(error))

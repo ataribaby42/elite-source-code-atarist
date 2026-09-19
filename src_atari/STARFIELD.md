@@ -60,18 +60,11 @@ The white sky is the first flight layer. Planets, the sun, dark grey dust, ships
 
 The celestial-to-ship matrix retains Q24 fractional components and follows the game's roll-then-pitch order once per flight simulation frame, including frames showing flight menus. Periodic normalisation bounds long-session scale drift. A Q14 matrix is derived for the selected view. When neither orientation nor view changes, the renderer simply replots cached coordinates. A bounded 64-pixel cache provides headroom above the intended sparse density.
 
-`tests/test_sky.py` runs the actual MC68000 routines on MC68000 and MC68020 CPU models. It compares tree culling against projection of the complete catalogue across random orientations and all views, checks full-turn continuity and sustained rotation, confirms translation/torus independence, and verifies single white pixels, screen guards, register preservation, caching and unchanged game random state. `tests/test_layering.py` checks that every other flight layer covers the white sky, while preserving the existing moving-dust ordering. CPU tests establish correctness; emulator profiling is needed for timing.
-
-`tests/test_stars_save.py` executes actual save/restore, scrambling and sky preference routines on MC68000 and MC68020. It checks ON/OFF round trips, all combinations of the six existing options, legacy saves, startup, normal/max Jameson, unchanged registration data and the unchanged 256-byte file size.
-
 ## Validation
 
-`tests/test_starfield.py` assembles the actual game routines and runs them with Unicorn 2.1.4. Tests cover the BBC depth/radial laws, sideways parallax, minimum drift, gradual throttle scaling and maximum limits in all four views, unchanged jump-trail translation, incoming edges, vertical recycling with fractional overshoot, rear recycling, retro rockets, steering against a geometric projection reference, subpixel movement, and one-pixel drawing at every depth. Sustained full-roll tests cover both side views, both roll directions, and zero/full throttle to catch stars collapsing into horizontal rows.
+The former CPU-emulation test suite has been removed. Build and file-format
+checks remain available through the normal build and `tests/` discovery.
+Gameplay validation requires Hatari or original hardware.
 
-Sustained rear-view pitch tests cover both directions, several angular speeds, zero/half/full throttle and multiple random seeds. They measure edge-column concentration and horizontal row clustering over hundreds of frames. Boundary tests verify exact fractional overshoot, horizontal spread and valid depths, including corner departures and front-view retro rockets.
+Check all four views, sustained roll and pitch, zero and full throttle, rear-view recycling, cockpit clipping and object occlusion. Toggle the white sky and verify that its setting survives commander save/load.
 
-The complete cloud is exercised over hundreds of frames on MC68000 and MC68020 CPU models with executable memory write-protected. Guarded buffers check that no drawing reaches the cockpit. The separate `tests/test_layering.py` suite executes the scene traversal and raster routines with overlapping fixture objects, checking celestial/star/object occlusion, depth order, empty lists and the unfiltered renderer. These are CPU-level checks; they do not establish emulator gameplay quality or a frame-rate measurement.
-
-Cold-start tests execute the real system reset and trigonometry routines before any steering input, then simulate the launch spin and first side-view frames. They verify both the neutral trigonometric values and the cloud's spread, including reset from stale cached angles.
-
-Torus regression tests execute the real control lock, drive entry, drive processing and frame stop logic. Starting with roll, pitch or both must produce the same starfield trajectory as neutral controls in all four views, during the jump and after manual cancellation, mass locking or a pirate attack. Both CPU models are covered, including register preservation and neutral control indicators; sound, UI messages and pirate creation are stubbed.

@@ -27,16 +27,9 @@ registration does not alter mission or object data. See [registration notes](REG
 
 ## Validation
 
-`tests/test_missions.py` assembles this tree's routines and model sources and
-runs them on MC68000 and MC68020 using optional `unicorn==2.1.4`. It covers all
-four lasers, missile arrival with sparse/partial/full object pools, a fatal
-collision, Energy Bomb, repeat calls, other mission states and object types,
-Constrictor progression, normal-station immunity, registers, the next-system
-reset and a single reward. Executable test memory is read-only.
+The former CPU-emulation test suite has been removed. Build and file-format
+checks remain available through the normal build and `tests/` discovery.
+Gameplay validation requires Hatari or original hardware.
 
-Rendering/audio, missile travel, fragment directions, cargo release and
-player shield damage are stubbed. These tests are not a full playthrough in
-an emulator or on hardware. Registration tests separately check masking,
-RNG isolation, object/register preservation and existing IFF/missile behaviour.
+Check Constrictor progression, alien-station destruction, reward delivery and the following system reset. The preserved `src_orig` version retains its historical gameplay.
 
-The preserved `src_orig` version retains its historical gameplay.

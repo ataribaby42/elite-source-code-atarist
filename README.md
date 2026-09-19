@@ -6,7 +6,19 @@ During flight, double-click a cargo item on **Inventory** to jettison up to **1 
 
 ## Building on Windows
 
-You need **Windows x64 and Python 3.10 or later**, with no additional Python packages. The **vasm 2.0f assembler** (`vasmm68k_mot.exe`, MC68000 with Motorola syntax) and **vlink 0.18a linker** (`vlink.exe`) are bundled as compiled Windows executables in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
+You need **Windows x64 and Python 3.10 or later**, plus the **Pillow** Python library to convert the enhanced Atari and Amiga PNG graphics into binary game assets. The preserved original build needs no additional Python packages. The **vasm 2.0f assembler** (`vasmm68k_mot.exe`, MC68000 with Motorola syntax) and **vlink 0.18a linker** (`vlink.exe`) are bundled as compiled Windows executables in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
+
+Install Pillow once from Windows PowerShell or Command Prompt:
+
+```powershell
+python -m pip install Pillow
+```
+
+If Python is available through the Windows Python launcher instead of the `python` command, use `py -3 -m pip install Pillow`. Install Pillow into the same Python environment that runs the build. If you pass a custom `-Python` path to the build script, use that executable to install Pillow as well; for example, in PowerShell:
+
+```powershell
+& "C:\path\python.exe" -m pip install Pillow
+```
 
 Run this from the project root:
 
@@ -100,6 +112,35 @@ If the script cannot find Python, provide its path:
 [build_atari.bat](build_atari.bat) calls [src_atari/build.bat](src_atari/build.bat) and forwards all command-line arguments. Add persistent default options directly to the root script's `call` line, before `%*`. Use `-Vasm` and `-Vlink` to select custom assembler and linker executables. Unrecognized build arguments are rejected.
 
 Alternatively, run `python src_atari/build.py` directly. The scripts resolve project paths relative to their own location, so you can also invoke the build from another working directory.
+
+## Editing PNG graphics
+
+Edit the eight source PNGs in `src_atari/gfx/` or `src_amiga/gfx/`. Each normal
+build uses Pillow to convert its own PNGs into binary files in its `assets/`
+directory before assembly. Keep the original canvas dimensions.
+
+**RGB, RGBA and indexed PNGs are supported. Colours are matched by their exact
+RGB values, regardless of PNG palette order or storage indices.** The editing
+palette includes these distinct mappings:
+
+| PNG colour | Game index | Meaning |
+| --- | --- | --- |
+| `#00FFFF` | 0 | Transparent in ordinary sprites |
+| `#DB0000` | 6 | Dark red editing swatch |
+| `#66AA00` | 8 | Green editing swatch |
+| `#000000` | 13 | Opaque black |
+| `#FF0000` | 14 | Pulse/colour-cycle slot |
+
+These swatches identify game indices; the original hardware palettes remain
+unchanged. Index 0 displays black in full-screen images. Fully transparent PNG
+pixels also map to 0. Partial alpha and colours outside the editing palette are
+rejected with the offending pixel's coordinates; colours are never automatically
+rounded to the nearest match. The font uses only index 0 and white index 15.
+
+The migrated default PNGs still generate byte-for-byte identical original binary
+assets. Edited PNGs supply the new artwork and are not required to match default
+hashes. See the [PNG editing guide](docs/2026-09-19-editable-png-graphics.md) for
+the complete 16-colour palette, sheet layouts and verification commands.
 
 ## Ship registrations
 

@@ -1,5 +1,10 @@
 # Random Encounters Implementation Plan
 
+> Historical design/implementation record. The optional CPU-emulation test
+> suite was removed on 2026-09-19. References below to its dependency, test
+> files, sample harness code and commands are historical, not current setup
+> instructions. Use each source tree's README for current checks.
+
 **Goal:** Half of the ordinary deep-space pirate waves become a small group that
 is already fighting itself, which the player flies into rather than is ambushed
 by.

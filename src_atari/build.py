@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 from tools.make_disk import make_disk, verify_disk
+from tools.gfx_assets import compile_assets
 
 ROOT = Path(__file__).resolve().parent
 TOOLS = ROOT.parent / 'tools'
@@ -124,6 +125,8 @@ def main():
               'or rebuild it with src_atari/tools/setup-toolchain.ps1.')
     for directory in (BUILD, OUTPUT, GAME):
         directory.mkdir(parents=True, exist_ok=True)
+    graphics = compile_assets(ROOT)
+    print('Compiled editable PNG graphics from gfx/ into assets/.')
     modules = (ROOT / 'modules.txt').read_text().split()
 
     def assemble(name, fmt='vobj', output=None, extra=(), extension='.m68'):
@@ -132,7 +135,7 @@ def main():
              f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
              f'-Dscannerlogo={int(scannerlogo)}',
              f'-Dlaser_singlebeam={int(laser == "singlebeam")}', '-F' + fmt, *extra,
-             '-I' + str(BUILD), '-I' + str(ROOT / 'asm'),
+             '-I' + str(BUILD), '-I' + str(ROOT / 'asm'), '-I' + str(ROOT / 'assets'),
              '-o', output, ROOT / 'asm' / (name + extension)], name + '.log')
 
     def link_game(log, output=None, extra=(), script=None):
@@ -256,6 +259,7 @@ def main():
     baseline = json.loads((ROOT / 'original-sha256.json').read_text())
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
+        'png_graphics': graphics,
         'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound, 'scannerlogo': scannerlogo},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',

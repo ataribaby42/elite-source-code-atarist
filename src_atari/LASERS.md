@@ -187,26 +187,11 @@ described above; player beams use their weapon colours.
 
 ## Validation
 
-`tests/test_lasers.py` assembles and executes the actual laser routines and game
-loop on MC68000 and MC68020 CPU models using the optional `unicorn==2.1.4`
-dependency. Unrelated world and UI services are stubbed. Tests cover same-frame
-hits in all views, fixed-axis aiming despite visual jitter, per-hit damage,
-original frame-based damage/heat intervals, continuous visuals between hits,
-trigger release/resume, heat limits, pulse persistence and clock wrap, AI aim and
-shield selection, distance-based accuracy across the firing range and retry handling, preserved miss
-visuals, both AI firing sound settings, preserved player/impact sounds, damage multipliers, shield overflow into energy, every ship's
-muzzle projection, and guarded raster buffers. Both player beam styles are
-checked against filled-triangle pixel references, including bottom-edge coverage,
-all four weapon colours on even/odd rows, shared jitter and unchanged random-number consumption.
-Executable pages are write-protected. These are CPU correctness checks, not
-an emulator gameplay, performance or listening test. The existing layering,
-sprite, viewport and starfield suites provide regression coverage.
+The former CPU-emulation test suite has been removed. Build and file-format
+checks remain available through the normal build and `tests/` discovery.
+Gameplay validation requires Hatari or original hardware.
 
-`tests/test_ai_beam_visibility.py` executes the real culling, depth queue, AI
-beam and raster routines on both CPU models. It covers all four views, each
-viewport edge, both screen buffers, late AI shots, full 30-object queues in
-both depth orders, clipping, model occlusion, hidden and behind-view emitters,
-and preservation of registers, targeting flags and random state.
+Check both beam styles, all four flight views, player and AI beam colours, hits and misses, shielding, clipping and firing sounds.
 
 ## BBC source references
 

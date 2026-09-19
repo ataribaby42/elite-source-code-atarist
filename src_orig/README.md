@@ -78,8 +78,8 @@ python src_orig/tools/verify_original.py
 
 The build verifies module linking, the embedded checksum, A6 workspace relocation,
 RAM and module-variable limits, keyboard ASCII constants, asset sizes, the TOS
-header and every file in the FAT12 disk. Tests cover conversion details, launcher
-execution when optional `unicorn==2.1.4` is installed, and original source fidelity.
+header and every file in the FAT12 disk. Tests cover conversion details, launcher layout, disk formats and original
+source fidelity. The former CPU-execution test has been removed.
 They do not establish full gameplay or real-hardware compatibility.
 
 The initial preserved build is 84,514 bytes with checksum `$B02D`, entry `$12000`,

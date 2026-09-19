@@ -13,6 +13,7 @@ import subprocess
 sys.dont_write_bytecode = True
 
 from tools.amiga_assets import extract_assets
+from tools.gfx_assets import compile_assets
 from tools.beam_audio import generate_beam_audio
 from tools.rcs_audio import generate_rcs_audio
 from tools.engine_audio import generate_engine_audio
@@ -33,6 +34,8 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     for tool in (vasm, vlink):
         if not tool.is_file():
             raise ValueError('Missing build tool: ' + str(tool))
+    graphics = compile_assets(ROOT)
+    print('Compiled editable PNG graphics from gfx/ into assets/.')
     boot, audio = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', BUILD)
     audio['continuous_lasers'] = generate_beam_audio(BUILD)
     audio['rcs'] = generate_rcs_audio(BUILD)
@@ -51,7 +54,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
              f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
              f'-Dscannerlogo={int(scannerlogo)}',
              f'-Dlaser_singlebeam={int(laser == "singlebeam")}','-F'+fmt,'-I'+str(BUILD),
-             '-I'+str(ROOT/'asm'),'-o',output,ROOT/'asm'/(name+'.m68')], name+'.log')
+             '-I'+str(ROOT/'asm'),'-I'+str(ROOT/'assets'),'-o',output,ROOT/'asm'/(name+'.m68')], name+'.log')
     modules = (ROOT/'modules.txt').read_text().split()
     modules = ['system', 'fileio', *modules, 'workspace']
     print('Assembling independent native Amiga game modules for MC68000...')
@@ -110,6 +113,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     disk = OUTPUT.parent/'ELITE.ADF'
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC68000','minimum_kickstart':'1.3',
+              'png_graphics':graphics,
               'build_options':{'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,

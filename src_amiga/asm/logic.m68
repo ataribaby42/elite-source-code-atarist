@@ -268,10 +268,19 @@ q_logic_m68_21:
 	bclr #angry,flags(a5) ; not angry any more
 	move #1,on_course(a5) ; speed up to maximum
 	bsr speed_control
+
+; An abandoned hull keeps its velocity and orientation. Share only the
+; range cleanup with cruising; LOG_NONE also serves planets and animations.
+	q_subr do_abandoned
+
 	move.l obj_range(a5),d0 ; way off radar ?
 	cmp.l #radar_range,d0
 ; Quelo: 	if <hi> then.s						yes
 	bls.s q_logic_m68_23
+
+; Also used by missiles leaving scanner range. Invalidate this record, never
+; the ship a discarded missile was chasing; free it in REMOVE_OBJECTS.
+discard_distant_object:
 	move.l a5,a4 ; check for lost target
 	jsr target_lost
 	bset #remove,flags(a5) ; remove object from world
@@ -706,6 +715,9 @@ q_logic_m68_43:
 
 	q_subr do_locked
 
+	cmp.l #radar_range,obj_range(a5) ; distance from player, not target
+	bhi discard_distant_object
+
 	move.l target(a5),a4 ; get target's coords
 	movem.l xpos(a4),d0-d2
 	jsr auto_pilot ; execute auto-pilot
@@ -773,6 +785,9 @@ q_logic_m68_48:
 * Tracks a missile towards the player.
 
 	q_subr do_missile
+
+	cmp.l #radar_range,obj_range(a5) ; same limit for missiles aimed at player
+	bhi discard_distant_object
 
 	moveq #0,d0 ; auto-pilot towards the player
 	moveq #1,d1
@@ -1033,6 +1048,7 @@ logic_vectors:
 	dc.l do_launch3b,do_launch4a,do_launch4b,do_circle,do_dock1a,do_dock1b
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c
 	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a,do_locked
+	dc.l do_abandoned
 
 * Table of laser damage range for ratings.
 
@@ -1054,4 +1070,3 @@ text3:
 	dc.b " credits",0
 text4:
 	dc.b "No bounty!",0
-

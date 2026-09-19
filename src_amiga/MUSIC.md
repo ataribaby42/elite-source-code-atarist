@@ -28,11 +28,9 @@ When stopping or restarting an active channel, playback sets volume to zero and 
 
 ## Validation
 
-`tests/test_music.py` uses optional `unicorn==2.1.4` CPU emulation. The normal build needs no additional Python packages.
+The former CPU-emulation test suite has been removed. Build and file-format
+checks remain available through the normal build and `tests/` discovery.
+Gameplay validation requires WinUAE or original hardware.
 
-- Runs the actual new assembly and the original ADF replay for 18,000 ticks on both MC68000 and MC68020 models. All 298 bytes of replay state match on every tick after pointer relocation, including a complete arrangement and its restart.
-- Executes the actual Paula output code through the complete arrangement and checks periods, volumes, DMA transitions, sample bounds and attack-to-loop ordering.
-- Checks fade-out, silent idle after stopping, deterministic repeated starts and sound effects after music stops.
-- Protects executable pages against writes during all native CPU tests.
+Listen through a complete arrangement and restart, exercise docking music and sound effects, and verify fades and silence after stopping. Asset extraction and bounds are covered by `tests/test_amiga.py`; earlier recordings in `build/audio-qa` predate the current replay and do not validate its audible quality.
 
-These are CPU and register-level checks, not a hardware listening test. The new arrangement still needs an audible WinUAE or real-Amiga play test. Earlier emulator/audio recordings in `build/audio-qa` cover the previous music implementation and do not establish audible validation of this replay.

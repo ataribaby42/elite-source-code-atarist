@@ -2,6 +2,16 @@
 
 This source tree started as a copy of the corrected Atari sources before the combined Amiga build was introduced. It retains the game logic and starfield fixes, with Amiga-specific rendering, sound, input, startup and file handling developed here. It builds independently of `src_atari`; neither target uses a platform switch or imports the other target's build script.
 
+## Editable graphics
+
+Edit the eight PNGs in this tree's `gfx/` folder. The build requires Pillow
+(`python -m pip install Pillow`) and generates this tree's `assets/` before
+assembly. Keep canvas sizes and use the editing palette's exact RGB colours.
+RGB, RGBA and reordered indexed PNGs are supported: cyan `#00FFFF` maps to
+transparent index 0, black to 13, dark red `#DB0000` to 6, and bright red
+`#FF0000` to 14. See the [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md)
+for the complete palette, alpha handling, sheet layouts and verification commands.
+
 ## RCS sound
 
 RCS FX also enables a synthesized motor hum while Space (accelerate)
@@ -34,11 +44,7 @@ hyperspace, and death entry points stop RCS before the first animation frame.
 
 `tools/rcs_audio.py` generates the 4096-byte loop at build time without using
 the game's random generator. The loop is placed in Chip RAM with the other
-audio. `tests/test_music.py` executes the driver and damping on MC68000 and
-MC68020, checking DMA ordering, priorities, cinematic shutdown, and existing
-music/laser behavior. The options and Commander tests cover button hit boxes,
-default ON, and preference round trips. Final loudness requires listening in
-an Amiga emulator or on hardware; register-level tests do not judge sound quality.
+audio.
 
 ## Jettison cargo
 
@@ -48,11 +54,11 @@ In flight, double-click an Inventory item and confirm with `Y` or the YES button
 
 `assets/ELITE.info` is the standard four-colour Workbench tool icon (96 x 24 pixels, normal and selected images). The build copies this asset unchanged beside `ELITE` in both the ADF and `output_amiga/ELITE`. Double-click it to launch the game from Workbench 1.3 or later; keep all game files together. The native executable receives and replies to the Workbench startup message, selects the executable's directory before loading assets, and restores the caller's directory on exit. Ctrl+F10 returns to Workbench. Shell and boot-disk launches remain supported.
 
-Only one instance may run at a time. Repeated icon clicks or another Shell launch return immediately while the existing game continues. Startup atomically claims the public Exec marker `Elite.Native.Amiga` before opening files or taking over hardware; cleanup releases it after restoring the display, input and audio, including startup-failure paths. This prevents two instances from overwriting each other's Workbench display state. The marker uses Kickstart 1.3-compatible port calls and does not allocate a signal. `tests/test_workbench.py` covers overlapping CLI/Workbench launches, rejected-instance isolation, startup failures and launching again after exit.
+Only one instance may run at a time. Repeated icon clicks or another Shell launch return immediately while the existing game continues. Startup atomically claims the public Exec marker `Elite.Native.Amiga` before opening files or taking over hardware; cleanup releases it after restoring the display, input and audio, including startup-failure paths. This prevents two instances from overwriting each other's Workbench display state. The marker uses Kickstart 1.3-compatible port calls and does not allocate a signal.
 
-The icon follows Workbench's screen palette: the default 1.3 colours are blue/white/black/orange; 3.0 uses grey/black/white/blue-grey. `python src_amiga/tools/make_icon.py` rebuilds the checked-in icon from its hand-pixelled winged badge; ordinary builds consume the asset directly. `tests/test_workbench.py` executes the entry/exit paths and library-open failures on MC68000 and MC68020 with OS services stubbed.
+The icon follows Workbench's screen palette: the default 1.3 colours are blue/white/black/orange; 3.0 uses grey/black/white/blue-grey. `python src_amiga/tools/make_icon.py` rebuilds the checked-in icon from its hand-pixelled winged badge; ordinary builds consume the asset directly.
 
-The loading picture stays visible for at least one second, including asset-loading time. Startup uses the display VBL counter and Exec's PAL/NTSC refresh frequency, with a two-frame allowance for publishing the first Copper frame. Only the remaining time is waited; a missing or unreadable optional picture adds no delay. This applies to Shell, boot-disk and Workbench launches. `tests/test_startup.py` checks the hold, clock wraparound, missing files and the handoff to the game on MC68000 and MC68020 with OS services stubbed.
+The loading picture stays visible for at least one second, including asset-loading time. Startup uses the display VBL counter and Exec's PAL/NTSC refresh frequency, with a two-frame allowance for publishing the first Copper frame. Only the remaining time is waited; a missing or unreadable optional picture adds no delay. This applies to Shell, boot-disk and Workbench launches.
 
 Run from the project root:
 
@@ -129,7 +135,7 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 
 A separate sparse white sky sits behind every flight object and the existing dark grey starfield. Its fixed one-pixel stars remain consistent across all views and move only with rotation. **Game Options / Stars: ON/OFF** controls this white sky (default ON). OFF skips its rendering and rotation updates and restores the moving starfield to yellow. Switching back ON restarts the sky orientation and returns the moving starfield to dark grey. The preference is saved with the commander. Startup and default Jameson use ON; older commanders also load with ON. The 256-byte save format remains compatible between Atari and Amiga. A spatial tree skips unseen regions, and straight flight reuses cached screen positions; see [STARFIELD.md](STARFIELD.md#distant-white-sky) for implementation and validation details.
 
-Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
 
 ## Source layout
 
@@ -148,6 +154,13 @@ Player and AI lasers use instant-hit beams. Player Beam and Military lasers now 
 
 The root `build_amiga.bat` forwards arguments here. Atari development and optional assembler/linker rebuilding remain under `src_atari`; normal Amiga builds only use the bundled executables in the root `tools` directory.
 
+## Missile range
+
+Player and NPC missiles disappear beyond 24,576 world units from the player,
+regardless of scanner zoom. At exactly that distance they remain active.
+Disappearing missiles cause no explosion or damage and do not remove their
+target ship or other missiles pursuing it.
+
 ## ECM
 
 ECM destroys every missile in the world for as long as the wave lasts, whether
@@ -155,9 +168,6 @@ the player triggered it or a ship defended itself against his missile. The wave
 is timed rather than tied to the ECM sound, so it also runs with Effects
 switched off and while the music is playing. It lasts 116 VBL ticks, 2.32 seconds at PAL 50 Hz,
 the length of the original effect.
-
-`tests/test_music.py` covers the wave starting, expiring and being cleared
-by a reset.
 
 ## Random encounters
 
@@ -197,10 +207,6 @@ the ambush already brings at a high combat rating.
 Every mission spawn keeps the old path: the Constrictor, the Cougar and both
 Thargoid missions are checked before the substitution is even rolled, and
 encounters never happen in witch space or inside station space.
-
-`tests/test_faction_ai.py` covers the two ship tables, the group table, the
-government filter and the weights, the placement and spacing, and that a
-mission wave is never replaced whichever way the coin falls.
 
 ## Faction AI targeting
 
@@ -286,19 +292,7 @@ with the energy bomb, so a distant fight does not announce itself. An
 enemy beam is drawn from its gun to its actual target, with a small random
 offset when the shot misses; beams aimed at the player are drawn as before.
 
-`tests/test_faction_ai.py` covers the faction matrix, the whitelist, nearest-
-target selection, the `ANGRY` rule, combat entry and exit, the attack run's
-steering, the reaction to being hit, NPC damage and the suppressed bookkeeping.
-The break-off table is pinned against the 1988 original, which guards the
-player's own fire too, because both now run the same routine.
-`tests/test_lasers.py` covers the beam drawing and proves combat against the
-player is unchanged.
-
 ## Validation
-
-The optional `tests/test_sprites.py` suite also uses `unicorn==2.1.4`. It executes the actual sprite routines on MC68000 and MC68020 CPU models with executable memory write-protected. Tests cover the original options icons and missile indicators, all sixteen horizontal shifts, clipped edges, both screen buffers and background restoration. Unicorn does not emulate instruction-cache coherency; write protection verifies that drawing no longer modifies code.
-
-The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, and large unclipped circle spans. Entire guarded screen buffers are compared with a pixel reference. `tests/test_starfield.py` verifies depth-based motion, all four views, retro rockets, rotation, recycling, and one-pixel stars on MC68000 and MC68020 CPU models.
 
 The build checks assembly/link diagnostics, relocations, required Chip RAM allocations, BSS sizes, module variable capacities, asset buffer capacities, the two-screen layout, original effect/music assets and sample loop bounds, and OFS disk contents read back byte for byte. Run the automated tests after building:
 
@@ -306,19 +300,13 @@ The build checks assembly/link diagnostics, relocations, required Chip RAM alloc
 python -B -m unittest discover -s src_amiga/tests -v
 ```
 
-The optional `tests/test_raster.py` and `tests/test_startup.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 routines. Drawing tests compare entire guarded screen buffers with a pixel reference, covering all line directions, the 120 panel colour patterns, all 16 solid colours, horizontal word boundaries, both buffers, viewport clearing, block fills and preserved registers. Startup tests check the title pixels and palette, disk-buffer reuse, display-only refresh during loading, transition to game refresh, and startup without a readable title. OS services are stubbed in the startup tests. This is CPU-level correctness coverage, not a WinUAE gameplay or frame-rate measurement. The normal game build has no new package dependency.
-
-`tests/test_fileio.py` uses the same optional CPU emulator to check all four floppy paths, relative HDD and asset paths, maximum commander filename length, full-width handles, catalog lock release, error returns, requester restoration and register preservation. DOS services are stubbed; real disk changes must also be exercised in WinUAE or on hardware.
-
 Runtime checks use an isolated WinUAE 6.0.3 instance with Kickstart 1.3, PAL OCS, a real-speed MC68000, 512 KB Chip RAM and 512 KB slow RAM. Evidence and the exact executable hash are recorded locally in `build/qa/runtime-verification.json`; screenshots are in the same generated directory. `build/verification.json` reports structural checks only and does not claim emulator coverage automatically.
 
 The new native renderer has been exercised through the novella screen, title animation, commander status, launch, all four flight views, cockpit/radar, both charts and planet data. Native keyboard pitch controls and firing were exercised, and Paula sample addresses, lengths, periods and volumes were inspected. An existing commander loaded successfully; a new commander was saved, read back from the ADF as a valid 256-byte OFS file, listed in the catalog and reloaded. Ctrl+F10 restored the AmigaDOS screen and keyboard, with the game no longer present in the CLI task. Further runtime results are listed in the local verification record.
 
 The audio shutdown fix was separately checked with WinUAE PCM recording at 48 kHz, stereo, 16-bit. Keyclick, laser, error and alert effects returned every channel to zero volume with audio DMA disabled; the following 14.69 seconds of recorded output contained only zero samples. Music fade and exit also produced a silent recorded tail. Evidence and the tested executable hash are in `build/audio-qa/audio-verification.json`. Playback mutes a channel and allows its sample clock to latch the change before disabling DMA. The delay observes the vertical byte of VHPOSR; comparing the complete register would count horizontal positions and end the wait too soon. Music rests remain muted during a fade.
 
-The current Amiga music replay is separately checked by `tests/test_music.py`: 18,000 ticks of replay state match the original ADF code on both MC68000 and MC68020. Register tests cover the complete arrangement, sample attacks and loops, fades, restart, silent shutdown and effects after music. Native executable pages are write-protected during these tests. The earlier WinUAE recordings above predate this music replacement.
-
-Real hardware, extended gameplay and audible quality of the new music replay remain unvalidated. CPU/register checks are distinct from a listening test. Mouse/joystick bindings need a physical-device play test.
+Real hardware, extended gameplay and audible quality of the new music replay remain unvalidated. Mouse/joystick bindings need a physical-device play test.
 
 Original game and asset credits and bundled tool licences are documented in the [main README](../README.md#legal-information-and-credits).
 
@@ -340,10 +328,14 @@ On the Amiga the zero divide is fatal: the CPU exception becomes a dead-end
 alert, `Guru Meditation #00000005`, and the game stops. Every one of these dot
 products now treats a zero-length target vector as no angle to correct.
 
-`tests/test_docking.py` executes both actual routines on MC68000 and MC68020
-CPU models for axial, near-axial, reached and ordinary off-axis targets.
-
 ## Cargo inspections
 
 Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
 
+
+## Automated checks
+
+Run `python -B -m unittest discover -s src_amiga/tests -v` from the project root.
+The retained tests cover binary formats, asset conversion and build tooling;
+they do not emulate the game CPU. Gameplay and audio checks require WinUAE
+or original hardware. Enhanced builds and PNG tests require Pillow.

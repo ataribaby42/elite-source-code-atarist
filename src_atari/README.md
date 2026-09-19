@@ -4,6 +4,16 @@ See the [main README in the project root](../README.md) for building and running
 
 Run all commands below from the project root. Paths in the tables and text are also relative to the root.
 
+## Editable graphics
+
+Edit the eight PNGs in `gfx/`; the build converts them into `assets/` before
+assembly. Pillow is required (`python -m pip install Pillow`). Keep canvas sizes
+and use the editing palette's exact RGB colours. RGB, RGBA and reordered indexed
+PNGs are supported: cyan `#00FFFF` maps to transparent index 0, black to 13,
+dark red `#DB0000` to 6, and bright red `#FF0000` to 14. See the
+[PNG editing guide](../docs/2026-09-19-editable-png-graphics.md) for the complete
+palette, alpha handling, sheet layouts and verification commands.
+
 ## RCS sound
 
 RCS FX also enables a motor tone while the player holds Space (accelerate)
@@ -30,8 +40,6 @@ while steering is still changing. Effects OFF, pause, docking, locked controls,
 hidden cockpit and game over silence it.
 Docking, hyperspace (including galactic jumps), and death animation entry points
 also stop RCS immediately and discard pending steering audio before drawing.
-`tests/test_beam_sound.py` exercises
-the assembled driver and real damping routine on MC68000 and MC68020 models.
 
 ## Directory contents
 
@@ -95,7 +103,7 @@ The launcher keeps its loader, game and workspace within the TOS process's free 
 
 The loading screen uses [the final Coriolis-and-planet artwork](../resources/loading_screen/elite_loading_screen_new_final.png), converted to `assets/TITLE.PC1` at 320 x 200 pixels with the original 16-colour palette. The PNG is preserved without resampling, colour changes or additional dithering.
 
-The loader keeps the picture visible for at least one second, including time spent reading and relocating `ELITE.IMG`. It starts measuring after the palette reaches the display, using TOS's 200 Hz clock so PAL, NTSC and faster CPUs retain the same minimum. Slow loading adds no further hold. `tests/test_boot.py` exercises fast/slow loads, timer wraparound, relocated HDD startup and file errors on MC68000 and MC68020 with OS calls simulated.
+The loader keeps the picture visible for at least one second, including time spent reading and relocating `ELITE.IMG`. It starts measuring after the palette reaches the display, using TOS's 200 Hz clock so PAL, NTSC and faster CPUs retain the same minimum. Slow loading adds no further hold.
 
 The build automatically recalculates the new binary's checksum and assembles the checksum module a second time. There is no need to edit the historical `$5123` constant manually.
 
@@ -116,6 +124,13 @@ Alternate retains its original hyperspace shortcut and does not fire the laser.
 
 In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.
 
+## Missile range
+
+Player and NPC missiles disappear beyond 24,576 world units from the player,
+regardless of scanner zoom. At exactly that distance they remain active.
+Disappearing missiles cause no explosion or damage and do not remove their
+target ship or other missiles pursuing it.
+
 ## ECM
 
 ECM destroys every missile in the world for as long as the wave lasts, whether
@@ -123,9 +138,6 @@ the player triggered it or a ship defended itself against his missile. The wave
 is timed rather than tied to the ECM sound, so it also runs with Effects
 switched off, which the original game did not. It lasts 116 VBL ticks, 2.32 seconds at PAL 50 Hz,
 the length of the original effect.
-
-`tests/test_beam_sound.py` covers the wave starting, expiring and being cleared
-by a reset.
 
 ## Random encounters
 
@@ -165,10 +177,6 @@ the ambush already brings at a high combat rating.
 Every mission spawn keeps the old path: the Constrictor, the Cougar and both
 Thargoid missions are checked before the substitution is even rolled, and
 encounters never happen in witch space or inside station space.
-
-`tests/test_faction_ai.py` covers the two ship tables, the group table, the
-government filter and the weights, the placement and spacing, and that a
-mission wave is never replaced whichever way the coin falls.
 
 ## Faction AI targeting
 
@@ -254,14 +262,6 @@ with the energy bomb, so a distant fight does not announce itself. An
 enemy beam is drawn from its gun to its actual target, with a small random
 offset when the shot misses; beams aimed at the player are drawn as before.
 
-`tests/test_faction_ai.py` covers the faction matrix, the whitelist, nearest-
-target selection, the `ANGRY` rule, combat entry and exit, the attack run's
-steering, the reaction to being hit, NPC damage and the suppressed bookkeeping.
-The break-off table is pinned against the 1988 original, which guards the
-player's own fire too, because both now run the same routine.
-`tests/test_lasers.py` covers the beam drawing and proves combat against the
-player is unchanged.
-
 ## Verification
 
 Tests and original-file verification can be run independently:
@@ -273,9 +273,9 @@ python src_atari/tools/verify_original.py
 
 The build checks all external symbols, the embedded checksum, A6 relocation to the variable area, RAM and local-variable bounds, control-key ASCII values, data buffer capacities, the TOS header, and a full readback of the FAT12 floppy image. Tests also cover sensitive Quelo conversion details, including reused labels, the tenth macro argument, and OR conditions, as well as launcher placement under TOS 1.04 and error-message termination.
 
-After building, `tests/test_boot.py` executes the actual launcher, loader and linked game relocation on MC68000 and MC68020 CPU models. Simulated OS calls cover manual/AUTO paths, low and high process addresses, 512 KB/1 MB/4 MB layouts, unaligned system screens, missing/truncated files, insufficient memory, and preservation of checksum error detection. Hatari 2.6.1 with TOS 1.04 DE also reached the title animation from a 512 KB floppy and the commander prompt from C: on a 1 MB ST with a 128 KB resident allocation. These checks do not emulate PP HDD Driver itself.
+Hatari 2.6.1 with TOS 1.04 DE also reached the title animation from a 512 KB floppy and the commander prompt from C: on a 1 MB ST with a 128 KB resident allocation. These checks do not emulate PP HDD Driver itself.
 
-Hangar launch now plays a native PSG engine effect inspired by the Amiga launch sound: a rising tone with slight pitch modulation, noise, a short attack and a final fade to silence. It uses one ordinary effect channel for 234 VBL ticks (about 4.7 seconds at 50 Hz), without sample playback, additional interrupts or extra workspace. It follows Effects and is skipped when the launch animation is disabled. `tests/test_beam_sound.py` covers the launch trigger, envelope, register and random-state preservation, shutdown, preemption and reuse on MC68000 and MC68020, alongside the existing laser sound tests.
+Hangar launch now plays a native PSG engine effect inspired by the Amiga launch sound: a rising tone with slight pitch modulation, noise, a short attack and a final fade to silence. It uses one ordinary effect channel for 234 VBL ticks (about 4.7 seconds at 50 Hz), without sample playback, additional interrupts or extra workspace. It follows Effects and is skipped when the launch animation is disabled.
 
 Viewport clearing uses three `MOVEM.L` stores per row (11 + 11 + 10 longwords), saving and restoring A2-A4 once per call. It clears the same 256 x 112 viewport and keeps the original VBL wait. Diagonal lines cache their two colour pairs in registers and preserve the caller's D7 counter. The original pixel selection, patterned colours and frame synchronization are retained.
 
@@ -285,15 +285,9 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 
 A separate sparse white sky sits behind every flight object and the existing dark grey starfield. Its fixed one-pixel stars remain consistent across all views and move only with rotation. **Game Options / Stars: ON/OFF** controls this white sky (default ON). OFF skips its rendering and rotation updates and restores the moving starfield to yellow. Switching back ON restarts the sky orientation and returns the moving starfield to dark grey. The preference is saved with the commander. Startup and default Jameson use ON; older commanders also load with ON. The 256-byte save format remains compatible between Atari and Amiga. A spatial tree skips unseen regions, and straight flight reuses cached screen positions; see [STARFIELD.md](STARFIELD.md#distant-white-sky) for implementation and validation details.
 
-Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and CPU validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2, 3 or 4 to approximate repeated projectile damage. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
-
-The optional `tests/test_sprites.py` suite uses `unicorn==2.1.4`. It executes the actual Atari sprite routines on MC68000 and MC68020 CPU models with executable memory write-protected. Tests cover the original options icons and missile indicators, all sixteen horizontal shifts, clipped edges, both screen buffers and background restoration. Unicorn does not emulate instruction-cache coherency; write protection verifies that drawing no longer modifies code.
-
-The optional `tests/test_raster.py` checks require `unicorn==2.1.4` (`python -m pip install unicorn==2.1.4`); they are skipped when it is absent. They assemble and execute the actual MC68000 raster routines and compare guarded buffers against a pixel reference, covering viewport clearing, the flyback wait, preserved registers, all line directions, 120 panel colour patterns, 16 solid colours, word boundaries and both screens. These checks do not measure gameplay frame rate. The normal game build has no new package dependency.
-
-The optional CPU tests in `tests/test_viewport.py` also require `unicorn==2.1.4`. They check full-width clipped lines and polygons, planets and sun flares at viewport boundaries, and large unclipped circle spans. Entire guarded screen buffers are compared with a pixel reference. `tests/test_starfield.py` verifies depth-based motion, all four views, retro rockets, rotation, recycling, and one-pixel stars on MC68000 and MC68020 CPU models.
 
 Use `src_atari/tools/run_hatari.py` to repeat the startup diagnostic. It requires a separately installed Windows [Hatari 2.6.1](https://www.hatari-emu.org/download.html) and your own TOS ROM. Supply their paths as arguments; the emulator is not copied into the repository:
 
@@ -339,10 +333,14 @@ Every one of these dot products now treats a zero-length target vector as no
 angle to correct, producing the same result without the exception. The same
 code is fatal on hosts that abort on a zero divide.
 
-`tests/test_docking.py` executes both actual routines on MC68000 and MC68020
-CPU models for axial, near-axial, reached and ordinary off-axis targets.
-
 ## Cargo inspections
 
 Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
 
+
+## Automated checks
+
+Run `python -B -m unittest discover -s src_atari/tests -v` from the project root.
+The retained tests cover binary formats, asset conversion and build tooling;
+they do not emulate the game CPU. Gameplay and audio checks require Hatari
+or original hardware. Enhanced builds and PNG tests require Pillow.

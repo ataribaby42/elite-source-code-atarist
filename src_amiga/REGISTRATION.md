@@ -74,16 +74,9 @@ written on the next save, and RAM save/restore uses the same routines.
 
 ## Validation
 
-`tests/test_registration.py` executes the real MC68000 routines with optional
-`unicorn==2.1.4`. It covers default/max commanders, generator period and RNG
-isolation, a full object array, slot reuse and copying, type eligibility,
-pirate masking, station formatting, message bounds, no-laser identification,
-missile lock priority, successful/failed escapes, Status coordinates and
-256-byte save/scramble/restore including legacy tails. Register preservation
-and read-only executable memory are checked on MC68000 and MC68020 models.
-OS file I/O, audio and UI drawing are stubbed in these focused tests.
+The former CPU-emulation test suite has been removed. Build and file-format
+checks remain available through the normal build and `tests/` discovery.
+Gameplay validation requires WinUAE or original hardware.
 
-Build normally with `build_amiga.bat`. For CPU tests, run
-`python -m unittest discover -s src_amiga/tests -p test_registration.py -v`
-with Unicorn available. Visual gameplay on an emulator or physical machine
-remains a separate check.
+Check IFF labels, missile-lock priority, new and restored commanders, legacy saves and escape handling.
+

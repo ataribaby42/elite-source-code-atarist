@@ -332,6 +332,7 @@ log_takeoff: rs.b 8 ; launch takeoff logics
 log_circle: rs.b 1 ; hyperspace circle logic
 log_docking: rs.b 12 ; docking sequence logics
 log_ai_missile: rs.b 1 ; DO_LOCKED, but fired by a ship rather than the player
+log_abandoned: rs.b 1 ; drift until outside scanner range after pilot escape
 
 ; Possible displays.
 
