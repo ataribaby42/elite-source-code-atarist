@@ -251,10 +251,9 @@ q_action_m68_21:
 	tst.b key_states+$78(a6) ; right button pressed ?
 ; Quelo: 		if <eq> then.s					no
 	bne.s q_action_m68_25
-	move move_y(a6),d0 ; reverse y direction if required
+	move move_y(a6),d0 ; default mouse pitch: up dives, down climbs
 	btst #f_reverse,user(a6)
-; Quelo: 			if <ne> then.s
-	beq.s q_action_m68_27
+	bne.s q_action_m68_27 ; Reverse dive/climb restores the old direction
 	neg d0
 q_action_m68_27:
 	tst d0 ; dive/climb

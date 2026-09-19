@@ -4,6 +4,10 @@ Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `s
 
 During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
+With **Reverse dive/climb** off (the default), moving the mouse up dives and
+moving it down climbs in both enhanced versions. Turn this option on to restore
+the previous mouse pitch direction.
+
 ## Building on Windows
 
 You need **Windows x64 and Python 3.10 or later**, plus the **Pillow** Python library to convert the enhanced Atari and Amiga PNG graphics into binary game assets. The preserved original build needs no additional Python packages. The **vasm 2.0f assembler** (`vasmm68k_mot.exe`, MC68000 with Motorola syntax) and **vlink 0.18a linker** (`vlink.exe`) are bundled as compiled Windows executables in [tools](tools/README.md). A normal build requires no Visual Studio installation, assembler PATH configuration, or additional tool downloads.
@@ -186,6 +190,21 @@ The migrated default PNGs still generate byte-for-byte identical original binary
 assets. Edited PNGs supply the new artwork and are not required to match default
 hashes. See the [PNG editing guide](docs/2026-09-19-editable-png-graphics.md) for
 the complete 16-colour palette, sheet layouts and verification commands.
+
+## Planet colours
+
+In both enhanced versions, planets in flight use a saved table of dominant
+colours from their normal Planet Data images. Each table contains exactly 2,048
+bytes: one per planet in each of the eight galaxies. Normal builds embed the
+table without recalculating it. Transparent and black source pixels are excluded;
+black or dark grey results use light grey. Yellow results use orange (index 3),
+reserving yellow for the sun. Dominant UI brown (index 14) uses steady red
+(index 6) in flight, never the pulsing cockpit slot. Flight colours remain stable
+across missions.
+
+Only after changing the planet texture or palettes, regenerate the tables
+explicitly with `python src_atari/tools/planet_colours.py` and
+`python src_amiga/tools/planet_colours.py`, then rebuild the games.
 
 ## Ship registrations
 

@@ -2,6 +2,13 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
+xx.xx.xxxx Vx.xx
+
+* Reversed default mouse pitch controls on Atari ST and Amiga. The “Reverse dive/climb” option restores the previous direction.
+* Added dominant planet colours in flight for Atari ST and Amiga using a saved 2,048-byte table, without recalculation during builds.
+* Mapped yellow to orange (#3) and UI brown (#14) to steady red (#6).
+* Excluded transparent and pulsing flight colours; black and dark grey fall back to light grey.
+
 19.09.2026 V1.63
 
 * Fixed Amiga UI cursor flickering and disappearing near the top of the screen by optimizing cursor drawing and background restoration.

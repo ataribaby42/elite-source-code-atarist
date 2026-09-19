@@ -18,7 +18,7 @@
 	include "macros.m68"
 
 	xref rand,create_object,copy_object,fix_unit,magnitude_table
-	xref clear_objects,alloc_object,random,calc_distance
+	xref clear_objects,alloc_object,random,calc_distance,set_planet_colour
 
 ; ---- LOCAL CONSTANTS ----
 
@@ -111,6 +111,7 @@ q_orbit_m68_2:
 	move #planet,type(a4) ; it's a planet
 	move #planet_rad,obj_rad(a4)
 	jsr create_object ; create the object
+	jsr set_planet_colour ; cache the current system's texture colour
 
 ; Create the space station.
 
@@ -198,6 +199,7 @@ q_orbit_m68_12:
 	move #planet,type(a4) ; it's a planet
 	move #planet_rad,obj_rad(a4)
 	jsr create_object ; create the object
+	jsr set_planet_colour ; cache the current system's texture colour
 
 ; Create the space station.
 

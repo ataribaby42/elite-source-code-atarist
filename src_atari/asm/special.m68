@@ -60,7 +60,20 @@ q_special_m68_1:
 	cmp #planet,d0 ; planet ?
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_special_m68_3
-	moveq #drk_green,d0 ; draw in green
+	move obj_colour(a5),d0 ; colour derived from the Planet Data image
+	cmp #15,d0
+	bhi.s .planet_grey
+	tst d0 ; transparent colour
+	beq.s .planet_grey
+	cmp #drk_grey,d0
+	beq.s .planet_grey
+	cmp #black,d0
+	beq.s .planet_grey
+	cmp #14,d0 ; pulsing engine colour
+	bne.s .planet_visible
+.planet_grey:
+	moveq #lgt_grey,d0
+.planet_visible:
 	bra.s q_special_m68_4
 q_special_m68_3:
 	cmp #sun,d0 ; sun ?
@@ -387,3 +400,31 @@ laser_colours:
 .done:
 	rts
 
+
+
+; One byte per system: galaxy (0..7) * 256 + planet (0..255).
+; Entry: A4 = planet record. All registers preserved; independent of mission.
+    q_subr set_planet_colour,global
+    movem.l d0-d1/a0,-(sp)
+    move.w galaxy_no(a6),d1
+    cmp.w #7,d1
+    bhi.s .fallback
+    lsl.w #8,d1
+    move.w current(a6),d0
+    cmp.w #255,d0
+    bhi.s .fallback
+    add.w d0,d1
+    lea planet_colours(pc),a0
+    moveq #0,d0
+    move.b (a0,d1.w),d0
+    bra.s .store
+.fallback:
+    moveq #lgt_grey,d0
+.store:
+    move.w d0,obj_colour(a4)
+    movem.l (sp)+,d0-d1/a0
+    rts
+
+planet_colours:
+    incbin "PLANET_COL.BIN"
+    even
