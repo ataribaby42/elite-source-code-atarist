@@ -4,6 +4,7 @@ Release build configuration: noprotect=yes commander=default laser=singlebeam ai
 
 xx.xx.xxxx Vx.xx
 
+* Fixed the planet colour at the launch tunnel exit to match its in-flight colour on Atari ST and Amiga.
 * Reversed default mouse pitch controls on Atari ST and Amiga. The “Reverse dive/climb” option restores the previous direction.
 * Added dominant planet colours in flight for Atari ST and Amiga using a saved 2,048-byte table, without recalculation during builds.
 * Mapped yellow to orange (#3) and UI brown (#14) to steady red (#6).

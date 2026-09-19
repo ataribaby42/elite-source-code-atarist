@@ -1,5 +1,6 @@
 	include "common.def"
 	xref stop_rcs_sound
+	xref set_planet_colour
 ; Ported from src_orig/asm/effects.m68; edit this copy.
 ; @@@@@@@ @@@@@@@ @@@@@@@ @@@@@@@	@@@@   @@@@@@	@@@@
 ;  @@	@  @@	@  @@	@  @@	@  @@  @@  @ @@ @  @@  @@
@@ -436,6 +437,14 @@ q_effects_m68_15:
 	move #launch4a,logic(a4)
 	move #length4,counter(a4)
 	jsr create_object
+	; The tunnel exit represents the planet, using polygon material indices.
+	movem.l d0/a0,-(sp)
+	jsr set_planet_colour
+	move.w obj_colour(a4),d0
+	lea launch_planet_panels(pc),a0
+	move.b (a0,d0.w),d0
+	move.w d0,obj_colour(a4)
+	movem.l (sp)+,d0/a0
 	move #speed3,velocity(a4)
 	move.l #10400-1000,d5 ; create pulsing lines
 	q_loop 1,4
@@ -1460,6 +1469,10 @@ vector_data: dc.w unit,0,0
 side_tunnel: dc.l -100,0,10400
 top_tunnel: dc.l 0,45,10400
 end_tunnel: dc.l 0,0,10400
+; Cockpit palette index -> solid material in vector.m68's panel_colours.
+; Invisible, dark-grey and pulsing entries fall back to light grey.
+launch_planet_panels:
+	dc.b 1,1,1,58,47,58,27,3,4,5,6,7,8,1,1,9
 pulsing: dc.l 0,0,10400
 d_side_tunnel: dc.l -100,0,12000
 d_top_tunnel: dc.l 0,45,12000

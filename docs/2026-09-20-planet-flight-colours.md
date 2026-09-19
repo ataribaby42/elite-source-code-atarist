@@ -45,6 +45,15 @@ After creating a planet, `create_system` and `launch_system` call
 field. The byte offset is `galaxy_no * 256 + current`, using zero-based galaxy
 and planet indices. Invalid galaxy or system indices use light grey.
 
+The launch animation also uses this lookup for the planet visible at the tunnel
+exit. That rectangle is the separate `panel7` model, created before
+`launch_system`; its original material always rendered dark green. After
+`create_object` initializes the exit, `launch_tunnel` assigns the current
+planet's colour and translates the palette index to the corresponding solid
+material in `vector.m68`'s `panel_colours` table. Polygon material numbers are
+different from palette indices. Only the exit receives this override, and both
+the full hangar sequence and the shortened launch use the same path.
+
 The lookup preserves registers and does not change RNG state or palette entries.
 No object or commander record is enlarged. The flight renderer also guards
 against indices 0, 2, 13, 14 and invalid values, replacing them with light grey.
@@ -77,3 +86,11 @@ do not change any current planet's saved colour. The default and `altgfx=yes`
 disk images already built for the compact implementation therefore retain the
 same embedded tables. Final build intermediates and generated assets use default
 `gfx`.
+
+The launch-exit correction passed native rendering checks for every colour in
+each saved table: ten Atari colours and eight Amiga colours, each compared with
+the flight planet (36 render checks in total). The checks also confirmed that
+the other eight tunnel objects retained their original materials. Full and
+shortened launches completed on both platforms. These checks used Hatari and
+WinUAE A500 / OCS / Kickstart 1.3 on verified private hidden desktops. Both
+default and alternative graphics distributions were rebuilt.
