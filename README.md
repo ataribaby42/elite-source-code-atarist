@@ -281,6 +281,8 @@ The [original source header](src_atari/asm/elite.m68) identifies the Atari ST co
 
 The experimental Amiga port reuses the music, instruments and sound samples from the supplied Amiga release, whose music and sound are credited to **Wally Beben**. Its native music replay is adapted from that release's replay code. Blue Danube was composed by **Johann Strauss II**. The port's artwork and game logic derive from the Atari source tree; the full original Amiga game executable is not reconstructed.
 
+Project contributor: **Jaroslav Pulchart**.
+
 This repository maintains a buildable version of the Atari ST sources with fixes and modern build tooling. It does not claim ownership of the original game, code, graphics, or other assets. Their copyrights remain with their respective rights holders; inclusion in this repository does not place them in the public domain or grant additional rights to use or redistribute them.
 
 The build uses the bundled **vasm 2.0f assembler** and **vlink 0.18a linker**. These tools have separate license terms: [vasm license](tools/vasm-LICENSE.txt) and [vlink license](tools/vlink-LICENSE.txt).

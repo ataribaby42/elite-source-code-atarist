@@ -2,6 +2,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
+xx.xx.xxx Vx.xx
+
+* Amiga: Import the asset palette over the full colour range.
+
 19.09.2026 V1.62
 
 * Added outputname=NAME for Atari and Amiga builds, naming the output folder and .ST/.ADF image. Defaults to ELITE.
