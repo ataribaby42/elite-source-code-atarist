@@ -2,8 +2,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
-xx.xx.xxx Vx.xx
+19.09.2026 V1.63
 
+* Fixed Amiga UI cursor flickering and disappearing near the top of the screen by optimizing cursor drawing and background restoration.
+* Fixed Atari ST cursor flickering at the top of UI screens by correcting negative Y coordinate checks and clock redraw ordering.
 * Amiga: Import the asset palette over the full colour range.
 
 19.09.2026 V1.62
