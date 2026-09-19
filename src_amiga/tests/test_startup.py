@@ -173,8 +173,9 @@ class StartupTests(unittest.TestCase):
         self.assertEqual(self.cpu.mem_read(SCREEN, 32000), expected)
         self.assertEqual(self.cpu.mem_read(SCREEN - 32, 32), b'\xa5' * 32)
         self.assertEqual(self.cpu.mem_read(SCREEN + 32000, 768), b'\xa5' * 768)
-        palette = struct.pack('>16H', *(2 * (word & 0x777) for word in
-                                      struct.unpack_from('>16H', self.title, 2)))
+        palette = struct.pack('>16H', *(2 * (word & 0x777) | (word & 0x444) >> 2
+                                        for word in
+                                        struct.unpack_from('>16H', self.title, 2)))
         self.assertEqual(self.cpu.mem_read(self.symbols['palette'], 32), palette)
         self.cpu.mem_write(OTHER, b'\x5a' * 32768)
         self.run_code('amiga_vblank')

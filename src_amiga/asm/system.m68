@@ -399,16 +399,20 @@ amiga_input:
 
  ; Asset palette import; the runtime palette contains native 12-bit OCS values.
 set_palette:
-    movem.l d0-d1/a0-a1,-(sp)
+    movem.l d0-d2/a0-a1,-(sp)
     lea palette,a1
     moveq #15,d1
 .copy:
     move.w (a0)+,d0
     and.w #$0777,d0
+    move.w d0,d2
     add.w d0,d0
+    lsr.w #2,d2
+    and.w #$0111,d2             ; replicate each component's top bit, 3 to 4
+    or.w d2,d0
     move.w d0,(a1)+
     dbra d1,.copy
-    movem.l (sp)+,d0-d1/a0-a1
+    movem.l (sp)+,d0-d2/a0-a1
     rts
 random_seed_value:
     move.l $dff004,d0
