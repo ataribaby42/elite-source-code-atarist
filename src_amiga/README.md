@@ -4,12 +4,21 @@ This source tree started as a copy of the corrected Atari sources before the com
 
 ## Editable graphics
 
+The build option `altgfx=yes|no` defaults to `no` (`gfx/`). Run
+`build_amiga.bat altgfx=yes` from the project root to use this tree's `gfx_alt/`
+instead. The selected directory must contain all eight PNGs and `layout.json`.
+Both choices generate the same asset and distribution paths; use `altgfx=no`
+to rebuild with the standard sources.
+
 Edit the eight PNGs in this tree's `gfx/` folder. The build requires Pillow
 (`python -m pip install Pillow`) and generates this tree's `assets/` before
-assembly. Keep canvas sizes and use the editing palette's exact RGB colours.
-RGB, RGBA and reordered indexed PNGs are supported: cyan `#00FFFF` maps to
-transparent index 0, black to 13, dark red `#DB0000` to 6, and bright red
-`#FF0000` to 14. See the [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md)
+assembly. Keep canvas sizes and use each image's exact RGB palette. `cockpit.png`
+uses the cockpit palette; all other PNGs use the UI base palette, including in
+`gfx_alt/`. UI indices 6, 8 and 14 are `#FF0000`, `#6DB600` and `#6D4900`;
+cockpit indices 6 and 14 are `#DB0000` and `#FF0000`. Both use cyan `#00FFFF`
+for transparent index 0 and black `#000000` for opaque index 13. RGB, RGBA and
+reordered indexed PNGs are supported, and game pixel indices and hardware
+palettes stay unchanged. See the [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md)
 for the complete palette, alpha handling, sheet layouts and verification commands.
 
 ## RCS sound
@@ -51,6 +60,15 @@ audio.
 In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.
 
 ## Build and run
+
+`build_amiga.bat outputname=ELITE_ALT` creates `output_amiga/ELITE_ALT/` and
+`output_amiga/ELITE_ALT.ADF`. The default is `outputname=ELITE`; this option can be
+combined with `altgfx=yes` or any other enhanced build option. Pass a filename,
+without a path or disk suffix; quote the whole argument if it contains spaces.
+Files inside the distribution keep their existing names, including `ELITE`,
+`ELITE.info` and the disk startup sequence. Intermediates, generated assets and
+the verification report remain shared by this source tree. The report records
+the selected name and output paths. Paths below show the default output name.
 
 `assets/ELITE.info` is the standard four-colour Workbench tool icon (96 x 24 pixels, normal and selected images). The build copies this asset unchanged beside `ELITE` in both the ADF and `output_amiga/ELITE`. Double-click it to launch the game from Workbench 1.3 or later; keep all game files together. The native executable receives and replies to the Workbench startup message, selects the executable's directory before loading assets, and restores the caller's directory on exit. Ctrl+F10 returns to Workbench. Shell and boot-disk launches remain supported.
 

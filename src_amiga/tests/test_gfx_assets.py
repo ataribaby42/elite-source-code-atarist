@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.gfx_assets import (compile_assets, decode_pc1, planar_decode,
-                              read_png, PNG_PALETTE, pillow)
+                              read_png, png_palette, pillow)
 
 
 class GraphicsTests(unittest.TestCase):
@@ -24,15 +24,56 @@ class GraphicsTests(unittest.TestCase):
         self.layout = json.loads((self.root/'gfx/layout.json').read_text())
         self.Image = pillow()
 
-    def edit(self, name, x, y, value=None):
-        path = self.root/'gfx'/f'{name}.png'
+    def edit(self, name, x, y, value=None, gfx='gfx'):
+        path = self.root/gfx/f'{name}.png'
         with self.Image.open(path) as original:
             image = original.convert('RGB')
+        palette = png_palette(path)
         if value is None:
-            value = (PNG_PALETTE.index(image.getpixel((x, y)))+1) % 16
-        image.putpixel((x, y), PNG_PALETTE[value])
+            value = (palette.index(image.getpixel((x, y)))+1) % 16
+        image.putpixel((x, y), palette[value])
         image.save(path)
         return value
+
+    def test_altgfx_switches_all_outputs_and_no_restores_default_sources(self):
+        compile_assets(self.root)  # Default works without a gfx_alt directory.
+        expected = {p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}
+        shutil.copytree(self.root/'gfx', self.root/'gfx_alt')
+        for name in ('cockpit', 'textscr'):
+            self.edit(name, 0, 0, gfx='gfx_alt')
+        entry = self.layout['bitmaps'][0]
+        self.edit(entry['sheet'], *entry['rect'][:2], gfx='gfx_alt')
+        font = read_png(self.root/'gfx_alt/font.png', (128,48))
+        self.edit('font', 0, 0, 15-font[0], gfx='gfx_alt')
+        for entry in self.layout['missiles']:
+            self.edit('gadgets', *entry['rect'][:2], gfx='gfx_alt')
+        # The selected set must supply its own metadata, too.
+        layout_path = self.root/'gfx/layout.json'
+        layout_bytes = layout_path.read_bytes()
+        layout_path.write_text('{}')
+        try:
+            compile_assets(self.root, altgfx=True)
+        finally:
+            layout_path.write_bytes(layout_bytes)
+        for name, data in expected.items():
+            self.assertNotEqual((self.root/'assets'/name).read_bytes(), data, name)
+        compile_assets(self.root, altgfx=False)
+        self.assertEqual({p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}, expected)
+        compile_assets(self.root, altgfx=True)
+        compile_assets(self.root)
+        self.assertEqual({p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}, expected)
+
+    def test_incomplete_altgfx_never_falls_back_or_updates_outputs(self):
+        compile_assets(self.root)
+        expected = {p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}
+        with self.assertRaisesRegex(FileNotFoundError, 'gfx_alt'):
+            compile_assets(self.root, altgfx=True)
+        shutil.copytree(self.root/'gfx', self.root/'gfx_alt')
+        self.edit('cockpit', 0, 0, gfx='gfx_alt')
+        (self.root/'gfx_alt/font.png').unlink()
+        with self.assertRaisesRegex(FileNotFoundError, 'font.png'):
+            compile_assets(self.root, altgfx=True)
+        self.assertEqual({p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}, expected)
 
     def test_default_identity_when_sources_are_unmodified(self):
         reference = json.loads((ROOT/'tests/gfx-default-hashes.json').read_text())
@@ -72,7 +113,7 @@ class GraphicsTests(unittest.TestCase):
     def test_font_and_embedded_missiles_are_editable(self):
         path = self.root/'gfx/font.png'
         with self.Image.open(path) as image:
-            value = 15-PNG_PALETTE.index(image.convert('RGB').getpixel((0,0)))
+            value = 15-png_palette(path).index(image.convert('RGB').getpixel((0,0)))
         self.edit('font',0,0,value)
         entry = self.layout['missiles'][0]
         x,y,_,_ = entry['rect']
@@ -127,11 +168,11 @@ class GraphicsTests(unittest.TestCase):
         compile_assets(self.root)
         expected = {p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}
         # Put all 16 colours at unrelated PNG slots 200..215, in reverse order.
-        slots = {colour:215-index for index,colour in enumerate(PNG_PALETTE)}
-        palette = [1,2,3]*256  # Unused palette entries do not constrain the artwork.
-        for colour,index in slots.items():
-            palette[index*3:index*3+3] = colour
         for path in (self.root/'gfx').glob('*.png'):
+            slots = {colour:215-index for index,colour in enumerate(png_palette(path))}
+            palette = [1,2,3]*256  # Unused entries do not constrain the artwork.
+            for colour,index in slots.items():
+                palette[index*3:index*3+3] = colour
             with self.Image.open(path) as source:
                 rgb = source.convert('RGB')
                 image = self.Image.new('P',source.size)
@@ -142,21 +183,60 @@ class GraphicsTests(unittest.TestCase):
         compile_assets(self.root)
         self.assertEqual({p.name:p.read_bytes() for p in (self.root/'assets').iterdir()},expected)
 
-    def test_user_palette_maps_every_rgb_swatch_to_its_game_index(self):
-        # Exact colours supplied by the user, independent of the PNG's storage mode.
-        swatches = ('00FFFF 929292 494949 FF6D00 FF00FF FFFF00 DB0000 92FF00 '
-                    '66AA00 496D00 92B6FF 496DDB 0024DB 000000 FF0000 FFFFFF')
-        pixels = bytes.fromhex(swatches)
-        path = self.root/'swatches.png'
-        self.Image.frombytes('RGB',(16,1),pixels).save(path)
-        self.assertEqual(read_png(path,(16,1)),list(range(16)))
+    def test_each_screen_palette_maps_every_rgb_swatch_to_its_game_index(self):
+        swatches = {
+            'cockpit': ('00FFFF 929292 494949 FF6D00 FF00FF FFFF00 DB0000 92FF00 '
+                        '6DB600 496D00 92B6FF 496DDB 0024DB 000000 FF0000 FFFFFF'),
+            'ui': ('00FFFF 929292 494949 FF6D00 FF00FF FFFF00 FF0000 92FF00 '
+                   '6DB600 496D00 92B6FF 496DDB 0024DB 000000 6D4900 FFFFFF'),
+        }
+        for name in ('cockpit', 'textscr', 'cargo', 'equipment', 'gadgets',
+                     'panels', 'characters', 'font'):
+            with self.subTest(name=name):
+                path = self.root/f'{name}.png'
+                colours = swatches['cockpit' if name == 'cockpit' else 'ui']
+                self.Image.frombytes('RGB',(16,1),bytes.fromhex(colours)).save(path)
+                self.assertEqual(read_png(path,(16,1)),list(range(16)))
+
+    def test_same_red_rgb_selects_the_correct_index_for_each_screen(self):
+        for name,red in (('cockpit',14),('textscr',6),('gadgets',6)):
+            path = self.root/f'{name}.png'
+            self.Image.new('RGB',(1,1),(255,0,0)).save(path)
+            self.assertEqual(read_png(path,(1,1)),[red])
+        for name,colour in (('cockpit',(109,73,0)),('textscr',(219,0,0)),
+                            ('cockpit',(102,170,0)),('textscr',(102,170,0))):
+            path = self.root/f'{name}.png'
+            self.Image.new('RGB',(1,1),colour).save(path)
+            with self.assertRaisesRegex(ValueError,'outside the PNG palette'):
+                read_png(path,(1,1))
+
+    def test_compiled_screens_and_sheets_keep_red_and_brown_indices_distinct(self):
+        self.edit('cockpit',0,0,6)
+        self.edit('cockpit',1,0,14)
+        self.edit('textscr',0,0,6)
+        self.edit('textscr',1,0,14)
+        for sheet in ('cargo','equipment','gadgets','panels','characters'):
+            entry = next(e for e in self.layout['bitmaps'] if e['sheet'] == sheet)
+            x,y,_,_ = entry['rect']
+            self.edit(sheet,x,y,6)
+            self.edit(sheet,x+1,y,14)
+        compile_assets(self.root)
+        for name in ('COCKPIT.PC1','TEXTSCR.PC1'):
+            pixels,_ = decode_pc1((self.root/'assets'/name).read_bytes())
+            self.assertEqual(pixels[:2],[6,14])
+        data = (self.root/'assets/BITMAPS.IMG').read_bytes()
+        for sheet in ('cargo','equipment','gadgets','panels','characters'):
+            entry = next(e for e in self.layout['bitmaps'] if e['sheet'] == sheet)
+            start = entry['offset']+4
+            w,h = entry['rect'][2:]
+            self.assertEqual(planar_decode(data[start:start+w*h//2],w,h)[:2],[6,14])
 
     def test_full_alpha_transparency_maps_to_zero_regardless_of_hidden_rgb(self):
         path = self.root/'alpha.png'
         image = self.Image.new('RGBA',(4,1))
         image.putdata([(1,2,3,0),(0,255,255,255),(0,0,0,255),(255,0,0,255)])
         image.save(path)
-        self.assertEqual(read_png(path,(4,1)),[0,0,13,14])
+        self.assertEqual(read_png(path,(4,1)),[0,0,13,6])
         # Palette transparency is interpreted through its displayed RGBA colour too.
         image = self.Image.new('P',(2,1))
         image.putdata([200,201])

@@ -4,11 +4,20 @@ import json
 import struct
 
 
-# Editor colours identify game indices, independently of PNG palette order.
-# The PC1 hardware palettes stay in layout.json; these are editing swatches.
-PNG_PALETTE = tuple(tuple(bytes.fromhex(colour)) for colour in (
-    '00FFFF', '929292', '494949', 'FF6D00', 'FF00FF', 'FFFF00', 'DB0000', '92FF00',
-    '66AA00', '496D00', '92B6FF', '496DDB', '0024DB', '000000', 'FF0000', 'FFFFFF'))
+# Use the screen's original ST RGB colours, with cyan distinguishing index 0
+# from opaque black 13. The cockpit also needs a visible marker for pulse 14.
+# PC1 hardware palettes remain unchanged in layout.json.
+UI_PNG_PALETTE = tuple(tuple(bytes.fromhex(colour)) for colour in (
+    '00FFFF', '929292', '494949', 'FF6D00', 'FF00FF', 'FFFF00', 'FF0000', '92FF00',
+    '6DB600', '496D00', '92B6FF', '496DDB', '0024DB', '000000', '6D4900', 'FFFFFF'))
+COCKPIT_PNG_PALETTE = tuple(
+    (219, 0, 0) if index == 6 else (255, 0, 0) if index == 14 else colour
+    for index, colour in enumerate(UI_PNG_PALETTE))
+
+
+def png_palette(path):
+    """Select the cockpit palette by filename; all other PNGs use the UI base."""
+    return COCKPIT_PNG_PALETTE if Path(path).stem == 'cockpit' else UI_PNG_PALETTE
 
 
 def pillow():
@@ -26,13 +35,13 @@ def palette_rgb(words):
 
 
 def read_png(path, size, allowed=None):
-    """Map exact RGB swatches to game indices in RGB, RGBA or indexed PNGs."""
+    """Map exact RGB to game indices using this PNG's cockpit or UI palette."""
     Image = pillow()
     with Image.open(path) as image:
         if image.format != 'PNG' or image.size != tuple(size):
             raise ValueError(f'{path}: expected a {size[0]} x {size[1]} PNG')
         rgba = image.convert('RGBA')
-        lookup = {colour: index for index, colour in enumerate(PNG_PALETTE)}
+        lookup = {colour: index for index, colour in enumerate(png_palette(path))}
         pixels = []
         for position, colour in enumerate(zip(*[iter(rgba.tobytes())]*4)):
             rgb, alpha = colour[:3], colour[3]
@@ -159,10 +168,10 @@ def crop(pixels, size, rect):
             for value in pixels[line*size[0]+x:line*size[0]+x+width]]
 
 
-def compile_assets(root):
+def compile_assets(root, altgfx=False):
     """Validate every PNG before replacing any generated asset. No baseline hash gate."""
     root = Path(root)
-    gfx, assets = root / 'gfx', root / 'assets'
+    gfx, assets = root / ('gfx_alt' if altgfx else 'gfx'), root / 'assets'
     layout = json.loads((gfx / 'layout.json').read_text(encoding='utf-8'))
     outputs = {}
     for name, metadata in layout['screens'].items():

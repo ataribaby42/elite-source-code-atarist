@@ -6,11 +6,20 @@ Run all commands below from the project root. Paths in the tables and text are a
 
 ## Editable graphics
 
+The build option `altgfx=yes|no` defaults to `no` (`gfx/`). Run
+`build_atari.bat altgfx=yes` from the project root to use this tree's `gfx_alt/`
+instead. The selected directory must contain all eight PNGs and `layout.json`.
+Both choices generate the same asset and distribution paths; use `altgfx=no`
+to rebuild with the standard sources.
+
 Edit the eight PNGs in `gfx/`; the build converts them into `assets/` before
 assembly. Pillow is required (`python -m pip install Pillow`). Keep canvas sizes
-and use the editing palette's exact RGB colours. RGB, RGBA and reordered indexed
-PNGs are supported: cyan `#00FFFF` maps to transparent index 0, black to 13,
-dark red `#DB0000` to 6, and bright red `#FF0000` to 14. See the
+and use each image's exact RGB palette. `cockpit.png` uses the cockpit palette;
+all other PNGs use the UI base palette, including in `gfx_alt/`. UI indices 6,
+8 and 14 are `#FF0000`, `#6DB600` and `#6D4900`; cockpit indices 6 and 14 are
+`#DB0000` and `#FF0000`. Both use cyan `#00FFFF` for transparent index 0 and
+black `#000000` for opaque index 13. RGB, RGBA and reordered indexed PNGs are
+supported, and game pixel indices and hardware palettes stay unchanged. See the
 [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md) for the complete
 palette, alpha handling, sheet layouts and verification commands.
 
@@ -59,6 +68,14 @@ also stop RCS immediately and discard pending steering audio before drawing.
 | `src_atari/build/` | Generated objects, logs, maps, and diagnostics |
 
 ## Editing and building
+
+`build_atari.bat outputname=ELITE_ALT` creates `output_atari/ELITE_ALT/` and
+`output_atari/ELITE_ALT.ST`. The default is `outputname=ELITE`; this option can be
+combined with `altgfx=yes` or any other enhanced build option. Pass a filename,
+without a path or disk suffix; quote the whole argument if it contains spaces.
+Files inside the distribution keep their existing names, including `ELITE.TOS`.
+Intermediates, generated assets and the verification report remain shared by
+this source tree. The report records the selected name and output paths.
 
 Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for the current build. The original novella questions are enabled by default. Build with `noprotect=yes` to skip the question without editing assembly definitions or changing other protection checks.
 

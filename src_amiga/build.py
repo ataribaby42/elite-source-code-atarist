@@ -22,20 +22,32 @@ from tools.amiga_hunk import verify_hunk
 
 ROOT = Path(__file__).resolve().parent
 BUILD = ROOT / 'build'
-OUTPUT = ROOT.parent / 'output_amiga/ELITE'
+OUTPUT = ROOT.parent / 'output_amiga'
 TOOLS = ROOT.parent / 'tools'
 FLAGS = ['-m68000', '-no-opt', '-align', '-allmp', '-spaces', '-nocase', '-nowarn=40', '-nowarn=41', '-nowarn=62']
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO.PC1', 'TITLE.PC1', 'ELITE.info')
 
 
-def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True):
+def validate_outputname(name):
+    """Require a single Windows filename so outputs stay in their target tree."""
+    if (not name or name.endswith((' ', '.')) or
+            re.search(r'[<>:"/\\|?*\x00-\x1f]', name) or
+            re.fullmatch(r'CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$',
+                         name.split('.', 1)[0].rstrip(), re.I)):
+        raise ValueError('outputname must be a non-empty Windows filename without a path, '
+                         'reserved device name, trailing space or trailing dot')
+    return name
+
+
+def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True, altgfx=False, outputname='ELITE'):
+    game = OUTPUT / validate_outputname(outputname)
     BUILD.mkdir(parents=True, exist_ok=True)
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    game.mkdir(parents=True, exist_ok=True)
     for tool in (vasm, vlink):
         if not tool.is_file():
             raise ValueError('Missing build tool: ' + str(tool))
-    graphics = compile_assets(ROOT)
-    print('Compiled editable PNG graphics from gfx/ into assets/.')
+    graphics = compile_assets(ROOT, altgfx=altgfx)
+    print(f'Compiled editable PNG graphics from {"gfx_alt" if altgfx else "gfx"}/ into assets/.')
     boot, audio = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', BUILD)
     audio['continuous_lasers'] = generate_beam_audio(BUILD)
     audio['rcs'] = generate_rcs_audio(BUILD)
@@ -65,7 +77,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
     for module in modules:
         assemble(module)
-    executable = OUTPUT/'ELITE'
+    executable = game/'ELITE'
     # vlink applies -hunkattr while reading Hunk objects, not VOBJ inputs.
     # The intermediate object preserves section names for Chip RAM allocation.
     combined = BUILD/'linked.hunk'
@@ -91,30 +103,31 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     if (symbols['amiga_primary'] != 0 or symbols['other_screen'] != 32768 or
             hunks['amiga_video']['bytes'] != 65536):
         raise ValueError('Expected exactly two 32 KB native Chip RAM screens')
-    assemble('objects','bin',OUTPUT/'OBJECTS.IMG')
-    assemble('elitechr','bin',OUTPUT/'ELITECHR.IMG')
+    assemble('objects','bin',game/'OBJECTS.IMG')
+    assemble('elitechr','bin',game/'ELITECHR.IMG')
     for name in ASSET_NAMES:
-        shutil.copyfile(ROOT/'assets'/name, OUTPUT/name)
+        shutil.copyfile(ROOT/'assets'/name, game/name)
     # The depth-based starfield no longer loads direction lookup files.
     for name in ('DCOS.DAT', 'DSIN.DAT'):
-        (OUTPUT / name).unlink(missing_ok=True)
+        (game / name).unlink(missing_ok=True)
     capacities = {'TEXTSCR.PC1': ('textscr', 'hyper_buffer'),
                   'TEXTURE.PC1': ('texture', 'obj_data'),
                   'OBJECTS.IMG': ('obj_data', 'logo'),
                   'LOGO.PC1': ('logo', 'cockpit'),
                   'COCKPIT.PC1': ('cockpit', 'vars')}
     for name, (start, end) in capacities.items():
-        if (OUTPUT/name).stat().st_size > symbols[end]-symbols[start]:
+        if (game/name).stat().st_size > symbols[end]-symbols[start]:
             raise ValueError('Asset exceeds its workspace buffer: ' + name)
-    if (OUTPUT/'TITLE.PC1').stat().st_size > hunks['amiga_video']['bytes']//2:
+    if (game/'TITLE.PC1').stat().st_size > hunks['amiga_video']['bytes']//2:
         raise ValueError('TITLE.PC1 exceeds the secondary screen loading buffer')
     files = {'ELITE': data, 's/startup-sequence': b'ELITE\n'}
-    files.update({name:(OUTPUT/name).read_bytes() for name in (*ASSET_NAMES,'OBJECTS.IMG','ELITECHR.IMG')})
-    disk = OUTPUT.parent/'ELITE.ADF'
+    files.update({name:(game/name).read_bytes() for name in (*ASSET_NAMES,'OBJECTS.IMG','ELITECHR.IMG')})
+    disk = OUTPUT/(outputname+'.ADF')
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC68000','minimum_kickstart':'1.3',
               'png_graphics':graphics,
-              'build_options':{'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo},
+              'build_options':{'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo,'altgfx':altgfx,'outputname':outputname},
+              'output_paths':{'directory':str(game),'disk':str(disk)},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,
               'checks':['MC68000 assembly and linking', 'Hunk relocations and Chip RAM attributes',
@@ -127,6 +140,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     (BUILD/'verification.json').write_text(json.dumps(report,indent=2)+'\n')
     print(f'Linked native Amiga executable: {len(data):,} bytes.')
     print(f'Validated 880 KB OFS disk: {disk}')
+    print(f'Distribution: {game}')
 
 
 def main():
@@ -138,11 +152,15 @@ def main():
                              '(default: default, max starts with 1,000,000 Cr); '
                              'laser=dualbeam|singlebeam (default: dualbeam); '
                              'aifiresound=yes|no (default: no); '
-                             'scannerlogo=yes|no (default: yes)')
+                             'scannerlogo=yes|no (default: yes); '
+                             'altgfx=yes|no (default: no); '
+                             'outputname=NAME (default: ELITE)')
     args = parser.parse_intermixed_args()
     noprotect, commander, laser = False, 'default', 'dualbeam'
     aifiresound = False
     scannerlogo = True
+    altgfx = False
+    outputname = 'ELITE'
     for option in args.options:
         if option in ('noprotect=yes', 'noprotect=no'):
             noprotect = option == 'noprotect=yes'
@@ -154,11 +172,20 @@ def main():
             aifiresound = option == 'aifiresound=yes'
         elif option in ('scannerlogo=yes', 'scannerlogo=no'):
             scannerlogo = option == 'scannerlogo=yes'
+        elif option in ('altgfx=yes', 'altgfx=no'):
+            altgfx = option == 'altgfx=yes'
+        elif option.startswith('outputname='):
+            outputname = option.split('=', 1)[1]
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
                          'or commander=max|default or laser=dualbeam|singlebeam '
-                         'or aifiresound=yes|no or scannerlogo=yes|no')
-    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect, commander, laser, aifiresound, scannerlogo)
+                         'or aifiresound=yes|no or scannerlogo=yes|no or altgfx=yes|no '
+                         'or outputname=NAME')
+    try:
+        validate_outputname(outputname)
+    except ValueError as error:
+        parser.error(str(error))
+    build_amiga(args.vasm.resolve(), args.vlink.resolve(), noprotect, commander, laser, aifiresound, scannerlogo, altgfx, outputname)
 
 
 if __name__ == '__main__':

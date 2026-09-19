@@ -5,38 +5,66 @@ Edit `src_atari/gfx` for Atari or `src_amiga/gfx` for Amiga. Neither build reads
 other tree, `resources/gfx_assets`, or existing generated assets to reconstruct
 the graphics. The resource images remain reference previews.
 
+The build option `altgfx=yes|no` defaults to `no`, selecting `gfx/`. With
+`altgfx=yes`, all eight PNGs and `layout.json` come from the same tree's
+`gfx_alt/` directory instead. Missing files are errors; there is no fallback
+to `gfx/`. To prepare another source set, copy the complete `gfx/` directory
+to `gfx_alt/`, then edit those PNGs using the same dimensions and palette.
+
+```powershell
+.\build_atari.bat altgfx=yes
+.\build_amiga.bat altgfx=yes
+```
+
+Use `altgfx=no` to switch back. Both selections write the usual `assets/` and
+distribution paths, replacing the preceding build's graphics. The selected
+option is recorded in `build/verification.json` under `build_options.altgfx`.
+
 ## Editing and building
 
 Use any PNG editor and keep the original canvas dimensions. RGB, RGBA and indexed
 PNG exports all work. **RGB values determine the game indices; PNG palette order
-and PNG storage indices do not matter.** All eight images use the same editing
-palette below, matching the palette supplied by the user.
+and PNG storage indices do not matter.** The converter selects the palette by
+filename: `cockpit.png` uses the cockpit palette, while all other source PNGs use
+the UI base palette. The same rules apply to both platforms and both source sets.
 
-| Game index | PNG RGB |
-| --- | --- |
-| 0 | `#00FFFF` (transparent in ordinary sprites) |
-| 1 | `#929292` |
-| 2 | `#494949` |
-| 3 | `#FF6D00` |
-| 4 | `#FF00FF` |
-| 5 | `#FFFF00` |
-| 6 | `#DB0000` |
-| 7 | `#92FF00` |
-| 8 | `#66AA00` |
-| 9 | `#496D00` |
-| 10 | `#92B6FF` |
-| 11 | `#496DDB` |
-| 12 | `#0024DB` |
-| 13 | `#000000` (opaque black) |
-| 14 | `#FF0000` (the pulse/colour-cycle slot) |
-| 15 | `#FFFFFF` |
+| Game index | UI PNG RGB | Cockpit PNG RGB |
+| --- | --- | --- |
+| 0 | `#00FFFF` | `#00FFFF` |
+| 1 | `#929292` | `#929292` |
+| 2 | `#494949` | `#494949` |
+| 3 | `#FF6D00` | `#FF6D00` |
+| 4 | `#FF00FF` | `#FF00FF` |
+| 5 | `#FFFF00` | `#FFFF00` |
+| 6 | `#FF0000` | `#DB0000` |
+| 7 | `#92FF00` | `#92FF00` |
+| 8 | `#6DB600` | `#6DB600` |
+| 9 | `#496D00` | `#496D00` |
+| 10 | `#92B6FF` | `#92B6FF` |
+| 11 | `#496DDB` | `#496DDB` |
+| 12 | `#0024DB` | `#0024DB` |
+| 13 | `#000000` | `#000000` |
+| 14 | `#6D4900` | `#FF0000` |
+| 15 | `#FFFFFF` | `#FFFFFF` |
 
-Cyan distinguishes transparent index 0 from opaque black 13. Dark red identifies
-6, while bright red identifies 14. These are editing swatches, not replacements
-for the game's hardware palettes: a full-screen index-0 pixel displays black,
-not cyan, and index 14 takes its existing runtime colour or colour cycle.
-The two PC1 palette headers stay unchanged. In particular, the supplied editing
-green `#66AA00` maps to index 8, whose original hardware value remains `$350`.
+Relative to the former shared editing palette, UI index 6 changes from
+`#DB0000` to `#FF0000`, index 8 from `#66AA00` to `#6DB600`, and index 14 from
+`#FF0000` to `#6D4900`. Cockpit PNGs only change index 8. The old editing green
+`#66AA00` is no longer accepted. Bright red `#FF0000` means UI index 6 or cockpit
+index 14; the filename resolves that distinction without relying on PNG indices.
+
+The RGB values represent the original ST palette entries, with two editing
+exceptions: cyan distinguishes transparent index 0 from opaque black 13, and
+bright red marks the cockpit's pulsing index 14. A full-screen index-0 pixel
+still displays black. The PC1 hardware palette headers and all game pixel
+indices stay unchanged; index 8 remains hardware `$350`.
+
+`gadgets.png` is a shared atlas with UI controls, cockpit symbols and missile
+states. Edit it with the UI base palette; the game displays each sprite using
+the active screen palette. The monochrome font also uses the UI palette, but
+only indices 0 and 15 are allowed. Some colours change at runtime: UI index 14
+can flash red/white, cockpit index 14 pulses, and alien portraits can recolour
+selected entries. A static PNG shows the base palette or editing marker.
 
 Fully transparent PNG pixels (alpha 0) also map to index 0, regardless of their
 hidden RGB. Partially transparent pixels are rejected because the game has no
@@ -59,14 +87,15 @@ python -m pip install Pillow
 ```
 
 To compile graphics alone, run `python src_atari/tools/gfx_assets.py` or
-`python src_amiga/tools/gfx_assets.py` from the repository root.
+`python src_amiga/tools/gfx_assets.py` from the repository root. These standalone
+commands use `gfx/`; use the build option above for `gfx_alt/`.
 
 ## Sheet layout
 
 All sheets are native resolution, with cells filled left to right, top to bottom.
 Artwork starts at each cell's top-left corner. Only the original bitmap rectangle
 inside each cell is exported; unused cell padding is not artwork. Keep each
-bitmap's original dimensions. `gfx/layout.json` lists the exact rectangles
+bitmap's original dimensions. The selected directory's `layout.json` lists the exact rectangles
 (`[x, y, width, height]`), game names and IDs; it is format metadata, not artwork.
 
 | PNG | Canvas | Cell layout and contents |
@@ -90,12 +119,14 @@ assembly; they are not additional disk files.
 ## Binary compatibility and validation
 
 The supplied default PNGs reproduce all eight generated binary files byte for
-byte, including after migration to the RGB editing palette. Full default Atari
+byte, including after migration to the per-image RGB palettes. Full default Atari
 and Amiga game executables and distributed data files were also compared against
 builds made before the initial PNG workflow change.
 
-`layout.json` retains the historical bitmap ordering and PC1 packet boundaries
-and trailer bytes, without storing a second copy of the pixel artwork. PNG pixels
+`layout.json` retains the historical bitmap ordering and PC1 trailer bytes,
+without storing a second copy of the pixel artwork. The standard source set
+keeps historical PC1 packet boundaries; the alternate cockpit uses optimized
+packet boundaries so its artwork fits the existing loading buffer. PNG pixels
 always supply the output. Changed PC1 runs are recompressed within each 40-byte
 plane scanline, as required by the game's decoder. Existing memory-capacity checks
 still reject a screen that becomes too large for its runtime loading buffer.
@@ -106,7 +137,14 @@ The regression test for historical identity runs only while the PNG file hashes
 still match the supplied defaults; it skips after customization. Other regression
 tests modify temporary PNG copies and check the resulting pixels, font bits,
 missile masks, RGB/RGBA exports, reordered palettes (including storage indices
-above 15), transparent pixels and validation failures.
+above 15), per-image red/brown mapping, transparent pixels and validation failures.
+
+All 32 PNGs in both platforms' `gfx/` and `gfx_alt/` were migrated from the shared
+palette to their screen palettes while preserving every game index. All eight
+generated binary assets in each of the four sets were compared byte for byte
+before and after this migration. Verified historical default fixtures still
+match the original asset hashes. Backups and migration reports are under each
+tree's `build/screen-palettes-*` directory.
 
 The one-time migration preserved every index in the unmodified artwork. The
 edited Amiga `panels.png` and `gadgets.png` had already merged the two black

@@ -18,7 +18,6 @@ ROOT = Path(__file__).resolve().parent
 TOOLS = ROOT.parent / 'tools'
 BUILD = ROOT / 'build'
 OUTPUT = ROOT.parent / 'output_atari'
-GAME = OUTPUT / 'ELITE'
 ORIGIN = 0x12000
 LOADER_ORIGIN = 0x11e00
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1',
@@ -90,6 +89,17 @@ def relocate_image(image, offsets, delta):
     return bytes(result)
 
 
+def validate_outputname(name):
+    """Require a single Windows filename so outputs stay in their target tree."""
+    if (not name or name.endswith((' ', '.')) or
+            re.search(r'[<>:"/\\|?*\x00-\x1f]', name) or
+            re.fullmatch(r'CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³]|CONIN\$|CONOUT\$',
+                         name.split('.', 1)[0].rstrip(), re.I)):
+        raise ValueError('outputname must be a non-empty Windows filename without a path, '
+                         'reserved device name, trailing space or trailing dot')
+    return name
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--vasm', type=Path, default=TOOLS / 'vasmm68k_mot.exe')
@@ -99,11 +109,15 @@ def main():
                              '(default: default, max starts with 1,000,000 Cr); '
                              'laser=dualbeam|singlebeam (default: dualbeam); '
                              'aifiresound=yes|no (default: no); '
-                             'scannerlogo=yes|no (default: yes)')
+                             'scannerlogo=yes|no (default: yes); '
+                             'altgfx=yes|no (default: no); '
+                             'outputname=NAME (default: ELITE)')
     args = parser.parse_intermixed_args()
     noprotect, commander, laser = False, 'default', 'dualbeam'
     aifiresound = False
     scannerlogo = True
+    altgfx = False
+    outputname = 'ELITE'
     for option in args.options:
         if option in ('noprotect=yes', 'noprotect=no'):
             noprotect = option == 'noprotect=yes'
@@ -115,18 +129,28 @@ def main():
             aifiresound = option == 'aifiresound=yes'
         elif option in ('scannerlogo=yes', 'scannerlogo=no'):
             scannerlogo = option == 'scannerlogo=yes'
+        elif option in ('altgfx=yes', 'altgfx=no'):
+            altgfx = option == 'altgfx=yes'
+        elif option.startswith('outputname='):
+            outputname = option.split('=', 1)[1]
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
                          'or commander=max|default or laser=dualbeam|singlebeam '
-                         'or aifiresound=yes|no or scannerlogo=yes|no')
+                         'or aifiresound=yes|no or scannerlogo=yes|no or altgfx=yes|no '
+                         'or outputname=NAME')
+    try:
+        validate_outputname(outputname)
+    except ValueError as error:
+        parser.error(str(error))
+    game = OUTPUT / outputname
     args.vasm, args.vlink = args.vasm.resolve(), args.vlink.resolve()
     for tool in (args.vasm, args.vlink):
         check(tool.is_file(), f'Tool not found: {tool}. Restore the bundled root tools folder '
               'or rebuild it with src_atari/tools/setup-toolchain.ps1.')
-    for directory in (BUILD, OUTPUT, GAME):
+    for directory in (BUILD, OUTPUT, game):
         directory.mkdir(parents=True, exist_ok=True)
-    graphics = compile_assets(ROOT)
-    print('Compiled editable PNG graphics from gfx/ into assets/.')
+    graphics = compile_assets(ROOT, altgfx=altgfx)
+    print(f'Compiled editable PNG graphics from {"gfx_alt" if altgfx else "gfx"}/ into assets/.')
     modules = (ROOT / 'modules.txt').read_text().split()
 
     def assemble(name, fmt='vobj', output=None, extra=(), extension='.m68'):
@@ -140,7 +164,7 @@ def main():
 
     def link_game(log, output=None, extra=(), script=None):
         return run([args.vlink, '-brawbin1', *extra, '-T', script or ROOT / 'elite.ld', '-M',
-                    '-o', output or GAME / 'ELITE.IMG',
+                    '-o', output or game / 'ELITE.IMG',
                     *(BUILD / (name + '.o') for name in modules + ['workspace'])], log)
 
     print(f'Assembling {len(modules)} game modules for MC68000...')
@@ -153,14 +177,14 @@ def main():
         assemble(name)
     first_map = link_game('elite-pass1.map')
     syms = symbols(first_map)
-    first_image = (GAME / 'ELITE.IMG').read_bytes()
+    first_image = (game / 'ELITE.IMG').read_bytes()
     start, end = syms['checksum_start'] - ORIGIN, syms['checksum_end'] - ORIGIN
     check(0 <= start < end <= len(first_image), 'Invalid checksum region')
     checksum = sum(first_image[start:end]) & 0xffff
     assemble('checksum', extra=[f'-Dvalid={checksum}'])
     final_map = link_game('elite.map')
     syms = symbols(final_map)
-    image = (GAME / 'ELITE.IMG').read_bytes()
+    image = (game / 'ELITE.IMG').read_bytes()
     check(len(image) == len(first_image) and image[start:end] == first_image[start:end],
           'Checksum pass changed the protected region or image size')
     if syms['use_novella']:
@@ -207,14 +231,14 @@ def main():
         f'title_size equ {(ROOT / "assets/TITLE.PC1").stat().st_size}\n', encoding='ascii')
     assemble('loader')
     loader_map = run([args.vlink, '-brawbin1', '-Ttext', hex(LOADER_ORIGIN), '-M',
-                      '-o', GAME / 'LOADER.IMG', BUILD / 'loader.o'], 'loader.map')
-    loader_size = (GAME / 'LOADER.IMG').stat().st_size
+                      '-o', game / 'LOADER.IMG', BUILD / 'loader.o'], 'loader.map')
+    loader_size = (game / 'LOADER.IMG').stat().st_size
     check(symbols(loader_map)['main'] == LOADER_ORIGIN, 'Incorrect loader entry address')
     check(0 < loader_size <= ORIGIN - LOADER_ORIGIN, 'Loader overlaps main program')
     loader_shifted = BUILD / 'loader-shifted.bin'
     run([args.vlink, '-brawbin1', '-Ttext', hex(LOADER_ORIGIN + 0x8000),
          '-o', loader_shifted, BUILD / 'loader.o'], 'loader-shifted.log')
-    check(loader_shifted.read_bytes() == (GAME / 'LOADER.IMG').read_bytes(),
+    check(loader_shifted.read_bytes() == (game / 'LOADER.IMG').read_bytes(),
           'Loader is not position-independent')
     (BUILD / 'boot-config.inc').write_text(
         f'loader_address equ ${LOADER_ORIGIN:x}\nloader_size equ {loader_size}\n'
@@ -224,10 +248,10 @@ def main():
         f'checksum_start_offset equ {start}\nchecksum_length equ {end-start}\n'
         f'checksum_patch_offset equ {syms.get("checksum_expected", ORIGIN)-ORIGIN+2}\n',
         encoding='ascii')
-    assemble('boot', 'tos', GAME / 'ELITE.TOS', extra=['-nosym'], extension='.s')
+    assemble('boot', 'tos', game / 'ELITE.TOS', extra=['-nosym'], extension='.s')
     auto_program = BUILD / 'ELITE.PRG'
     assemble('boot', 'tos', auto_program, extra=['-nosym', '-Dauto_start=1'], extension='.s')
-    tos = (GAME / 'ELITE.TOS').read_bytes()
+    tos = (game / 'ELITE.TOS').read_bytes()
     check(tos[:2] == b'\x60\x1a', 'Invalid TOS executable header')
     text_size, data_size, bss_size, symbol_size = struct.unpack_from('>4I', tos, 2)
     check(text_size > 0 and len(tos) >= 28 + text_size + data_size + symbol_size,
@@ -235,13 +259,13 @@ def main():
     check(struct.unpack_from('>I', tos, 22)[0] & 2 == 0,
           'Launcher must load into ST RAM, not alternative RAM')
 
-    assemble('objects', 'bin', GAME / 'OBJECTS.IMG')
-    assemble('elitechr', 'bin', GAME / 'ELITECHR.IMG')
+    assemble('objects', 'bin', game / 'OBJECTS.IMG')
+    assemble('elitechr', 'bin', game / 'ELITECHR.IMG')
     for name in ASSET_NAMES:
-        shutil.copyfile(ROOT / 'assets' / name, GAME / name)
+        shutil.copyfile(ROOT / 'assets' / name, game / name)
     # The depth-based starfield no longer loads direction lookup files.
     for name in ('DCOS.DAT', 'DSIN.DAT'):
-        (GAME / name).unlink(missing_ok=True)
+        (game / name).unlink(missing_ok=True)
     # Each buffer length follows the absolute layout in elite.ld.
     capacities = {'TEXTSCR.PC1': syms['hyper_buffer']-syms['textscr'],
                   'TEXTURE.PC1': syms['obj_data']-syms['texture'],
@@ -249,18 +273,19 @@ def main():
                   'LOGO.PC1': syms['cockpit']-syms['logo'],
                   'COCKPIT.PC1': syms['vars']-syms['cockpit']}
     for name, capacity in capacities.items():
-        check((GAME / name).stat().st_size <= capacity, f'{name} exceeds its reserved buffer')
+        check((game / name).stat().st_size <= capacity, f'{name} exceeds its reserved buffer')
 
     names = (*ASSET_NAMES, 'ELITE.IMG', 'LOADER.IMG', 'ELITE.TOS', 'OBJECTS.IMG', 'ELITECHR.IMG')
-    files = [GAME / name for name in names]
-    disk = OUTPUT / 'ELITE.ST'
+    files = [game / name for name in names]
+    disk = OUTPUT / (outputname + '.ST')
     make_disk(files, disk, auto_program=auto_program)
     verify_disk(disk, files, auto_program=auto_program)
     baseline = json.loads((ROOT / 'original-sha256.json').read_text())
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
         'png_graphics': graphics,
-        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound, 'scannerlogo': scannerlogo},
+        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound, 'scannerlogo': scannerlogo, 'altgfx': altgfx, 'outputname': outputname},
+        'output_paths': {'directory': str(game), 'disk': str(disk)},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',
         'ram_end': f'{syms["ram_end"]:08X}',
@@ -268,7 +293,7 @@ def main():
                                'table_bytes': len(reloc_data)-4,
                                'workspace_bytes': syms['ram_end']-LOADER_ORIGIN,
                                'startup_stack_bytes': 4096},
-        'byte_identical_to_original': {name: digest(GAME / name) == baseline[name]
+        'byte_identical_to_original': {name: digest(game / name) == baseline[name]
                                        for name in ('OBJECTS.IMG', 'ELITECHR.IMG', *ASSET_NAMES)},
         'artifacts': {path.name: {'bytes': path.stat().st_size, 'sha256': digest(path)}
                       for path in [*files, disk]},
@@ -284,7 +309,7 @@ def main():
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(f'Validated TOS launcher, RAM layout and 720 KB FAT12 disk: {disk}')
     print('Floppy autostart: AUTO/ELITE.PRG (game data in the disk root)')
-    print(f'Distribution: {GAME}')
+    print(f'Distribution: {game}')
 
 
 if __name__ == '__main__':

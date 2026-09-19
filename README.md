@@ -54,7 +54,7 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** and t
 
 `commander=default` restores the original **100 Cr**, **Harmless** rating and zero score. Loading a saved commander uses the balance, score and rating stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=yes` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 Player lasers default to `laser=dualbeam`: two filled beams converge
 from the lower left and right on the jittering crosshair tip. Use
@@ -103,6 +103,27 @@ Hide it in either build with:
 `scannerlogo=yes` shows it again. This build option changes only the caption
 below the scanner; it leaves the scanner, instruments and other logos intact.
 
+Use `outputname=NAME` to name the distribution directory and floppy image.
+The default is `outputname=ELITE`. For example:
+
+```powershell
+.\build_atari.bat outputname=ELITE_ALT altgfx=yes
+.\build_amiga.bat outputname=ELITE_ALT altgfx=yes
+```
+
+These commands create `output_atari/ELITE_ALT/` and `output_atari/ELITE_ALT.ST`,
+or `output_amiga/ELITE_ALT/` and `output_amiga/ELITE_ALT.ADF`. Each name keeps its
+own distribution; rebuilding a name updates that distribution. Executable and
+data filenames inside it stay unchanged, including `ELITE.TOS`, `ELITE`,
+`ELITE.info` and the disk startup files. Build intermediates, generated `assets/`
+and `build/verification.json` remain shared within each platform's source tree.
+The report records `build_options.outputname` and both selected `output_paths`.
+
+Supply a valid Windows filename without a directory path or disk-image suffix;
+the build adds `.ST` or `.ADF`. Quote an argument containing spaces, for example
+`"outputname=Elite Alternate"`. Empty names, path separators, reserved device
+names and names ending in a dot or space are rejected before building.
+
 If the script cannot find Python, provide its path:
 
 ```powershell
@@ -119,23 +140,47 @@ Edit the eight source PNGs in `src_atari/gfx/` or `src_amiga/gfx/`. Each normal
 build uses Pillow to convert its own PNGs into binary files in its `assets/`
 directory before assembly. Keep the original canvas dimensions.
 
+The build option `altgfx=yes|no` selects the source set. The Python builds default
+to `altgfx=no`, which uses `gfx/`; the root script defaults above also apply.
+To use `src_atari/gfx_alt/` or
+`src_amiga/gfx_alt/` instead, run:
+
+```powershell
+.\build_atari.bat altgfx=yes
+.\build_amiga.bat altgfx=yes
+```
+
+Each `gfx_alt/` directory must contain all eight PNGs and its `layout.json`;
+missing files cause a build error. Use `altgfx=no` to switch back. Both choices
+generate the same asset filenames and distribution paths, so the next build
+replaces the previous selection's outputs.
+
 **RGB, RGBA and indexed PNGs are supported. Colours are matched by their exact
-RGB values, regardless of PNG palette order or storage indices.** The editing
-palette includes these distinct mappings:
+RGB values, regardless of PNG palette order or storage indices.** `cockpit.png`
+uses the cockpit palette. `textscr.png`, `cargo.png`, `equipment.png`,
+`gadgets.png`, `panels.png`, `characters.png` and `font.png` use the UI base
+palette. Selection is automatic in both `gfx/` and `gfx_alt/`:
 
-| PNG colour | Game index | Meaning |
-| --- | --- | --- |
-| `#00FFFF` | 0 | Transparent in ordinary sprites |
-| `#DB0000` | 6 | Dark red editing swatch |
-| `#66AA00` | 8 | Green editing swatch |
-| `#000000` | 13 | Opaque black |
-| `#FF0000` | 14 | Pulse/colour-cycle slot |
+| Game index | UI PNG colour | Cockpit PNG colour | Meaning |
+| --- | --- | --- | --- |
+| 0 | `#00FFFF` | `#00FFFF` | Transparent in ordinary sprites |
+| 6 | `#FF0000` | `#DB0000` | Red |
+| 8 | `#6DB600` | `#6DB600` | Original ST green |
+| 13 | `#000000` | `#000000` | Opaque black |
+| 14 | `#6D4900` | `#FF0000` | UI base brown / cockpit pulse marker |
 
-These swatches identify game indices; the original hardware palettes remain
-unchanged. Index 0 displays black in full-screen images. Fully transparent PNG
-pixels also map to 0. Partial alpha and colours outside the editing palette are
-rejected with the offending pixel's coordinates; colours are never automatically
-rounded to the nearest match. The font uses only index 0 and white index 15.
+Compared with the former shared editing palette, UI indices 6, 8 and 14 change
+from `#DB0000`, `#66AA00` and `#FF0000` to `#FF0000`, `#6DB600` and `#6D4900`.
+Only index 8 changes in cockpit PNGs. In particular, `#FF0000` maps to index 6
+in UI PNGs and index 14 in `cockpit.png`.
+
+The original hardware palettes and game pixel indices remain unchanged. Cyan 0
+and the cockpit pulse marker distinguish otherwise ambiguous black entries;
+index 0 displays black in full-screen images. Shared sprites use the active
+screen palette, and runtime colour cycling still applies. Fully transparent
+PNG pixels also map to 0. Partial alpha and colours outside the selected palette
+are rejected with the offending pixel's coordinates; colours are never rounded
+to the nearest match. The font uses only index 0 and white index 15.
 
 The migrated default PNGs still generate byte-for-byte identical original binary
 assets. Edited PNGs supply the new artwork and are not required to match default
@@ -165,6 +210,9 @@ See the [Atari registration notes](src_atari/REGISTRATION.md) and
 [Amiga registration notes](src_amiga/REGISTRATION.md) for implementation and tests.
 
 ## Build output and running the game
+
+The paths below use the default `outputname=ELITE`. With a custom output name,
+substitute that name for the distribution directory and disk-image basename.
 
 | Path relative to the project root | Contents |
 | --- | --- |

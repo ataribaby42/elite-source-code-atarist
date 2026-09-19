@@ -1,1 +1,2 @@
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no %*
+call "%~dp0src_amiga\build.bat" outputname=ELITE noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=no %*
+call "%~dp0src_amiga\build.bat" outputname=ELITE_ALT noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=yes %*
