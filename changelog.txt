@@ -2,6 +2,17 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
+19.09.2026 V1.62
+
+* Added outputname=NAME for Atari and Amiga builds, naming the output folder and .ST/.ADF image. Defaults to ELITE.
+* Added filename validation and updated build documentation.
+* Verified custom and default names produce byte-identical game files.
+* Fixed permanent mass-lock caused by distant abandoned ships on Atari and Amiga.
+* Added missile cleanup beyond 24,576 units from the player.
+* Enabled RGB-based PNG conversion with cyan transparency and unrestricted palette ordering.
+* Migrated source PNGs while preserving edits and original binary output for default artwork.
+* Documented PNG editing, palette mapping and Pillow installation.
+
 18.09.2026 V1.61
 
 * Atari ST & Amiga: Thargons now go dormant however their Thargoid mother dies, not only under the player's laser (EXPLODE_OBJECT read THIS_OBJ instead of A4)
