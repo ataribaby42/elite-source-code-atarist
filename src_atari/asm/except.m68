@@ -44,6 +44,7 @@ packet_ctr: rs.w 1 ; no. bytes to store in buffer
 last_joy: rs.w 1 ; state of joystick last time
 click_clock: rs.w 1 ; clock used for mouse clicking
 which_click: rs.w 1 ; flag: 1st or 2nd click
+clock_pending: rs.w 1 ; clock text still needs painting during this VBL
 
 	q_end_vars except
 
@@ -100,6 +101,7 @@ q_except_m68_7:
 q_except_m68_5:
 	jsr drive_cursor ; draw cross-hair cursor
 q_except_m68_6:
+	bsr paint_clock ; upper cursor is already drawn; also handles disabled cursor
 	jsr sound ; execute sound
 	bsr colour_cycle ; cycle colours
 
@@ -413,6 +415,7 @@ q_except_m68_36:
 
 	q_subr clock
 
+	clr clock_pending(a6)
 	q_dec fast_ticker(a6) ; next second ?
 	q_ret ne ; no
 	move #50,fast_ticker(a6) ; re-load counter
@@ -446,11 +449,22 @@ q_except_m68_45:
 q_except_m68_43:
 q_except_m68_41:
 	tst display_clock(a6) ; display the clock ?
-; Quelo: 	if <ne> then.s						yes
 	beq.s q_except_m68_49
+	st clock_pending(a6) ; defer text until the upper cursor has met its deadline
+q_except_m68_49:
+	q_ret
+
+* Paint once per tick. DRIVE_CURSOR calls this first for a lower cursor so its
+* saved background includes the new digits; VBLANK paints after an upper cursor.
+
+	q_subr paint_clock
+
+	tst clock_pending(a6)
+	q_ret eq
+	clr clock_pending(a6)
 	lea cursor_spr(a6),a4 ; cursor below middle ?
 	cmp #100,sp_ypos(a4)
-	q_call hi,remove_sprite ; yes, remove it
+	q_call gt,remove_sprite ; signed: a clipped top cursor can have negative Y
 	move #clock_x,d0 ; position and colour for clock
 	move #clock_y+8,d1
 	jsr locate
@@ -471,7 +485,6 @@ q_except_m68_41:
 	move #$8002,d1
 	jsr print_number
 	q_pop pad_char(a6)
-q_except_m68_49:
 
 	q_ret
 
@@ -597,6 +610,11 @@ q_except_m68_70:
 	move d1,sp_ypos(a4) ; update y coord
 	clr move_y(a6) ; clear y movement
 q_except_m68_67:
+	cmp #100,sp_ypos(a4)
+	ble.s cursor_before_clock ; signed Y also includes the clipped upper edge
+	bsr paint_clock ; lower cursor must save the newly painted clock background
+	lea cursor_spr(a6),a4
+cursor_before_clock:
 	move cursor_type(a6),d0 ; find cursor's bit map
 ; Quelo: 	if <pl> then.s						type is positive, draw the sprite
 	bmi.s q_except_m68_73
@@ -846,4 +864,3 @@ packet_handlers:
 cycle_list:
 
 	dc.l engine_pulse,flash_colour,strobe_colours
-

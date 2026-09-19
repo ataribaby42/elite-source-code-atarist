@@ -1,0 +1,248 @@
+; Pre-shift the three editable UI cursors once, before the game VBL is enabled.
+; The short VBL path keeps erase/redraw ahead of display DMA at the top edge.
+    include "common.def"
+    include "bitlist.m68"
+
+    xref find_bitmap,remove_sprite,clip_sprite,dot_to_addr,draw_sprite
+    xdef init_cursor_cache,draw_cursor,remove_cursor
+
+cursor_rows equ 18
+cursor_row_bytes equ 30          ; mask and four planes, three words per plane
+cursor_shift_bytes equ cursor_rows*cursor_row_bytes
+cursor_type_bytes equ 16*cursor_shift_bytes
+
+    section text,code
+init_cursor_cache:
+    movem.l d0-d7/a0-a3,-(sp)
+    clr.w cursor_cache_ready
+    lea cursor_cache,a1
+    lea cursor_sources,a3
+    moveq #0,d7
+.type:
+    move.w d7,d0
+    add.w #bit_cursors,d0
+    jsr find_bitmap
+    move.l a0,(a3)+
+    cmp.w #2,(a0)+               ; the PNG layout defines 32 x 18 cursors
+    bne .done                   ; unexpected geometry uses the general renderer
+    cmp.w #cursor_rows,(a0)+
+    bne .done
+    move.l a0,a2
+    moveq #0,d0
+.shift:
+    move.l a2,a0
+    moveq #16,d3
+    sub.w d0,d3
+    moveq #cursor_rows-1,d5
+.row:
+    moveq #4,d4
+.plane:
+    move.w (a0),d1
+    swap d1
+    move.w 10(a0),d1
+    cmp.w #4,d4
+    bne.s .colour
+    not.l d1                    ; shift opacity with zero padding, then invert
+.colour:
+    move.l d1,d2
+    lsl.l d3,d2
+    lsr.l d0,d1
+    cmp.w #4,d4
+    bne.s .store
+    not.l d1
+    not.w d2
+.store:
+    move.w d2,4(a1)
+    move.w d1,2(a1)
+    swap d1
+    move.w d1,(a1)
+    addq.l #2,a0
+    addq.l #6,a1
+    dbra d4,.plane
+    adda.w #10,a0
+    dbra d5,.row
+    addq.w #1,d0
+    cmp.w #16,d0
+    bne .shift
+    addq.w #1,d7
+    cmp.w #3,d7
+    bne .type
+    st cursor_cache_ready
+.done:
+    movem.l (sp)+,d0-d7/a0-a3
+    rts
+
+; The sprite record keeps its normal dimensions and buffer pointer. Bit 4 marks
+; the contiguous background format for remove_sprite, including hide/restore
+; and screen changes. Longword transfers handle two adjacent pixel words.
+draw_cursor:
+    tst.w cursor_cache_ready
+    beq .general
+    move.w cursor_type(a6),d0
+    cmp.w #2,d0
+    bhi .general
+    move.w d0,d1
+    lsl.w #2,d1
+    lea cursor_sources,a0
+    move.l data_ptr(a4),d2
+    cmp.l (a0,d1.w),d2
+    bne .general
+    ; Only the full-screen UI cursor uses this path. Other clipping windows
+    ; and special sprite flags retain the general renderer's semantics.
+    move.b sp_flags(a4),d1
+    and.b #$ff-(1<<back_saved)-(1<<cursor_saved),d1
+    cmp.b #1,d1                 ; require clip_me and no special sprite flags
+    bne .general
+    tst.w clip_left(a4)
+    bne .general
+    tst.w clip_top(a4)
+    bne .general
+    cmp.w #319,clip_right(a4)
+    bne .general
+    cmp.w #199,clip_bottom(a4)
+    bne .general
+    jsr remove_sprite
+    move.w cursor_type(a6),d0
+    mulu #cursor_type_bytes,d0
+    lea cursor_cache,a3
+    adda.l d0,a3
+    move.w sp_xpos(a4),d0
+    and.w #15,d0
+    mulu #cursor_shift_bytes,d0
+    adda.l d0,a3
+    jsr clip_sprite
+    btst #7,d4
+    beq .done
+    move.w d1,d5
+    sub.w sp_ypos(a4),d5
+    mulu #cursor_row_bytes,d5
+    adda.l d5,a3
+    move.w sp_xpos(a4),d5
+    asr.w #4,d5                 ; a clipped negative x skips the first cache word
+    move.w d0,d4
+    lsr.w #4,d4
+    sub.w d5,d4
+    add.w d4,d4
+    adda.w d4,a3                ; skip is a word; D4's upper half is caller state
+    move.w d0,d5
+    and.w #15,d5
+    add.w d2,d5
+    subq.w #1,d5
+    lsr.w #4,d5
+    move.w d5,sp_width(a4)
+    subq.w #1,d3
+    move.w d3,sp_depth(a4)
+    move.w d3,d7
+    jsr dot_to_addr
+    move.l a0,video_ptr(a4)
+    move.l a3,a1
+    move.l buffer_ptr(a4),a2
+    tst.w d5
+    beq .one
+    cmp.w #1,d5
+    beq .two
+    bra .three
+.saved:
+    or.b #(1<<back_saved)+(1<<cursor_saved),sp_flags(a4)
+.done:
+    rts
+.general:
+    jmp draw_sprite
+
+cursor_pair macro
+    move.l \1(a0),d1
+    move.l d1,(a2)+
+    and.l d0,d1
+    or.l \2(a1),d1
+    move.l d1,\1(a0)
+    endm
+
+cursor_single macro
+    move.w \1(a0),d1
+    move.w d1,(a2)+
+    and.w \3,d1
+    or.w \2(a1),d1
+    move.w d1,\1(a0)
+    endm
+
+.three:
+    move.l (a1),d0
+    move.w 4(a1),d2
+    cursor_pair 0,6
+    cursor_single 4,10,d2
+    cursor_pair 40,12
+    cursor_single 44,16,d2
+    cursor_pair 80,18
+    cursor_single 84,22,d2
+    cursor_pair 120,24
+    cursor_single 124,28,d2
+    adda.w #cursor_row_bytes,a1
+    adda.w #160,a0
+    dbra d7,.three
+    bra .saved
+.two:
+    move.l (a1),d0
+    cursor_pair 0,6
+    cursor_pair 40,12
+    cursor_pair 80,18
+    cursor_pair 120,24
+    adda.w #cursor_row_bytes,a1
+    adda.w #160,a0
+    dbra d7,.two
+    bra .saved
+.one:
+    move.w (a1),d0
+    cursor_single 0,6,d0
+    cursor_single 40,12,d0
+    cursor_single 80,18,d0
+    cursor_single 120,24,d0
+    adda.w #cursor_row_bytes,a1
+    adda.w #160,a0
+    dbra d7,.one
+    bra .saved
+
+remove_cursor:
+    bclr #cursor_saved,sp_flags(a4)
+    bclr #back_saved,sp_flags(a4)
+    beq .done
+    move.l buffer_ptr(a4),a0
+    move.l video_ptr(a4),a1
+    move.w sp_depth(a4),d7
+    move.w sp_width(a4),d0
+    beq .one
+    cmp.w #1,d0
+    beq .two
+.three:
+    move.l (a0)+,(a1)
+    move.w (a0)+,4(a1)
+    move.l (a0)+,40(a1)
+    move.w (a0)+,44(a1)
+    move.l (a0)+,80(a1)
+    move.w (a0)+,84(a1)
+    move.l (a0)+,120(a1)
+    move.w (a0)+,124(a1)
+    adda.w #160,a1
+    dbra d7,.three
+.done:
+    rts
+.two:
+    move.l (a0)+,(a1)
+    move.l (a0)+,40(a1)
+    move.l (a0)+,80(a1)
+    move.l (a0)+,120(a1)
+    adda.w #160,a1
+    dbra d7,.two
+    rts
+.one:
+    move.w (a0)+,(a1)
+    move.w (a0)+,40(a1)
+    move.w (a0)+,80(a1)
+    move.w (a0)+,120(a1)
+    adda.w #160,a1
+    dbra d7,.one
+    rts
+
+    section cursor_cache,bss
+cursor_cache_ready: ds.w 1
+cursor_sources: ds.l 3
+cursor_cache: ds.b 3*cursor_type_bytes

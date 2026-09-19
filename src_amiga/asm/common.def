@@ -419,6 +419,7 @@ clip_me: rs.b 1
 back_saved: rs.b 1
 dual_screen: rs.b 1
 dont_save: rs.b 1
+cursor_saved: rs.b 1 ; Amiga UI cursor background uses contiguous plane words
 
 ; Object record definition.
 

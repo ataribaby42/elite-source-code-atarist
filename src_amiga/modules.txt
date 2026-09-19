@@ -21,6 +21,7 @@ disk
 action
 novella
 sprites
+cursor
 pdata
 funny
 dust

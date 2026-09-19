@@ -18,7 +18,7 @@
 
 	xref vars,other_screen,amstrad_8x8,vblank,critical_error,texture
 	xref display_char,default_game,find_bitmap,novella
-	xref init_sky
+	xref init_sky,init_cursor_cache
 	xref init_dust,rand,monst,checksum,logo
 	xref cockpit,textscr,obj_data,bitmaps
 	xref hyper_buffer,quiet,blank_screen
@@ -123,6 +123,7 @@ size macro
 	load_file texture,texture_file
 	load_file obj_data,obj_data_file
 	bsr read_bitmaps
+	jsr init_cursor_cache
 	load_file logo,logo_file
 	bsr relocate ; relocate object data
 	bsr check_vars ; check variable areas

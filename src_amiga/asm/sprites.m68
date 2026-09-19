@@ -40,6 +40,7 @@
 	include "sprite_rows.inc"
 
 	xref dot_to_addr,monst,wait_key
+	xref remove_cursor
 
 * ---- LOCAL VARIABLES ----
 
@@ -110,6 +111,10 @@ bit_spr: rs.b sprite_len ; put_bitmap sprite record
 
 	q_subr remove_sprite,global
 
+	btst #cursor_saved,sp_flags(a4) ; cached UI cursor has contiguous background planes
+	beq.s q_sprites_restore_general
+	jmp remove_cursor
+q_sprites_restore_general:
 	bclr #back_saved,sp_flags(a4) ; background saved ?
 	q_ret eq ; no, return
 	move.l buffer_ptr(a4),a0 ; get pointer to stored data
@@ -388,7 +393,7 @@ clipped_rotate_left:
 * Regs:  ?
 * Subr:  ?
 
-	q_subr clip_sprite
+	q_subr clip_sprite,global
 
 	clr skip_in(a6) ; clear skip values
 	clr skip_down(a6)
