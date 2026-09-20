@@ -538,7 +538,7 @@ q_orbit_m68_25:
 	jsr copy_object ; use mother ship record
 	move.b #%00100001,flags(a4) ; no bounty, in use
 	move #log_twisting,logic(a4) ; it's twisting
-	st velocity(a4) ; move at full speed
+	st velocity(a4) ; load model speed; cargo barrels are slowed below
 	cmp #asteroid,type(a5) ; released from asteroid ?
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_orbit_m68_27
@@ -569,6 +569,14 @@ q_orbit_m68_28:
 	bsr random_direction
 	jsr create_object ; create the object
 	move (sp)+,cargo_type(a4) ; set cargo type
+	cmp #barrel,type(a4) ; leave mined asteroid fragments at their model speed
+	bne.s release_cargo_speed_ready
+	jsr random
+	and #3,d0
+	addq #3,d0 ; each dropped canister drifts at 3..6 units per step
+	move d0,velocity(a4)
+	move d0,vel_max(a4) ; cruise logic must retain this individual speed
+release_cargo_speed_ready:
 	q_pop d0 ; next canister
 	q_dec d0
 	bne q_orbit_m68_25

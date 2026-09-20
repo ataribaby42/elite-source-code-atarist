@@ -6,6 +6,8 @@ During flight, double-click a cargo item on **Inventory** to jettison up to **1 
 
 Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
 
+Cargo canisters released by destroyed AI ships drift at a random **3–6 world units per movement step**, matching player-ejected canisters. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
+
 With **Reverse dive/climb** off (the default), moving the mouse up dives and
 moving it down climbs in both enhanced versions. Turn this option on to restore
 the previous mouse pitch direction.
