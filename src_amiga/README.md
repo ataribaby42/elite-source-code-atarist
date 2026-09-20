@@ -128,6 +128,8 @@ Run from the project root:
 | `frame=no` (default) | as the `display=` table above | full width, down to the panel |
 | `frame=yes` | 320 x 200, or 640 x 200 hires, 640 x 400 interlaced | 256 x 112, doubled with the pixels |
 
+`cpu=68020` builds the native 32-bit multiply and divide in `divide_by_10`, `divide_by_1e5` and `sky_multiply` instead of their MC68000 loops. The root build scripts set it, so the shipped builds need an MC68020 or better; `cpu=68000` returns to the stock CPU.
+
 `hires` and `hireslace` remain accepted as the PAL spellings. The hires modes hold the authoring 320 x 200 grid and scale every coordinate to the screen, so a page looks the same in each; an interlaced screen needs a flicker fixer or a multisync monitor.
 
 ```powershell

@@ -32,6 +32,9 @@ aifiresound: equ 0 ; build option: AI laser firing sound, disabled by default
 	ifnd scannerlogo
 scannerlogo: equ 1 ; build option: show ELITE below the scanner (default)
 	endc
+	ifnd cpu_68020
+cpu_68020: equ 0 ; build option: 1 = MC68020 or better, native 32-bit maths
+	endc
 calc_checksum: equ -0 ; flag  calculate and display checksum
 	ifnd valid
 valid equ $5123

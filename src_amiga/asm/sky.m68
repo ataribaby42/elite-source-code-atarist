@@ -131,6 +131,16 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     eor.l d1,d2
     q_abs.l d0
     q_abs.l d1
+    ifne cpu_68020
+    mulu.l d1,d3:d0             ; the same product, in one instruction
+    clr.w d0
+    swap d0                     ; D0 = product bits 16..31
+    add.l #128,d0               ; round and scale it as the pieces below do
+    lsr.l #8,d0
+    lsl.l #8,d3                 ; the high longword carries its own scale
+    add.l d0,d3
+    bra.s sky_multiply_sign
+    endc
     move.w d0,d3
     mulu.w d1,d3
     move.w d0,d4
@@ -149,6 +159,7 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     add.l #128,d3
     lsr.l #8,d3
     add.l d5,d3
+sky_multiply_sign:
     tst.l d2
     bpl.s .done
     neg.l d3
