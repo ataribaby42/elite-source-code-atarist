@@ -71,6 +71,10 @@ bspeed: equ 7 ; barrel explosion speed
 
 	q_subr do_logic,global
 
+	cmp #log_cruise,logic(a5)
+	beq.s .convoy_checked
+	clr convoy_speed(a5) ; combat/evasion ends formation; never rejoin afterwards
+.convoy_checked:
 	btst #angry,flags(a5) ; angry with player ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_logic_m68_1
@@ -261,12 +265,17 @@ q_logic_m68_21:
 * **								 **
 * *************************************
 
-* Logic routine: Object cruises into the distance at full speed.
+* Logic routine: Cruise at full speed, or keep a peaceful convoy's shared speed.
 
 	q_subr do_cruising
 
 	bclr #angry,flags(a5) ; not angry any more
 	move #1,on_course(a5) ; speed up to maximum
+	tst convoy_speed(a5)
+	beq.s .ordinary
+	move convoy_speed(a5),velocity(a5) ; same speed even with different trader models
+	bra.s do_abandoned ; still discard a convoy member beyond scanner range
+.ordinary:
 	bsr speed_control
 
 ; An abandoned hull keeps its velocity and orientation. Share only the

@@ -9,6 +9,13 @@ Date: 2026-09-17
 Status: implemented
 Trees: `src_atari`, `src_amiga` (applied separately). `src_orig` is not touched.
 
+Update 2026-09-20: a weight-2 peaceful convoy of 1-2 traders is now the eighth
+template. It keeps a shared heading and speed until combat. The selector also
+restores the government after `rand`, which clobbers D1. Current weights,
+runtime changes and native validation are documented in
+[Trader convoy encounters](2026-09-20-trader-convoy-encounters.md); the original
+seven-template design below records the earlier implementation.
+
 ## 1. Goal
 
 Deep space offers one kind of event: `create_pirates` calls `pirate_attack`,

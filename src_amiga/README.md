@@ -192,9 +192,8 @@ the length of the original effect.
 ## Random encounters
 
 Half of the pirate waves deep space would have thrown at the player become a
-small group that is **already fighting itself**. Nothing is announced, nothing
-is aimed at him, and he decides whether to join in, pick off the survivor or
-wait for the cargo.
+small battle between other ships or a peaceful trader convoy. Nothing is
+announced; the player can leave the group alone or choose to get involved.
 
 | Group | Weight | Needs a government of |
 | --- | ---: | --- |
@@ -205,11 +204,13 @@ wait for the cargo.
 | 1-2 pirates, 1 Viper | 3 | Feudal or better |
 | 1-2 pirates, 1 bounty hunter | 2 | any |
 | 1-2 pirates, 1 bounty hunter, 1 trader | 2 | any |
+| 1-2 traders in formation | 2 | any |
 
 Police only turn up where there is law to enforce, so anarchies see neither
-Viper group and meet a Thargoid in a fifth of their encounters instead of an
-eighth. The bounty hunter is a Fer-de-Lance, an ordinary trader by faction, so
-it hunts the raiders and they hunt it back without any new rule.
+Viper group and meet a Thargoid in a sixth of their encounters instead of a
+ninth in Multi-government or better systems. The bounty hunter is a
+Fer-de-Lance, an ordinary trader by faction, so it hunts the raiders and they
+hunt it back without any new rule.
 
 The pirates are rolled from Krait, Gecko, Moray Star Boat, Adder, Mamba, Asp
 MkII and Sidewinder, and the traders from Cobra MkIII, Python, Anaconda and
@@ -220,9 +221,13 @@ own wider table, Thargoid included.
 
 A group appears at the ambush's range, 16384 to 24576 units away, but always in
 the half of space the player is facing, with its members a thousand units
-apart. They are created cruising rather than attacking, and the faction rules
-turn them on each other within a second. At most four ships arrive, fewer than
-the ambush already brings at a high combat rating.
+apart. Mixed groups enter combat through the existing faction rules. The
+trader-only group starts with identical headings and keeps the slower ship's
+maximum speed during peaceful flight, even with different ship models. A lone
+trader uses its own maximum. Each member leaves the formation speed setting
+when it enters combat or evades an attack, then uses its normal flight
+behaviour without automatically reforming. At most four ships arrive, fewer
+than the ambush already brings at a high combat rating.
 
 Every mission spawn keeps the old path: the Constrictor, the Cougar and both
 Thargoid missions are checked before the substitution is even rolled, and

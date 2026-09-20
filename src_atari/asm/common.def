@@ -525,6 +525,7 @@ registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
 
 cargo_mass: rs.l 1 ; exact jettison payload in grams; 0 = normal random salvage
 patrol_record: rs.w 1 ; -1 = not a patrol, -2 = unchecked, otherwise last police record
+convoy_speed: rs.w 1 ; shared cruise speed until combat; 0 = ordinary speed control
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data

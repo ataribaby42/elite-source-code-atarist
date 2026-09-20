@@ -2,6 +2,11 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
+20.09.2029 V1.65
+
+* Added trader convoy encounters (1–2 ships, weight 2) on Atari ST and Amiga, maintaining formation and a shared cruising speed until combat.
+* Fixed government filtering in random encounter selection.
+
 20.09.2026 V1.64
 
 * Fixed Amiga memory corruption during commander loading by increasing the stack to 4 KB, preventing missing stars, false drive malfunctions, and unexpected scanner contacts after launch.

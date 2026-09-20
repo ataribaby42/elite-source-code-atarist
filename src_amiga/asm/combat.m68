@@ -49,6 +49,7 @@ role_trader: equ 2
 role_thargoid: equ 3
 role_viper: equ 4
 role_bounty: equ 5
+role_convoy: equ 6 ; peaceful traders sharing a cruise speed until combat
 ; The player's own fire rolls RATING*4+MISSILE_PROB before a ship lets go of a
 ; missile or a group of thargons. His combat rating means nothing in a fight he
 ; is not part of, so ship against ship uses the middle rating band, as
@@ -2310,7 +2311,8 @@ q_combat_m68_157:
 ; ******************************************************
 
 ; Turns one of a template's roles into an object type. The pirate and trader
-; roles roll from their own tables; the other three name a single ship.
+; roles roll from their own tables; convoys use the trader table as well.
+; The other three roles name a single ship.
 
 ; Entry: D0 = role
 ; Exit:  D0 = object type
@@ -2323,6 +2325,8 @@ q_combat_m68_157:
 	cmp #role_pirate,d0
 	beq.s .pirates
 	cmp #role_trader,d0
+	beq.s .traders
+	cmp #role_convoy,d0
 	beq.s .traders
 	sub #role_thargoid,d0 ; the three a template names outright
 	add d0,d0
@@ -2380,6 +2384,7 @@ encounter_groups:
 	dc.b 3,1,role_pirate,2,role_viper,1,0
 	dc.b 2,0,role_pirate,2,role_bounty,1,0
 	dc.b 2,0,role_pirate,2,role_bounty,1,role_trader,1,0
+	dc.b 2,0,role_convoy,2,0
 	dc.b 0 ; end of the table
 
 	even
@@ -2417,8 +2422,8 @@ encounter_groups:
 
 ; Picks one row by weight, ignoring every row the system's government forbids.
 ; Two passes: the first totals the weights allowed here, the second walks again
-; and stops where the roll runs out. The total is never zero, because five of
-; the seven rows carry no government condition.
+; and stops where the roll runs out. The total is never zero, because six of
+; the eight rows carry no government condition.
 
 ; Entry: None
 ; Exit:  A0 = ptr: the chosen row's first role/count pair
@@ -2444,6 +2449,7 @@ encounter_groups:
 .roll:
 	jsr rand ; 0..D2-1
 	move d0,d2 ; the roll
+	move splanet+govern(a6),d1 ; RAND uses D1: restore the filter for the second pass
 	lea encounter_groups(pc),a0
 .pick:
 	moveq #0,d0
@@ -2557,7 +2563,7 @@ encounter_positions:
 	q_subr encounter_member
 
 	jsr alloc_object ; a record for it
-	bcc.s .none ; none left
+	bcc .none ; none left
 	tst.l encounter_lead(a6) ; is this the first of the group ?
 	bne.s .follower
 	move.l a4,encounter_lead(a6)
@@ -2577,8 +2583,23 @@ encounter_positions:
 	st velocity(a4) ; CREATE_OBJECT raises it to VEL_MAX
 	jsr create_object
 	cmp #viper,type(a4)
-	bne.s .created
+	bne.s .convoy
 	move #-2,patrol_record(a4) ; inspect on its first eligible retarget turn
+.convoy:
+	cmp #role_convoy,encounter_role(a6)
+	bne.s .created
+; The convoy has at most two members. Match both to the slower model without
+; changing VEL_MAX; each ship regains normal performance when it enters combat.
+	move.l encounter_lead(a6),a5
+	move velocity(a4),d0
+	cmp velocity(a5),d0
+	bls.s .speed
+	move velocity(a5),d0
+.speed:
+	move d0,velocity(a4)
+	move d0,convoy_speed(a4)
+	move d0,velocity(a5)
+	move d0,convoy_speed(a5)
 .created:
 	ori #1,ccr ; created
 	rts
@@ -2589,15 +2610,14 @@ encounter_positions:
 
 ; ****************************************************
 ; **												**
-; ** RANDOM_ENCOUNTER - A GROUP ALREADY AT WAR		**
+; ** RANDOM_ENCOUNTER - A BATTLE OR TRADER CONVOY	**
 ; **												**
 ; ****************************************************
 
-; Places a small group in deep space whose members are hostile to each other
-; under the faction rules, in front of the player and at the ambush's range.
-; Nothing is announced and nothing is aimed at him: he has flown into somebody
-; else's fight. RETARGET starts it, because the members are a thousand units
-; apart and he is at least sixteen thousand away.
+; Places a small battle or peaceful trader convoy in front of the player at
+; the ambush's range. Nothing is announced. RETARGET starts a mixed group's
+; fight through the existing faction rules; traders do not attack each other.
+; Convoy members keep their common heading and speed until combat intervenes.
 
 ; Entry: None
 ; Exit:  None
