@@ -4,6 +4,7 @@ Release build configuration: noprotect=yes commander=default laser=singlebeam ai
 
 20.09.2029 V1.65
 
+* Fixed intermittent energy-bank flickering during Game Over on Atari ST and Amiga caused by repeatedly restoring stale radar backgrounds.
 * Added trader convoy encounters (1–2 ships, weight 2) on Atari ST and Amiga, maintaining formation and a shared cruising speed until combat.
 * Fixed government filtering in random encounter selection.
 

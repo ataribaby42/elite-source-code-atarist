@@ -233,12 +233,14 @@ q_radar_m68_11:
 	cmp.l screen1_ptr(a6),d0
 	bne.s q_radar_m68_13
 	move.l last1_ptr(a6),a0
+	clr.l last1_ptr(a6) ; consume saved background once, including effect loops
 	lea save1_buffer,a1
 	lea max1,a2
 	lea radar1_spr(a6),a4
 	bra q_radar_m68_14
 q_radar_m68_13:
 	move.l last2_ptr(a6),a0
+	clr.l last2_ptr(a6) ; the other screen retains its own pending restore
 	lea save2_buffer,a1
 	lea max2,a2
 	lea radar2_spr(a6),a4
