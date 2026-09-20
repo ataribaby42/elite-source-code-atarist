@@ -2,6 +2,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
+21.09.2029 V1.66
+
+* Fixed random encounters to replace 50% of pirate spawns during both normal flight and torus travel on Atari and Amiga, preserving mission spawns.
+
 20.09.2029 V1.65
 
 * Fixed intermittent energy-bank flickering during Game Over on Atari ST and Amiga caused by repeatedly restoring stale radar backgrounds.
