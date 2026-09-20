@@ -38,6 +38,8 @@ valid equ $5123
 	endc
 debug: equ -0 ; include debug code
 
+	include "geometry.def"
+
 ; Reasons for game over.
 
 hit_planet: equ 0
@@ -63,7 +65,7 @@ cockpit_vsize: equ 16
 dust_vsize: equ 600
 graphics_vsize: equ 300
 flight_vsize: equ 16
-action_vsize: equ 764
+action_vsize: equ 220+(no_cols+2)*16 ; includes the screen scroll buffer
 orbit_vsize: equ 16
 radar_vsize: equ 16
 combat_vsize: equ 16
@@ -165,7 +167,6 @@ pause_time: equ 3 ; pause time to read messages
 flash_rate: equ 25 ; flash rate x 1/50th second
 csr_acc: equ 7 ; cursor acceleration rate
 max_csr: equ 8 ; max cursor speed
-no_dust: equ 15 ; no. dust particles
 max_objects: equ 30 ; max no. of objects
 max_speed: equ 22 ; max speed of player
 max_nodes: equ 50 ; max. no. of nodes
@@ -206,19 +207,6 @@ icon_disk: rs.b 1
 icon_find: rs.b 1
 icon_home: rs.b 1
 icon_options: rs.b 1
-
-; Dimensions of cockpit.
-
-no_cols: equ 32 ; no. columns across (8x8)
-no_rows: equ 14 ; no. rows down (8x8)
-x_size: equ no_cols<<3 ; width in pixels
-y_size: equ no_rows<<3 ; depth in pixels
-x_min: equ -(x_size>>1) ; inclusive bounds cover all 256 viewport columns
-x_max: equ (x_size>>1)-1
-y_min: equ -(y_size>>1)
-y_max: equ (y_size>>1)-1
-x_left: equ (320-x_size)>>1 ; x coordinate of left edge
-y_top: equ 8 ; y coordinate of top edge
 
 ; Object types.
 

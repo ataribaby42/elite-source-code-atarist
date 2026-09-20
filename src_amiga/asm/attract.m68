@@ -154,7 +154,7 @@ new_ship:
 	move #300,fade_count(a6) ; set time to fade
 	moveq #0,d0 ; calculate minimum z position
 	move obj_rad(a4),d0
-	moveq #9,d1
+	moveq #proj_shift_y,d1 ; MAX_RADIUS is a physical radius
 	asl.l d1,d0
 	divu #max_radius,d0
 	move d0,min_zpos(a6)
@@ -591,7 +591,7 @@ full_screen:
 text1:
 	dc.b "Load new commander ?",0
 ; Keep the credit and its leading space inside the 32-column viewport.
-text2: dc.b c_cursor,4,14*8,c_colour,lgt_green,black,96
+text2: dc.b c_cursor,4,(y_top+y_size)/zoom_y-8,c_colour,lgt_green,black,96
 	dc.b 'Amiga Version by Mr. Micro Ltd.',0
 text3:
 	dc.b "Press any key for mission",0

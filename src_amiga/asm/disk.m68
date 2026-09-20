@@ -22,7 +22,7 @@
 	xref gen_prices,home_cursor,build_name,new_game,jameson,str_copy,str_cat
 	xref check_docked,invert_icon,init_cursor,print_string,input_line,message
 	xref prepare_text,locate,text_colour,print_char,tab,build_time,read_key
-	xref print_number,wait_key,confirm,clear_input,set_colour,hide_cursor,line
+	xref print_number,wait_key,confirm,clear_input,set_colour,hide_cursor,ui_line
 	xref restore_cursor,print_centre,find_bitmap,put_bitmap,status,launch,data
 	xref buy_cargo,sell_cargo,equip_ship,galactic_chart,local_chart,inventory
 	xref market_prices,find_planet,options,error_box
@@ -58,7 +58,7 @@ draw_line macro
 	move \2(a6),d1
 	move \3(a6),d2
 	move \4(a6),d3
-	jsr line
+	jsr ui_line
 
 	endm
 

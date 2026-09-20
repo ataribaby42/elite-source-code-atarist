@@ -15,55 +15,60 @@
 
 	xref l_swap_front,l_swap_rear,l_swap_left,l_swap_right
 	xref w_swap_front,w_swap_rear,w_swap_left,w_swap_right,monst
-	xref blank_screen,kill_sprites,print_string,block,draw_sprite,polygon
+	xref blank_screen,kill_sprites,print_string,print_centre,block,draw_sprite
+	xref polygon,text_colour
 	xref message,clear_input,clear_image,text_blatt
 	xref set_colour,fx,wait_key,hold_clock,wait,remove_sprite,dot_to_addr
 	xref draw_screen,cockpit,find_bitmap,put_bitmap,cancel_jettison_confirm
+	xref amiga_rows_full
 
 * --- LOCAL CONSTANTS ----
 
 front_shield_x: equ 42 ; instrument positions
-front_shield_y: equ 132
+front_shield_y: equ 132+panel_shift
 front_shield_col: equ magenta
 aft_shield_x: equ 42
-aft_shield_y: equ 141
+aft_shield_y: equ 141+panel_shift
 aft_shield_col: equ magenta
 fuel_x: equ 42
-fuel_y: equ 150
+fuel_y: equ 150+panel_shift
 fuel_col: equ red
 cabintemp_x: equ 42
-cabintemp_y: equ 159
+cabintemp_y: equ 159+panel_shift
 cabintemp_col: equ yellow
 laser_x: equ 42
-laser_y: equ 168
+laser_y: equ 168+panel_shift
 laser_col: equ lgt_blue
 altitude_x: equ 42
-altitude_y: equ 177
+altitude_y: equ 177+panel_shift
 altitude_col: equ mid_blue
-missile_x: equ 43
-missile_y: equ 186
+missile_x: equ 43*zoom_x
+missile_y: equ 186*zoom_y+y_shift
 speed_x: equ 231
-speed_y: equ 132
+speed_y: equ 132+panel_shift
 roll_x: equ 232
-roll_y: equ 141
+roll_y: equ 141+panel_shift
 climb_x: equ 232
-climb_y: equ 150
+climb_y: equ 150+panel_shift
 energy_x: equ 231
-energy_y: equ 186
+energy_y: equ 186+panel_shift
 energy_col: equ magenta
 no_steps: equ 6 ; no. steps in hexagon
-view_x: equ 136 ; position of view sprite
-view_y: equ 1
-schar_x: equ 206 ; position of 'S' sprite
-schar_y: equ 185
+	ifne frame
+view_x: equ 136*zoom_x ; position of the view sprite in the frame
+view_y: equ 1*zoom_y
+	endc
+view_name_y: equ 0 ; the strip above the flight view
+schar_x: equ 206 ; position of 'S' sprite, in logical units
+schar_y: equ 185+panel_shift
 schar_width: equ 13
 schar_depth: equ 13
-echar_x: equ 101 ; position of 'E' sprite
-echar_y: equ 185
+echar_x: equ 101 ; position of 'E' sprite, in logical units
+echar_y: equ 185+panel_shift
 echar_width: equ 13
 echar_depth: equ 13
 magnify_x: equ 100 ; coordinates of magnify
-magnify_y: equ 140
+magnify_y: equ 140+panel_shift
 
 * ---- LOCAL VARIABLES ----
 
@@ -150,18 +155,37 @@ q_cockpit_m68_1:
 ; Quelo: 	if d0 <ne> view(a6) then.s			not on this view
 	cmp view(a6),d0
 	beq.s q_cockpit_m68_3
-	move d0,view(a6) ; find view bitmap
-	add #bit_views,d0
+	move d0,view(a6) ; name the view
+	ifne frame
+	add #bit_views,d0 ; the frame has a slot for the view bitmap
 	jsr find_bitmap
 	lea temp_spr(a6),a4
 	move.l a0,data_ptr(a4)
-	bset #dont_save,sp_flags(a4) ; draw the view
+	bset #dont_save,sp_flags(a4)
 	bset #dual_screen,sp_flags(a4)
 	move #view_x,sp_xpos(a4)
 	move #view_y,sp_ypos(a4)
 	jsr draw_sprite
 	bclr #dual_screen,sp_flags(a4)
 	bclr #dont_save,sp_flags(a4)
+	endc
+	ifeq frame
+	moveq #0,d0 ; clear the strip on both screens
+	moveq #0,d1
+	moveq #1,d2
+	move #view_x_size,d3
+	moveq #8,d4
+	moveq #0,d5
+	jsr block
+	bsr name_view ; print the name on both screens
+	move.l scr_base(a6),d0
+	move.l flip_screen(a6),d1
+	eor.l d1,d0
+	move.l scr_base(a6),-(sp)
+	move.l d0,scr_base(a6)
+	bsr name_view
+	move.l (sp)+,scr_base(a6)
+	endc
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)
@@ -170,6 +194,47 @@ q_cockpit_m68_1:
 	clr laser_flash(a6)
 q_cockpit_m68_3:
 	bra define_sight ; define laser sight
+
+
+* *****************************************
+* **									 **
+* ** NAME_VIEW - PRINT THE VIEW'S NAME	 **
+* **									 **
+* *****************************************
+
+* Prints the name of the current view above the flight view.
+
+* Entry: None
+* Exit:  None
+
+* Regs: D0-D3, D6, D7, A0-A3 corrupt.
+* Subr: TEXT_COLOUR, PRINT_CENTRE
+
+	ifeq frame
+
+	q_subr name_view
+
+	moveq #white,d0 ; white on the cleared strip
+	moveq #trans,d1
+	jsr text_colour
+	move view(a6),d0 ; one six byte name per view
+	mulu #6,d0
+	lea view_names(pc),a0
+	lea 0(a0,d0),a0
+	moveq #view_name_y,d1
+	jmp print_centre
+
+
+view_names:
+
+	dc.b 'FRONT',0
+	dc.b 'REAR',0,0
+	dc.b 'LEFT',0,0
+	dc.b 'RIGHT',0
+
+	even
+
+	endc
 
 
 * ***********************************************
@@ -206,15 +271,16 @@ q_cockpit_m68_3:
 	move.l d0,a1
 	q_push.l a1
 	jsr draw_screen
-	q_pop.l a0 ; copy into the visible screen
-	move.l scr_base(a6),a1
-	q_loop 1,32000/4
+	q_pop.l a0 ; move the panel down and clear the view
+	bsr place_panel
+	move.l scr_base(a6),a1 ; copy into the visible screen
+	q_loop 1,scr_bytes/4
 	move.l (a0)+,(a1)+
 	q_next 1
 	ifeq scannerlogo
 ; The caption is part of COCKPIT.PC1. Clear only its pixels on both screens.
 	move.w #140,d0
-	move.w #193,d1
+	move.w #193+panel_shift,d1
 	moveq #1,d2 ; dual screen
 	moveq #40,d3
 	moveq #7,d4
@@ -222,6 +288,7 @@ q_cockpit_m68_3:
 	jsr block
 	endc
 	bsr instruments ; update all instruments
+	jsr amiga_rows_full ; show every row once both screens hold the panel
 	move.l a0,-(sp)
 	lea cockpit+2,a0
 	jsr set_palette
@@ -229,6 +296,42 @@ q_cockpit_m68_3:
 	clr stop_cycle(a6) ; allow colour cycling
 
 	q_ret
+
+
+* **********************************************
+* **										  **
+* ** PLACE_PANEL - MOVE THE PANEL TO THE FOOT **
+* **										  **
+* **********************************************
+
+* Moves the instrument panel rows of a freshly decoded COCKPIT.PC1 to the
+* bottom of the screen. Without the frame, it also clears the view above them.
+
+* Entry: A0 = ptr: screen
+* Exit:  None
+
+* Regs:  D0/D7/A1/A2 corrupt
+* Subr:  None
+
+	q_subr place_panel
+
+	ifne y_shift
+	move.l a0,a1 ; source and destination overlap,
+	add.l #art_bytes,a1 ; so copy backwards
+	move.l a0,a2
+	add.l #scr_rows*row_stride,a2
+	q_loop 1,panel_rows*row_stride/4
+	move.l -(a1),-(a2)
+	q_next 1
+	endc
+	ifeq frame
+	move.l a0,a1 ; clear every row above the panel
+	moveq #0,d0
+	q_loop 2,(scr_rows-panel_rows)*row_stride/4
+	move.l d0,(a1)+
+	q_next 2
+	endc
+	rts
 
 
 * *******************************************
@@ -516,7 +619,7 @@ q_cockpit_m68_16:
 	move.l a0,data_ptr(a4) ; setup sprite data pointer
 	q_push d0 ; draw sprite
 	jsr draw_sprite
-	add #12,sp_xpos(a4) ; next sprite
+	add #12*zoom_x,sp_xpos(a4) ; next sprite
 	q_pop d0
 	q_inc d0
 	cmp #5,d0
@@ -940,10 +1043,11 @@ q_cockpit_m68_44:
 	jsr find_bitmap
 	move.l a0,laser_def(a6)
 	move 2(a0),d0 ; fetch the depth
-	sub #y_size,d0 ; centre in the window
+	q_logical_y d0 ; the bank is expanded, the sight is placed logically
+	sub #y_size/zoom_y,d0 ; centre in the window
 	neg d0
 	lsr #1,d0
-	add #y_top,d0
+	add #y_top/zoom_y,d0
 	move d0,laser_yc(a6)
 
 	q_ret
@@ -970,7 +1074,7 @@ q_cockpit_m68_44:
 	tst laser_type(a6) ; laser fitted ?
 	q_ret mi ; no, return
 	move.l laser_def(a6),a0 ; draw the sprite
-	move #160-16,d0
+	move #scr_width/zoom_x/2-16,d0
 	move laser_yc(a6),d1
 	jmp put_bitmap
 

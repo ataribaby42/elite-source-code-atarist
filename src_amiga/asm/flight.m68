@@ -854,11 +854,11 @@ q_flight_m68_111:
 	cmp #$30,mission(a6) ; mission #3 ?
 	q_ret ne ; no, return
 	jsr clear_image ; clear screen image
-	move #x_left,d0 ; colour screen red
-	move #y_top,d1
+	move #x_left/zoom_x,d0 ; colour screen red
+	move #y_top/zoom_y,d1
 	moveq #-1,d2
-	move #x_size,d3
-	move #y_size,d4
+	move #x_size/zoom_x,d3
+	move #y_size/zoom_y,d4
 	move #red,d5
 	jsr block
 	moveq #70,d0 ; calculate balance count

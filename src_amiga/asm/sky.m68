@@ -337,13 +337,11 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     bpl.s .x_positive
     neg.w d1
 .x_positive:
-    move.w d5,d0
-    lsr.w #2,d0
-    move.w d5,d4
-    lsr.w #8,d4
-    lsr.w #1,d4
-    add.w d4,d0             ; negative DIVS truncation can still produce x_min
-    addq.w #2,d0
+    move.w d5,d0             ; x_min is the wider edge, and DIVS truncates
+    muls.w #x_max+2,d0       ; toward zero, so allow depth*(x_max+2)/512
+    asr.l #8,d0
+    asr.l #1,d0
+    addq.w #2,d0             ; negative DIVS truncation can still produce x_min
     cmp.w d0,d1
     bhi .done
     move.w (a0),d3
@@ -361,20 +359,28 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     bpl.s .y_positive
     neg.w d1
 .y_positive:
-    move.w d5,d0
-    lsr.w #3,d0              ; 1/8 > 56/512: cheap conservative vertical bound
+    move.w d5,d0             ; likewise y_min, allow depth*(y_max+2)/512
+    muls.w #y_max+2,d0
+    asr.l #8,d0
+    asr.l #1,d0
     addq.w #2,d0
     cmp.w d0,d1
     bhi.s .done
-    asl.l #8,d2
+    asl.l #8,d2 ; x*512/depth, doubled again on a wider screen
     add.l d2,d2
+    ifne display_hires
+    add.l d2,d2
+    endc
     divs.w d5,d2
     cmp.w #x_min,d2
     blt.s .done
     cmp.w #x_max,d2
     bgt.s .done
-    asl.l #8,d3
+    asl.l #8,d3 ; y*512/depth, doubled again on a taller screen
     add.l d3,d3
+    ifne display_lace
+    add.l d3,d3
+    endc
     divs.w d5,d3
     cmp.w #y_min,d3
     blt.s .done

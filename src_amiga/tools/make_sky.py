@@ -10,7 +10,10 @@ import random
 COUNT = 1024
 LEAF = 4
 UNIT = 16384
-FOV = math.atan(math.hypot(128, 56) / 512) + math.radians(0.25)
+# Half-viewport extents of the widest build (PAL, x_size 320 by y_size 168)
+# over the 512-pixel projection scale. A wider cone only culls less, so this
+# value stays conservative for a shorter NTSC viewport.
+FOV = math.atan(math.hypot(160, 84) / 512) + math.radians(0.25)
 
 
 def catalogue():

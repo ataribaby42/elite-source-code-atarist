@@ -59,4 +59,5 @@
 	dc.l panel10
 	dc.l panel11
 
+	include "geometry.def"   ; the docking bay follows the viewport
 	include "objects.dat"

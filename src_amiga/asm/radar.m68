@@ -30,16 +30,16 @@
 
 * ---- LOCAL CONSTANTS ----
 
-max_y: equ 9 ; maximum y value of blip
-blip_x: equ 216 ; position of mini-radar
-blip_y: equ 134
-x_scale: equ 62 ; scaling factors for radar
-y_scale: equ 20
-z_scale: equ 16
-radar_x: equ 159 ; centre of main radar
-radar_y: equ 170
-radar_ymin: equ 137 ; limits of radar on screen
-radar_ymax: equ 191
+max_y: equ 9*zoom_y ; maximum y value of blip
+blip_x: equ 216*zoom_x ; position of mini-radar
+blip_y: equ 134*zoom_y+y_shift
+x_scale: equ 62*zoom_x ; scaling factors for radar
+y_scale: equ 20*zoom_y
+z_scale: equ 16*zoom_y
+radar_x: equ 159*zoom_x ; centre of main radar
+radar_y: equ 170*zoom_y+y_shift
+radar_ymin: equ 137*zoom_y+y_shift ; limits of radar on screen
+radar_ymax: equ 191*zoom_y+y_shift
 
 * ---- LOCAL VARIABLES ----
 
@@ -162,9 +162,11 @@ q_radar_m68_4:
 	moveq #max_y,d5
 	bsr calc_offset
 	q_push d4
+	q_logical_y d4 ; the table is a quarter circle of nine logical rows
 	add d4,d4 ; fetch max_x from table
 	lea max_x_table(pc),a0
 	move (a0,d4),d5
+	q_display_x d5 ; and its chord is in logical columns
 	move.l zpos(a5),d0 ; calculate x offset
 	move.l xpos(a5),d4
 	bsr calc_offset
@@ -319,7 +321,7 @@ q_radar_m68_17:
 	scale d1,y_scale
 	scale d2,z_scale
 	exg d1,d2 ; swap y and z coords
-	move #-160,d5 ; assume drawing up the screen
+	move #-row_stride,d5 ; assume drawing up the screen
 	moveq #-1,d6
 	tst d2 ; calculate height stick and adjust
 ; Quelo: 	if <mi> then.s						to drawing down in required
@@ -384,21 +386,21 @@ q_radar_m68_23:
 	move 0(a3),d4
 	and d0,d4
 	or d4,0(a0)
-	move 40(a0),(a4)+ ; plane #1
-	and d1,40(a0)
+	move plane1(a0),(a4)+ ; plane #1
+	and d1,plane1(a0)
 	move 2(a3),d4
 	and d0,d4
-	or d4,40(a0)
-	move 80(a0),(a4)+ ; plane #2
-	and d1,80(a0)
+	or d4,plane1(a0)
+	move plane2(a0),(a4)+ ; plane #2
+	and d1,plane2(a0)
 	move 4(a3),d4
 	and d0,d4
-	or d4,80(a0)
-	move 120(a0),(a4)+ ; plane #3
-	and d1,120(a0)
+	or d4,plane2(a0)
+	move plane3(a0),(a4)+ ; plane #3
+	and d1,plane3(a0)
 	move 6(a3),d4
 	and d0,d4
-	or d4,120(a0)
+	or d4,plane3(a0)
 	addq.l #2,a0
 	swap d0 ; right half
 	swap d1
@@ -410,21 +412,21 @@ q_radar_m68_23:
 	move 0(a3),d4
 	and d0,d4
 	or d4,0(a0)
-	move 40(a0),(a4)+ ; plane #1
-	and d1,40(a0)
+	move plane1(a0),(a4)+ ; plane #1
+	and d1,plane1(a0)
 	move 2(a3),d4
 	and d0,d4
-	or d4,40(a0)
-	move 80(a0),(a4)+ ; plane #2
-	and d1,80(a0)
+	or d4,plane1(a0)
+	move plane2(a0),(a4)+ ; plane #2
+	and d1,plane2(a0)
 	move 4(a3),d4
 	and d0,d4
-	or d4,80(a0)
-	move 120(a0),(a4)+ ; plane #3
-	and d1,120(a0)
+	or d4,plane2(a0)
+	move plane3(a0),(a4)+ ; plane #3
+	and d1,plane3(a0)
 	move 6(a3),d4
 	and d0,d4
-	or d4,120(a0)
+	or d4,plane3(a0)
 	addq.l #2,a0
 	bra q_radar_m68_26
 q_radar_m68_25:

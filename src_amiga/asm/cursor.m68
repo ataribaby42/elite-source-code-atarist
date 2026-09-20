@@ -97,9 +97,9 @@ draw_cursor:
     bne .general
     tst.w clip_top(a4)
     bne .general
-    cmp.w #319,clip_right(a4)
+    cmp.w #scr_width-1,clip_right(a4)
     bne .general
-    cmp.w #199,clip_bottom(a4)
+    cmp.w #art_rows*zoom_y-1,clip_bottom(a4)
     bne .general
     jsr remove_sprite
     move.w cursor_type(a6),d0

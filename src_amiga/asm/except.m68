@@ -24,9 +24,9 @@
 
 pulse_rate: equ 4 ; rate of colour pulse
 min_x: equ 0-10 ; limits of cursor movement
-max_x: equ 320-10
+max_x: equ scr_width-10
 min_y: equ 0-8
-max_y: equ 200-9
+max_y: equ art_rows*zoom_y-9
 first_col: equ 7 ; cycling colours
 last_col: equ 11
 
@@ -244,7 +244,7 @@ q_except_m68_49:
 	q_ret eq
 	clr clock_pending(a6)
 	lea cursor_spr(a6),a4 ; cursor below middle ?
-	cmp #100,sp_ypos(a4)
+	cmp #100*zoom_y,sp_ypos(a4)
 	q_call gt,remove_sprite ; signed: a clipped top cursor can have negative Y
 	move #clock_x,d0 ; position and colour for clock
 	move #clock_y+8,d1

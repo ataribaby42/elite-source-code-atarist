@@ -382,3 +382,43 @@ q_action macro
 	endc
 
 	endm
+
+* DISPLAY_X <reg> - logical x coordinate to display pixels.
+
+q_display_x macro
+
+	ifne display_hires
+	add.w \1,\1
+	endc
+
+	endm
+
+* DISPLAY_Y <reg> - logical y coordinate to display rows.
+
+q_display_y macro
+
+	ifne display_lace
+	add.w \1,\1
+	endc
+
+	endm
+
+* LOGICAL_X <reg> - display x coordinate back to the authoring grid.
+
+q_logical_x macro
+
+	ifne display_hires
+	asr.w #1,\1
+	endc
+
+	endm
+
+* LOGICAL_Y <reg> - display y coordinate back to the authoring grid.
+
+q_logical_y macro
+
+	ifne display_lace
+	asr.w #1,\1
+	endc
+
+	endm

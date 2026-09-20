@@ -68,7 +68,7 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** and t
 
 `commander=default` restores the original **100 Cr**, **Harmless** rating and zero score. Loading a saved commander uses the balance, score and rating stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=yes` as persistent defaults. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=yes` as persistent defaults. `display=` selects one of six Amiga screens and `frame=yes` keeps the cockpit frame. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 Player lasers default to `laser=dualbeam`: two filled beams converge
 from the lower left and right on the jittering crosshair tip. Use
@@ -267,7 +267,7 @@ The relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE: automatic f
 
 The Amiga game is developed in [src_amiga](src_amiga/README.md), separately from the Atari sources in `src_atari`. Both started from the corrected Atari game, including the starfield fixes. Amiga changes no longer require platform conditionals in the Atari tree.
 
-Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
+Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. The screen is 320 x 256 and the flight view 320 x 168; `display=ntsc` builds 320 x 200 with a 320 x 112 view. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
 
 To launch from Workbench, open the game disk or copy the complete `output_amiga/ELITE` directory to a hard drive, then double-click the `ELITE` icon. The classic four-colour, dual-image icon comes from `src_amiga/assets/ELITE.info` and is included in both outputs. Keep the executable, icon and data files together. Workbench launches use the executable's directory for assets and HDD commander files, and Ctrl+F10 returns to Workbench. The icon uses the current Workbench palette, so its colours differ between the default Workbench 1.3 and 3.0 screens.
 

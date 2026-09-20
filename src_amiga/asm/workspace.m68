@@ -2,20 +2,17 @@
 amiga_workspace_implementation: equ 1
     include "common.def"
     xdef var_size,textscr,hyper_buffer,left_arm,right_arm
-    xdef save1_buffer,max1,save2_buffer,max2,bitmaps,texture,obj_data
+    xdef save1_buffer,max1,save2_buffer,max2,texture,obj_data
     xdef logo,cockpit,vars,ram_end,other_screen
     section workspace,bss
 textscr: ds.b 3590
-hyper_buffer: ds.b 360
-left_arm: ds.w 200
-right_arm: ds.w 200
+hyper_buffer: ds.b 360*zoom_x*zoom_y ; a wider sprite saves more background
+left_arm: ds.w arm_entries ; indexed by physical screen row, not viewport row
+right_arm: ds.w arm_entries
 save1_buffer: ds.b 4096
 max1:
 save2_buffer: ds.b 4096
 max2:
-    section amiga_bitmaps,bss    ; keep every BSS Hunk below the KS1.x 256 KB limit
-bitmaps: ds.b 146862
-    section workspace,bss
 texture: ds.b 24358
 obj_data: ds.b 20292
 logo: ds.b 16276
@@ -24,5 +21,6 @@ vars: ds.b var_size
 ram_end:
     section amiga_video,bss
     xdef amiga_primary
-amiga_primary: ds.b 32768
-other_screen: ds.b 32768        ; original bitmap loader uses a 32 KB disk buffer
+amiga_primary: ds.b scr_bytes
+    section amiga_video2,bss     ; a second hunk: the KS1.x limit is per hunk
+other_screen: ds.b scr_bytes    ; original bitmap loader uses this as its disk buffer
