@@ -193,6 +193,12 @@ def compile_assets(root, altgfx=False):
     outputs['ELITECHR.IMG'] = bytes(sum((font[(glyph//16*8+y)*128+glyph%16*8+x] == 15)
                                       << (7-x) for x in range(8))
                                     for glyph in range(96) for y in range(8))
+    # The same glyphs at twice the width, for a 640-pixel screen.
+    wide = read_png(gfx / 'font16.png', (256, 48), [0, 15])
+    outputs['ELITECHR16.IMG'] = b''.join(
+        struct.pack('>H', sum((wide[(glyph//16*8+y)*256+glyph%16*16+x] == 15) << (15-x)
+                              for x in range(16)))
+        for glyph in range(96) for y in range(8))
     for entry in layout['missiles']:
         pixels = crop(sheets['gadgets'], layout['sheets']['gadgets'], entry['rect'])
         # The 10-pixel missile cell is opaque, including black; six padding pixels

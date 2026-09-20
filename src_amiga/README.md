@@ -10,7 +10,7 @@ instead. The selected directory must contain all eight PNGs and `layout.json`.
 Both choices generate the same asset and distribution paths; use `altgfx=no`
 to rebuild with the standard sources.
 
-Edit the eight PNGs in this tree's `gfx/` folder. The build requires Pillow
+Edit the PNGs in this tree's `gfx/` folder. `font16.png` holds the same glyphs as `font.png` at 16 x 8 and is the face a 640-wide build draws; the two are independent artwork, so a glyph changed in one does not change the other. The build requires Pillow
 (`python -m pip install Pillow`) and generates this tree's `assets/` before
 assembly. Keep canvas sizes and use each image's exact RGB palette. `cockpit.png`
 uses the cockpit palette; all other PNGs use the UI base palette, including in

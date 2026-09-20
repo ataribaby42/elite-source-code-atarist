@@ -59,7 +59,7 @@ Assets are authored at 320 x 200 and expanded to the display when they load.
 
 `read_bitmaps` in `asm/init.m68` widens the sprite bank as it reads it, emitting two columns of mask and four planes for each source column, and duplicating rows for an interlaced screen. The rotation loops in `sprite_rows.inc` work on the widened data unchanged, so no instruction is patched at run time. The expanded bank is 140,750 bytes on a 320-wide screen and 560,000 interlaced, past the 262,144-byte Kickstart 1.x hunk clearing limit, so `bitmap_bank` is allocated at startup and freed at exit. `build.py` measures the asset against `bitmap_bytes` and refuses a bank that would not fit.
 
-Text follows the same split: `display_char` keeps its byte logic and widens the finished result through the same table, so ink and paper masks stay byte-sized.
+Text is the exception: a 640 screen links its own face. `gfx/font16.png` carries the glyphs at 16 x 8 and becomes `ELITECHR16.IMG`, which `data.m68` includes and `init.m68` installs in place of the 8 x 8 `amstrad_8x8`. `display_char` then reads a word per glyph row instead of widening a byte, and an interlaced build writes that word to both rows of the pair. The plane masks stay byte-sized and are widened by `ext.w` as they are read.
 
 ## Scenery built for the old window
 

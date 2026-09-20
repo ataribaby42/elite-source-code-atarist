@@ -58,6 +58,16 @@
 
 * Elite character set for characters 32 to 127
 
+	ifne display_hires
+
+	q_global amstrad_16x8 ; the same glyphs at the width of a 640 screen
+
+	incbin "ELITECHR16.IMG"
+
+	endc
+
+	ifeq display_hires
+
 	q_global amstrad_8x8
 
 elite_chrset:
@@ -110,6 +120,8 @@ elite_chrset:
 	dc.b $00,$00,$76,$0C,$18,$30,$6E,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	dc.b $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
 	dc.b $00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00,$00
+
+	endc
 
 * List of products available at space stations.
 

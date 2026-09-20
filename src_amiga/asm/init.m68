@@ -16,7 +16,12 @@
 	include "macros.m68"
 	include "bitlist.m68"
 
-	xref vars,other_screen,amstrad_8x8,vblank,critical_error,texture
+	xref vars,other_screen,vblank,critical_error,texture
+	ifeq display_hires
+	xref amstrad_8x8
+	else
+	xref amstrad_16x8
+	endc
 	xref display_char,default_game,find_bitmap,novella
 	xref init_sky,init_cursor_cache
 	xref init_dust,rand,monst,checksum,logo
@@ -146,7 +151,11 @@ size macro
 	move.l d1,screen2_ptr(a6)
 	eor.l d1,d0 ; calculate eor for flip screen
 	move.l d0,flip_screen(a6)
-	q_let.l amstrad_8x8-256,charset_ptr ; use amstrad 8x8 character set
+	ifeq display_hires
+	q_let.l amstrad_8x8-256,charset_ptr ; 8 bytes a glyph, from character 32
+	else
+	q_let.l amstrad_16x8-512,charset_ptr ; 16 bytes a glyph
+	endc
 	q_let.l display_char,print_ptr ; direct print_char to display_char
 	jsr default_game ; setup default game
 	moveq #1,d0 ; initialise variables

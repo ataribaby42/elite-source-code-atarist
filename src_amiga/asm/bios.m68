@@ -18,7 +18,7 @@
 	include "bitlist.m68"
 
 	xref dot_to_addr,fx,clear_command,divide_by_10,remove_sprite
-	xref draw_screen,xor,kill_sprites,set_colour,textscr,expand_bytes
+	xref draw_screen,xor,kill_sprites,set_colour,textscr
 	xref amiga_rows_art
 	xref find_bitmap,put_bitmap,draw_sprite,monst,blank_screen,random
 
@@ -107,16 +107,12 @@ use_keypad: rs.w 1 ; flag: use numeric keypad
 	move.l (a0,d0),a0
 	jmp (a0) ; execute routine and exit
 q_bios_m68_1:
-	asl #3,d0 ; index into character set
+	asl #3+display_hires,d0 ; index into character set
 	move.l charset_ptr(a6),a0
 	lea 0(a0,d0),a0
 	move.l ink_ptr(a6),a1 ; get ink and paper pointers
 	move.l paper_ptr(a6),a2
 	move.l text_addr(a6),a3 ; fetch text screen address
-	ifne display_hires
-	move.l a4,-(sp)
-	lea expand_bytes,a4 ; one glyph byte becomes a doubled word, too far for PC
-	endc
 	tst.l (a2) ; paper #0 ?
 ; Quelo: 	if <ne> then.s						no
 	beq q_bios_m68_3
@@ -139,23 +135,22 @@ q_bios_m68_1:
 	subq.l #4,a2
 	endc
 	ifne display_hires
-; Combine ink and paper at byte width, then widen the result.
-	move.b (a0)+,d0 ; get next data byte
-	move d0,d1 ; build paper mask
-	not d1
+	move.w (a0)+,d0 ; get next data word
+	move.w d0,d1 ; build paper mask
+	not.w d1
 	q_loop 2,d6,4 ; loop for each plane
-	move.b d0,d2 ; build ink byte
-	and.b (a1)+,d2
-	move.b d1,d3 ; build paper byte
-	and.b (a2)+,d3
-	or.b d2,d3 ; combine ink and paper
-	moveq #0,d4 ; widen the eight pixels to sixteen
-	move.b d3,d4
-	add.w d4,d4
-	move.w (a4,d4.w),d4
-	move.w d4,(a3) ; store in VRAM
+	move.w d0,d2 ; build ink word
+	move.b (a1)+,d4 ; one mask byte per plane, widened by EXT
+	ext.w d4
+	and.w d4,d2
+	move.w d1,d3 ; build paper word
+	move.b (a2)+,d4
+	ext.w d4
+	and.w d4,d3
+	or.w d2,d3 ; combine ink and paper
+	move.w d3,(a3) ; store in VRAM
 	ifne display_lace
-	move.w d4,row_stride(a3) ; and again on the doubled row
+	move.w d3,row_stride(a3) ; and again on the doubled row
 	endc
 	lea bpr(a3),a3 ; next OCS plane
 	q_next 2,d6
@@ -184,26 +179,19 @@ q_bios_m68_3:
 	subq.l #4,a1
 	endc
 	ifne display_hires
-; Mask and plot at byte width, then widen the results.
-	move.b (a0)+,d0 ; get next data byte
-	move.b d0,d1 ; build clear mask
-	not.b d1
-	moveq #0,d4 ; the clear mask is the same for every plane
-	move.b d1,d4
-	add.w d4,d4
-	move.w (a4,d4.w),d5
+	move.w (a0)+,d0 ; get next data word
+	move.w d0,d1 ; build clear mask
+	not.w d1
 	q_loop 2,d6,4 ; loop for each plane
-	and.w d5,(a3) ; mask out current setting
-	move.b d0,d2 ; plot pixels
-	and.b (a1)+,d2
-	moveq #0,d4
-	move.b d2,d4
-	add.w d4,d4
-	move.w (a4,d4.w),d4
-	or.w d4,(a3)
+	and.w d1,(a3) ; mask out current setting
+	move.w d0,d2 ; plot pixels
+	move.b (a1)+,d4 ; one mask byte per plane, widened by EXT
+	ext.w d4
+	and.w d4,d2
+	or.w d2,(a3)
 	ifne display_lace
-	and.w d5,row_stride(a3) ; and again on the doubled row
-	or.w d4,row_stride(a3)
+	and.w d1,row_stride(a3) ; and again on the doubled row
+	or.w d2,row_stride(a3)
 	endc
 	lea bpr(a3),a3 ; next OCS plane
 	q_next 2,d6
@@ -214,9 +202,6 @@ q_bios_m68_3:
 	endc
 	q_next 1,d7
 q_bios_m68_4:
-	ifne display_hires
-	move.l (sp)+,a4
-	endc
 	addq.l #zoom_x,text_addr(a6) ; next cell in the same bitplane
 	q_inc column(a6) ; ++column
 	cmp #40,column(a6) ; end of line ?

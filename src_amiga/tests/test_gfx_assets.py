@@ -45,6 +45,8 @@ class GraphicsTests(unittest.TestCase):
         self.edit(entry['sheet'], *entry['rect'][:2], gfx='gfx_alt')
         font = read_png(self.root/'gfx_alt/font.png', (128,48))
         self.edit('font', 0, 0, 15-font[0], gfx='gfx_alt')
+        wide = read_png(self.root/'gfx_alt/font16.png', (256,48))
+        self.edit('font16', 0, 0, 15-wide[0], gfx='gfx_alt')
         for entry in self.layout['missiles']:
             self.edit('gadgets', *entry['rect'][:2], gfx='gfx_alt')
         # The selected set must supply its own metadata, too.
