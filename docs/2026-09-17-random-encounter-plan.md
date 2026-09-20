@@ -5,6 +5,10 @@
 > files, sample harness code and commands are historical, not current setup
 > instructions. Use each source tree's README for current checks.
 
+> Routing update, 2026-09-21: the single `create_pirates` hook described below
+> missed torus events. Both entries now use `spawn_pirate_wave`; see
+> [normal-flight and torus routing](2026-09-21-random-encounter-torus-routing.md).
+
 **Goal:** Half of the ordinary deep-space pirate waves become a small group that
 is already fighting itself, which the player flies into rather than is ambushed
 by.

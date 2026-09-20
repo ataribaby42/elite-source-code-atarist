@@ -3,6 +3,12 @@
 Date: 2026-09-20
 Trees: `src_atari`, `src_amiga`.
 
+Update 2026-09-21: this report records the earlier routing, including the
+direct torus-to-ambush path. That path was subsequently corrected to allow the
+same 50% encounter substitution as normal flight. The updated suite and its
+results are documented in
+[Normal-flight and torus routing](2026-09-21-random-encounter-torus-routing.md).
+
 ## Result
 
 No regression was found in the tested existing spawn paths. No gameplay code

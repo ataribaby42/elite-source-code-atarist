@@ -5,6 +5,7 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 
 | Document | Purpose |
 | --- | --- |
+| [2026-09-21-random-encounter-torus-routing.md](2026-09-21-random-encounter-torus-routing.md) | Fix: apply the 50% encounter substitution to both timed waves and torus interruptions, preserving mission spawns |
 | [2026-09-20-convoy-spawn-regression-checks.md](2026-09-20-convoy-spawn-regression-checks.md) | Validation: existing spawn paths, missions, missiles, cargo and object-slot reuse after adding trader convoys |
 | [2026-09-20-trader-convoy-encounters.md](2026-09-20-trader-convoy-encounters.md) | Change: weight-2 trader convoys keep a shared cruise speed until combat; fix government filtering after the random roll |
 | [2026-09-20-patrol-police-record-checks.md](2026-09-20-patrol-police-record-checks.md) | Change: random Viper patrols inspect changing legal status using the existing police-response probability |

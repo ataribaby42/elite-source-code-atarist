@@ -16,6 +16,12 @@ runtime changes and native validation are documented in
 [Trader convoy encounters](2026-09-20-trader-convoy-encounters.md); the original
 seven-template design below records the earlier implementation.
 
+Update 2026-09-21: the substitution now covers torus interruptions as well as
+timed normal-flight waves. Section 7.1 describes the shared dispatch point;
+the original single hook in `create_pirates` missed torus entirely. See
+[Normal-flight and torus routing](2026-09-21-random-encounter-torus-routing.md)
+for the correction and native regression results.
+
 ## 1. Goal
 
 Deep space offers one kind of event: `create_pirates` calls `pirate_attack`,
@@ -38,7 +44,8 @@ work: every group listed here is internally hostile under the existing
 In scope:
 
 - One new routine, `random_encounter`, and the tables it reads.
-- A single substitution point in `create_pirates`.
+- A shared substitution point, `spawn_pirate_wave`, reached from timed
+  `create_pirates` waves and torus `attack` events.
 
 Not in scope, explicitly unchanged:
 
@@ -190,9 +197,24 @@ depends on is enumerated here with the reason it is unaffected.
 
 ### 7.1 The substitution point
 
-`random_encounter` replaces exactly one instruction: the final
-`bra pirate_attack` at the end of `create_pirates`, reached only after the
-routine has already established that
+Originally, the substitution replaced only the final `bra pirate_attack` in
+`create_pirates`. Torus used `attack` in `flight.m68`, which called
+`pirate_attack` directly, so it could never choose an encounter through that
+path. This was an integration gap in the original design.
+
+Both callers now enter the shared `spawn_pirate_wave` dispatcher:
+
+- `create_pirates` calls it after its existing eligibility checks and timer
+  reload.
+- Torus `attack` calls it after restoring normal speed, dust and controls.
+  `torus_drive` still makes the original government-dependent attack decision
+  first; no event is added when that decision declines an attack.
+
+The dispatcher checks the four protected mission states, then makes exactly
+one 50% choice between `random_encounter` and the original `pirate_attack`.
+The original ambush builder remains separate and does not repeat the choice.
+
+The timed `create_pirates` entry has already established that
 
 - the mission is **not** `$15`, because the Constrictor branch above it either
   jumps to `pirate_attack` or returns;
@@ -200,17 +222,19 @@ routine has already established that
 - fewer than two pirates are present;
 - the `pirate_ctr` countdown has expired.
 
-At that point three mission states can still arrive, and each is sent down the
-old path before the 50% roll is taken:
+The shared dispatcher sends all four protected states down the original path
+before consuming any random value:
 
 | State | Mission | What `pirate_attack` does |
 | --- | --- | --- |
+| `$15` | 1, state 5 | Constrictor |
 | `$21` | 2, state 1 | Thargoid leader **and** Thargoid wingmen |
 | `$41` | 4, state 1 | Cougar leader and two Asps |
 | `$52` | 5, state 2 | Thargoid leader **and** Thargoid wingmen |
 
-`$15` is listed in the test suite as well, even though `create_pirates` cannot
-deliver it here, so the guard survives any future edit to the routine above.
+The early Constrictor branch in `create_pirates` still bypasses ordinary wave
+gates and calls the original ambush directly. The dispatcher's `$15` guard
+also protects the torus entry.
 
 ### 7.2 Spawns the substitution cannot reach
 
@@ -220,7 +244,6 @@ deliver it here, so the guard survives any future edit to the routine above.
 | Thargoids in witch space | `object_logic` calls `create_thargoids` and **returns**; `create_pirates` never runs in witch space, so encounters cannot happen there |
 | Thargoids from the station, mission `$52` | `launch_vipers`, a different routine on a different trigger |
 | Alien space station, mission 5 | `audit_station`; the `dodec` is outside the faction whitelist and cannot be targeted by any ship |
-| Post-hyperspace ambush | `attack` in `flight.m68` jumps straight to `pirate_attack`, not through `create_pirates` |
 | Police from the station | `check_police` and `prepare_vipers`, a different trigger entirely |
 | Shuttles | `launch_shuttle`, which already refuses on mission `$52` |
 
@@ -274,6 +297,7 @@ that module's own variable block, which uses 12 of its 32 bytes.
 | File | Change |
 | --- | --- |
 | `combat.m68` | Role constants and `spacing2` beside `spacing1`; four module variables in its own `q_vars` block; `random_encounter` with its five helpers; `encounter_pirates`, `encounter_traders`, `encounter_groups`, `encounter_positions`; the substitution in `create_pirates` |
+| `combat.m68`, `flight.m68` (2026-09-21) | Shared `spawn_pirate_wave` dispatch for normal-flight and torus events, with one substitution roll and the same mission guards |
 | `tests/test_faction_ai.py` | The suite below |
 | `src_atari/README.md`, `src_amiga/README.md` | A section describing the feature |
 

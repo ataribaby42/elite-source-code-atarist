@@ -28,7 +28,7 @@
 	xref search,get_planet_info,clear_objects,new_mission,gen_prices,block,fx
 	xref create_system,reset_system,instruments,flush_keyboard,clear_image
 	xref text_blatt,update_inst,swap_screen,wait,magnitude_table,sqrt,get_unit
-	xref pirate_attack,explode_object,target_lost,reduce_shields,cargo_spare
+	xref spawn_pirate_wave,explode_object,target_lost,reduce_shields,cargo_spare
 	xref product_list,find_table,rand
 
 ; ---- LOCAL CONSTANTS ----
@@ -1082,7 +1082,7 @@ q_flight_m68_130:
 	clr dust_type(a6) ; normal dust
 	clr controls_locked(a6) ; controls not locked
 	move old_speed(a6),speed(a6) ; restore speed of Cobra
-	jmp pirate_attack ; attack for pirate
+	jmp spawn_pirate_wave ; ordinary ambush or encounter; mission waves unchanged
 
 
 ; ***************************************

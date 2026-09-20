@@ -161,6 +161,9 @@ the length of the original effect.
 Half of the pirate waves deep space would have thrown at the player become a
 small battle between other ships or a peaceful trader convoy. Nothing is
 announced; the player can leave the group alone or choose to get involved.
+This 50% choice applies both to timed waves during normal flight and to pirate
+events that interrupt torus (J). Each event makes the choice once; the original
+timers and government-dependent torus attack probability are unchanged.
 
 | Group | Weight | Needs a government of |
 | --- | ---: | --- |
@@ -197,8 +200,10 @@ behaviour without automatically reforming. At most four ships arrive, fewer
 than the ambush already brings at a high combat rating.
 
 Every mission spawn keeps the old path: the Constrictor, the Cougar and both
-Thargoid missions are checked before the substitution is even rolled, and
-encounters never happen in witch space or inside station space.
+Thargoid missions are checked before the substitution is even rolled. Witch
+space and station launches retain their separate spawn paths. Timed waves keep
+their station-zone and pirate-count gates; torus keeps its original eligibility
+checks. See [normal-flight and torus routing](../docs/2026-09-21-random-encounter-torus-routing.md).
 
 ## Faction AI targeting
 
