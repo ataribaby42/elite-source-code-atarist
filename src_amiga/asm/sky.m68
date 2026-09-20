@@ -126,21 +126,12 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
 
 ; Signed Q24 product, rounded, using only MC68000 16x16 multiplication.
 ; The operands are unit-vector components/trigonometric values (abs <= ~1).
-    q_subr sky_multiply
+    q_subr sky_multiply,global
+    ifeq cpu_68020
     move.l d0,d2
     eor.l d1,d2
     q_abs.l d0
     q_abs.l d1
-    ifne cpu_68020
-    mulu.l d1,d3:d0             ; the same product, in one instruction
-    clr.w d0
-    swap d0                     ; D0 = product bits 16..31
-    add.l #128,d0               ; round and scale it as the pieces below do
-    lsr.l #8,d0
-    lsl.l #8,d3                 ; the high longword carries its own scale
-    add.l d0,d3
-    bra.s sky_multiply_sign
-    endc
     move.w d0,d3
     mulu.w d1,d3
     move.w d0,d4
@@ -159,6 +150,30 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     add.l #128,d3
     lsr.l #8,d3
     add.l d5,d3
+    bra.s sky_multiply_sign
+    endc
+
+; The same product in one instruction. PROBE_CPU patches the entry above, and a
+; cpu=68020 build has no entry to patch: the label above falls through to here.
+
+    q_subr sky_multiply_020,global
+    move.l d0,d2
+    eor.l d1,d2
+    q_abs.l d0
+    q_abs.l d1
+	mc68020
+    mulu.l d1,d3:d0             ; the same product, in one instruction
+    clr.w d0
+    swap d0                     ; D0 = product bits 16..31
+    add.l #128,d0               ; round and scale it as the pieces below do
+    lsr.l #8,d0
+    lsl.l #8,d3                 ; the high longword carries its own scale
+    add.l d0,d3
+    ifne cpu_68020
+	mc68020
+    else
+	mc68000
+    endc
 sky_multiply_sign:
     tst.l d2
     bpl.s .done

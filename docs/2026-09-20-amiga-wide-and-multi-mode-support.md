@@ -7,14 +7,14 @@ Status: implemented in `src_amiga`
 
 `display=` selects the screen and `frame=` the cockpit. The row count follows the refresh rate, `hires` doubles the pixels across and `hireslace` doubles them down as well. Artwork, assets and gameplay are the same in every combination.
 
-| `display=` | screen | view, `frame=no` | view, `frame=yes` | CPU |
+| `display=` | screen | view, `frame=no` | view, `frame=yes` | recommended |
 | --- | --- | --- | --- | --- |
-| `pal` | 320 x 256, or 320 x 200 framed | 320 x 168 | 256 x 112 | MC68000 |
-| `ntsc` | 320 x 200 | 320 x 112 | 256 x 112 | MC68000 |
-| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 168 | 512 x 112 | MC68020 |
-| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 336 | 512 x 224 | MC68020 |
-| `ntsc-hires` | 640 x 200 | 640 x 112 | 512 x 112 | MC68020 |
-| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 512 x 224 | MC68020 |
+| `pal` | 320 x 256, or 320 x 200 framed | 320 x 168 | 256 x 112 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 112 | 256 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 168 | 512 x 112 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 336 | 512 x 224 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 112 | 512 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 512 x 224 | 68040 at 25 MHz |
 
 `frame=yes` is the default and builds the original game. `hires` and `hireslace` are accepted as the PAL spellings, and an interlaced screen needs a flicker fixer or a multisync monitor.
 
@@ -77,17 +77,28 @@ Artwork screens are 200 logical rows. Rather than move every text and icon coord
 `frametime=yes` prints two numbers in the top left corner of the buffer being drawn. `swap_screen` prints them, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
 
 ```
-080 039 6M   FRONT
-^   ^   ^^
-|   |   |+- the MOVE16 clear is running
-|   |   +-- the processor from AttnFlags
-|   +------ clearing the viewport
-+---------- the whole frame, budget is 60
+080 039 6ML   FRONT
+^   ^   ^^^
+|   |   ||+- the 32-bit multiply and divide are patched in
+|   |   |+-- the MOVE16 clear is running
+|   |   +--- the processor from AttnFlags
+|   +------- clearing the viewport
++----------- the whole frame, budget is 60
 ```
+
+A dot in place of a letter means that path is not running, and the digit says why.
 
 The left number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The right number is how much of that work was `clear_image`; the difference between the two is everything else, from the transform and the AI to the ships, the starfield and the panel.
 
 Both are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on an opaque paper, so they overwrite in place, and the text state they use is saved and restored around the call.
+
+## The processor, decided at startup
+
+`probe_cpu` in `asm/system.m68` reads `ExecBase.AttnFlags` once and keeps the tier in `cpu_level`: 0, 2, 4 or 6. Three routines have a 32-bit form that a 68020 runs in one instruction where a 68000 needs a loop: `divide_by_10` and `divide_by_1e5` in `asm/maths.m68`, and `sky_multiply` in `asm/sky.m68`. Every image carries both forms, and from the 68020 up the probe writes `jmp <twin>` over the entry of the slower one. Nothing enters those routines except at the label, and the slow body after the six patched bytes is simply never reached again.
+
+Patched code needs the instruction cache cleared, and `CacheClearU` arrived with Kickstart 2.0. The game runs from 1.3, so the probe reads `lib_Version` first: from 2.0 it calls the ROM, under 1.3 a 68020 or 68030 clears `CACR` itself through `Supervisor`, and a 68040 or better on a 1.3 machine, a pairing that does not exist, keeps the MC68000 arithmetic rather than an unflushed patch.
+
+One image therefore runs on a stock machine and uses the wider instructions where they exist, which is why no call in `all` names a processor. `cpu=68020` still assembles the native forms alone, for a tighter image that needs an MC68020, and takes whatever `outputname` the caller gives it.
 
 ## Clearing the viewport
 

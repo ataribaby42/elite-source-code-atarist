@@ -10,7 +10,11 @@ amiga_implementation: equ 1
     xdef bitmap_bank,bitmap_bytes
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
-    xdef cpu_level,clear_burst
+    xdef cpu_level,clear_burst,maths_fast
+    ifeq cpu_68020
+    xref divide_by_10,divide_by_10_020,divide_by_1e5,divide_by_1e5_020
+    xref sky_multiply,sky_multiply_020
+    endc
     section text,code
 amiga_entry:
     movem.l d2-d7/a2-a6,-(sp)
@@ -313,11 +317,64 @@ probe_cpu:
     clr.b clear_burst
     ifne clear_burst_ok
     cmp.w #4,d1
-    blo.s .done
+    blo.s .burst_done
     st clear_burst
+.burst_done:
+    endc
+    st maths_fast
+    ifeq cpu_68020
+    clr.b maths_fast
+    cmp.w #2,d1                  ; 32-bit multiply and divide from the 68020 up
+    blo.s .done
+; Patching code means clearing the instruction cache afterwards. CacheClearU
+; arrived with Kickstart 2.0; under 1.3 a 68020 or 68030 can do it through CACR
+; in supervisor state, and a 68040 or better, which no 1.3 machine has, is left
+; with the MC68000 arithmetic rather than an unflushed patch.
+    cmp.w #36,20(a6)             ; Library.lib_Version
+    bhs.s .patch
+    cmp.w #2,d1
+    bne.s .done
+.patch:
+    lea fast_pairs(pc),a0
+.pair:
+    move.l (a0)+,d0
+    beq.s .patched
+    move.l d0,a1
+    move.w #$4ef9,(a1)+          ; JMP to the twin, over an entry nothing else enters
+    move.l (a0)+,(a1)
+    bra.s .pair
+.patched:
+    st maths_fast
+    cmp.w #36,20(a6)
+    blo.s .cacr
+    jsr -636(a6)                 ; CacheClearU
+    rts
+.cacr:
+    lea flush_cacr(pc),a5
+    jmp -30(a6)                  ; Supervisor, which returns for us
 .done:
     endc
     rts
+
+    ifeq cpu_68020
+; Clear the instruction cache the way Kickstart 1.3 has no call for. SUPERVISOR
+; enters this in supervisor state and expects an RTE.
+flush_cacr:
+	mc68020
+    movec cacr,d0
+    ori.w #8,d0                  ; CACR: clear the instruction cache
+    movec d0,cacr
+    rte
+	mc68000
+    endc
+
+    ifeq cpu_68020
+fast_pairs:
+    dc.l divide_by_10,divide_by_10_020
+    dc.l divide_by_1e5,divide_by_1e5_020
+    dc.l sky_multiply,sky_multiply_020
+    dc.l 0
+    endc
 
 ; Flip an address inside either source screen, preserving its byte offset.
 ; XOR is only valid for the bases when AmigaDOS chooses unaligned allocations.
@@ -551,5 +608,6 @@ vblank_added: ds.w 1
 mouse_right: ds.w 1
 cpu_level: ds.w 1
 clear_burst: ds.b 1
+maths_fast: ds.b 1
 	even
 instance_owned: ds.w 1

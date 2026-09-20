@@ -31,10 +31,10 @@ ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO
 DISPLAYS = {
     'pal':            ((0, 0, 0), 'PAL, 320 x 256'),
     'ntsc':           ((1, 0, 0), 'NTSC, 320 x 200'),
-    'pal-hires':      ((0, 1, 0), 'PAL hires, 640 x 256, MC68020 or better'),
-    'pal-hireslace':  ((0, 1, 1), 'PAL hires interlaced, 640 x 512, MC68020 or better'),
-    'ntsc-hires':     ((1, 1, 0), 'NTSC hires, 640 x 200, MC68020 or better'),
-    'ntsc-hireslace': ((1, 1, 1), 'NTSC hires interlaced, 640 x 400, MC68020 or better'),
+    'pal-hires':      ((0, 1, 0), 'PAL hires, 640 x 256'),
+    'pal-hireslace':  ((0, 1, 1), 'PAL hires interlaced, 640 x 512'),
+    'ntsc-hires':     ((1, 1, 0), 'NTSC hires, 640 x 200'),
+    'ntsc-hireslace': ((1, 1, 1), 'NTSC hires interlaced, 640 x 400'),
 }
 DISPLAYS['hires'] = DISPLAYS['pal-hires']              # PAL spellings
 DISPLAYS['hireslace'] = DISPLAYS['pal-hireslace']
@@ -107,7 +107,8 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('Display: ' + (f'{"NTSC" if ntsc else "PAL"}{" hires" if hires else ""}'
                          f'{" interlaced" if lace else ""}, {640 if hires else 320} x {rows},'
                          f' framed {256*(1+hires)} x {112*(1+lace)} view' if frame else display_name))
-    print('CPU: ' + ('MC68020 or better, native 32-bit maths' if cpu == '68020' else 'MC68000'))
+    print('CPU: ' + ('MC68020 or better, native 32-bit maths only' if cpu == '68020'
+                     else 'MC68000, with the native 32-bit maths patched in where it exists'))
     if frametime:
         print('Frame time: shown above the flight view')
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))

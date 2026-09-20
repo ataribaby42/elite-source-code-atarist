@@ -300,9 +300,15 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	jsr print_char
 	moveq #'.',d0
 	tst.b clear_burst
-	beq.s .plain
-	moveq #'M',d0
-.plain:
+	beq.s .no_burst
+	moveq #'M',d0 ; the MOVE16 clear
+.no_burst:
+	jsr print_char
+	moveq #'.',d0
+	tst.b maths_fast
+	beq.s .no_long
+	moveq #'L',d0 ; 32-bit multiply and divide
+.no_long:
 	jsr print_char
 	q_pop pad_char(a6)
 	q_pop.l text_addr(a6)

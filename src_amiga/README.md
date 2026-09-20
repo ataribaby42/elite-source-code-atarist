@@ -130,14 +130,14 @@ Run from the project root:
 
 `display=` picks the screen. The row count follows the refresh rate, `hires` doubles the pixels across and `hireslace` doubles them down as well. One set of assets serves all six.
 
-| option | screen | flight view | CPU |
+| option | screen | flight view | recommended |
 | --- | --- | --- | --- |
-| `pal` (default) | 320 x 256 | 320 x 168 | MC68000 |
-| `ntsc` | 320 x 200 | 320 x 112 | MC68000 |
-| `pal-hires` | 640 x 256 | 640 x 168 | MC68020 |
-| `pal-hireslace` | 640 x 512 | 640 x 336 | MC68020 |
-| `ntsc-hires` | 640 x 200 | 640 x 112 | MC68020 |
-| `ntsc-hireslace` | 640 x 400 | 640 x 224 | MC68020 |
+| `pal` (default) | 320 x 256 | 320 x 168 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256 | 640 x 168 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512 | 640 x 336 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 68040 at 25 MHz |
 
 `frame=yes` keeps the cockpit frame from `COCKPIT.PC1` and the original 256 x 112 window inside it, as the Atari version has it. The screen is then as tall as the artwork, 200 rows on either refresh rate, and the view name comes back as the artwork's own tile instead of font text. `frame=no`, the default, crops the frame and gives the view the full screen width. Both settings work with every `display=` option, so a framed hires build is 640 x 200 with a 512 x 112 view.
 
@@ -146,7 +146,7 @@ Run from the project root:
 | `frame=no` (default) | as the `display=` table above | full width, down to the panel |
 | `frame=yes` | 320 x 200, or 640 x 200 hires, 640 x 400 interlaced | 256 x 112, doubled with the pixels |
 
-`cpu=68020` builds the native 32-bit multiply and divide in `divide_by_10`, `divide_by_1e5` and `sky_multiply` instead of their MC68000 loops. The root build scripts set it, so the shipped builds need an MC68020 or better; `cpu=68000` returns to the stock CPU.
+Every image carries both forms of the three routines that a 32-bit multiply and divide speeds up, `divide_by_10`, `divide_by_1e5` and `sky_multiply`. `probe_cpu` reads `ExecBase.AttnFlags` at startup and, from the MC68020 up, writes a jump to the native form over the entry of the MC68000 one, then clears the instruction cache: through `CacheClearU` from Kickstart 2.0, and through `CACR` under 1.3, which has no such call. So a delivered image runs on a stock machine and uses the wider instructions where they exist. `cpu=68020` still assembles the native forms only, for a tighter image that needs an MC68020; give it its own `outputname` or it overwrites whatever shares the name.
 
 `hires` and `hireslace` remain accepted as the PAL spellings. The hires modes hold the authoring 320 x 200 grid and scale every coordinate to the screen, so a page looks the same in each; an interlaced screen needs a flicker fixer or a multisync monitor.
 
@@ -155,7 +155,7 @@ Run from the project root:
 .\build_amiga.bat display=ntsc-hireslace
 ```
 
-The root `build_amiga.bat` supplies `outputname=ELITE noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=no` and repeats the build as `ELITE_ALT` with `altgfx=yes`. The root `build_amiga.sh` supplies the same protection, commander, laser, sound and logo options with `frame=no cpu=68020`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=max` for a Deadly commander with 1,000,000 Cr.
+The root `build_amiga.bat` supplies `outputname=ELITE noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=no` and repeats the build as `ELITE_ALT` with `altgfx=yes`. The root `build_amiga.sh` supplies the same protection, commander, laser, sound and logo options with `frame=no`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=max` for a Deadly commander with 1,000,000 Cr.
 
 `build.sh` is the Linux entry point, forwarded from the root `build_amiga.sh`. With no display option it builds PAL then NTSC; naming one builds only that. Each result lands in `output_amiga` under its own name. `--python`, `--vasm` and `--vlink` select alternative tools.
 
