@@ -136,7 +136,10 @@ off_left: equ 0 ; clipping flags
 off_right: equ 1
 off_bottom: equ 2
 off_top: equ 3
-stack_size: equ 256 ; program stack size (words)
+; Kickstart 1.x DOS reserves a 1500-byte BCPL frame below the current SP.
+; Leave room for that frame, game calls and OS context saves. Reusing Atari's
+; 1 KB stack here lets DOS overwrite objects and the witch-space flag.
+stack_size: equ 1024 ; program stack size (longwords): 4096 bytes
 io_size: equ 256 ; size of io buffer
 neo_size: equ 32128 ; size of NEOCHROME file
 key_size: equ 8 ; size of keyboard buffer

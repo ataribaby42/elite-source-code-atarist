@@ -126,6 +126,8 @@ Target: **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion
 
 When launched from a floppy, commander loading, saving and the catalog use the root of that physical drive (DF0: through DF3:). After the title animation starts, the game disk can be replaced with a commander disk in the same drive, including when answering Y to "Load new commander?". HDD launches keep commander files in the current directory. File errors return to the game instead of opening an AmigaDOS requester behind its custom display; the original requester setting is restored on exit.
 
+The Amiga game reserves a 4 KB execution stack, including space for Kickstart 1.x AmigaDOS's 1500-byte BCPL frame. This prevents commander disk operations from overwriting object records and the witchspace state, which could cause missing stars, a false drive malfunction or unexpected scanner contacts after launch. See [the snapshot diagnosis](../docs/2026-09-20-amiga-commander-stack-corruption.md).
+
 ## Native implementation
 
 The raster routines write directly to the two screens used by Amiga display DMA. The original Atari word-interleaved framebuffer and the former frame conversion wrapper are absent.
