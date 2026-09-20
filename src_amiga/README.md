@@ -61,6 +61,11 @@ In flight, double-click an Inventory item and confirm with `Y` or the YES button
 
 ## Build and run
 
+`build_amiga.bat all` and `./build_amiga.sh all` build every delivered image,
+one call to `build.py` per image, each with its own `outputname`. The calls are
+the fourteen lines at the foot of those two scripts; changing what is delivered
+is an edit there. `build.py` itself always builds exactly one image.
+
 `build_amiga.bat outputname=ELITE_ALT` creates `output_amiga/ELITE_ALT/` and
 `output_amiga/ELITE_ALT.ADF`. The default is `outputname=ELITE`; this option can be
 combined with `altgfx=yes` or any other enhanced build option. Pass a filename,
@@ -68,7 +73,20 @@ without a path or disk suffix; quote the whole argument if it contains spaces.
 Files inside the distribution keep their existing names, including `ELITE`,
 `ELITE.info` and the disk startup sequence. Intermediates, generated assets and
 the verification report remain shared by this source tree. The report records
-the selected name and output paths. Paths below show the default output name.
+the selected name and output paths.
+
+`outputname` is the whole name: the build appends nothing to it. Two builds that
+share a name overwrite each other, which is why every call in
+`build_amiga.bat all` names itself.
+
+| build | image and directory |
+| --- | --- |
+| `frame=yes display=pal` | `ELITE.ADF`, `ELITE/` |
+| `outputname=ELITE.WIDE.PAL frame=no` | `ELITE.WIDE.PAL.ADF` |
+| `outputname=MYBUILD display=pal-hires frame=no` | `MYBUILD.ADF`, `MYBUILD/` |
+
+`display=hires` and `display=hireslace` are spellings of `pal-hires` and
+`pal-hireslace`, and the name always uses the full one.
 
 `assets/ELITE.info` is the standard four-colour Workbench tool icon (96 x 24 pixels, normal and selected images). The build copies this asset unchanged beside `ELITE` in both the ADF and `output_amiga/ELITE`. Double-click it to launch the game from Workbench 1.3 or later; keep all game files together. The native executable receives and replies to the Workbench startup message, selects the executable's directory before loading assets, and restores the caller's directory on exit. Ctrl+F10 returns to Workbench. Shell and boot-disk launches remain supported.
 
@@ -137,9 +155,17 @@ Run from the project root:
 .\build_amiga.bat display=ntsc-hireslace
 ```
 
-The root `build_amiga.bat` supplies `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`, the release build configuration recorded at the top of `changelog.txt`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=max` for a Deadly commander with 1,000,000 Cr.
+The root `build_amiga.bat` supplies `outputname=ELITE noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=no` and repeats the build as `ELITE_ALT` with `altgfx=yes`. The root `build_amiga.sh` supplies the same protection, commander, laser, sound and logo options with `frame=no cpu=68020`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=max` for a Deadly commander with 1,000,000 Cr.
 
-Python 3.10+ and Windows x64 are required. The build uses the root `tools/vasmm68k_mot.exe` (vasm 2.0f, Motorola syntax, MC68000) and `tools/vlink.exe` (vlink 0.18a). No additional Python packages are needed. `-Vasm` and `-Vlink` select alternative tool paths. `python src_amiga/build.py` is also supported. Unknown arguments, including `platform=amiga`, are rejected.
+`build.sh` is the Linux entry point, forwarded from the root `build_amiga.sh`. With no display option it builds PAL then NTSC; naming one builds only that. Each result lands in `output_amiga` under its own name. `--python`, `--vasm` and `--vlink` select alternative tools.
+
+```sh
+./build_amiga.sh
+./build_amiga.sh display=pal commander=max
+./build_amiga.sh all
+```
+
+Python 3.10+ is required on either host. `build.bat` and `build.sh` only find an interpreter; `build.py` does the build and picks the bundled tools itself, `tools/vasmm68k_mot.exe` and `tools/vlink.exe` on Windows, `tools/vasmm68k_mot` and `tools/vlink` on Linux, and prints the pair it used. No additional Python packages are needed. `-Vasm` and `-Vlink`, or `--vasm` and `--vlink`, select alternative tool paths, and so do the `ELITE_VASM` and `ELITE_VLINK` variables. `python src_amiga/build.py` is also supported on its own. Unknown arguments, including `platform=amiga`, are rejected.
 
 The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checksum is validated before extracting the original boot block, 19 effect samples, and the four-channel Blue Danube score with seven music instruments. It produces:
 
@@ -197,7 +223,7 @@ Player and AI lasers use instant-hit beams. Player Beam and Military lasers now 
 | `asm/sounds.m68`, `asm/music.m68`, `asm/workspace.m68` | Paula effects, original Amiga music replay and relocatable storage |
 | `asm/` | Independent game modules, definitions, font and ship data |
 | `assets/` | Game artwork and lookup tables |
-| `build.py`, `build.ps1`, `build.bat` | Build owned by this target |
+| `build.py`, `build.bat`, `build.sh` | Build owned by this target; one invocation is one image |
 | `tools/` | Original sound extraction, Hunk validation and OFS disk creation |
 | `tests/` | Asset, Hunk and OFS regression tests |
 

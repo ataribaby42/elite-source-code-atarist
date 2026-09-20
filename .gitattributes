@@ -2,6 +2,7 @@
 * text=auto
 *.md text eol=lf
 *.py text eol=lf
+*.sh text eol=lf
 *.json text eol=lf
 *.m68 text eol=lf
 *.s text eol=lf
@@ -23,3 +24,6 @@ src_atari/vendor/** binary linguist-vendored
 tools/*.exe binary
 *.adf binary
 *.ADF binary
+
+tools/vasmm68k_mot binary
+tools/vlink binary

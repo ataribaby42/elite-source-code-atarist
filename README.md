@@ -40,6 +40,14 @@ Run this from the project root:
 .\build_atari.bat
 ```
 
+On Linux, `build_amiga.sh` builds the Amiga version instead. It needs Python 3.10+ and runs the bundled native Linux assembler and linker, which produce the same game files as the Windows pair. With no display named it builds PAL then NTSC; naming one builds only that. Each build is named by its `outputname` and nothing else.
+
+```sh
+./build_amiga.sh              # ELITE.ADF, named by outputname
+./build_amiga.sh display=ntsc
+./build_amiga.sh all          # every delivered image, one call each
+```
+
 The enhanced Atari, Amiga and preserved original builds have independent source trees and entry points. No platform option is used.
 
 ```powershell
@@ -130,7 +138,10 @@ The default is `outputname=ELITE`. For example:
 
 These commands create `output_atari/ELITE_ALT/` and `output_atari/ELITE_ALT.ST`,
 or `output_amiga/ELITE_ALT/` and `output_amiga/ELITE_ALT.ADF`. Each name keeps its
-own distribution; rebuilding a name updates that distribution. Executable and
+own distribution; rebuilding a name updates that distribution. On the Amiga the
+name is the whole name: nothing is appended to it, so two builds that share an
+`outputname` overwrite each other, so `all` gives every call a name of its own.
+Executable and
 data filenames inside it stay unchanged, including `ELITE.TOS`, `ELITE`,
 `ELITE.info` and the disk startup files. Build intermediates, generated `assets/`
 and `build/verification.json` remain shared within each platform's source tree.
@@ -267,7 +278,7 @@ The relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE: automatic f
 
 The Amiga game is developed in [src_amiga](src_amiga/README.md), separately from the Atari sources in `src_atari`. Both started from the corrected Atari game, including the starfield fixes. Amiga changes no longer require platform conditionals in the Atari tree.
 
-Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. The screen is 320 x 256 and the flight view 320 x 168; `display=ntsc` builds 320 x 200 with a 320 x 112 view. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
+Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `output_amiga/ELITE`. `outputname=NAME` names the image and its directory, and nothing is appended, so `build_amiga.bat all` gives every variant a name of its own. The target is **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. The default screen is the original 320 x 200 with its framed 256 x 112 view; `frame=no` gives the flight view the whole screen, 320 x 256 on PAL, and `display=` offers six screens up to 640 x 512. Boot the ADF in DF0:. The novella questions are enabled unless built with `noprotect=yes`. Ctrl+F10 returns to AmigaDOS; F10 opens the inventory.
 
 To launch from Workbench, open the game disk or copy the complete `output_amiga/ELITE` directory to a hard drive, then double-click the `ELITE` icon. The classic four-colour, dual-image icon comes from `src_amiga/assets/ELITE.info` and is included in both outputs. Keep the executable, icon and data files together. Workbench launches use the executable's directory for assets and HDD commander files, and Ctrl+F10 returns to Workbench. The icon uses the current Workbench palette, so its colours differ between the default Workbench 1.3 and 3.0 screens.
 
