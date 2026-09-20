@@ -72,6 +72,21 @@ The docking bay and the hangar were modelled to fill the original 256 x 112 wind
 
 Artwork screens are 200 logical rows. Rather than move every text and icon coordinate, the Copper display window follows the screen in use: `amiga_rows_full` for the flight view, `amiga_rows_art` for the title, charts, market, status and planet data. `DIWSTOP` is the only register involved, and the two values are equal on NTSC and in a framed build, where the call is a no-op.
 
+## Frame time
+
+`frametime=yes` prints two numbers in the top left corner of the buffer being drawn. `swap_screen` prints them, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
+
+```
+080 039   FRONT
+^   ^
+|   +-- clearing the viewport
++------ the whole frame, budget is 60
+```
+
+The left number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The right number is how much of that work was `clear_image`; the difference between the two is everything else, from the transform and the AI to the ships, the starfield and the panel.
+
+Both are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on an opaque paper, so they overwrite in place, and the text state they use is saved and restored around the call.
+
 ## Chip RAM
 
 The two screens are `scr_bytes` each, from 32,000 bytes in a framed 320-wide build to 163,840 in PAL interlaced hires. Each screen is its own BSS hunk, so each stays below the 262,144-byte Kickstart 1.x clearing limit; `build.py` checks that the two are equal. The sprite bank is allocated rather than linked, as above.

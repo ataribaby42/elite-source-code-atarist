@@ -8,17 +8,17 @@ exit /b %errorlevel%
 
 :release
 call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE                         altgfx=no  frame=yes display=pal            cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL                altgfx=no  frame=no  display=pal            cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC               altgfx=no  frame=no  display=ntsc           cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL-HIRES          altgfx=no  frame=no  display=pal-hires      cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC-HIRES         altgfx=no  frame=no  display=ntsc-hires     cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL-HIRESLACE      altgfx=no  frame=no  display=pal-hireslace  cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC-HIRESLACE     altgfx=no  frame=no  display=ntsc-hireslace cpu=68020
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL                altgfx=no  frame=no  display=pal            cpu=68000 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC               altgfx=no  frame=no  display=ntsc           cpu=68000 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL-HIRES          altgfx=no  frame=no  display=pal-hires      cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC-HIRES         altgfx=no  frame=no  display=ntsc-hires     cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.PAL-HIRESLACE      altgfx=no  frame=no  display=pal-hireslace  cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE.WIDE.NTSC-HIRESLACE     altgfx=no  frame=no  display=ntsc-hireslace cpu=68020 frametime=yes
 call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT                     altgfx=yes frame=yes display=pal            cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL            altgfx=yes frame=no  display=pal            cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC           altgfx=yes frame=no  display=ntsc           cpu=68000
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL-HIRES      altgfx=yes frame=no  display=pal-hires      cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC-HIRES     altgfx=yes frame=no  display=ntsc-hires     cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL-HIRESLACE  altgfx=yes frame=no  display=pal-hireslace  cpu=68020
-call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC-HIRESLACE altgfx=yes frame=no  display=ntsc-hireslace cpu=68020
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL            altgfx=yes frame=no  display=pal            cpu=68000 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC           altgfx=yes frame=no  display=ntsc           cpu=68000 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL-HIRES      altgfx=yes frame=no  display=pal-hires      cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC-HIRES     altgfx=yes frame=no  display=ntsc-hires     cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.PAL-HIRESLACE  altgfx=yes frame=no  display=pal-hireslace  cpu=68020 frametime=yes
+call "%~dp0src_amiga\build.bat" noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no outputname=ELITE_ALT.WIDE.NTSC-HIRESLACE altgfx=yes frame=no  display=ntsc-hireslace cpu=68020 frametime=yes
 exit /b %errorlevel%

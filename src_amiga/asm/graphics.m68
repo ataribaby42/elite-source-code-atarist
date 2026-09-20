@@ -15,7 +15,7 @@
 	include "macros.m68"
 	include "raster.inc"
 
-	xref text_colour,locate,print_char,text_colour
+	xref text_colour,locate,print_char,print_number
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
 
@@ -155,6 +155,10 @@ q_graphics_m68_6\@:
     tst flyback(a6)
     beq .wait
     clr frame_count(a6)
+    ifne frametime
+    bsr raster_line
+    move d0,frame_start(a6)
+    endc
     move.l scr_base(a6),a0
     lea y_top*row_stride+x_left/8(a0),a0
     moveq #0,d0
@@ -174,8 +178,131 @@ q_graphics_m68_6\@:
     native_clear_span plane3
     lea row_stride(a0),a0
     dbra d7,.row
+    ifne frametime
+    bsr.s raster_line
+    sub frame_start(a6),d0
+    move d0,clear_lines(a6)
+    endc
     clr.l next_record(a6)
     rts
+
+    ifne frametime
+; Raster lines since the last frame counter reset, for the frame time readings.
+raster_line:
+    move.l $dff004,d0 ; VPOSR and VHPOSR in one access
+    move.l d0,d1
+    swap d1
+    and.w #1,d1 ; the ninth bit of the line number
+    lsl.w #8,d1
+    lsr.w #8,d0
+    and.w #$ff,d0
+    or.w d1,d0
+    move frame_count(a6),d1
+    mulu #field_lines,d1
+    add d1,d0
+    rts
+    endc
+
+
+* ********************************************
+* **									  **
+* ** SHOW_FRAME_TIME - PRINT THE FRAME TIME **
+* **									  **
+* ********************************************
+
+* Prints the frame's work and the clear's share of it in milliseconds, in the
+* top left corner of the buffer being drawn. SWAP_SCREEN calls it, so every
+* animated screen shows the reading, not only the flight view.
+
+* Entry: None
+* Exit:  None
+
+* Regs: D0-D5/A0-A4 corrupt.
+* Subr: TEXT_COLOUR, LOCATE, PRINT_CHAR, PRINT_NUMBER
+
+	q_subr show_frame_time
+
+	ifne frametime
+frame_hold: equ 16 ; frames a reading is held, so the digits stand still
+frame_lines_max: equ 4095 ; a reading long enough that the sum still fits
+frame_ms_max: equ 999 ; three digits
+frame_text_y: equ 0 ; the top row, above the flight view
+	move work_lines(a6),d0
+	bsr .clamp
+	add d0,work_sum(a6)
+	move clear_lines(a6),d0
+	bsr .clamp
+	add d0,clear_sum(a6)
+	q_inc frame_ticks(a6)
+	cmp #frame_hold,frame_ticks(a6)
+	blo.s .print
+	clr frame_ticks(a6)
+	moveq #0,d0
+	move work_sum(a6),d0
+	clr work_sum(a6)
+	bsr .millis
+	move d0,work_ms(a6)
+	moveq #0,d0
+	move clear_sum(a6),d0
+	clr clear_sum(a6)
+	bsr .millis
+	move d0,clear_ms(a6)
+.print:
+	q_push text_ink(a6) ; the game's text state is not ours to change
+	q_push text_paper(a6)
+	q_push column(a6)
+	q_push row(a6)
+	q_push.l text_addr(a6)
+	q_push pad_char(a6)
+	move #'0',pad_char(a6)
+	moveq #lgt_grey,d0 ; an opaque paper overwrites the digits in place
+	moveq #black,d1
+	jsr text_colour
+	moveq #0,d0
+	moveq #frame_text_y,d1
+	jsr locate
+	move work_ms(a6),d0
+	bsr .digits
+	moveq #' ',d0
+	jsr print_char
+	move clear_ms(a6),d0
+	bsr .digits
+	q_pop pad_char(a6)
+	q_pop.l text_addr(a6)
+	q_pop row(a6)
+	q_pop column(a6)
+	q_pop d1
+	q_pop d0
+	jsr text_colour
+
+	q_ret
+
+.clamp:
+	tst d0
+	bpl.s .positive
+	moveq #0,d0
+.positive:
+	cmp #frame_lines_max,d0
+	bls.s .clamped
+	move #frame_lines_max,d0
+.clamped:
+	rts
+.millis: ; D0.L = raster lines over frame_hold frames, out: milliseconds
+	mulu #line_scale,d0
+	moveq #10+4,d1 ; 1024ths of a millisecond, over frame_hold readings
+	lsr.l d1,d0
+	cmp #frame_ms_max,d0
+	bls.s .fits
+	move #frame_ms_max,d0
+.fits:
+	rts
+.digits:
+	and.l #$ffff,d0
+	move #$8000+3,d1 ; fixed field, three digits
+	jmp print_number
+	endc
+
+	rts
 
 
 * ********************************
@@ -196,12 +323,24 @@ q_graphics_m68_6\@:
 
 	q_subr swap_screen,global
 
+	ifne frametime
+	movem.l d0-d1,-(sp) ; read the work before the wait for the vertical blank
+	bsr raster_line
+	sub frame_start(a6),d0
+	move d0,work_lines(a6)
+	movem.l (sp)+,d0-d1
+	endc
 	clr flyback(a6) ; discard the old VBL before waiting for presentation
 	jsr amiga_present
 	move.l scr_base(a6),d0 ; swap base pointer
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
 	move.l d0,scr_base(a6)
+	ifne frametime
+	movem.l d0-d7/a0-a6,-(sp) ; the reading goes into the released buffer
+	bsr show_frame_time
+	movem.l (sp)+,d0-d7/a0-a6
+	endc
 
 	q_ret
 

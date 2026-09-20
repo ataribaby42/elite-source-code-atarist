@@ -35,6 +35,9 @@ scannerlogo: equ 1 ; build option: show ELITE below the scanner (default)
 	ifnd cpu_68020
 cpu_68020: equ 0 ; build option: 1 = MC68020 or better, native 32-bit maths
 	endc
+	ifnd frametime
+frametime: equ 0 ; build option: 1 = show how many fields a game frame takes
+	endc
 calc_checksum: equ -0 ; flag  calculate and display checksum
 	ifnd valid
 valid equ $5123
@@ -596,6 +599,16 @@ game_state: rs.w 128 ; current game state buffer
 game_time: rs.w 4 ; game time (secs,mins,hours,days)
 loop_ctr: rs.w 1 ; main loop counter
 frame_count: rs.w 1 ; frame rate counter
+	ifne frametime
+frame_start: rs.w 1 ; raster line where the frame's work began
+work_lines: rs.w 1 ; raster lines that work took
+clear_lines: rs.w 1 ; and how many of them cleared the viewport
+frame_ticks: rs.w 1 ; frames left in this reading
+work_sum: rs.w 1 ; work lines counted over those frames
+clear_sum: rs.w 1 ; clear lines likewise
+work_ms: rs.w 1 ; milliseconds the digits show
+clear_ms: rs.w 1 ; and the clear's share of them
+	endc
 game_over: rs.w 1 ; flag  game is over
 reason: rs.w 1 ; reason for game over
 cplanet: rs.b planet_len ; current planet record
