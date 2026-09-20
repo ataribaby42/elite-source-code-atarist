@@ -30,6 +30,7 @@
 	q_vars special
 
 exp_colour: rs.w 1 ; colour of explosion points
+ai_laser_colour: rs.w 1 ; normal AI beam colour cached for the current flight
 
 	q_end_vars special
 
@@ -271,6 +272,23 @@ laser_colours:
 	lea 3*node_len(sp),sp
 	rts
 
+; Refresh only on station launch or completed hyperspace/galactic jump.
+; Preserve all registers; drawing never recomputes this from a changing rating.
+	q_subr init_ai_laser_colour,global
+
+	move.l d0,-(sp)
+	moveq #white,d0
+	cmp.w #6,rating(a6) ; Dangerous through Elite
+	bhs.s .store
+	moveq #orange,d0
+	cmp.w #3,rating(a6) ; Average through Competent
+	bhs.s .store
+	moveq #red,d0 ; Harmless through Poor
+.store:
+	move.w d0,ai_laser_colour(a6)
+	move.l (sp)+,d0
+	rts
+
 ; Render an enemy's shot with its ship, so nearer ships can cover it and the
 ; sight/text overlays remain above it. Use the same view-space position and
 ; orientation as the model, rather than the next frame's advanced position.
@@ -293,16 +311,11 @@ laser_colours:
 	beq.s .laser_colour
 	cmp.w #thargon,type(a5)
 	beq.s .laser_colour
-; Other ships match the player-rating damage bands; Constrictor uses white.
+; Constrictor stays white; other ships keep the colour selected for this flight.
 	moveq #white,d0
 	cmp.w #constr,type(a5)
 	beq.s .laser_colour
-	cmp.w #6,rating(a6) ; Dangerous through Elite
-	bhs.s .laser_colour
-	moveq #orange,d0
-	cmp.w #3,rating(a6) ; Average through Competent
-	bhs.s .laser_colour
-	moveq #red,d0 ; Harmless through Poor
+	move.w ai_laser_colour(a6),d0
 .laser_colour:
 	jsr set_colour
 	jsr calc_yvector

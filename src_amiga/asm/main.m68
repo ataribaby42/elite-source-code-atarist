@@ -1,4 +1,5 @@
 	include "common.def"
+	xref init_ai_laser_colour
 ; Ported from src_orig/asm/main.m68; edit this copy.
 * @@   @@	 @@    @@@@@@ @@   @@
 * @@@ @@@	@@@@	 @@   @@@  @@
@@ -601,6 +602,7 @@ q_main_m68_49:
 	jsr check_hack ; check if program has been hacked
 	jsr launch_sequence ; display launch sequence
 	jsr reset_system ; reset star system
+	jsr init_ai_laser_colour ; keep normal AI beam colours fixed until the next trip
 	jsr launch_system ; create launch system
 	move.w #-1,checkpoint(a6) ; already inside S; suppress cargo/police checks on launch
 	move #-1,launch_spin(a6) ; spin as leaving

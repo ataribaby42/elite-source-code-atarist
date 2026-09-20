@@ -1,4 +1,5 @@
 	include "common.def"
+	xref init_ai_laser_colour
 ; Ported from src_orig/asm/flight.m68; edit this copy.
 ; @@@@@@@ @@@@	   @@@@@@	@@@@   @@  @@  @@@@@@
 ;  @@	@  @@		 @@    @@  @@  @@  @@  @ @@ @
@@ -837,6 +838,7 @@ q_flight_m68_107:
 	jsr create_system ; create new world
 q_flight_m68_100:
 	jsr reset_system ; reset star system
+	jsr init_ai_laser_colour ; all completed jumps, including galactic and witch space
 	clr last_screen(a6) ; force hyperspace selection
 	lsr police_record(a6) ; halve the police record
 	move fuel_needed(a6),d0 ; reduce fuel

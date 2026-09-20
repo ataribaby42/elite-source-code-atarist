@@ -4,6 +4,7 @@ Release build configuration: noprotect=yes commander=default laser=singlebeam ai
 
 xx.xx.xxxx Vx.xx
 
+* Cached AI laser colours on station launch and after normal or galactic hyperspace jumps, keeping them unchanged during flight on Atari ST and Amiga.
 * Set cargo canisters dropped by destroyed AI ships to a random speed of 3–6, capped at their initial speed, on Atari ST and Amiga.
 * Adjusted salvaged cargo quantities to 1 t, 1–10 kg, or 1–10 g per container on Atari ST and Amiga. Player-jettisoned cargo retains its exact original quantity.
 * Fixed the planet colour at the launch tunnel exit to match its in-flight colour on Atari ST and Amiga.

@@ -77,8 +77,11 @@ from the lower left and right on the jittering crosshair tip. Use
 cosmetic jitter, fixed crosshair targeting, shot timing and damage. They change
 player laser graphics only. Player colours come from the existing palette:
 Pulse red, Beam orange, Military white, and Mining the same magenta as the
-instrument bars. AI beam colours follow the player's rating: Harmless through
+instrument bars. Normal AI beam colours use the player's rating recorded on
+station launch or completion of a hyperspace or galactic jump: Harmless through
 Poor is red, Average through Competent orange, and Dangerous through Elite white.
+That colour stays fixed throughout the flight, even if the player's rating rises;
+it is refreshed on the next launch or jump, including entry into witch space.
 Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams
 are always light blue. AI damage and the distance-dependent random miss chance
 remain unchanged.
