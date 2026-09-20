@@ -8,6 +8,12 @@ Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per conta
 
 Cargo canisters released by destroyed AI ships drift at a random **3–6 world units per movement step**, matching player-ejected canisters. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
 
+Random Viper patrols check the player's legal record on first contact and when
+it changes, using the existing police-response probability. A successful check
+makes an Offender or Fugitive a possible target; nearer pirates and aliens
+still take priority. Station-launched police retain their existing behaviour.
+See [patrol police-record checks](docs/2026-09-20-patrol-police-record-checks.md).
+
 With **Reverse dive/climb** off (the default), moving the mouse up dives and
 moving it down climbs in both enhanced versions. Turn this option on to restore
 the previous mouse pitch direction.

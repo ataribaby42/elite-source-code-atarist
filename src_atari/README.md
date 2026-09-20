@@ -228,6 +228,16 @@ One ship re-targets per game frame, round robin, and candidates are ranked by
 the largest axis difference rather than a true distance, so no square root or
 division is needed. Nothing else in the flight loop got slower.
 
+Random Viper patrols inspect the player's police record on first contact and
+when it changes. They use the station's existing arrest probability: a clean
+record never triggers pursuit; otherwise a random value from 0 to 255 must be
+below `floor(record / 4) + government * 16`. A refused check is not repeated
+while the record stays unchanged. A successful check adds the player to the
+normal enemy candidates, so a closer pirate or alien still takes priority.
+Already angry ships continue their pursuit. Station-launched Vipers keep their
+existing arrest or alien-response behaviour and do not run patrol inspections.
+See [patrol police-record checks](../docs/2026-09-20-patrol-police-record-checks.md).
+
 A hunter flies the same attack run at a ship as it flies at the player: it
 steers at whatever its target is, closes, peels off, runs off and turns back.
 Nothing about the player's own situation reaches that fight any more: two ships

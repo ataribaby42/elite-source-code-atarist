@@ -5,6 +5,7 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 
 | Document | Purpose |
 | --- | --- |
+| [2026-09-20-patrol-police-record-checks.md](2026-09-20-patrol-police-record-checks.md) | Change: random Viper patrols inspect changing legal status using the existing police-response probability |
 | [2026-09-17-faction-ai-targeting-design.md](2026-09-17-faction-ai-targeting-design.md) | Design: ships attack the nearest hostile ship of another faction, with the player as one ordinary candidate |
 | [2026-09-17-faction-ai-targeting-plan.md](2026-09-17-faction-ai-targeting-plan.md) | The implementation plan for that design, task by task, including the follow-ups |
 | [2026-09-17-ecm-wave-timing-design.md](2026-09-17-ecm-wave-timing-design.md) | Design: the ECM wave is timed rather than tied to the ECM sound, which had left it dead on the Amiga |

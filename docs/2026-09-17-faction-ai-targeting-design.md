@@ -155,7 +155,8 @@ The player is a candidate for a hunter when:
 - the hunter's `ship_type` is `typ_pirate` or `typ_alien`, or
 - the hunter has the `angry` flag set.
 
-Two things set `angry`, and both say "the player is this ship's business".
+The provocation and police-arrest paths set `angry`, meaning "the player is
+this ship's business".
 `check_hit` sets it on the ship his shot lands on, provided that ship carries
 `act_attack`: the flag also drives the cockpit attack indicator through
 `do_logic` and the flashing scanner blip through `radar`, and neither should
@@ -164,6 +165,12 @@ left dormant by its mother's death. `launch_vipers` sets it on a ship the
 station sends out for him, which `police_hunt` tells apart from a scramble
 against an alien in its zone (§4.5). `do_cruising` clears it, so a ship that
 disengages forgets the provocation.
+
+As of 2026-09-20, random-encounter Vipers can also acquire `angry` after a
+successful police-record check. They use the station's existing probability,
+cache unchanged records and notice later changes during targeting. This path
+does not inspect station-launched ships; see
+[Random patrol police-record checks](2026-09-20-patrol-police-record-checks.md).
 
 `angry` does **not** lock the target. It only puts the player into the
 candidate set; the nearest candidate still wins. A trader the player has hit

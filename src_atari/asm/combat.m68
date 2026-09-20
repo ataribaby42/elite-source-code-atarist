@@ -470,6 +470,7 @@ faction_mask:
 	tst d0
 	beq.s .done ; no
 	move d0,-(sp) ; remember passive or fighting
+	bsr check_patrol_record ; only encounter vipers inspect changing legal status
 	bsr pick_target
 	move (sp)+,d1
 	tst d0 ; anything hostile in range ?
@@ -2575,6 +2576,10 @@ encounter_positions:
 	move.l #no_target,target(a4) ; RETARGET gives it one of its own
 	st velocity(a4) ; CREATE_OBJECT raises it to VEL_MAX
 	jsr create_object
+	cmp #viper,type(a4)
+	bne.s .created
+	move #-2,patrol_record(a4) ; inspect on its first eligible retarget turn
+.created:
 	ori #1,ccr ; created
 	rts
 .none:
@@ -2646,6 +2651,20 @@ encounter_positions:
 
 	q_subr check_police,global
 
+	bsr police_response
+	tst d0
+	beq.s .clean
+	st police_hunt(a6) ; his own police record brought them out
+	bra prepare_vipers
+.clean:
+	q_ret
+
+
+; Shared station/patrol decision: clean players never consume a random roll.
+; D0 = 1 for an arrest, 0 otherwise. D1/D2 corrupt; no launch state changed.
+
+	q_subr police_response,global
+
 	move police_record(a6),d0 ; any record ?
 	q_ret eq ; no, return
 	lsr #2,d0 ; probability of attack =
@@ -2654,12 +2673,39 @@ encounter_positions:
 	add d0,d2
 	jsr random ; within probability range ?
 	cmp d2,d0
-	bhs.s .clean ; no
-	st police_hunt(a6) ; his own police record brought them out
-	bra prepare_vipers ; yes, prepare vipers
-.clean:
+	slo d0
+	and #1,d0
+	q_ret
 
-	q_ret return
+
+; Encounter patrols get one decision on first contact and on each changed
+; police record, not a fresh roll every frame. ANGRY has the same meaning as
+; for a station arrest: add the player as a candidate, never lock the target.
+; Ships already provoked or sent to arrest him keep their existing pursuit.
+; CREATE_OBJECT disables this field for every other spawn, including station
+; launches, even when a record was copied or recycled from an encounter.
+; Entry: A5 = hunter. D0/D1/D2 corrupt.
+
+	q_subr check_patrol_record,global
+
+	cmp #viper,type(a5)
+	bne.s .done
+	cmp #-1,patrol_record(a5)
+	beq.s .done
+	btst #angry,flags(a5)
+	bne.s .done
+	cmp.l #radar_range,obj_range(a5)
+	bhi.s .done
+	move police_record(a6),d0
+	cmp patrol_record(a5),d0
+	beq.s .done
+	move d0,patrol_record(a5)
+	bsr police_response
+	tst d0
+	beq.s .done
+	bset #angry,flags(a5)
+.done:
+	q_ret
 
 
 ; **************************************

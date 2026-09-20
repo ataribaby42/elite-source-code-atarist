@@ -235,16 +235,20 @@ ambush it replaced:
 None of these counters gates a mission spawn except through `create_pirates`
 itself, and there the Constrictor is checked first (§7.2).
 
-### 7.4 An encounter's police are not after the player
+### 7.4 An encounter's police and the player
 
-A station launch marks the ships it sends out with `angry` when the launch is
-about the player, which is what makes `pick_target` offer him to a policeman at
-all. An encounter's Vipers are created by `encounter_member`, which writes
-`flags` outright and never sets that mark, so they hunt the raiders they were
-placed against and leave a clean player alone. He can be nearer than the pirate
-and still be passed over. If he shoots one, `check_hit` marks it like any other
-ship and it fights him -- which is the ordinary rule, not a special case for
-encounters.
+A station launch marks its ships with `angry` when the launch is about the
+player. Encounter Vipers initially lack that mark and leave a clean player
+alone, even when he is nearer than a pirate. A player's laser hit provokes the
+individual ship through `check_hit`, just as before.
+
+As of 2026-09-20, encounter patrols also inspect a nonzero police record using
+the existing station-response probability, on their first eligible targeting
+turn and again if the record changes. A successful decision sets `angry`;
+nearest-target selection still applies. Station-launched ships are excluded
+from this new inspection path. See
+[Random patrol police-record checks](2026-09-20-patrol-police-record-checks.md)
+for caching, isolation and native validation.
 
 ## 8. Performance
 
