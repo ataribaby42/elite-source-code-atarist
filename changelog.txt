@@ -2,7 +2,7 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no
 
-xx.xx.xxxx Vx.xx
+20.09.2026 V1.64
 
 * Fixed Amiga memory corruption during commander loading by increasing the stack to 4 KB, preventing missing stars, false drive malfunctions, and unexpected scanner contacts after launch.
 * Added legal-status checks for random Viper patrols on Atari ST and Amiga, using the existing police-response probability and reacting to record changes during flight. Preserved nearest-enemy targeting, AI-vs-AI combat, and station-launched Viper behaviour.
