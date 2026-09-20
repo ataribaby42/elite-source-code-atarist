@@ -71,6 +71,12 @@ y_max: equ (y_size>>1)-1
 x_left: equ (scr_width-x_size)>>1 ; x coordinate of left edge
 field_lines: equ 262+51*(1-display_ntsc) ; raster lines in one field
 line_scale: equ 66-display_ntsc ; a raster line in 1024ths of a millisecond
+clear_bursts: equ y_size*row_stride/16 ; sixteen bytes to a MOVE16
+	ifeq (scr_width-x_size)+((y_size*row_stride)&15) ; vasm binds & tighter than *
+clear_burst_ok: equ 1 ; whole rows, and a whole number of MOVE16 lines
+	else
+clear_burst_ok: equ 0
+	endc
 no_dust: equ 15*(x_size/zoom_x)*(y_size/zoom_y)/(256*112) ; 15 in a 256x112 view
 arm_entries: equ scr_rows+4 ; SOLID_POLYGON indexes its arms by physical screen row
 proj_shift_x: equ 9+display_hires ; projection scale, a wider screen needs more

@@ -87,6 +87,23 @@ native_sprite_save macro
 native_no_save\@:
     endm
 
+native_clear_burst macro
+    ; A0 advances by one 16-byte line; the source is fixed and in Fast RAM.
+    ifne emulated_burst ; a core without MOVE16 writes the same bytes
+    rept 4
+    move.l (zero_line+16).l,(a0)+
+    endr
+    else
+	mc68040
+    move16 (zero_line+16).l,(a0)+
+    ifne cpu_68020
+	mc68020
+    else
+	mc68000
+    endc
+    endc
+    endm
+
 native_clear_span macro
     ; Zero x_size/8 bytes at plane displacement \1 from A0; D0-D6/A1 hold zero.
 clr_off set 0

@@ -10,12 +10,14 @@ amiga_implementation: equ 1
     xdef bitmap_bank,bitmap_bytes
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
+    xdef cpu_level,clear_burst
     section text,code
 amiga_entry:
     movem.l d2-d7/a2-a6,-(sp)
     move.l sp,host_stack
     move.l 4.w,a6
     move.l a6,exec_base
+    bsr probe_cpu
     suba.l a1,a1
     jsr -294(a6)                 ; FindTask(NULL)
     move.l d0,a2
@@ -291,6 +293,32 @@ amiga_rows_art:
     move.w #diwstop_art,copper_diwstop
     rts
 
+; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060. The first is
+; what MOVE16 needs; CLEAR_IMAGE checks the screen's alignment itself.
+probe_cpu:
+    moveq #0,d0
+    move.w 296(a6),d0            ; ExecBase.AttnFlags
+    moveq #0,d1
+    btst #1,d0
+    beq.s .level
+    moveq #2,d1
+    btst #3,d0
+    beq.s .level
+    moveq #4,d1
+    btst #7,d0
+    beq.s .level
+    moveq #6,d1
+.level:
+    move.w d1,cpu_level
+    clr.b clear_burst
+    ifne clear_burst_ok
+    cmp.w #4,d1
+    blo.s .done
+    st clear_burst
+.done:
+    endc
+    rts
+
 ; Flip an address inside either source screen, preserving its byte offset.
 ; XOR is only valid for the bases when AmigaDOS chooses unaligned allocations.
 amiga_flip_address:
@@ -521,4 +549,7 @@ input_open: ds.w 1
 input_added: ds.w 1
 vblank_added: ds.w 1
 mouse_right: ds.w 1
+cpu_level: ds.w 1
+clear_burst: ds.b 1
+	even
 instance_owned: ds.w 1

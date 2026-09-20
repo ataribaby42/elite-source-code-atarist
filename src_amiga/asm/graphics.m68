@@ -161,6 +161,31 @@ q_graphics_m68_6\@:
     endc
     move.l scr_base(a6),a0
     lea y_top*row_stride+x_left/8(a0),a0
+    ifne clear_burst_ok
+    tst.b clear_burst ; 68040 or better, so MOVE16 exists
+    beq .spans
+    moveq #0,d0
+    move #clear_bursts,d7
+    move.l a0,d1
+    and.w #15,d1 ; AmigaDOS aligns a hunk to eight bytes, not sixteen
+    beq.s .lines
+    cmp.w #8,d1
+    bne .spans
+    subq #1,d7 ; a long pair covers the half line at each end
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+.lines:
+    subq #1,d7
+.line:
+    native_clear_burst
+    dbra d7,.line
+    tst.w d1
+    beq .cleared
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+    bra .cleared
+    endc
+.spans:
     moveq #0,d0
     moveq #0,d1
     moveq #0,d2
@@ -178,6 +203,7 @@ q_graphics_m68_6\@:
     native_clear_span plane3
     lea row_stride(a0),a0
     dbra d7,.row
+.cleared:
     ifne frametime
     bsr.s raster_line
     sub frame_start(a6),d0
@@ -267,6 +293,17 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	jsr print_char
 	move clear_ms(a6),d0
 	bsr .digits
+	moveq #' ',d0 ; and what cleared it
+	jsr print_char
+	move cpu_level,d0
+	add #'0',d0
+	jsr print_char
+	moveq #'.',d0
+	tst.b clear_burst
+	beq.s .plain
+	moveq #'M',d0
+.plain:
+	jsr print_char
 	q_pop pad_char(a6)
 	q_pop.l text_addr(a6)
 	q_pop row(a6)
