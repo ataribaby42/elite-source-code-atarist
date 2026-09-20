@@ -5,16 +5,23 @@ amiga_implementation: equ 1
     include "macros.m68"
     xref elite,vars,vblank,key_change,other_screen,quiet
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
-    xdef amiga_start_display,amiga_wait_title
+    xdef amiga_start_display,amiga_wait_title,amiga_rows_full,amiga_rows_art
     xdef palette,frclock,dos_base,set_palette,random_seed_value
+    xdef bitmap_bank,bitmap_bytes
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
+    xdef cpu_level,clear_burst,maths_fast
+    ifeq cpu_68020
+    xref divide_by_10,divide_by_10_020,divide_by_1e5,divide_by_1e5_020
+    xref sky_multiply,sky_multiply_020
+    endc
     section text,code
 amiga_entry:
     movem.l d2-d7/a2-a6,-(sp)
     move.l sp,host_stack
     move.l 4.w,a6
     move.l a6,exec_base
+    bsr probe_cpu
     suba.l a1,a1
     jsr -294(a6)                 ; FindTask(NULL)
     move.l d0,a2
@@ -56,6 +63,11 @@ amiga_entry:
     move.l exec_base,a6
 .directory_ready:
     jsr file_init               ; disk-swap paths and requester policy
+    move.l #bitmap_bytes,d0     ; the expanded bitmap bank outgrows a KS1.x BSS Hunk
+    move.l #$10000,d1           ; MEMF_CLEAR, any memory: Fast RAM when there is some
+    jsr -198(a6)                 ; AllocMem
+    move.l d0,bitmap_bank
+    beq startup_failed
     lea graphics_name(pc),a1
     moveq #0,d0
     jsr -552(a6)
@@ -144,6 +156,13 @@ startup_failed:
     clr workbench_directory_changed
 .directory_restored:
     move.l exec_base,a6
+    move.l bitmap_bank,d0
+    beq .no_bitmaps
+    move.l d0,a1
+    move.l #bitmap_bytes,d0
+    jsr -210(a6)                 ; FreeMem
+    clr.l bitmap_bank
+.no_bitmaps:
     move.l graphics_base,d0
     beq .no_graphics
     move.l d0,a1
@@ -268,13 +287,102 @@ amiga_present:
     bne .wait
     rts
 
+; Display the full screen height; the flight view owns every row.
+amiga_rows_full:
+    move.w #diwstop_rows,copper_diwstop
+    rts
+
+; Display art_rows only, so 200-row artwork keeps its original framing.
+amiga_rows_art:
+    move.w #diwstop_art,copper_diwstop
+    rts
+
+; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060. The first is
+; what MOVE16 needs; CLEAR_IMAGE checks the screen's alignment itself.
+probe_cpu:
+    moveq #0,d0
+    move.w 296(a6),d0            ; ExecBase.AttnFlags
+    moveq #0,d1
+    btst #1,d0
+    beq.s .level
+    moveq #2,d1
+    btst #3,d0
+    beq.s .level
+    moveq #4,d1
+    btst #7,d0
+    beq.s .level
+    moveq #6,d1
+.level:
+    move.w d1,cpu_level
+    clr.b clear_burst
+    ifne clear_burst_ok
+    cmp.w #4,d1
+    blo.s .burst_done
+    st clear_burst
+.burst_done:
+    endc
+    st maths_fast
+    ifeq cpu_68020
+    clr.b maths_fast
+    cmp.w #2,d1                  ; 32-bit multiply and divide from the 68020 up
+    blo.s .done
+; Patching code means clearing the instruction cache afterwards. CacheClearU
+; arrived with Kickstart 2.0; under 1.3 a 68020 or 68030 can do it through CACR
+; in supervisor state, and a 68040 or better, which no 1.3 machine has, is left
+; with the MC68000 arithmetic rather than an unflushed patch.
+    cmp.w #36,20(a6)             ; Library.lib_Version
+    bhs.s .patch
+    cmp.w #2,d1
+    bne.s .done
+.patch:
+    lea fast_pairs(pc),a0
+.pair:
+    move.l (a0)+,d0
+    beq.s .patched
+    move.l d0,a1
+    move.w #$4ef9,(a1)+          ; JMP to the twin, over an entry nothing else enters
+    move.l (a0)+,(a1)
+    bra.s .pair
+.patched:
+    st maths_fast
+    cmp.w #36,20(a6)
+    blo.s .cacr
+    jsr -636(a6)                 ; CacheClearU
+    rts
+.cacr:
+    lea flush_cacr(pc),a5
+    jmp -30(a6)                  ; Supervisor, which returns for us
+.done:
+    endc
+    rts
+
+    ifeq cpu_68020
+; Clear the instruction cache the way Kickstart 1.3 has no call for. SUPERVISOR
+; enters this in supervisor state and expects an RTE.
+flush_cacr:
+	mc68020
+    movec cacr,d0
+    ori.w #8,d0                  ; CACR: clear the instruction cache
+    movec d0,cacr
+    rte
+	mc68000
+    endc
+
+    ifeq cpu_68020
+fast_pairs:
+    dc.l divide_by_10,divide_by_10_020
+    dc.l divide_by_1e5,divide_by_1e5_020
+    dc.l sky_multiply,sky_multiply_020
+    dc.l 0
+    endc
+
 ; Flip an address inside either source screen, preserving its byte offset.
 ; XOR is only valid for the bases when AmigaDOS chooses unaligned allocations.
 amiga_flip_address:
     move.l d1,-(sp)
     move.l d0,d1
     sub.l #amiga_primary,d1
-    cmp.l #32768,d1
+    cmp.l #scr_bytes,d1
     blo .primary
     sub.l #other_screen,d0
     add.l #amiga_primary,d0
@@ -301,18 +409,24 @@ amiga_vblank:
 .same:
     lea copper_planes,a0
     move.l display_front,d0
-    moveq #3,d7
+    ifne display_lace
+    btst #7,$dff004             ; LOF: the long frame shows the even rows
+    bne.s .long_frame
+    add.l #row_stride,d0        ; the short frame starts one row down
+.long_frame:
+    endc
+    moveq #scr_planes-1,d7
 .pointers:
     swap d0
     move.w d0,2(a0)
     swap d0
     move.w d0,6(a0)
-    add.l #40,d0
+    add.l #bpr,d0
     addq.l #8,a0
     dbra d7,.pointers
     lea palette,a0
     lea $dff180,a1
-    moveq #15,d7
+    moveq #(1<<scr_planes)-1,d7
 .colours:
     move.w (a0)+,d0
     move.w d0,(a1)+
@@ -458,11 +572,14 @@ vblank_server:
     section amiga_copper,data
 copper:
     dc.w $2001,$fffe            ; allow the VBL server to publish pointers first
-    dc.w $100,$0200,$08e,$2c81,$090,$f4c1,$092,$0038,$094,$00d0
-    dc.w $102,0,$104,0,$108,120,$10a,120
+    dc.w $100,$0200,$08e,$2c81,$090
+copper_diwstop:
+    dc.w diwstop_art
+    dc.w $092,ddfstrt,$094,ddfstop
+    dc.w $102,0,$104,0,$108,row_stride*(1+display_lace)-bpr,$10a,row_stride*(1+display_lace)-bpr
 copper_planes:
     dc.w $0e0,0,$0e2,0,$0e4,0,$0e6,0,$0e8,0,$0ea,0,$0ec,0,$0ee,0
-    dc.w $100,$4200,$ffff,$fffe
+    dc.w $100,bplcon0_on,$ffff,$fffe
 
     section platform_vars,bss
 host_stack: ds.l 1
@@ -470,6 +587,7 @@ workbench_message: ds.l 1
 workbench_old_directory: ds.l 1
 workbench_directory_changed: ds.w 1
 exec_base: ds.l 1
+bitmap_bank: ds.l 1
 dos_base: ds.l 1
 graphics_base: ds.l 1
 old_view: ds.l 1
@@ -488,4 +606,8 @@ input_open: ds.w 1
 input_added: ds.w 1
 vblank_added: ds.w 1
 mouse_right: ds.w 1
+cpu_level: ds.w 1
+clear_burst: ds.b 1
+maths_fast: ds.b 1
+	even
 instance_owned: ds.w 1

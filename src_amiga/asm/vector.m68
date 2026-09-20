@@ -535,7 +535,7 @@ q_vector_m68_55:
 q_vector_m68_56:
 	q_ret return ; (ignore surface)
 q_vector_m68_53:
-	moveq #9,d3 ; convert to screen coords
+	moveq #proj_shift_x,d3 ; convert to screen coords
 	ext.l d0
 	ext.l d1
 	asl.l d3,d0 ; (xv = xw*512/z)
@@ -551,6 +551,7 @@ q_vector_m68_59:
 	move #-maxint,d0
 q_vector_m68_60:
 q_vector_m68_57:
+	moveq #proj_shift_y,d3 ; the vertical scale can differ
 	asl.l d3,d1 ; (yv = yw*512/z)
 	divs d2,d1
 ; Quelo: 			if <vs> then.s
@@ -684,7 +685,7 @@ q_vector_m68_85:
 q_vector_m68_86:
 	q_ret return ; (ignore surface)
 q_vector_m68_83:
-	moveq #9,d3 ; convert to screen coords
+	moveq #proj_shift_x,d3 ; convert to screen coords
 	ext.l d0
 	ext.l d1
 	asl.l d3,d0 ; (xv = xw*512/z)
@@ -700,6 +701,7 @@ q_vector_m68_89:
 	move #-maxint,d0
 q_vector_m68_90:
 q_vector_m68_87:
+	moveq #proj_shift_y,d3 ; the vertical scale can differ
 	asl.l d3,d1 ; (yv = yw*512/z)
 	divs d2,d1
 ; Quelo: 			if <vs> then.s
@@ -856,7 +858,11 @@ q_vector_m68_76:
 
 	q_subr perspective
 
-	moveq #9,d1 ; x*512/z
+	moveq #proj_shift_x,d1 ; x*512/z
+	bra.s perspective_scale
+perspective_y:
+	moveq #proj_shift_y,d1 ; y*512/z
+perspective_scale:
 	asl.l d1,d0
 	divs d2,d0
 ; Quelo: 	if <vc> then.s						no overflow
@@ -966,15 +972,15 @@ q_vector_m68_100:
 	bsr perspective
 	move d0,centre_x(a5)
 	move.l this_ypos(a5),d0 ; calculate view y coord of centre
-	bsr perspective
+	bsr perspective_y
 	move d0,centre_y(a5)
 	move obj_rad(a5),d0 ; calculate screen radius of object
 	ext.l d0
-	bsr perspective
+	bsr perspective_y ; radii follow the vertical scale, as circles do
 	move d0,scr_radius(a5)
 	move hits_rad(a5),d0 ; calculate screen radius for hits
 	ext.l d0
-	bsr perspective
+	bsr perspective_y
 	btst #invincible,flags(a5) ; invincible ?
 	q_ret ne ; yes, return
 	move centre_x(a5),d1 ; within sights along x axis ?

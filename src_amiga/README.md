@@ -10,7 +10,7 @@ instead. The selected directory must contain all eight PNGs and `layout.json`.
 Both choices generate the same asset and distribution paths; use `altgfx=no`
 to rebuild with the standard sources.
 
-Edit the eight PNGs in this tree's `gfx/` folder. The build requires Pillow
+Edit the PNGs in this tree's `gfx/` folder. `font16.png` holds the same glyphs as `font.png` at 16 x 8 and is the face a 640-wide build draws; the two are independent artwork, so a glyph changed in one does not change the other. The build requires Pillow
 (`python -m pip install Pillow`) and generates this tree's `assets/` before
 assembly. Keep canvas sizes and use each image's exact RGB palette. `cockpit.png`
 uses the cockpit palette; all other PNGs use the UI base palette, including in
@@ -61,6 +61,11 @@ In flight, double-click an Inventory item and confirm with `Y` or the YES button
 
 ## Build and run
 
+`build_amiga.bat all` and `./build_amiga.sh all` build every delivered image,
+one call to `build.py` per image, each with its own `outputname`. The calls are
+the fourteen lines at the foot of those two scripts; changing what is delivered
+is an edit there. `build.py` itself always builds exactly one image.
+
 `build_amiga.bat outputname=ELITE_ALT` creates `output_amiga/ELITE_ALT/` and
 `output_amiga/ELITE_ALT.ADF`. The default is `outputname=ELITE`; this option can be
 combined with `altgfx=yes` or any other enhanced build option. Pass a filename,
@@ -68,7 +73,20 @@ without a path or disk suffix; quote the whole argument if it contains spaces.
 Files inside the distribution keep their existing names, including `ELITE`,
 `ELITE.info` and the disk startup sequence. Intermediates, generated assets and
 the verification report remain shared by this source tree. The report records
-the selected name and output paths. Paths below show the default output name.
+the selected name and output paths.
+
+`outputname` is the whole name: the build appends nothing to it. Two builds that
+share a name overwrite each other, which is why every call in
+`build_amiga.bat all` names itself.
+
+| build | image and directory |
+| --- | --- |
+| `frame=yes display=pal` | `ELITE.ADF`, `ELITE/` |
+| `outputname=ELITE.WIDE.PAL frame=no` | `ELITE.WIDE.PAL.ADF` |
+| `outputname=MYBUILD display=pal-hires frame=no` | `MYBUILD.ADF`, `MYBUILD/` |
+
+`display=hires` and `display=hireslace` are spellings of `pal-hires` and
+`pal-hireslace`, and the name always uses the full one.
 
 `assets/ELITE.info` is the standard four-colour Workbench tool icon (96 x 24 pixels, normal and selected images). The build copies this asset unchanged beside `ELITE` in both the ADF and `output_amiga/ELITE`. Double-click it to launch the game from Workbench 1.3 or later; keep all game files together. The native executable receives and replies to the Workbench startup message, selects the executable's directory before loading assets, and restores the caller's directory on exit. Ctrl+F10 returns to Workbench. Shell and boot-disk launches remain supported.
 
@@ -110,9 +128,44 @@ Run from the project root:
 .\build_amiga.bat scannerlogo=no
 ```
 
-The root `build_amiga.bat` currently supplies `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=default` to build with the original starting balance.
+`display=` picks the screen. The row count follows the refresh rate, `hires` doubles the pixels across and `hireslace` doubles them down as well. One set of assets serves all six.
 
-Python 3.10+ and Windows x64 are required. The build uses the root `tools/vasmm68k_mot.exe` (vasm 2.0f, Motorola syntax, MC68000) and `tools/vlink.exe` (vlink 0.18a). No additional Python packages are needed. `-Vasm` and `-Vlink` select alternative tool paths. `python src_amiga/build.py` is also supported. Unknown arguments, including `platform=amiga`, are rejected.
+| option | screen | flight view | recommended |
+| --- | --- | --- | --- |
+| `pal` (default) | 320 x 256 | 320 x 168 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256 | 640 x 168 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512 | 640 x 336 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 68040 at 25 MHz |
+
+`frame=yes` keeps the cockpit frame from `COCKPIT.PC1` and the original 256 x 112 window inside it, as the Atari version has it. The screen is then as tall as the artwork, 200 rows on either refresh rate, and the view name comes back as the artwork's own tile instead of font text. `frame=no`, the default, crops the frame and gives the view the full screen width. Both settings work with every `display=` option, so a framed hires build is 640 x 200 with a 512 x 112 view.
+
+| option | screen | flight view |
+| --- | --- | --- |
+| `frame=no` (default) | as the `display=` table above | full width, down to the panel |
+| `frame=yes` | 320 x 200, or 640 x 200 hires, 640 x 400 interlaced | 256 x 112, doubled with the pixels |
+
+Every image carries both forms of the three routines that a 32-bit multiply and divide speeds up, `divide_by_10`, `divide_by_1e5` and `sky_multiply`. `probe_cpu` reads `ExecBase.AttnFlags` at startup and, from the MC68020 up, writes a jump to the native form over the entry of the MC68000 one, then clears the instruction cache: through `CacheClearU` from Kickstart 2.0, and through `CACR` under 1.3, which has no such call. So a delivered image runs on a stock machine and uses the wider instructions where they exist. `cpu=68020` still assembles the native forms only, for a tighter image that needs an MC68020; give it its own `outputname` or it overwrites whatever shares the name.
+
+`hires` and `hireslace` remain accepted as the PAL spellings. The hires modes hold the authoring 320 x 200 grid and scale every coordinate to the screen, so a page looks the same in each; an interlaced screen needs a flicker fixer or a multisync monitor.
+
+```powershell
+.\build_amiga.bat display=pal
+.\build_amiga.bat display=ntsc-hireslace
+```
+
+The root `build_amiga.bat` supplies `outputname=ELITE noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=no` and repeats the build as `ELITE_ALT` with `altgfx=yes`. The root `build_amiga.sh` supplies the same protection, commander, laser, sound and logo options with `frame=no`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_amiga.bat commander=max` for a Deadly commander with 1,000,000 Cr.
+
+`build.sh` is the Linux entry point, forwarded from the root `build_amiga.sh`. With no display option it builds PAL then NTSC; naming one builds only that. Each result lands in `output_amiga` under its own name. `--python`, `--vasm` and `--vlink` select alternative tools.
+
+```sh
+./build_amiga.sh
+./build_amiga.sh display=pal commander=max
+./build_amiga.sh all
+```
+
+Python 3.10+ is required on either host. `build.bat` and `build.sh` only find an interpreter; `build.py` does the build and picks the bundled tools itself, `tools/vasmm68k_mot.exe` and `tools/vlink.exe` on Windows, `tools/vasmm68k_mot` and `tools/vlink` on Linux, and prints the pair it used. No additional Python packages are needed. `-Vasm` and `-Vlink`, or `--vasm` and `--vlink`, select alternative tool paths, and so do the `ELITE_VASM` and `ELITE_VLINK` variables. `python src_amiga/build.py` is also supported on its own. Unknown arguments, including `platform=amiga`, are rejected.
 
 The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checksum is validated before extracting the original boot block, 19 effect samples, and the four-channel Blue Danube score with seven music instruments. It produces:
 
@@ -122,7 +175,7 @@ The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checks
 | `output_amiga/ELITE.ADF` | Bootable 880 KB OFS disk with all game files |
 | `src_amiga/build/` | Objects, generated sound tables, logs, link map and verification report |
 
-Target: **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. Boot the ADF in DF0:, or copy every file from `output_amiga/ELITE` into one writable directory, change to that directory in AmigaDOS and run `ELITE`. The original novella questions are enabled unless built with `noprotect=yes`. F1 launches, F2-F4 select the other flight views, F5/F6 show the charts, F9 shows status, F10 shows inventory, and minus opens the disk menu while docked. **Ctrl+F10 exits to AmigaDOS.**
+Target: **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. The two screens take `2*scr_bytes` of Chip RAM: 80 KB on PAL, 62.5 KB on NTSC. Boot the ADF in DF0:, or copy every file from `output_amiga/ELITE` into one writable directory, change to that directory in AmigaDOS and run `ELITE`. The original novella questions are enabled unless built with `noprotect=yes`. F1 launches, F2-F4 select the other flight views, F5/F6 show the charts, F9 shows status, F10 shows inventory, and minus opens the disk menu while docked. **Ctrl+F10 exits to AmigaDOS.**
 
 When launched from a floppy, commander loading, saving and the catalog use the root of that physical drive (DF0: through DF3:). After the title animation starts, the game disk can be replaced with a commander disk in the same drive, including when answering Y to "Load new commander?". HDD launches keep commander files in the current directory. File errors return to the game instead of opening an AmigaDOS requester behind its custom display; the original requester setting is restored on exit.
 
@@ -138,18 +191,20 @@ Screen swapping waits for the VBL handler to accept the rendered screen before r
 
 The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. Both hyperspace types use a five-second PAL timer (250 VBLs), followed by the final circle passing through the view. The timer is independent of the Effects setting on both platforms.
 
-- **Display:** 320 x 200, four planes, 16 colours. Each row contains four consecutive 40-byte plane rows. Pixel word addresses are `screen + y*160 + (x>>4)*2`, with plane offsets 0, 40, 80 and 120. Copper uses a bitplane modulo of 120. Two 32 KB Chip RAM buffers provide double buffering; a VERTB handler publishes the completed screen.
+- **Display:** 320 x 256 on PAL, 320 x 200 with `display=ntsc`. Four planes, 16 colours. Each pixel row holds `scr_planes` consecutive `bpr`-byte plane rows. Pixel word addresses are `screen + y*row_stride + (x>>4)*2`, with plane offsets 0, `plane1`, `plane2` and `plane3`; the bitplane modulo is `row_stride-bpr`. Two `scr_bytes` Chip RAM buffers provide double buffering; a VERTB handler publishes the completed screen. The Copper window shows every row in flight and `art_rows` for the 200-row artwork screens, so charts, market and status keep their original framing. Geometry lives in `asm/common.def`; no module holds a literal row stride or plane offset.
 - **Drawing:** lines, polygons, text, sprites and their saved backgrounds, radar, scrolling text, chart circles and planet shading use the native plane addresses. DEGAS RLE artwork decodes directly into this row-interleaved layout. The asset palette is imported once into native 12-bit OCS colours. Game artwork and compact sprite assets remain derived from the Atari release.
 - **Input:** an `input.device` handler supplies native Amiga raw keys and mouse movement. The keyboard tables and steering bindings use Amiga key codes directly. The vertical blank handler reads the joystick port and fire button. There is no ST scancode translation or IKBD packet emulation.
 - **Sound:** `sounds.m68` drives Paula DMA using the 19 original Amiga effect samples. The hangar launch animation triggers the original Amiga launch effect; it follows the Effects setting and is skipped when the launch animation is disabled. Music uses the original four-channel Amiga Blue Danube score and seven sampled instruments, with a relocatable adaptation of Wally Beben's replay in `music.m68`. The title, docking computer and Elite congratulations screen use this arrangement. Audio samples and Copper data are allocated in Chip RAM. Timing and envelopes for the original effects remain simplified. Two new synthesized PCM loops provide continuous player Beam and Military sounds, adding 8 KB of Chip RAM. See [MUSIC.md](MUSIC.md) for extraction, playback and validation details.
 - **Files:** `fileio.m68` calls AmigaDOS Open, Read, Write and Close with full 32-bit BPTR handles. Directory enumeration uses Lock, Examine and ExNext and returns commander filenames directly. Startup resolves the current filesystem with DeviceProc so commander operations follow a replacement floppy without retaining a path to the ejected volume. Asset paths remain relative. It does not simulate GEMDOS traps, handle numbers or a DTA. The existing 256-byte commander format is retained.
-- **Lifecycle:** Exec remains running for input and disk I/O. Startup saves the OS View and installs the handlers; exit removes them, closes open files, releases the directory lock and restores the OS display and Copper list. Relocatable Hunk sections replace the fixed Atari memory map. Each BSS Hunk stays below the Kickstart 1.x clearing limit.
+- **Lifecycle:** Exec remains running for input and disk I/O. Startup saves the OS View and installs the handlers; exit removes them, closes open files, releases the directory lock and restores the OS display and Copper list. Relocatable Hunk sections replace the fixed Atari memory map. Each BSS Hunk stays below the Kickstart 1.x clearing limit; the expanded bitmap bank outgrows that limit in the hires modes, so startup allocates it and exit frees it.
 
 Viewport clearing writes each 32-byte plane span with one MC68000 `MOVEM.L`. Vertical lines cache their masked plane colours; horizontal spans and block fills cache all four plane words. Diagonal lines cache both colour pairs and preserve the caller's D7 counter. These CPU optimizations retain patterned colours, inclusive line endpoints, viewport borders and the existing frame limiter.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This addresses the CPU-side corruption of missile indicators and options icons; it does not establish full A1200/AGA hardware compatibility.
 
-The viewport uses inclusive logical coordinates `x=-128..127`, `y=-56..55`, matching the full cleared screen area `x=32..287`, `y=8..119` (256 x 112 pixels). Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping, so they cannot overwrite the cockpit border.
+With `frame=no` the flight view has no cockpit frame. It spans the full width, from below the view indicator down to the instrument panel: on PAL inclusive logical coordinates `x=-160..159`, `y=-84..83`, cleared screen area `x=0..319`, `y=8..175` (320 x 168 pixels), against 320 x 112 with `display=ntsc`. That is 1.9 times the area of the framed 256 x 112 view. Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping.
+
+`COCKPIT.PC1` is still decoded at its original 320 x 200 size. `place_panel` then moves its bottom 80 rows to the foot of the screen and clears everything above, which crops the frame pillars and leaves the enlarged view. Instrument, scanner and compass coordinates follow `y_shift`, so the panel keeps its internal layout. The moving starfield keeps its original density: `no_dust` scales with the viewport area.
 
 The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
 
@@ -168,7 +223,7 @@ Player and AI lasers use instant-hit beams. Player Beam and Military lasers now 
 | `asm/sounds.m68`, `asm/music.m68`, `asm/workspace.m68` | Paula effects, original Amiga music replay and relocatable storage |
 | `asm/` | Independent game modules, definitions, font and ship data |
 | `assets/` | Game artwork and lookup tables |
-| `build.py`, `build.ps1`, `build.bat` | Build owned by this target |
+| `build.py`, `build.bat`, `build.sh` | Build owned by this target; one invocation is one image |
 | `tools/` | Original sound extraction, Hunk validation and OFS disk creation |
 | `tests/` | Asset, Hunk and OFS regression tests |
 

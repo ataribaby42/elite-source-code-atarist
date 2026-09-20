@@ -1,0 +1,121 @@
+# Wide and multi-mode support
+
+Date: 2026-09-20
+Status: implemented in `src_amiga`
+
+## Screens
+
+`display=` selects the screen and `frame=` the cockpit. The row count follows the refresh rate, `hires` doubles the pixels across and `hireslace` doubles them down as well. Artwork, assets and gameplay are the same in every combination.
+
+| `display=` | screen | view, `frame=no` | view, `frame=yes` | recommended |
+| --- | --- | --- | --- | --- |
+| `pal` | 320 x 256, or 320 x 200 framed | 320 x 168 | 256 x 112 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 112 | 256 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 168 | 512 x 112 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 336 | 512 x 224 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 112 | 512 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 512 x 224 | 68040 at 25 MHz |
+
+`frame=yes` is the default and builds the original game. `hires` and `hireslace` are accepted as the PAL spellings, and an interlaced screen needs a flicker fixer or a multisync monitor.
+
+Every coordinate in the game is authored on a logical 320 x 200 grid. `zoom_x` and `zoom_y` in `asm/geometry.def` carry that grid to the physical screen, so a mode is a set of constants rather than a code path: one build of one source tree covers all six.
+
+## The cockpit frame
+
+`COCKPIT.PC1` draws hand-pixelled pillars down both sides of the view, from row 8 to row 119. They are drawn once at that height and no band of them repeats, so a taller view needs either new artwork or no frame.
+
+`frame=no` takes the second way. `place_panel` in `asm/cockpit.m68` moves the bottom `panel_rows` of the decoded picture to the foot of the screen and clears everything above, so the view spans the full width and the pillars are cropped. Row 120 is the first row of panel content, measured on the asset, so `panel_rows: equ 80*zoom_y` loses nothing. The view name is printed in the game font into the strip above the view, which `clear_image` never touches.
+
+`frame=yes` keeps the whole picture. The screen is then as tall as the artwork, `scr_rows: equ art_rows*zoom_y`, and the viewport is the window the frame leaves:
+
+```
+no_cols: equ 32     ; columns across the window
+no_rows: equ 14     ; rows down it
+```
+
+`x_size`, `y_size`, `x_min` to `y_max`, `x_left`, `no_dust` and `arm_entries` follow from the formulas in `geometry.def`, so a framed build lands on the original 256 x 112 window at `x_left = 32` with 15 dust particles. `y_shift` and `panel_shift` are `scr_rows-art_rows*zoom_y`, which is zero at the artwork's height, so every instrument and scanner coordinate sits where the artwork puts it, and `diwstop_rows` equals `diwstop_art`. Two pieces read the flag directly: `tunnel_scale` is 1, and the view name is the artwork's own tile from `bit_views`.
+
+## Geometry
+
+`asm/geometry.def` holds the display geometry; no module contains a literal stride or plane offset. `bpr`, `scr_planes`, `scr_width`, `row_stride`, `plane1` to `plane3`, `scr_rows`, `scr_bytes`, `art_rows`, `art_bytes`, `panel_rows`, `y_shift`, `panel_shift`, `char_w`, `char_h` and the Copper values all derive from the three display flags. `raster.inc` takes the plane offsets from the symbols and `native_clear_span` generates the viewport clear for any width.
+
+Derived alongside the viewport:
+
+- `no_dust` scales with the viewport area counted in logical pixels, so the moving starfield keeps its density of 15 stars in a 256 x 112 view and a sharper screen does not add particles.
+- `left_arm` and `right_arm` hold one x coordinate per clipped polygon row and are sized by `arm_entries`.
+- `action_vsize` covers the scroll buffer, which is sized by `no_cols`.
+- `proj_shift_x` and `proj_shift_y` carry the projection per axis, because a hires screen doubles horizontally while a progressive one keeps its row count.
+- `circle_stretch` widens circles where a pixel is half as wide as it is tall, so planets and suns stay round on a non-interlaced hires screen.
+- `dither_bit` holds each dither phase for two rows on an interlaced screen, so both fields see the alternation instead of one comb of each.
+- `sky.dat` is generated from the widest viewport, so its cone cull stays conservative for a shorter one.
+
+`sky_project_star` culls a star before its divide by multiplying the depth by `x_max+2` and `y_max+2` and shifting by 9. That is exact for any viewport: the negative edge is the wider one and DIVS truncates toward zero. It costs two 16-bit multiplies per candidate star.
+
+## Artwork and sprites
+
+Assets are authored at 320 x 200 and expanded to the display when they load.
+
+`draw_screen` in `asm/graphics.m68` widens a DEGAS screen while it decodes it: one source byte becomes a word through a 256-entry table, so 40 source bytes make exactly 80 and the plane boundaries fall out on their own. An interlaced build then runs `double_rows`, which lays every decoded row down twice, working backwards because source and destination overlap.
+
+`read_bitmaps` in `asm/init.m68` widens the sprite bank as it reads it, emitting two columns of mask and four planes for each source column, and duplicating rows for an interlaced screen. The rotation loops in `sprite_rows.inc` work on the widened data unchanged, so no instruction is patched at run time. The expanded bank is 140,750 bytes on a 320-wide screen and 560,000 interlaced, past the 262,144-byte Kickstart 1.x hunk clearing limit, so `bitmap_bank` is allocated at startup and freed at exit. `build.py` measures the asset against `bitmap_bytes` and refuses a bank that would not fit.
+
+Text is the exception: a 640 screen links its own face. `gfx/font16.png` carries the glyphs at 16 x 8 and becomes `ELITECHR16.IMG`, which `data.m68` includes and `init.m68` installs in place of the 8 x 8 `amstrad_8x8`. `display_char` then reads a word per glyph row instead of widening a byte, and an interlaced build writes that word to both rows of the pair. The plane masks stay byte-sized and are widened by `ext.w` as they are read.
+
+## Scenery built for the old window
+
+The docking bay and the hangar were modelled to fill the original 256 x 112 window exactly, so a wider view sees past their walls. `geometry.def` names the two ratios once, `view_num_x` over `view_den_x` and the vertical pair, and the cross sections scale with them:
+
+- `tunnel_x` and `tunnel_y` size the bay walls, doors and pulsing rings. `tunnel_scale` doubles them for a frameless view, so the mouth passes the frame edges at z = 800 instead of z = 400.
+- `hangar_x`, `hangar_top` and `hangar_bottom` size the hangar and the bay end wall, and `hangar_ship_x` and `hangar_ship_y` place the parked ships. The walls end 1600 units ahead of the viewer, where the modelled 400 and 175 project exactly onto the edges of the original window; the scaled values project onto the edges of whatever view is in use, rounded up so the edge is covered.
+
+## Display window
+
+Artwork screens are 200 logical rows. Rather than move every text and icon coordinate, the Copper display window follows the screen in use: `amiga_rows_full` for the flight view, `amiga_rows_art` for the title, charts, market, status and planet data. `DIWSTOP` is the only register involved, and the two values are equal on NTSC and in a framed build, where the call is a no-op.
+
+## Frame time
+
+`frametime=yes` prints two numbers in the top left corner of the buffer being drawn. `swap_screen` prints them, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
+
+```
+080 039 6ML   FRONT
+^   ^   ^^^
+|   |   ||+- the 32-bit multiply and divide are patched in
+|   |   |+-- the MOVE16 clear is running
+|   |   +--- the processor from AttnFlags
+|   +------- clearing the viewport
++----------- the whole frame, budget is 60
+```
+
+A dot in place of a letter means that path is not running, and the digit says why.
+
+The left number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The right number is how much of that work was `clear_image`; the difference between the two is everything else, from the transform and the AI to the ships, the starfield and the panel.
+
+Both are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on an opaque paper, so they overwrite in place, and the text state they use is saved and restored around the call.
+
+## The processor, decided at startup
+
+`probe_cpu` in `asm/system.m68` reads `ExecBase.AttnFlags` once and keeps the tier in `cpu_level`: 0, 2, 4 or 6. Three routines have a 32-bit form that a 68020 runs in one instruction where a 68000 needs a loop: `divide_by_10` and `divide_by_1e5` in `asm/maths.m68`, and `sky_multiply` in `asm/sky.m68`. Every image carries both forms, and from the 68020 up the probe writes `jmp <twin>` over the entry of the slower one. Nothing enters those routines except at the label, and the slow body after the six patched bytes is simply never reached again.
+
+Patched code needs the instruction cache cleared, and `CacheClearU` arrived with Kickstart 2.0. The game runs from 1.3, so the probe reads `lib_Version` first: from 2.0 it calls the ROM, under 1.3 a 68020 or 68030 clears `CACR` itself through `Supervisor`, and a 68040 or better on a 1.3 machine, a pairing that does not exist, keeps the MC68000 arithmetic rather than an unflushed patch.
+
+One image therefore runs on a stock machine and uses the wider instructions where they exist, which is why no call in `all` names a processor. `cpu=68020` still assembles the native forms alone, for a tighter image that needs an MC68020, and takes whatever `outputname` the caller gives it.
+
+## Clearing the viewport
+
+`clear_image` writes `y_size` rows of `x_size/8` bytes in each of four planes and nothing reads them. From the 68040 up, `MOVE16` writes a whole sixteen byte line at once, and the clear uses it where it exists. Measured on a 68060 it changes nothing: Chip RAM delivers the same bytes per second whatever the transaction width, so the sweep is bound by bus slots and not by the instruction. The path stays because it costs nothing and another memory controller may answer differently.
+
+`probe_cpu` in `asm/system.m68` reads `ExecBase.AttnFlags` once at startup into `cpu_level` and sets `clear_burst` from the 68040 up. `clear_burst_ok` in `geometry.def` adds the assembly-time half: the viewport must span whole rows and hold a whole number of sixteen byte lines, which is true of every frameless build and of no framed one, where the viewport starts four or eight bytes into the row. Either test failing keeps the `movem.l` span loop, so a 68000 build runs exactly as before.
+
+AmigaDOS aligns a hunk to eight bytes, not sixteen, so `clear_image` reads the screen's own alignment. On an eight byte start a pair of long writes covers the half line at each end and the burst runs one line shorter; anything else falls back to the spans.
+
+The source is sixteen zero bytes in the `workspace` section, which is not Chip attributed and lands in Fast RAM where the machine has any. `MOVE16` ignores the low four bits of both addresses, so the block is 32 bytes and the source points into the middle of it, which keeps the transfer inside the zeros whatever the section alignment turns out to be.
+
+## Chip RAM
+
+The two screens are `scr_bytes` each, from 32,000 bytes in a framed 320-wide build to 163,840 in PAL interlaced hires. Each screen is its own BSS hunk, so each stays below the 262,144-byte Kickstart 1.x clearing limit; `build.py` checks that the two are equal. The sprite bank is allocated rather than linked, as above.
+
+## Validation
+
+`python -B -m unittest discover -s src_amiga/tests` passes in every display mode and with the frame either way. The tests read the geometry from the assembled constants rather than from literals, so one suite covers every layout.
+
+`build.py` checks what the geometry cannot: the two screens are equal, each asset fits the workspace buffer it loads into, the expanded sprite bank fits `bitmap_bytes`, and the disk image reads back byte for byte. Runtime behaviour on hardware is not covered.

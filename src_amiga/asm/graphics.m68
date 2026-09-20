@@ -15,9 +15,9 @@
 	include "macros.m68"
 	include "raster.inc"
 
-	xref text_colour,locate,print_char,text_colour
-	xref locate,display_char,str_copy,circle_trigs,mult_by_320,wait_key
-	xref left_arm,right_arm,monst,random,bitmaps
+	xref text_colour,locate,print_char,print_number
+	xref locate,display_char,str_copy,circle_trigs,wait_key
+	xref left_arm,right_arm,monst,random,bitmap_bank
 
 * ---- LOCAL CONSTANTS ----
 
@@ -123,7 +123,7 @@ q_graphics_m68_6\@:
 	q_subr dot_to_addr,global
 
     move.w d0,-(sp)
-    mulu #160,d1
+    mulu #row_stride,d1
     lsr.w #3,d0
     and.w #$fffe,d0
     add.w d0,d1
@@ -139,8 +139,8 @@ q_graphics_m68_6\@:
 * **								  **
 * **************************************
 
-* Clears the currently invisible screen to zeros. Due to the nature of the
-* routine, it will have to be changed everytime the screen size is changed.
+* Clears the viewport of the currently invisible screen to zeros. The span
+* width follows x_size; the row step follows row_stride.
 
 * Entry: None
 * Exit:  None
@@ -155,8 +155,37 @@ q_graphics_m68_6\@:
     tst flyback(a6)
     beq .wait
     clr frame_count(a6)
+    ifne frametime
+    bsr raster_line
+    move d0,frame_start(a6)
+    endc
     move.l scr_base(a6),a0
-    lea y_top*160+x_left/8(a0),a0
+    lea y_top*row_stride+x_left/8(a0),a0
+    ifne clear_burst_ok
+    tst.b clear_burst ; 68040 or better, so MOVE16 exists
+    beq .spans
+    moveq #0,d0
+    move #clear_bursts,d7
+    move.l a0,d1
+    and.w #15,d1 ; AmigaDOS aligns a hunk to eight bytes, not sixteen
+    beq.s .lines
+    cmp.w #8,d1
+    bne .spans
+    subq #1,d7 ; a long pair covers the half line at each end
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+.lines:
+    subq #1,d7
+.line:
+    native_clear_burst
+    dbra d7,.line
+    tst.w d1
+    beq .cleared
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+    bra .cleared
+    endc
+.spans:
     moveq #0,d0
     moveq #0,d1
     moveq #0,d2
@@ -167,15 +196,156 @@ q_graphics_m68_6\@:
     move.l d0,a1
     move #y_size-1,d7
 .row:
-    ; The 256-pixel viewport occupies 32 bytes in each 40-byte plane row.
-    movem.l d0-d6/a1,(a0)
-    movem.l d0-d6/a1,40(a0)
-    movem.l d0-d6/a1,80(a0)
-    movem.l d0-d6/a1,120(a0)
-    lea 160(a0),a0
+    ; The viewport occupies x_size/8 bytes in each bpr-byte plane row.
+    native_clear_span 0
+    native_clear_span plane1
+    native_clear_span plane2
+    native_clear_span plane3
+    lea row_stride(a0),a0
     dbra d7,.row
+.cleared:
+    ifne frametime
+    bsr.s raster_line
+    sub frame_start(a6),d0
+    move d0,clear_lines(a6)
+    endc
     clr.l next_record(a6)
     rts
+
+    ifne frametime
+; Raster lines since the last frame counter reset, for the frame time readings.
+raster_line:
+    move.l $dff004,d0 ; VPOSR and VHPOSR in one access
+    move.l d0,d1
+    swap d1
+    and.w #1,d1 ; the ninth bit of the line number
+    lsl.w #8,d1
+    lsr.w #8,d0
+    and.w #$ff,d0
+    or.w d1,d0
+    move frame_count(a6),d1
+    mulu #field_lines,d1
+    add d1,d0
+    rts
+    endc
+
+
+* ********************************************
+* **									  **
+* ** SHOW_FRAME_TIME - PRINT THE FRAME TIME **
+* **									  **
+* ********************************************
+
+* Prints the frame's work and the clear's share of it in milliseconds, in the
+* top left corner of the buffer being drawn. SWAP_SCREEN calls it, so every
+* animated screen shows the reading, not only the flight view.
+
+* Entry: None
+* Exit:  None
+
+* Regs: D0-D5/A0-A4 corrupt.
+* Subr: TEXT_COLOUR, LOCATE, PRINT_CHAR, PRINT_NUMBER
+
+	q_subr show_frame_time
+
+	ifne frametime
+frame_hold: equ 16 ; frames a reading is held, so the digits stand still
+frame_lines_max: equ 4095 ; a reading long enough that the sum still fits
+frame_ms_max: equ 999 ; three digits
+frame_text_y: equ 0 ; the top row, above the flight view
+	move work_lines(a6),d0
+	bsr .clamp
+	add d0,work_sum(a6)
+	move clear_lines(a6),d0
+	bsr .clamp
+	add d0,clear_sum(a6)
+	q_inc frame_ticks(a6)
+	cmp #frame_hold,frame_ticks(a6)
+	blo.s .print
+	clr frame_ticks(a6)
+	moveq #0,d0
+	move work_sum(a6),d0
+	clr work_sum(a6)
+	bsr .millis
+	move d0,work_ms(a6)
+	moveq #0,d0
+	move clear_sum(a6),d0
+	clr clear_sum(a6)
+	bsr .millis
+	move d0,clear_ms(a6)
+.print:
+	q_push text_ink(a6) ; the game's text state is not ours to change
+	q_push text_paper(a6)
+	q_push column(a6)
+	q_push row(a6)
+	q_push.l text_addr(a6)
+	q_push pad_char(a6)
+	move #'0',pad_char(a6)
+	moveq #lgt_grey,d0 ; an opaque paper overwrites the digits in place
+	moveq #black,d1
+	jsr text_colour
+	moveq #0,d0
+	moveq #frame_text_y,d1
+	jsr locate
+	move work_ms(a6),d0
+	bsr .digits
+	moveq #' ',d0
+	jsr print_char
+	move clear_ms(a6),d0
+	bsr .digits
+	moveq #' ',d0 ; and what cleared it
+	jsr print_char
+	move cpu_level,d0
+	add #'0',d0
+	jsr print_char
+	moveq #'.',d0
+	tst.b clear_burst
+	beq.s .no_burst
+	moveq #'M',d0 ; the MOVE16 clear
+.no_burst:
+	jsr print_char
+	moveq #'.',d0
+	tst.b maths_fast
+	beq.s .no_long
+	moveq #'L',d0 ; 32-bit multiply and divide
+.no_long:
+	jsr print_char
+	q_pop pad_char(a6)
+	q_pop.l text_addr(a6)
+	q_pop row(a6)
+	q_pop column(a6)
+	q_pop d1
+	q_pop d0
+	jsr text_colour
+
+	q_ret
+
+.clamp:
+	tst d0
+	bpl.s .positive
+	moveq #0,d0
+.positive:
+	cmp #frame_lines_max,d0
+	bls.s .clamped
+	move #frame_lines_max,d0
+.clamped:
+	rts
+.millis: ; D0.L = raster lines over frame_hold frames, out: milliseconds
+	mulu #line_scale,d0
+	moveq #10+4,d1 ; 1024ths of a millisecond, over frame_hold readings
+	lsr.l d1,d0
+	cmp #frame_ms_max,d0
+	bls.s .fits
+	move #frame_ms_max,d0
+.fits:
+	rts
+.digits:
+	and.l #$ffff,d0
+	move #$8000+3,d1 ; fixed field, three digits
+	jmp print_number
+	endc
+
+	rts
 
 
 * ********************************
@@ -196,12 +366,24 @@ q_graphics_m68_6\@:
 
 	q_subr swap_screen,global
 
+	ifne frametime
+	movem.l d0-d1,-(sp) ; read the work before the wait for the vertical blank
+	bsr raster_line
+	sub frame_start(a6),d0
+	move d0,work_lines(a6)
+	movem.l (sp)+,d0-d1
+	endc
 	clr flyback(a6) ; discard the old VBL before waiting for presentation
 	jsr amiga_present
 	move.l scr_base(a6),d0 ; swap base pointer
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
 	move.l d0,scr_base(a6)
+	ifne frametime
+	movem.l d0-d7/a0-a6,-(sp) ; the reading goes into the released buffer
+	bsr show_frame_time
+	movem.l (sp)+,d0-d7/a0-a6
+	endc
 
 	q_ret
 
@@ -302,10 +484,10 @@ q_graphics_m68_19:
 	move #trans,d1 ; set text colour
 	jsr text_colour
 	move text_offset(a6),d0 ; position cursor
-	add #x_left/8,d0
+	add #x_left/char_w,d0
 	move text_row(a6),d1
-	add #y_top/8,d1
-	asl #3,d1
+	add #y_top/char_h,d1 ; text rows above the viewport
+	asl #3,d1 ; LOCATE takes a logical pixel row
 	jsr locate
 	lea text_buffer(a6),a4 ; print text
 q_graphics_m68_21:
@@ -445,6 +627,30 @@ q_graphics_m68_33:
 
 	q_subr c_plotxy,global
 
+	ifne display_hires+display_lace
+	movem.w d0/d1,-(sp) ; a dot keeps its size, and an interlaced one has to
+	bsr c_plot_dot      ; reach both fields or it flickers at half the rate
+	ifne display_hires
+	movem.w (sp),d0/d1
+	addq.w #1,d0
+	bsr c_plot_dot
+	endc
+	ifne display_lace
+	movem.w (sp),d0/d1
+	subq.w #1,d1 ; one row down the screen
+	bsr c_plot_dot
+	ifne display_hires
+	movem.w (sp),d0/d1
+	addq.w #1,d0
+	subq.w #1,d1
+	bsr c_plot_dot
+	endc
+	endc
+	addq.l #4,sp
+	rts
+	endc
+
+c_plot_dot:
 	outcodes d0,d1,d2 ; visible ?
 	tst d2
 	q_ret ne ; no, return
@@ -623,6 +829,9 @@ q_graphics_m68_40:
 	ext.l d4
 	move poly_x(a6),d0
 	ext.l d0
+	ifne circle_stretch
+	add.l d4,d4 ; keep the circle round where a pixel is half as wide as tall
+	endc
 	move.l d0,d2
 	add.l d4,d0 ; right end
 	sub.l d4,d2 ; left end
@@ -727,10 +936,10 @@ circle_horiz_done:
 
 * Draws a solid rectangular block on the screen.
 
-* Entry: (D0,D1) = x,y coords of top left
+* Entry: (D0,D1) = x,y coords of top left, in logical units
 *		 D2 	 = which screen flag: 0 = current, != both
-*		 D3 	 = width (pixels)
-*		 D4 	 = depth (pixels)
+*		 D3 	 = width (logical units)
+*		 D4 	 = depth (logical units)
 *		 D5 	 = colour (0..15)
 * Exit:  None
 
@@ -739,6 +948,14 @@ circle_horiz_done:
 
 	q_subr block,global
 
+	ifne display_hires
+	add.w d0,d0 ; logical units to physical pixels
+	add.w d3,d3
+	endc
+	ifne display_lace
+	add.w d1,d1
+	add.w d4,d4
+	endc
 	bsr dot_to_addr ; calculate screen address
 	movem.l d0/d3/d4/a0,-(sp) ; save parameters
 	q_dec d4 ; adjust depth for DBRA
@@ -782,7 +999,7 @@ q_graphics_m68_57:
 	q_loop 2
 	native_fill d0,d1,d7,a4,a1
 	q_next 2,d6
-	lea 160(a0),a0 ; next pixel line
+	lea row_stride(a0),a0 ; next pixel line
 	q_next 1,d4
 	movem.l (sp)+,d4/a0 ; restore depth and addresses
 	q_inc d5 ; update addresses
@@ -872,8 +1089,8 @@ q_graphics_m68_67:
 	native_copy a0,a1
 	q_next 2,d6
 	movem.l (sp)+,a0/a1 ; next pixel line
-	lea 160(a0),a0
-	lea 160(a1),a1
+	lea row_stride(a0),a0
+	lea row_stride(a1),a1
 	q_next 1,d4
 	movem.l (sp)+,d4/a0/a1 ; restore width, depth and addresses
 	q_inc d5 ; update addresses
@@ -904,7 +1121,7 @@ q_graphics_m68_73:
 *		 D4 = depth - 1
 *		 A0 = source screen address
 *		 A1 = destn screen address
-*		 A4 = 160
+*		 A4 = row_stride
 * Exit:  A0 = A0+8
 *		 A1 = A1+8
 
@@ -922,20 +1139,20 @@ q_graphics_m68_73:
     move.w 0(a0),d7
     and.w d0,d7
     or.w d7,0(a1)
-    and.w d1,40(a1)
-    move.w 40(a0),d7
+    and.w d1,plane1(a1)
+    move.w plane1(a0),d7
     and.w d0,d7
-    or.w d7,40(a1)
-    and.w d1,80(a1)
-    move.w 80(a0),d7
+    or.w d7,plane1(a1)
+    and.w d1,plane2(a1)
+    move.w plane2(a0),d7
     and.w d0,d7
-    or.w d7,80(a1)
-    and.w d1,120(a1)
-    move.w 120(a0),d7
+    or.w d7,plane2(a1)
+    and.w d1,plane3(a1)
+    move.w plane3(a0),d7
     and.w d0,d7
-    or.w d7,120(a1)
-    lea 160(a0),a0
-    lea 160(a1),a1
+    or.w d7,plane3(a1)
+    lea row_stride(a0),a0
+    lea row_stride(a1),a1
     dbra d6,.row
     movem.l (sp)+,a0/a1
     addq.l #2,a0
@@ -955,7 +1172,7 @@ q_graphics_m68_73:
 *		 D4 = depth - 1
 *		 A0 = screen address
 *		 A2 = ptr: colour masks
-*		 A4 = 160
+*		 A4 = row_stride
 * Exit:  A0 = A0+8
 
 * Regs:  D1/D7/A0 corrupt.
@@ -967,7 +1184,7 @@ q_graphics_m68_73:
     move.w d4,d6
 .row:
     native_plot d0,a2,a1,d7
-    lea 160(a1),a1
+    lea row_stride(a1),a1
     dbra d6,.row
     addq.l #2,a0
     rts
@@ -1033,15 +1250,15 @@ q_graphics_m68_75:
 	move 0(a1),d0
 	eor d0,0(a0)
 	move 2(a1),d0
-	eor d0,40(a0)
+	eor d0,plane1(a0)
 	move 4(a1),d0
-	eor d0,80(a0)
+	eor d0,plane2(a0)
 	move 6(a1),d0
-	eor d0,120(a0)
+	eor d0,plane3(a0)
 	addq.l #2,a0
 	q_next 2,d6 ; next word
 	q_pop.l a0 ; next pixel line
-	lea 160(a0),a0
+	lea row_stride(a0),a0
 	q_next 1,d3
 	movem.l (sp)+,d3/a0 ; restore depth and screen address
 	q_inc d5 ; update addresses
@@ -1086,14 +1303,14 @@ q_graphics_m68_81:
     eor.w d1,0(a0)
     move.w 2(a1),d1
     and.w d0,d1
-    eor.w d1,40(a0)
+    eor.w d1,plane1(a0)
     move.w 4(a1),d1
     and.w d0,d1
-    eor.w d1,80(a0)
+    eor.w d1,plane2(a0)
     move.w 6(a1),d1
     and.w d0,d1
-    eor.w d1,120(a0)
-    lea 160(a0),a0
+    eor.w d1,plane3(a0)
+    lea row_stride(a0),a0
     dbra d7,.row
     move.l (sp)+,a0
     addq.l #2,a0
@@ -1139,6 +1356,36 @@ q_graphics_m68_81:
 * Regs:  D0-D2 and A0-A1 corrupt.
 * Subr:  DOT_TO_ADDR
 
+	q_subr ui_plot,global
+
+	q_display_x d0 ; logical units to physical pixels
+	q_display_y d1
+	ifeq display_hires+display_lace
+	bra plotxy
+	endc
+	ifne display_hires+display_lace
+	movem.w d0/d1,-(sp) ; one logical pixel covers a block of physical ones
+	bsr plotxy
+	ifne display_hires
+	movem.w (sp),d0/d1
+	addq.w #1,d0
+	bsr plotxy
+	endc
+	ifne display_lace
+	movem.w (sp),d0/d1
+	addq.w #1,d1
+	bsr plotxy
+	ifne display_hires
+	movem.w (sp),d0/d1
+	addq.w #1,d0
+	addq.w #1,d1
+	bsr plotxy
+	endc
+	endc
+	addq.l #4,sp
+	rts
+	endc
+
 	q_subr plotxy,global
 
     bsr dot_to_addr
@@ -1167,6 +1414,18 @@ q_graphics_m68_81:
 
 * Regs:  D0-D6 and A0-A3 corrupt; D7 is preserved.
 * Subr:  DOT_TO_ADDR
+
+	q_subr ui_line,global
+
+	ifne display_hires
+	add.w d0,d0 ; logical units to physical pixels
+	add.w d2,d2
+	endc
+	ifne display_lace
+	add.w d1,d1
+	add.w d3,d3
+	endc
+	bra line
 
 	q_subr line,global
 
@@ -1225,7 +1484,7 @@ q_graphics_m68_95:
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_97
 	add d2,d1 ; add x difference
-	lea 160(a0),a0 ; move down a line
+	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_97:
 	q_next 1,d6 ; next point
 	bra q_graphics_m68_94
@@ -1242,7 +1501,7 @@ q_graphics_m68_99:
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_101
 	add d2,d1 ; add x difference
-	lea 160(a0),a0 ; move down a line
+	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_101:
 	q_next 1,d6 ; next point
 q_graphics_m68_94:
@@ -1257,7 +1516,7 @@ q_graphics_m68_91:
 	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
 	native_plot_cached d0,d4,d7,a0,d5
-	lea 160(a0),a0 ; move down a line
+	lea row_stride(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_105
@@ -1274,7 +1533,7 @@ q_graphics_m68_103:
 	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
 	q_loop 1 ; loop for each pixel
 	native_plot_cached d0,d4,d7,a0,d5
-	lea 160(a0),a0 ; move down a line
+	lea row_stride(a0),a0 ; move down a line
 	sub d2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_109
@@ -1391,13 +1650,13 @@ q_graphics_m68_117:
 .row:
     and.w d0,(a0)
     or.w d1,(a0)
-    and.w d0,40(a0)
-    or.w d2,40(a0)
-    and.w d0,80(a0)
-    or.w d4,80(a0)
-    and.w d0,120(a0)
-    or.w d5,120(a0)
-    lea 160(a0),a0
+    and.w d0,plane1(a0)
+    or.w d2,plane1(a0)
+    and.w d0,plane2(a0)
+    or.w d4,plane2(a0)
+    and.w d0,plane3(a0)
+    or.w d5,plane3(a0)
+    lea row_stride(a0),a0
     dbra d3,.row
     rts
 
@@ -1455,7 +1714,7 @@ q_graphics_m68_121:
 	move -4(a0),d2 ; fetch previous coords
 	move -2(a0),d3
 	q_push.l a0 ; draw line
-	bsr line
+	bsr ui_line
 	q_pop.l a0
 	addq.l #4,a0 ; next line
 	bra q_graphics_m68_121
@@ -1673,13 +1932,13 @@ q_graphics_m68_146:
 q_graphics_m68_140:
 	move top_y(a6),d7 ; fetch start y coordinate
 	clr offset(a6) ; assume even line
-	btst #0,d7 ; corrent ?
+	btst #dither_bit,d7 ; second row of the phase ?
 ; Quelo: 	if <ne> then.s						no
 	beq q_graphics_m68_153
 	move #8,offset(a6)
 q_graphics_m68_153:
 	move d7,d0 ; calculate start line screen address
-	mulu #160,d0
+	mulu #row_stride,d0
 	add.l scr_base(a6),d0
 	move.l d0,line_addr(a6)
 	lea left_arm,a3 ; start of x coordinate data
@@ -1702,8 +1961,13 @@ q_graphics_m68_157:
 	move offset(a6),d1
 	lea (a1,d1),a1
 	bsr horiz_line ; draw horizontal line
-	add.l #160,line_addr(a6) ; relocatable buffers may cross a 64 KB boundary
+	add.l #row_stride,line_addr(a6) ; relocatable buffers may cross a 64 KB boundary
+	ifne display_lace
+	btst #0,d7 ; hold the phase for two rows, one per field
+	beq.s .keep_phase
+	endc
 	eor #8,offset(a6)
+.keep_phase:
 	q_inc d7
 	cmp bottom_y(a6),d7
 	bls q_graphics_m68_155
@@ -2069,29 +2333,113 @@ q_graphics_m68_177:
 
     cmp.b #$80,(a0)
     bne .done
+    movem.l a3/a4,-(sp)
+    move.l a1,a4             ; keep the destination for the vertical pass
     lea 34(a0),a0
     move.l a1,a2
-    lea 32000(a1),a2
+    add.l #degas_bytes*zoom_x,a2 ; one decoded asset, widened but not heightened
+    ifne display_hires
+    lea expand_bytes(pc),a3  ; one source byte becomes two doubled-pixel bytes
+    endc
 .packet:
     moveq #0,d4
     move.b (a0)+,d4
     tst.b d4
     bmi .repeat
 .literal:
+    ifeq display_hires
     move.b (a0)+,(a1)+
+    endc
+    ifne display_hires
+    moveq #0,d5
+    move.b (a0)+,d5
+    add.w d5,d5
+    move.w (a3,d5.w),(a1)+
+    endc
     dbra d4,.literal
     bra .next
 .repeat:
     neg.b d4
+    ifeq display_hires
     move.b (a0)+,d5
 .copy:
     move.b d5,(a1)+
+    endc
+    ifne display_hires
+    moveq #0,d5
+    move.b (a0)+,d5
+    add.w d5,d5
+    move.w (a3,d5.w),d5
+.copy:
+    move.w d5,(a1)+
+    endc
     dbra d4,.copy
 .next:
     cmpa.l a2,a1
     blo .packet
+    ifne display_lace
+    bsr double_rows          ; A4 = decoded asset, widened only
+    endc
+    movem.l (sp)+,a3/a4
 .done:
     rts
+
+
+* ****************************************************
+* **												**
+* ** DOUBLE_ROWS - STRETCH A DECODED ASSET DOWNWARDS **
+* **												**
+* ****************************************************
+
+* Turns art_rows widened rows into art_rows*2 by writing each one twice.
+* Works backwards, because source and destination overlap.
+
+* Entry: A4 = ptr: screen holding the widened asset
+* Exit:  None
+
+* Regs:  D0/D7/A0/A1 corrupt.
+* Subr:  None
+
+	q_subr double_rows
+
+    ifne display_lace
+    move.l a4,a0
+    add.l #art_rows*row_stride,a0      ; past the last source row
+    move.l a4,a1
+    add.l #art_rows*row_stride*2,a1    ; past the last destination row
+    move #art_rows-1,d7
+.row:
+    q_loop 1,d6,row_stride/4
+    move.l -(a0),-(a1)                 ; lower copy of this row
+    q_next 1,d6
+    add.l #row_stride,a0               ; rewind and lay the row down again
+    q_loop 2,d6,row_stride/4
+    move.l -(a0),-(a1)
+    q_next 2,d6
+    dbra d7,.row
+    endc
+    rts
+
+
+* ***********************************************
+* **										   **
+* ** EXPAND_BYTES - PIXEL DOUBLING LOOKUP TABLE **
+* **										   **
+* ***********************************************
+
+* One byte of eight pixels becomes a word of the same pixels, each twice as
+* wide. Assembled only for a hires build.
+
+    ifne display_hires
+	q_global expand_bytes
+
+expand_v set 0
+    rept 256
+    dc.b (((expand_v>>7)&1)*$c0)|(((expand_v>>6)&1)*$30)|(((expand_v>>5)&1)*$0c)|(((expand_v>>4)&1)*$03)
+    dc.b (((expand_v>>3)&1)*$c0)|(((expand_v>>2)&1)*$30)|(((expand_v>>1)&1)*$0c)|((expand_v&1)*$03)
+expand_v set expand_v+1
+    endr
+    endc
 
 
 * *******************************************
@@ -2111,7 +2459,7 @@ q_graphics_m68_177:
 	q_subr find_bitmap,global
 
 	asl #2,d0 ; index into pointer table
-	lea bitmaps,a0
+	move.l bitmap_bank,a0
 	move.l (a0,d0),a0 ; fetch address of bit map
 
 	q_ret return

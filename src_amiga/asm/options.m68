@@ -13,7 +13,7 @@
 	include "macros.m68"
 	include "bitlist.m68"
 
-	xref invert_icon,prepare_text,print_string,find_bitmap,put_bitmap,line
+	xref invert_icon,prepare_text,print_string,find_bitmap,put_bitmap,ui_line
 	xref init_cursor,set_colour,hide_cursor,restore_cursor,launch,buy_cargo
 	xref sell_cargo,equip_ship,galactic_chart,local_chart,data,market_prices
 	xref inventory,status,disk,find_planet,home_cursor,confirm
@@ -59,7 +59,7 @@ draw_line macro
 	move \2(a6),d1
 	move \3(a6),d2
 	move \4(a6),d3
-	jsr line
+	jsr ui_line
 
 	endm
 

@@ -34,13 +34,13 @@ dust_vertical_cos: rs.w 1
 
 ; Uniform initial coordinates, including both extreme viewport columns.
     q_subr new_coords
-    move.w #x_size,d2
+    move.w #view_x_size,d2
     jsr rand
-    add.w #x_min,d0
+    add.w #view_x_min,d0
     move.w d0,-(sp)
-    move.w #y_size,d2
+    move.w #view_y_size,d2
     jsr rand
-    add.w #y_min,d0
+    add.w #view_y_min,d0
     swap d0
     clr.w d0
     move.l d0,dust_y(a5)
@@ -132,10 +132,10 @@ dust_vertical_cos: rs.w 1
     move.l (sp)+,d1
     and.w #3,d2
     beq.s .vertical
-    move.w #x_max,d0
+    move.w #view_x_max,d0
     cmp.w #2,dust_motion(a6)
     beq.s .x
-    move.w #x_min,d0
+    move.w #view_x_min,d0
 .x:
     swap d0
     clr.w d0
@@ -154,18 +154,18 @@ dust_vertical_cos: rs.w 1
     q_subr wrap_dust_y
     ; Wrap the complete 16.16 position instead of snapping every new star
     ; to the same row. Stars retain their distinct phase during steady roll.
-    cmp.l #y_min*65536,d1
+    cmp.l #view_y_min*65536,d1
     blt.s .below
-    sub.l #y_size*65536,d1
-    cmp.l #(y_max+1)*65536,d1
+    sub.l #view_y_size*65536,d1
+    cmp.l #(view_y_max+1)*65536,d1
     blt.s .entry_y
-    move.l #y_min*65536,d1     ; recover safely from invalid large coordinates
+    move.l #view_y_min*65536,d1     ; recover safely from invalid large coordinates
     bra.s .entry_y
 .below:
-    add.l #y_size*65536,d1
-    cmp.l #y_min*65536,d1
+    add.l #view_y_size*65536,d1
+    cmp.l #view_y_min*65536,d1
     bge.s .entry_y
-    move.l #y_max*65536,d1
+    move.l #view_y_max*65536,d1
 .entry_y:
     move.l d1,dust_y(a5)
     rts
@@ -404,27 +404,27 @@ dust_vertical_cos: rs.w 1
 .done:
     rts
 .outside:
-    move.l #(y_max+256)*65536,dust_y(a5)
+    move.l #(view_y_max+256)*65536,dust_y(a5)
     rts
 
 ; Return outcodes in D2; rear/side recycling preserves vertical overshoot.
     q_subr dust_bounds
     clr.w d2
     move.w dust_x(a5),d0
-    cmp.w #x_min,d0
+    cmp.w #view_x_min,d0
     bge.s .right
     bset #0,d2
 .right:
-    cmp.w #x_max,d0
+    cmp.w #view_x_max,d0
     ble.s .bottom
     bset #1,d2
 .bottom:
     move.w dust_y(a5),d1
-    cmp.w #y_min,d1
+    cmp.w #view_y_min,d1
     bge.s .top
     bset #2,d2
 .top:
-    cmp.w #y_max,d1
+    cmp.w #view_y_max,d1
     ble.s .done
     bset #3,d2
 .done:
@@ -458,6 +458,8 @@ dust_vertical_cos: rs.w 1
     q_subr plot_dust
     move.w dust_x(a5),d0
     move.w dust_y(a5),d1
+    q_display_x d0 ; the cloud is kept at authoring scale, square pixels and all
+    q_display_y d1
     jmp c_plotxy
 
     q_subr draw_dust
@@ -515,6 +517,6 @@ dust_vertical_cos: rs.w 1
 movement_vectors:
     dc.l move_forward,move_rear,move_left,move_right
 rear_edges:
-    dc.w x_min,x_max,y_min,y_max
+    dc.w view_x_min,view_x_max,view_y_min,view_y_max
 dust_colours:
     dc.w red,lgt_green,mid_blue,magenta,white,yellow,lgt_blue,lgt_grey

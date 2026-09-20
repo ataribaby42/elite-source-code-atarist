@@ -2828,7 +2828,7 @@ panel1_text:
 
 panel1_nodes:
 
-	dc 0,275,-3000,0,0,275,0,0,0,-175,0,0,0,-175,-3000,0
+	dc 0,hangar_top,-3000,0,0,hangar_top,0,0,0,-hangar_bottom,0,0,0,-hangar_bottom,-3000,0
 
 panel1_surfaces:
 
@@ -2856,7 +2856,7 @@ panel2_text:
 
 panel2_nodes:
 
-	dc -400,0,-3000,0,-400,0,0,0,400,0,0,0,400,0,-3000,0
+	dc -hangar_x,0,-3000,0,-hangar_x,0,0,0,hangar_x,0,0,0,hangar_x,0,-3000,0
 
 panel2_surfaces:
 
@@ -2884,7 +2884,7 @@ panel3_text:
 
 panel3_nodes:
 
-	dc -400,275,0,0,400,275,0,0,400,-175,0,0,-400,-175,0,0,-100,60,0,0,100
+	dc -hangar_x,hangar_top,0,0,hangar_x,hangar_top,0,0,hangar_x,-hangar_bottom,0,0,-hangar_x,-hangar_bottom,0,0,-100,60,0,0,100
 	dc 60,0,0,100,110,0,0,-100,110,0,0
 
 panel3_surfaces:
@@ -2916,7 +2916,7 @@ panel4_text:
 
 panel4_nodes:
 
-	dc 0,275,0,0,0,-175,0,0
+	dc 0,hangar_top,0,0,0,-hangar_bottom,0,0
 
 panel4_surfaces:
 
@@ -2944,7 +2944,7 @@ panel5_text:
 
 panel5_nodes:
 
-	dc 0,45,-10000,0,0,45,0,0,0,-45,0,0,0,-45,-10000,0
+	dc 0,tunnel_y,-10000,0,0,tunnel_y,0,0,0,-tunnel_y,0,0,0,-tunnel_y,-10000,0
 
 panel5_surfaces:
 
@@ -2972,7 +2972,7 @@ panel6_text:
 
 panel6_nodes:
 
-	dc -100,0,-10000,0,-100,0,0,0,100,0,0,0,100,0,-10000,0
+	dc -tunnel_x,0,-10000,0,-tunnel_x,0,0,0,tunnel_x,0,0,0,tunnel_x,0,-10000,0
 
 panel6_surfaces:
 
@@ -3000,7 +3000,7 @@ panel7_text:
 
 panel7_nodes:
 
-	dc -100,45,0,0,100,45,0,0,100,-45,0,0,-100,-45,0,0
+	dc -tunnel_x,tunnel_y,0,0,tunnel_x,tunnel_y,0,0,tunnel_x,-tunnel_y,0,0,-tunnel_x,-tunnel_y,0,0
 
 panel7_surfaces:
 
@@ -3056,7 +3056,7 @@ panel9_text:
 
 panel9_nodes:
 
-	dc -100,45,0,0,100,45,0,0,100,-45,0,0,-100,-45,0,0
+	dc -tunnel_x,tunnel_y,0,0,tunnel_x,tunnel_y,0,0,tunnel_x,-tunnel_y,0,0,-tunnel_x,-tunnel_y,0,0
 
 panel9_surfaces:
 
@@ -3115,7 +3115,7 @@ panel11_text:
 
 panel11_nodes:
 
-	dc -400,275,0,0,400,275,0,0,400,-175,0,0,-400,-175,0,0,-25,100,0,0,25
+	dc -hangar_x,hangar_top,0,0,hangar_x,hangar_top,0,0,hangar_x,-hangar_bottom,0,0,-hangar_x,-hangar_bottom,0,0,-25,100,0,0,25
 	dc 100,0,0,25,0,0,0,60,0,0,0,0,-50,0,0,-60,0,0,0,-25,0,0,0
 
 panel11_surfaces:

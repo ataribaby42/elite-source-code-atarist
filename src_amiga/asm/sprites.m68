@@ -151,7 +151,7 @@ q_sprites_restore_general:
 	move sp_width(a4),d1 ; calculate offset between lines
 	q_inc d1
 	add d1,d1
-	sub #160,d1
+	sub #row_stride,d1
 	neg d1
 	move sp_depth(a4),d7 ; loop for each pixel line
 	q_loop 1
@@ -257,7 +257,7 @@ q_sprites_m68_5:
 	move d1,d2
 	not d2
 	move.l buffer_ptr(a4),a2 ; get pointer to buffer
-	move #160,a3 ; no. bytes per screen line
+	move #row_stride,a3 ; no. bytes per screen line
 	cmp #8,d0 ; choose a fixed loop with at most eight rotations
 	bhi unclipped_rotate_left
 	native_unclipped_rows ror
@@ -358,7 +358,7 @@ q_sprites_m68_21:
 	move d1,d2
 	not d2
 	move.l buffer_ptr(a4),a2 ; get pointer to buffer
-	move #160,a3 ; no. bytes per screen line
+	move #row_stride,a3 ; no. bytes per screen line
 	cmp #8,d0 ; choose a fixed loop with at most eight rotations
 	bhi clipped_rotate_left
 	native_clipped_rows ror
@@ -482,7 +482,8 @@ q_sprites_m68_49:
 	q_subr build_sprite,global
 
 	move.l scr_base(a6),a0 ; source = screen base
-	lea 16000(a0),a1 ; destn  = screen base + 16000
+	move.l a0,a1 ; destn  = halfway down the visible screen
+	add.l #scr_bytes/2,a1 ; 32-bit: the offset outgrows a LEA displacement
 	move.l a1,data_ptr(a4) ; set sprite data pointer
 	move d1,(a1)+ ; store width and depth
 	move d0,(a1)+
@@ -493,16 +494,16 @@ q_sprites_m68_49:
 	move d1,d7 ; loop for each word
 	q_loop 2
 	move 0(a0),d2 ; build mask
-	or 40(a0),d2
-	or 80(a0),d2
-	or 120(a0),d2
+	or plane1(a0),d2
+	or plane2(a0),d2
+	or plane3(a0),d2
 	not d2
 	move d2,(a1)+ ; store mask
 	native_save a0,a1
 	addq.l #2,a0
 	q_next 2 ; next word
 	q_pop.l a0 ; next pixel line
-	add #160,a0
+	add #row_stride,a0
 	q_next 1,d0
 
 	q_ret
@@ -526,6 +527,8 @@ q_sprites_m68_49:
 
 	q_subr put_bitmap,global
 
+	q_display_x d0 ; logical units to physical pixels
+	q_display_y d1
 	lea bit_spr(a6),a4 ; use temporary sprite record
 	bset #dont_save,sp_flags(a4) ; don't save the background
 	movem d0/d1,sp_xpos(a4) ; set sprite coords

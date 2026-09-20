@@ -23,7 +23,7 @@
 	xref print_string,wait,clear_input,print_number,text_colour,locate
 	xref print_table,funny_str,texture,draw_screen,set_colour,plotxy
 	xref launch,disk,find_planet,home_cursor,market_prices
-	xref inventory,line,getrandx,dot_to_addr,monst,bit_masks,wait_key
+	xref inventory,ui_line,getrandx,dot_to_addr,monst,bit_masks,wait_key
 	xref find_bitmap,put_bitmap,find_table,str_len,build_number,options
 
 * ---- LOCAL CONSTANTS ----
@@ -207,7 +207,7 @@ q_pdata_m68_4:
 	move #planet_x-planet_rad-7,d2
 	move d1,d3
 	movem d0/d2,-(sp) ; save x coords of line
-	jsr line
+	jsr ui_line
 	moveq #bit_arrow_right,d0
 	jsr find_bitmap
 	move #planet_x-planet_rad-6,d0
@@ -480,17 +480,17 @@ q_pdata_m68_8:
 	lea texture,a0
 	jsr draw_screen
 	jsr getrandx ; generate grab centre coords
-	mulu #320-2*planet_rad,d0
+	mulu #scr_width-2*planet_rad*zoom_x,d0
 	swap d0
-	add #planet_rad,d0
+	add #planet_rad*zoom_x,d0
 	move d0,circle_x(a6)
-	mulu #200-2*planet_rad,d1
+	mulu #(art_rows-2*planet_rad)*zoom_y,d1
 	swap d1
-	add #planet_rad,d1
+	add #planet_rad*zoom_y,d1
 	move d1,circle_y(a6)
 	clr d0 ; x = 0
-	moveq #planet_rad,d1 ; y = planet radius
-	moveq #3-2*planet_rad,d2 ; d = 3-2*radius
+	move #planet_rad*zoom_y,d1 ; y = planet radius, in screen rows
+	move #3-2*planet_rad*zoom_y,d2 ; d = 3-2*radius
 q_pdata_m68_9:
 	draw -,x,+,x,+,y ; draw horizontal lines
 	draw -,y,+,y,+,x
@@ -541,7 +541,7 @@ q_pdata_m68_10:
 	move #planet_y+43+3,d1
 	move #planet_x-planet_rad+7,d2
 	move d1,d3
-	jsr line
+	jsr ui_line
 	moveq #bit_arrow_right,d0 ; print right arrow
 	jsr find_bitmap
 	move #planet_x+planet_rad-2,d0
@@ -551,7 +551,7 @@ q_pdata_m68_10:
 	move #planet_y+43+3,d1
 	move #planet_x+planet_rad-7,d2
 	move d1,d3
-	jsr line
+	jsr ui_line
 
 	q_ret
 
@@ -576,11 +576,15 @@ q_pdata_m68_10:
 	q_subr planet_line
 
 	movem d0-d2,-(sp) ; save registers
+	ifne circle_stretch
+	add d4,d4 ; keep the planet round where a pixel is half as wide as tall
+	add d5,d5
+	endc
 	movem d4-d6,xl(a6) ; store coordinates
 	move xl(a6),d0 ; calculate screen address (real)
 	move yc(a6),d1
-	add #planet_x,d0
-	add #planet_y,d1
+	add #planet_x*zoom_x,d0
+	add #planet_y*zoom_y,d1
 	jsr dot_to_addr
 	move.l a0,a1
 	and #15,d0 ; calculate output bit #
@@ -601,7 +605,7 @@ q_pdata_m68_10:
 	move xr(a6),d7 ; calculate width
 	sub xl(a6),d7
 	q_loop 1 ; loop for each pixel
-	move #120,d6 ; four native OCS planes
+	move #plane3,d6 ; last native OCS plane
 q_pdata_m68_13:
 	move (a0,d6),d1 ; fetch input data word
 	move (a1,d6),d3 ; fetch output data word
@@ -612,7 +616,7 @@ q_pdata_m68_13:
 	bset d2,d3 ; set output data bit
 q_pdata_m68_15:
 	move d3,(a1,d6) ; store new bit
-	sub #40,d6 ; next plane
+	sub #bpr,d6 ; next plane
 	bpl q_pdata_m68_13
 q_pdata_m68_14:
 	q_dec d0 ; next pixel

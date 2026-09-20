@@ -1,0 +1,117 @@
+; Display geometry, shared by the game and the object data. A pixel row holds
+; scr_planes bitplane rows of bpr bytes; the bitplane modulo skips the rest.
+; Coordinates are authored in a logical 320 x 200 space, and zoom_x and zoom_y
+; carry that space to the physical screen.
+
+	ifnd display_ntsc
+display_ntsc: equ 0 ; build option: 1 = 60 Hz row count
+	endc
+	ifnd display_hires
+display_hires: equ 0 ; build option: 1 = 640 pixels across, MC68020 or better
+	endc
+	ifnd display_lace
+display_lace: equ 0 ; build option: 1 = interlaced, twice the rows
+	endc
+	ifnd frame
+frame: equ 0 ; build option: 1 = keep the cockpit frame and its 256 x 112 window
+	endc
+
+zoom_x: equ 1+display_hires ; physical pixels per logical pixel
+zoom_y: equ 1+display_lace
+art_cols: equ 40 ; logical 8x8 columns in a DEGAS Elite screen asset
+art_rows: equ 200 ; logical rows in a DEGAS Elite screen asset
+degas_bpr: equ art_cols*8/8 ; the asset's own bitplane row, never scaled
+degas_bytes: equ degas_bpr*4*art_rows ; the asset's own decoded size
+
+bpr: equ degas_bpr*zoom_x ; bytes per bitplane row
+scr_planes: equ 4 ; bitplanes
+scr_width: equ bpr<<3 ; width in pixels
+plane1: equ bpr ; plane offsets within a pixel row
+plane2: equ bpr*2
+plane3: equ bpr*3
+row_stride: equ bpr*scr_planes ; bytes per pixel row
+art_bytes: equ row_stride*art_rows*zoom_y ; an asset expanded to screen scale
+bitmap_bytes: equ 125*8+13975*10*zoom_x*zoom_y ; BITMAPS.IMG expanded to screen scale
+	ifne display_ntsc+frame
+scr_rows: equ art_rows*zoom_y ; 60 Hz row count, or as many rows as the frame has
+	endc
+	ifeq display_ntsc+frame
+scr_rows: equ 256*zoom_y ; 50 Hz visible rows
+	endc
+scr_bytes: equ row_stride*scr_rows ; bytes per screen
+panel_rows: equ 80*zoom_y ; instrument panel rows at the bottom of COCKPIT.PC1
+y_shift: equ scr_rows-art_rows*zoom_y ; panel offset below the 200-row layout
+panel_shift: equ y_shift/zoom_y ; the same offset in logical rows
+char_w: equ 8*zoom_x ; physical size of one text cell
+char_shift: equ 3+display_hires ; log2(char_w)
+char_h: equ 8*zoom_y
+bplcon0_on: equ $0200|(scr_planes<<12)|(display_hires<<15)|(display_lace<<2) ; colour, planes, hires, lace
+ddfstrt: equ $0038+display_hires*4 ; data fetch follows the resolution
+ddfstop: equ $00d0+display_hires*4
+diwstop_rows: equ (((44+scr_rows/zoom_y)&255)<<8)|$c1 ; Copper window
+diwstop_art: equ (((44+art_rows)&255)<<8)|$c1 ; Copper window for artwork
+
+; Dimensions of cockpit.
+
+y_top: equ 8*zoom_y ; y coordinate of top edge, clear of the view indicator
+	ifne frame
+no_cols: equ 32 ; columns across the window the frame leaves
+no_rows: equ 14 ; rows down it
+	endc
+	ifeq frame
+no_cols: equ art_cols ; text columns across the flight view
+no_rows: equ (scr_rows-panel_rows-y_top)/char_h ; text rows down it
+	endc
+x_size: equ no_cols*char_w ; width in pixels
+y_size: equ no_rows*char_h ; depth in pixels
+x_min: equ -(x_size>>1) ; inclusive bounds cover every viewport column
+x_max: equ (x_size>>1)-1
+y_min: equ -(y_size>>1)
+y_max: equ (y_size>>1)-1
+x_left: equ (scr_width-x_size)>>1 ; x coordinate of left edge
+field_lines: equ 262+51*(1-display_ntsc) ; raster lines in one field
+line_scale: equ 66-display_ntsc ; a raster line in 1024ths of a millisecond
+clear_bursts: equ y_size*row_stride/16 ; sixteen bytes to a MOVE16
+	ifeq (scr_width-x_size)+((y_size*row_stride)&15) ; vasm binds & tighter than *
+clear_burst_ok: equ 1 ; whole rows, and a whole number of MOVE16 lines
+	else
+clear_burst_ok: equ 0
+	endc
+no_dust: equ 15*(x_size/zoom_x)*(y_size/zoom_y)/(256*112) ; 15 in a 256x112 view
+arm_entries: equ scr_rows+4 ; SOLID_POLYGON indexes its arms by physical screen row
+proj_shift_x: equ 9+display_hires ; projection scale, a wider screen needs more
+proj_shift_y: equ 9+display_lace ; likewise a taller one
+circle_stretch: equ zoom_x/zoom_y-1 ; 1 where a pixel is half as wide as tall
+dither_bit: equ display_lace ; row bit that picks the dither phase
+view_x_min: equ x_min/zoom_x ; the viewport in logical units
+view_x_max: equ x_max/zoom_x
+view_y_min: equ y_min/zoom_y
+view_y_max: equ y_max/zoom_y
+view_x_size: equ x_size/zoom_x
+view_y_size: equ y_size/zoom_y
+
+; Scenery modelled to fill a 256 x 112 window, scaled to the viewport in use.
+view_num_x: equ x_max+1 ; half the viewport, in physical pixels
+view_den_x: equ 128<<(proj_shift_x-9) ; half the 256 x 112 window, at this scale
+view_num_y: equ y_max+1
+view_den_y: equ 56<<(proj_shift_y-9)
+
+; Docking bay cross section. Its walls reach z = 400, where tunnel_scale 1
+; covers the view and 2 covers it from z = 800 onwards.
+	ifne frame
+tunnel_scale: equ 1 ; the window the bay was modelled for
+	endc
+	ifeq frame
+tunnel_scale: equ 2
+	endc
+tunnel_x: equ tunnel_scale*100*view_num_x/view_den_x
+tunnel_y: equ tunnel_scale*45*view_num_y/view_den_y
+
+; Hangar and bay walls, which end 1600 units ahead of the viewer. The top
+; overshoots the view, as the ship sits low in the bay.
+hangar_x: equ (400*view_num_x+view_den_x-1)/view_den_x
+hangar_top: equ (275*view_num_y+view_den_y-1)/view_den_y
+hangar_bottom: equ (175*view_num_y+view_den_y-1)/view_den_y
+hangar_ship_x: equ 200*view_num_x/view_den_x ; parked ships
+hangar_ship_y: equ 80*view_num_y/view_den_y
+bay_shift: equ -85 ; the docking bay hangs below the axis

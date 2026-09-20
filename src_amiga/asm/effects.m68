@@ -243,7 +243,7 @@ q_effects_m68_2:
 	move.l a4,a5 ; create bottom panel
 	jsr alloc_object
 	jsr copy_object
-	move.l #-175,ypos(a4)
+	move.l #-hangar_bottom,ypos(a4)
 	jsr create_object
 	jsr alloc_object ; create back panel
 	lea back(pc),a0
@@ -757,11 +757,11 @@ q_effects_m68_35:
 	jsr reset_system ; reset variables
 	jsr instruments ; force update of all instruments
 	jsr clear_objects ; clear all objects
-	moveq #x_left,d0 ; clear window
-	moveq #y_top,d1
+	moveq #x_left/zoom_x,d0 ; clear window
+	moveq #y_top/zoom_y,d1
 	moveq #-1,d2
-	move #x_size,d3
-	move #y_size,d4
+	move #x_size/zoom_x,d3
+	move #y_size/zoom_y,d4
 	moveq #trans,d5
 	jsr block
 	clr text_frames(a6) ; clear current message
@@ -1457,66 +1457,66 @@ end_game_data: dc.l 0,0,8000
 	dc.w -unit,0,0
 	dc.w 0,unit,0
 	dc.w 0,0,-unit
-side: dc.l -400,0,4600
-top: dc.l 0,275,4600
+side: dc.l -hangar_x,0,4600
+top: dc.l 0,hangar_top,4600
 back: dc.l 0,0,4600
-thin_side: dc.l -400,0,0
+thin_side: dc.l -hangar_x,0,0
 top_door: dc.l 0,110,4601
 bottom_door: dc.l 0,90,4601
 vector_data: dc.w unit,0,0
 	dc.w 0,unit,0
 	dc.w 0,0,unit
-side_tunnel: dc.l -100,0,10400
-top_tunnel: dc.l 0,45,10400
+side_tunnel: dc.l -tunnel_x,0,10400
+top_tunnel: dc.l 0,tunnel_y,10400
 end_tunnel: dc.l 0,0,10400
 ; Cockpit palette index -> solid material in vector.m68's panel_colours.
 ; Invisible, dark-grey and pulsing entries fall back to light grey.
 launch_planet_panels:
 	dc.b 1,1,1,58,47,58,27,3,4,5,6,7,8,1,1,9
 pulsing: dc.l 0,0,10400
-d_side_tunnel: dc.l -100,0,12000
-d_top_tunnel: dc.l 0,45,12000
+d_side_tunnel: dc.l -tunnel_x,0,12000
+d_top_tunnel: dc.l 0,tunnel_y,12000
 d_pulsing: dc.l 0,0,12000
 d_pulsing2: dc.l 0,45,12000
 d_top_door: dc.l 0,45,12010 ; end tunnel top red door
 d_bottom_door: dc.l 0,0,12010 ; end tunnel bottom red door
 d_black_upper: dc.l 0,45,2000 ; upper main black door
 d_black_lower: dc.l 0,0,2000 ; lower main black door
-d_side: dc.l -400,-85,$866+3000 ; bay side panels
-d_top: dc.l 0,190,$866+3000 ; bay top panel
-d_bottom: dc.l 0,-260,$866+3000 ; bay bottom panel
-d_end: dc.l 0,-85,$866+3000 ; bay end wall
+d_side: dc.l -hangar_x,bay_shift,$866+3000 ; bay side panels
+d_top: dc.l 0,bay_shift+hangar_top,$866+3000 ; bay top panel
+d_bottom: dc.l 0,bay_shift-hangar_bottom,$866+3000 ; bay bottom panel
+d_end: dc.l 0,bay_shift,$866+3000 ; bay end wall
 launch_pos: dc.l position1,position2,position3,position4
-position1: dc.l -200,-80,1500
+position1: dc.l -hangar_ship_x,-hangar_ship_y,1500
 	dc.w -unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,-unit
-position2: dc.l -200,-80,2000
+position2: dc.l -hangar_ship_x,-hangar_ship_y,2000
 	dc.w -unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,-unit
-position3: dc.l 200,-80,1500
+position3: dc.l hangar_ship_x,-hangar_ship_y,1500
 	dc.w -unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,-unit
-position4: dc.l 200,-80,2000
+position4: dc.l hangar_ship_x,-hangar_ship_y,2000
 	dc.w -unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,-unit
 docking_pos: dc.l position5,position6,position7,position8
-position5: dc.l -200,-165,5150-500
+position5: dc.l -hangar_ship_x,bay_shift-hangar_ship_y,5150-500
 	dc.w unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,unit
-position6: dc.l -200,-165,5150-1000
+position6: dc.l -hangar_ship_x,bay_shift-hangar_ship_y,5150-1000
 	dc.w unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,unit
-position7: dc.l 200,-165,5150-500
+position7: dc.l hangar_ship_x,bay_shift-hangar_ship_y,5150-500
 	dc.w unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,unit
-position8: dc.l 200,-165,5150-1000
+position8: dc.l hangar_ship_x,bay_shift-hangar_ship_y,5150-1000
 	dc.w unit,0,0
 	dc.w 0,0,0
 	dc.w 0,0,unit

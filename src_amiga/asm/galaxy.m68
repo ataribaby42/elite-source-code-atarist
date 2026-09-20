@@ -22,8 +22,8 @@
 	include "raster.inc"
 
 	xref getrandx,tokens,product_table,invert_icon,prepare_text,str_copy,block
-	xref build_number,print_centre,set_colour,plotxy,bit_masks
-	xref draw_sprite,print_string,dot_to_addr,colour_masks,line,build_sprite
+	xref build_number,print_centre,set_colour,ui_plot,bit_masks
+	xref draw_sprite,print_string,dot_to_addr,colour_masks,ui_line,build_sprite
 	xref str_len,text_colour,clear_input,fuel_distance,print_number,fx,rand
 	xref input_line,str_compare,buy_cargo,sell_cargo,wait_key,data,hold_clock
 	xref equip_ship,init_cursor,hide_cursor,status,data,restore_cursor
@@ -160,7 +160,7 @@ l_line macro
 	add d4,d1
 	add d4,d2
 	add d4,d3
-	jsr line ; draw the line
+	jsr ui_line ; draw the line
 
 	endm
 
@@ -191,7 +191,7 @@ dline macro
 	move \2(a6),d1
 	move \3(a6),d2
 	move \4(a6),d3
-	jsr line ; draw the line
+	jsr ui_line ; draw the line
 
 	endm
 
@@ -647,7 +647,7 @@ q_galaxy_m68_20:
 	jsr set_colour
 	bsr gen_position ; generate position
 	bsr conv_gal_scr ; convert to screen coords
-	jsr plotxy ; plot pixel
+	jsr ui_plot ; plot pixel
 	q_pop d7 ; next planet
 	q_next 1
 	bsr g_range_circle ; draw range circle
@@ -694,7 +694,7 @@ q_galaxy_m68_22:
 	eor.l d7,d0
 	move.l d0,scr_base(a6)
 	move.l d0,a0 ; clear VRAM
-	q_loop 1,32000/4
+	q_loop 1,scr_bytes/4
 	clr.l (a0)+
 	q_next 1
 	clr d3 ; x = 0
@@ -739,11 +739,14 @@ q_galaxy_m68_24:
 	add d0,d0
 	q_inc d0
 	move d0,d1 ; calculate word width
+	q_display_x d1 ; the circle is plotted at display scale
+	q_display_y d0
 	q_dec d1
 	lsr #4,d1
 	q_inc d1
 	move.l scr_base(a6),a0 ; source = screen base
-	lea 16000(a0),a1 ; destn  = screen base + 16000
+	move.l a0,a1 ; destn  = halfway down the visible screen
+	add.l #scr_bytes/2,a1 ; 32-bit: the offset outgrows a LEA displacement
 	move.l a1,data_ptr(a4) ; set sprite data pointer
 	move d1,(a1)+ ; store width and depth
 	move d0,(a1)+
@@ -754,16 +757,16 @@ q_galaxy_m68_24:
 	move d1,d7 ; loop for each word
 	q_loop 2
 	move 0(a0),d2 ; build mask
-	or 40(a0),d2
-	or 80(a0),d2
-	or 120(a0),d2
+	or plane1(a0),d2
+	or plane2(a0),d2
+	or plane3(a0),d2
 	not d2
 	move d2,(a1)+ ; store mask
 	native_save a0,a1
 	addq.l #2,a0
 	q_next 2 ; next word
 	q_pop.l a0 ; next pixel line
-	add #160,a0
+	add #row_stride,a0
 	q_next 1,d0
 	tst witch_space(a6) ; witch space ?
 ; Quelo: 	if <eq> then.s						no
@@ -776,6 +779,8 @@ q_galaxy_m68_28:
 	bsr conv_gal_scr ; convert to screen coords
 	sub circle_rad(a6),d0 ; position sprite
 	sub circle_rad(a6),d1
+	q_display_x d0 ; a sprite carries physical coordinates
+	q_display_y d1
 	move d0,sp_xpos(a4)
 	move d1,sp_ypos(a4)
 	q_pop.l scr_base(a6) ; restore screen base
@@ -800,7 +805,7 @@ q_galaxy_m68_28:
 
 	add circle_rad(a6),d0 ; convert to screen coords
 	add circle_rad(a6),d1
-	jmp plotxy ; plot point and exit
+	jmp ui_plot ; plot point and exit
 
 
 ; ***************************************
@@ -1064,15 +1069,17 @@ q_galaxy_m68_58:
 
 	add #middle_x,d0 ; centre coords
 	add #middle_y,d1
+	q_display_x d0 ; the chart is laid out at authoring scale
+	q_display_y d1
 	bsr dot_to_addr ; get screen address
 	and #15,d0 ; get plot bit mask
 	asl #2,d0
 	lea bit_masks(pc),a1
 	move.l (a1,d0),d0
 	move.w 0(a0),d2 ; preserve existing map labels and planets
-	or.w 40(a0),d2
-	or.w 80(a0),d2
-	or.w 120(a0),d2
+	or.w plane1(a0),d2
+	or.w plane2(a0),d2
+	or.w plane3(a0),d2
 	and.w d0,d2
 	q_ret ne
 	lea colour_masks+white*8,a1
@@ -1164,6 +1171,8 @@ q_galaxy_m68_62:
 	add d0,d0
 	q_inc d0
 	move d0,d1 ; calculate word width
+	q_display_x d1 ; the circle is plotted at display scale
+	q_display_y d0
 	q_dec d1
 	lsr #4,d1
 	q_inc d1
@@ -1173,6 +1182,8 @@ q_galaxy_m68_62:
 	bsr l_conv_gal_scr
 	sub circle_rad(a6),d0
 	sub circle_rad(a6),d1
+	q_display_x d0 ; a sprite carries physical coordinates
+	q_display_y d1
 	movem d0/d1,sp_xpos(a4)
 	jsr draw_sprite ; draw the planet
 	movem.l (sp)+,d7/a0 ; restore registers
@@ -1247,6 +1258,11 @@ q_galaxy_m68_62:
 	addq #7,d3
 	cmp #text_bottom,d3
 	bgt try_next ; yes
+	ifne display_hires
+	add d0,d0 ; the scan reads the physical screen
+	add d2,d2
+	endc
+	q_display_y d1
 	jsr dot_to_addr ; calculate screen address (byte)
 	moveq #1,d3
 	btst #3,d0
@@ -1257,13 +1273,13 @@ q_galaxy_m68_62:
 q_galaxy_m68_65:
 	lsr #3,d2 ; calculate width in bytes
 	q_dec d2
-	q_loop 2,8 ; loop for each pixel line
+	q_loop 2,char_h ; loop for each pixel line
 	movem.l d2/d3/a0,-(sp) ; save base screen address
 	q_loop 3
 	move.b 0(a0),d0 ; all black ?
-	or.b 40(a0),d0
-	or.b 80(a0),d0
-	or.b 120(a0),d0
+	or.b plane1(a0),d0
+	or.b plane2(a0),d0
+	or.b plane3(a0),d0
 ; Quelo: 				if <ne> then.s			no
 	beq q_galaxy_m68_67
 	add.l #3*4,sp ; forget stacked parameters
@@ -1273,9 +1289,9 @@ q_galaxy_m68_67:
 ; Native plane bytes are consecutive.
 	q_next 3,d2
 	movem.l (sp)+,d2/d3/a0 ; next pixel line
-	add #160,a0
+	add #row_stride,a0
 	q_next 2
-	sub #160*8,a0 ; position cursor
+	sub #row_stride*char_h,a0 ; position cursor
 	move.l a0,text_addr(a6)
 	clr column(a6)
 	move cplanet+tech(a6),d0 ; set text colour using tech level
@@ -1462,8 +1478,10 @@ q_galaxy_m68_75:
 	q_subr g_lock_on,global
 
 	movem cursor_spr+sp_xpos(a6),d0/d1 ; fetch cursor coords
-	add #10,d0 ; convert to centre screen coords
-	add #8,d1
+	add #10*zoom_x,d0 ; convert to centre screen coords
+	add #8*zoom_y,d1
+	q_logical_x d0 ; the cursor is physical, the chart is not
+	q_logical_y d1
 	bsr conv_scr_gal ; convert to galactic coords
 	bra search ; search for planet
 
@@ -1585,8 +1603,10 @@ q_galaxy_m68_75:
 	q_subr l_lock_on,global
 
 	movem cursor_spr+sp_xpos(a6),d0/d1 ; fetch cursor coords
-	add #7,d0 ; convert to centre screen coords
-	add #7,d1
+	add #7*zoom_x,d0 ; convert to centre screen coords
+	add #7*zoom_y,d1
+	q_logical_x d0 ; the cursor is physical, the chart is not
+	q_logical_y d1
 	bsr l_conv_scr_gal ; convert to galactic coords
 	movem d0/d1,cent_x(a6) ; save coords
 	move.l #-1,smallest(a6) ; initialise smallest distance
@@ -1706,6 +1726,8 @@ q_galaxy_m68_84:
 	jsr hide_cursor ; hide mouse cursor
 	sub #10,d0 ; calculate coords of top left of
 	sub #8,d1 ; the sprite
+	q_display_x d0 ; a sprite carries physical coordinates
+	q_display_y d1
 	lea hyper_spr(a6),a4 ; position the sprite
 	movem d0/d1,sp_xpos(a4)
 	jsr draw_sprite
@@ -1835,6 +1857,8 @@ q_galaxy_m68_93:
 	moveq #white,d0 ; draw line in white
 	jsr set_colour
 	movem hyper_spr+sp_xpos(a6),d0/d1 ; set up initial coords
+	q_logical_x d0 ; the sprite is physical, the box is not
+	q_logical_y d1
 ;	 addq #7,d0
 ;	 and #$fff8,d0
 	move d0,x1(a6)

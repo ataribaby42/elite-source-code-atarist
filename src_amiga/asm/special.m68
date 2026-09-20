@@ -146,7 +146,7 @@ q_special_m68_9:
 	add this_ypos+2(a5),d1
 	move this_zpos+2(a5),d2 ; (z = 0)
 	ext.l d0 ; xs = x*512/z
-	moveq #9,d3
+	moveq #proj_shift_x,d3
 	asl.l d3,d0
 	divs d2,d0
 ; Quelo: 		if <vs> then.s
@@ -161,6 +161,7 @@ q_special_m68_13:
 q_special_m68_14:
 q_special_m68_11:
 	ext.l d1 ; ys = y*512/z
+	moveq #proj_shift_y,d3
 	asl.l d3,d1
 	divs d2,d1
 ; Quelo: 		if <vs> then.s
@@ -335,10 +336,11 @@ laser_colours:
 	ble .restore
 	cmp.l #32767,d2
 	bhi .restore
-	moveq #9,d3
+	moveq #proj_shift_x,d3
 	asl.l d3,d0
 	divs.w d2,d0
 	bvs .restore
+	moveq #proj_shift_y,d3
 	asl.l d3,d1
 	divs.w d2,d1
 	bvs .restore
@@ -359,10 +361,11 @@ laser_colours:
 	bhi .restore
 	move.l this_xpos(a1),d4
 	move.l this_ypos(a1),d5
-	moveq #9,d7
+	moveq #proj_shift_x,d7
 	asl.l d7,d4
 	divs.w d6,d4
 	bvs .restore
+	moveq #proj_shift_y,d7
 	asl.l d7,d5
 	divs.w d6,d5
 	bvs .restore

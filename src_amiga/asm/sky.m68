@@ -126,7 +126,8 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
 
 ; Signed Q24 product, rounded, using only MC68000 16x16 multiplication.
 ; The operands are unit-vector components/trigonometric values (abs <= ~1).
-    q_subr sky_multiply
+    q_subr sky_multiply,global
+    ifeq cpu_68020
     move.l d0,d2
     eor.l d1,d2
     q_abs.l d0
@@ -149,6 +150,31 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     add.l #128,d3
     lsr.l #8,d3
     add.l d5,d3
+    bra.s sky_multiply_sign
+    endc
+
+; The same product in one instruction. PROBE_CPU patches the entry above, and a
+; cpu=68020 build has no entry to patch: the label above falls through to here.
+
+    q_subr sky_multiply_020,global
+    move.l d0,d2
+    eor.l d1,d2
+    q_abs.l d0
+    q_abs.l d1
+	mc68020
+    mulu.l d1,d3:d0             ; the same product, in one instruction
+    clr.w d0
+    swap d0                     ; D0 = product bits 16..31
+    add.l #128,d0               ; round and scale it as the pieces below do
+    lsr.l #8,d0
+    lsl.l #8,d3                 ; the high longword carries its own scale
+    add.l d0,d3
+    ifne cpu_68020
+	mc68020
+    else
+	mc68000
+    endc
+sky_multiply_sign:
     tst.l d2
     bpl.s .done
     neg.l d3
@@ -337,13 +363,11 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     bpl.s .x_positive
     neg.w d1
 .x_positive:
-    move.w d5,d0
-    lsr.w #2,d0
-    move.w d5,d4
-    lsr.w #8,d4
-    lsr.w #1,d4
-    add.w d4,d0             ; negative DIVS truncation can still produce x_min
-    addq.w #2,d0
+    move.w d5,d0             ; x_min is the wider edge, and DIVS truncates
+    muls.w #x_max+2,d0       ; toward zero, so allow depth*(x_max+2)/512
+    asr.l #8,d0
+    asr.l #1,d0
+    addq.w #2,d0             ; negative DIVS truncation can still produce x_min
     cmp.w d0,d1
     bhi .done
     move.w (a0),d3
@@ -361,20 +385,28 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     bpl.s .y_positive
     neg.w d1
 .y_positive:
-    move.w d5,d0
-    lsr.w #3,d0              ; 1/8 > 56/512: cheap conservative vertical bound
+    move.w d5,d0             ; likewise y_min, allow depth*(y_max+2)/512
+    muls.w #y_max+2,d0
+    asr.l #8,d0
+    asr.l #1,d0
     addq.w #2,d0
     cmp.w d0,d1
     bhi.s .done
-    asl.l #8,d2
+    asl.l #8,d2 ; x*512/depth, doubled again on a wider screen
     add.l d2,d2
+    ifne display_hires
+    add.l d2,d2
+    endc
     divs.w d5,d2
     cmp.w #x_min,d2
     blt.s .done
     cmp.w #x_max,d2
     bgt.s .done
-    asl.l #8,d3
+    asl.l #8,d3 ; y*512/depth, doubled again on a taller screen
     add.l d3,d3
+    ifne display_lace
+    add.l d3,d3
+    endc
     divs.w d5,d3
     cmp.w #y_min,d3
     blt.s .done

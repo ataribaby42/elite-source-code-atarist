@@ -16,14 +16,19 @@
 	include "macros.m68"
 	include "bitlist.m68"
 
-	xref vars,other_screen,amstrad_8x8,vblank,critical_error,texture
+	xref vars,other_screen,vblank,critical_error,texture
+	ifeq display_hires
+	xref amstrad_8x8
+	else
+	xref amstrad_16x8
+	endc
 	xref display_char,default_game,find_bitmap,novella
 	xref init_sky,init_cursor_cache
 	xref init_dust,rand,monst,checksum,logo
-	xref cockpit,textscr,obj_data,bitmaps
+	xref cockpit,textscr,obj_data,bitmap_bank
 	xref hyper_buffer,quiet,blank_screen
 	xref set_roll_angles,set_climb_angles
-	xref draw_screen,amiga_start_display
+	xref draw_screen,amiga_start_display,amiga_rows_art,expand_bytes
 
 * ---- LOCAL CONSTANTS ----
 
@@ -53,14 +58,25 @@ d_hidden: rs.w 1 ; flag: hidden lines used
 
 file_size: rs.l 1 ; file size in bytes
 first: rs.w 1 ; flag: first item
-radar1_buffer: rs.b 2*5*8
-radar2_buffer: rs.b 2*5*8
+radar1_buffer: rs.b 2*5*8*zoom_x*zoom_y ; a wider sprite saves more background
+radar2_buffer: rs.b 2*5*8*zoom_x*zoom_y
 bytes_left: rs.w 1 ; bytes left in i/o buffer
 io_ptr: rs.l 1 ; ptr: next byte from input buffer
+plane_buf: rs.w 4 ; one source column while it is being widened
 
 	q_end_vars init
 
 * ---- LOCAL MACROS ----
+
+* WIDEN_BYTE - eight pixels in the low byte become sixteen in the word.
+
+widen_byte macro
+
+	and.w #255,\1
+	add.w \1,\1
+	move.w (a4,\1.w),\1
+
+	endm
 
 load_file macro
 
@@ -135,7 +151,11 @@ size macro
 	move.l d1,screen2_ptr(a6)
 	eor.l d1,d0 ; calculate eor for flip screen
 	move.l d0,flip_screen(a6)
-	q_let.l amstrad_8x8-256,charset_ptr ; use amstrad 8x8 character set
+	ifeq display_hires
+	q_let.l amstrad_8x8-256,charset_ptr ; 8 bytes a glyph, from character 32
+	else
+	q_let.l amstrad_16x8-512,charset_ptr ; 16 bytes a glyph
+	endc
 	q_let.l display_char,print_ptr ; direct print_char to display_char
 	jsr default_game ; setup default game
 	moveq #1,d0 ; initialise variables
@@ -155,24 +175,24 @@ size macro
 	lea range_spr(a6),a4 ; initialise range circle sprite
 	bset #clip_me,sp_flags(a4)
 	bset #dont_save,sp_flags(a4)
-	move #text_left,clip_left(a4)
-	move #text_right,clip_right(a4)
-	move #text_top,clip_top(a4)
-	move #text_bottom,clip_bottom(a4)
+	move #text_left*zoom_x,clip_left(a4)
+	move #text_right*zoom_x+zoom_x-1,clip_right(a4)
+	move #text_top*zoom_y,clip_top(a4)
+	move #text_bottom*zoom_y+zoom_y-1,clip_bottom(a4)
 	lea cursor_spr(a6),a4 ; initialise cursor sprite
 	bset #clip_me,sp_flags(a4)
 	move #0,clip_left(a4)
-	move #319,clip_right(a4)
+	move #scr_width-1,clip_right(a4)
 	move #0,clip_top(a4)
-	move #199,clip_bottom(a4)
-	move #150,sp_xpos(a4)
-	move #92,sp_ypos(a4)
+	move #art_rows*zoom_y-1,clip_bottom(a4)
+	move #150*zoom_x,sp_xpos(a4)
+	move #92*zoom_y,sp_ypos(a4)
 	lea hyper_spr(a6),a4 ; initialise hyperspace cursor
 	bset #clip_me,sp_flags(a4)
-	move #text_left,clip_left(a4)
-	move #text_right,clip_right(a4)
-	move #text_top,clip_top(a4)
-	move #text_bottom,clip_bottom(a4)
+	move #text_left*zoom_x,clip_left(a4)
+	move #text_right*zoom_x+zoom_x-1,clip_right(a4)
+	move #text_top*zoom_y,clip_top(a4)
+	move #text_bottom*zoom_y+zoom_y-1,clip_bottom(a4)
 	moveq #bit_cursors+3,d0
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
@@ -211,6 +231,7 @@ size macro
 	jsr draw_screen
 	lea other_screen+2,a0
 	jsr set_palette
+	jsr amiga_rows_art ; the loading picture is 200 rows
 	jsr amiga_start_display ; display-only VBL; game variables are not ready yet
 .done:
 	rts
@@ -286,7 +307,10 @@ q_init_m68_3:
 	move.l d0,d6 ; AmigaDOS BPTR
 	clr bytes_left(a6) ; buffer is empty
 	moveq #0,d5 ; byte offset = 0
-	lea bitmaps,a0 ; read table of pointers
+	ifne display_hires
+	lea expand_bytes,a4 ; one byte of pixels becomes a doubled word
+	endc
+	move.l bitmap_bank,a0 ; read table of pointers
 	q_loop 1,bit_last*4
 	bsr read_byte
 	move.b d0,(a0)+
@@ -294,24 +318,30 @@ q_init_m68_3:
 	q_next 1
 	q_loop 1,bit_last ; loop for each bitmap
 	q_push d7
-	lea bitmaps,a1 ; search for reference to offset in
+	move.l bitmap_bank,a1 ; search for reference to offset in
 q_init_m68_21:
 	cmp.l (a1)+,d5
 	bne q_init_m68_21
 q_init_m68_22:
 	move.l a0,-4(a1) ; store down the real address
 	bsr read_word ; read and store width
-	move d0,d3
-	move d3,(a0)+
+	move d0,d3 ; source columns, before widening
+	q_display_x d0
+	move d0,(a0)+
 	bsr read_word ; read and store depth
-	move d0,d4
-	move d4,(a0)+
+	move d0,d4 ; source rows, before doubling
+	q_display_y d0
+	move d0,(a0)+
 	q_dec d3 ; adjust width and depth for DBRA
 	q_dec d4
 	q_loop 2 ; loop for each pixel line
 	q_push d3 ; save width
+	ifne display_lace
+	move.l a0,a5 ; remember where this row starts
+	endc
 	q_loop 3 ; loop for each word across
 	clr d2 ; clear mask
+	ifeq display_hires
 	addq.l #2,a0 ; skip word for mask
 	q_loop 4,4 ; loop for each plane (x4)
 	bsr read_word ; read a word
@@ -320,7 +350,48 @@ q_init_m68_22:
 	q_next 4 ; next plane
 	not d2 ; store mask
 	move d2,-10(a0)
+	endc
+	ifne display_hires
+; Sixteen pixels become thirty-two, so one source column emits two.
+	lea plane_buf(a6),a1
+	q_loop 4,4 ; loop for each plane (x4)
+	bsr read_word ; read a word
+	move d0,(a1)+
+	or d0,d2 ; OR with mask
+	q_next 4 ; next plane
+	not d2 ; mask covers the pixels no plane sets
+	move d2,d0 ; D5 carries the file offset, so widen through D0
+	lsr.w #8,d0 ; left half first
+	widen_byte d0
+	move d0,(a0)+
+	lea plane_buf(a6),a1
+	q_loop 5,4
+	move (a1)+,d0
+	lsr.w #8,d0
+	widen_byte d0
+	move d0,(a0)+
+	q_next 5
+	move d2,d0 ; then the right half
+	widen_byte d0
+	move d0,(a0)+
+	lea plane_buf(a6),a1
+	q_loop 5,4
+	move (a1)+,d0
+	widen_byte d0
+	move d0,(a0)+
+	q_next 5
+	endc
 	q_next 3,d3 ; next word across
+	ifne display_lace
+	move.l a0,d0 ; lay the row down a second time
+	sub.l a5,d0 ; its length, in bytes
+	lsr.l #1,d0
+	subq.w #1,d0
+	move.l a5,a1
+dup_row:
+	move.w (a1)+,(a0)+
+	dbra d0,dup_row
+	endc
 	q_pop d3 ; next pixel line
 	q_next 2,d4
 	q_pop d7 ; next bitmap
@@ -356,7 +427,7 @@ q_init_m68_22:
 	movem.l d1-d3/a0,-(sp)
 	lea other_screen,a0
 	move.l a0,d2
-	move.l #32768,d3
+	move.l #degas_bytes,d3 ; BYTES_LEFT counts in a word, so never read more
 	move.l d6,d1
 	jsr file_read
 	movem.l (sp)+,d1-d3/a0

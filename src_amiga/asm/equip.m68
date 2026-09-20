@@ -23,7 +23,7 @@
 
 	xref invert_icon,prepare_text,print_centre,text_colour,find_bitmap,locate
 	xref put_bitmap,print_number,print_string,init_cursor,clear_input,str_copy
-	xref find_table,equipment_list,str_cat,error_box,hide_cursor,line
+	xref find_table,equipment_list,str_cat,error_box,hide_cursor,ui_line
 	xref draw_sprite,restore_cursor,remove_sprite,set_colour,ratings
 	xref build_number,build_name,print_table,lines,launch,buy_cargo,sell_cargo
 	xref galactic_chart,local_chart,data,market_prices,inventory,disk,options
@@ -69,7 +69,7 @@ draw_line macro
 	move \2(a6),d1
 	move \3(a6),d2
 	move \4(a6),d3
-	jsr line
+	jsr ui_line
 
 	endm
 
@@ -378,13 +378,13 @@ q_equip_m68_19:
 	lea temp_spr(a6),a4
 	move.l scr_base(a6),d0
 	jsr amiga_flip_address
-	add.l #16384,d0
+	add.l #scr_bytes/2,d0
 	move.l d0,buffer_ptr(a4)
 	moveq #bit_lasers,d0
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
-	move #laser_x,sp_xpos(a4)
-	move #laser_y,sp_ypos(a4)
+	move #laser_x*zoom_x,sp_xpos(a4)
+	move #laser_y*zoom_y,sp_ypos(a4)
 	jsr draw_sprite
 	moveq #bit_cobra,d0 ; find cobra bitmap
 	jsr find_bitmap
@@ -897,12 +897,12 @@ q_equip_m68_57:
 	move d1,d3
 	subq #8,d3
 	move d3,base_y(a6)
-	jsr line
+	jsr ui_line
 	move #210,d0
 	move base_y(a6),d1
 	move #218,d2
 	move d1,d3
-	jsr line
+	jsr ui_line
 q_equip_m68_58:
 	move this_equip(a6),d0 ; energy unit ?
 	cmp #8,d0

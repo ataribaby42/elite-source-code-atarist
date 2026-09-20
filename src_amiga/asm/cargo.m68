@@ -19,7 +19,7 @@
 
 	xref invert_icon,prepare_text,print_centre,text_colour,find_bitmap,locate
 	xref put_bitmap,print_number,block,init_cursor,error_box,print_table,tab
-	xref clear_input,hide_cursor,print_string,print_char,restore_cursor,line
+	xref clear_input,hide_cursor,print_string,print_char,restore_cursor,ui_line
 	xref input_number,product_list,find_table,str_copy,str_cat,build_number
 	xref str_len,set_colour,launch,divide_by_1e5,equip_ship,galactic_chart
 	xref local_chart,data,status,disk,find_planet,home_cursor,options
@@ -62,7 +62,7 @@ draw_line macro
 	move \2(a6),d1
 	move \3(a6),d2
 	move \4(a6),d3
-	jsr line
+	jsr ui_line
 
 	endm
 

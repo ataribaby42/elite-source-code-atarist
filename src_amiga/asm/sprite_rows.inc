@@ -22,9 +22,9 @@ q_sprites_m68_11\@:
 	and d1,d3 ; extract rotated bits
 	or mask(a6),d3 ; combine with shift in
 	and d3,0(a0) ; clear current setting
-	and d3,40(a0)
-	and d3,80(a0)
-	and d3,120(a0)
+	and d3,plane1(a0)
+	and d3,plane2(a0)
+	and d3,plane3(a0)
 	and d2,d4 ; extract shift out
 	move d4,mask(a6)
 	move.l pl_0(a6),d5 ; get shift in bits (planes #0 & #1)
@@ -43,7 +43,7 @@ q_sprites_m68_11\@:
 	move d3,d4
 	and d1,d3
 	or d5,d3
-	or d3,40(a0)
+	or d3,plane1(a0)
 	and d2,d4
 	move d4,d5
 	move.l d5,pl_0(a6) ; save shift out bits
@@ -54,7 +54,7 @@ q_sprites_m68_11\@:
 	move d3,d4
 	and d1,d3
 	or d5,d3
-	or d3,80(a0)
+	or d3,plane2(a0)
 	and d2,d4
 	move d4,d5
 	swap d5 ; draw sprite in plane #3
@@ -63,7 +63,7 @@ q_sprites_m68_11\@:
 	move d3,d4
 	and d1,d3
 	or d5,d3
-	or d3,120(a0)
+	or d3,plane3(a0)
 	addq.l #2,a0
 	and d2,d4
 	move d4,d5
@@ -78,15 +78,15 @@ q_sprites_m68_11\@:
 	and d3,0(a0)
 	move pl_0(a6),d4
 	or d4,0(a0)
-	and d3,40(a0)
+	and d3,plane1(a0)
 	move pl_1(a6),d4
-	or d4,40(a0)
-	and d3,80(a0)
+	or d4,plane1(a0)
+	and d3,plane2(a0)
 	move pl_2(a6),d4
-	or d4,80(a0)
-	and d3,120(a0)
+	or d4,plane2(a0)
+	and d3,plane3(a0)
 	move pl_3(a6),d4
-	or d4,120(a0)
+	or d4,plane3(a0)
 q_sprites_m68_13\@:
 	q_pop.l a0 ; next pixel line
 	add a3,a0
@@ -162,9 +162,9 @@ q_sprites_m68_37\@:
 	and r_mask2(a6),d5 ; AND mask with data mask
 q_sprites_m68_39\@:
 	and d3,0(a0) ; clear current setting
-	and d3,40(a0)
-	and d3,80(a0)
-	and d3,120(a0)
+	and d3,plane1(a0)
+	and d3,plane2(a0)
+	and d3,plane3(a0)
 	and d2,d4 ; extract shift out
 	move d4,mask(a6)
 	move (a1)+,d3 ; draw sprite in plane #0
@@ -182,7 +182,7 @@ q_sprites_m68_39\@:
 	and d1,d3
 	or pl_1(a6),d3
 	and d5,d3
-	or d3,40(a0)
+	or d3,plane1(a0)
 	and d2,d4
 	move d4,pl_1(a6)
 	move (a1)+,d3 ; draw sprite in plane #2
@@ -191,7 +191,7 @@ q_sprites_m68_39\@:
 	and d1,d3
 	or pl_2(a6),d3
 	and d5,d3
-	or d3,80(a0)
+	or d3,plane2(a0)
 	and d2,d4
 	move d4,pl_2(a6)
 	move (a1)+,d3 ; draw sprite in plane #3
@@ -200,7 +200,7 @@ q_sprites_m68_39\@:
 	and d1,d3
 	or pl_3(a6),d3
 	and d5,d3
-	or d3,120(a0)
+	or d3,plane3(a0)
 	addq.l #2,a0
 	and d2,d4
 	move d4,pl_3(a6)
@@ -216,16 +216,16 @@ q_sprites_m68_35\@:
 	or d3,0(a0)
 	move pl_1(a6),d3 ; draw sprite in plane #1
 	and d5,d3
-	and d4,40(a0)
-	or d3,40(a0)
+	and d4,plane1(a0)
+	or d3,plane1(a0)
 	move pl_2(a6),d3 ; draw sprite in plane #2
 	and d5,d3
-	and d4,80(a0)
-	or d3,80(a0)
+	and d4,plane2(a0)
+	or d3,plane2(a0)
 	move pl_3(a6),d3 ; draw sprite in plane #3
 	and d5,d3
-	and d4,120(a0)
-	or d3,120(a0)
+	and d4,plane3(a0)
+	or d3,plane3(a0)
 	addq.l #2,a0
 q_sprites_m68_36\@:
 	q_inc d6 ; next word

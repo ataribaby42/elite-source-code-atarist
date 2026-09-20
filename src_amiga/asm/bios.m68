@@ -19,6 +19,7 @@
 
 	xref dot_to_addr,fx,clear_command,divide_by_10,remove_sprite
 	xref draw_screen,xor,kill_sprites,set_colour,textscr
+	xref amiga_rows_art
 	xref find_bitmap,put_bitmap,draw_sprite,monst,blank_screen,random
 
 * ---- LOCAL CONSTANTS ----
@@ -106,7 +107,7 @@ use_keypad: rs.w 1 ; flag: use numeric keypad
 	move.l (a0,d0),a0
 	jmp (a0) ; execute routine and exit
 q_bios_m68_1:
-	asl #3,d0 ; index into character set
+	asl #3+display_hires,d0 ; index into character set
 	move.l charset_ptr(a6),a0
 	lea 0(a0,d0),a0
 	move.l ink_ptr(a6),a1 ; get ink and paper pointers
@@ -116,6 +117,7 @@ q_bios_m68_1:
 ; Quelo: 	if <ne> then.s						no
 	beq q_bios_m68_3
 	q_loop 1,d7,8 ; 8 pixel lines deep
+	ifeq display_hires
 	move.b (a0)+,d0 ; get next data byte
 	move d0,d1 ; build paper mask
 	not d1
@@ -126,15 +128,43 @@ q_bios_m68_1:
 	and.b (a2)+,d3
 	or.b d2,d3 ; combine ink and paper
 	move.b d3,(a3) ; store in VRAM
-	lea 40(a3),a3 ; next OCS plane
+	lea bpr(a3),a3 ; next OCS plane
 	q_next 2,d6
 ; Four plane steps already advance to the next pixel row.
 	subq.l #4,a1
 	subq.l #4,a2
+	endc
+	ifne display_hires
+	move.w (a0)+,d0 ; get next data word
+	move.w d0,d1 ; build paper mask
+	not.w d1
+	q_loop 2,d6,4 ; loop for each plane
+	move.w d0,d2 ; build ink word
+	move.b (a1)+,d4 ; one mask byte per plane, widened by EXT
+	ext.w d4
+	and.w d4,d2
+	move.w d1,d3 ; build paper word
+	move.b (a2)+,d4
+	ext.w d4
+	and.w d4,d3
+	or.w d2,d3 ; combine ink and paper
+	move.w d3,(a3) ; store in VRAM
+	ifne display_lace
+	move.w d3,row_stride(a3) ; and again on the doubled row
+	endc
+	lea bpr(a3),a3 ; next OCS plane
+	q_next 2,d6
+	ifne display_lace
+	lea row_stride(a3),a3 ; step over the row just duplicated
+	endc
+	subq.l #4,a1
+	subq.l #4,a2
+	endc
 	q_next 1,d7
 	bra q_bios_m68_4
 q_bios_m68_3:
 	q_loop 1,d7,8 ; 8 pixel lines deep
+	ifeq display_hires
 	move.b (a0)+,d0 ; get next data byte
 	move.b d0,d1 ; build clear mask
 	not.b d1
@@ -143,20 +173,43 @@ q_bios_m68_3:
 	move.b d0,d2 ; plot pixels
 	and.b (a1)+,d2
 	or.b d2,(a3)
-	lea 40(a3),a3 ; next OCS plane
+	lea bpr(a3),a3 ; next OCS plane
 	q_next 2,d6
 ; Four plane steps already advance to the next pixel row.
 	subq.l #4,a1
+	endc
+	ifne display_hires
+	move.w (a0)+,d0 ; get next data word
+	move.w d0,d1 ; build clear mask
+	not.w d1
+	q_loop 2,d6,4 ; loop for each plane
+	and.w d1,(a3) ; mask out current setting
+	move.w d0,d2 ; plot pixels
+	move.b (a1)+,d4 ; one mask byte per plane, widened by EXT
+	ext.w d4
+	and.w d4,d2
+	or.w d2,(a3)
+	ifne display_lace
+	and.w d1,row_stride(a3) ; and again on the doubled row
+	or.w d2,row_stride(a3)
+	endc
+	lea bpr(a3),a3 ; next OCS plane
+	q_next 2,d6
+	ifne display_lace
+	lea row_stride(a3),a3 ; step over the row just duplicated
+	endc
+	subq.l #4,a1
+	endc
 	q_next 1,d7
 q_bios_m68_4:
-	addq.l #1,text_addr(a6) ; next byte in the same bitplane
+	addq.l #zoom_x,text_addr(a6) ; next cell in the same bitplane
 	q_inc column(a6) ; ++column
 	cmp #40,column(a6) ; end of line ?
 ; Quelo: 	if <eq> then.s						yes
 	bne q_bios_m68_7
-	add.l #160*8-40,text_addr(a6)
+	add.l #row_stride*char_h-bpr,text_addr(a6)
 	clr column(a6)
-	addq #8,row(a6)
+	addq.w #8,row(a6)
 q_bios_m68_7:
 
 	q_ret
@@ -435,13 +488,16 @@ q_bios_m68_7:
 	q_push.w d2
 	move d0,column(a6) ; save column and row
 	move d1,row(a6)
-	asl #3,d0 ; calculate screen address
+	asl #char_shift,d0 ; calculate screen address
+	q_display_y d1 ; logical row to physical
 	jsr dot_to_addr
-	btst #0,column+1(a6)
+	ifeq display_hires
+	btst #0,column+1(a6) ; a cell is half a word, so odd columns step a byte
 ; Quelo: 	if <ne> then
 	beq q_bios_m68_9
 	q_inc a0
 q_bios_m68_9:
+	endc
 	move.l a0,text_addr(a6)
 	q_pop.w d2 ; restore registers
 	q_pop.l a0
@@ -1156,20 +1212,28 @@ q_bios_m68_72:
 	bsr hide_cursor ; hide the cursor
 	lea temp_spr(a6),a4 ; position keypad
 	movem d3/d4,sp_xpos(a4)
+	ifne display_hires
+	add.w d3,sp_xpos(a4) ; the sprite is physical, its click ranges are not
+	endc
+	ifne display_lace
+	add.w d4,sp_ypos(a4)
+	endc
 	move.l scr_base(a6),d0 ; use 1/2 way down other screen
 	jsr amiga_flip_address
-	add.l #16384,d0
+	add.l #scr_bytes/2,d0
 	move.l d0,buffer_ptr(a4)
 	moveq #bit_keypad,d0 ; find keypad bitmap
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
+	movem d3/d4,-(sp) ; keep the logical position
 	jsr draw_sprite ; display error box
+	movem (sp)+,d2/d3
 	lea keypad_offsets(pc),a0 ; setup click ranges
 	lea keypad_table(pc),a1
 	q_loop 1,12 ; loop for each key
 	movem (a0)+,d0/d1 ; fetch x/y offset
-	add sp_xpos(a4),d0 ; add to coords of sprite
-	add sp_ypos(a4),d1
+	add d2,d0 ; add to coords of sprite
+	add d3,d1
 	move d0,(a1)+ ; store in action table (top left)
 	move d1,(a1)+
 	add #15,d0 ; calculate bottom right
@@ -1178,8 +1242,8 @@ q_bios_m68_72:
 	move d1,(a1)+
 	lea 10(a1),a1 ; skip rest of entry
 	q_next 1 ; next button
-	move sp_xpos(a4),d0 ; setup coords of keypad surround
-	move sp_ypos(a4),d1
+	move d2,d0 ; setup coords of keypad surround
+	move d3,d1
 	move d0,(a1)+
 	move d1,(a1)+
 	add #63,d0
@@ -1375,13 +1439,13 @@ confirm_start:
 	move.l scr_base(a6),d0
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
-	add.l #16384,d0
+	add.l #scr_bytes/2,d0
 	move.l d0,buffer_ptr(a4)
 	moveq #bit_confirm,d0 ; find error box bitmap
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
-	move #confirm_x,sp_xpos(a4) ; position box
-	move #confirm_y,sp_ypos(a4)
+	move #confirm_x*zoom_x,sp_xpos(a4) ; position box
+	move #confirm_y*zoom_y,sp_ypos(a4)
 	jsr draw_sprite ; display error box
 	lea confirm_table(pc),a0 ; initialise cursor
 	bsr init_cursor
@@ -1426,13 +1490,13 @@ q_bios_m68_98:
 	move.l scr_base(a6),d0
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
-	add.l #16384,d0
+	add.l #scr_bytes/2,d0
 	move.l d0,buffer_ptr(a4)
 	moveq #bit_confirm,d0 ; find error box bitmap
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
-	move #confirm_x,sp_xpos(a4) ; position box
-	move #confirm_y,sp_ypos(a4)
+	move #confirm_x*zoom_x,sp_xpos(a4) ; position box
+	move #confirm_y*zoom_y,sp_ypos(a4)
 	jsr draw_sprite ; display error box
 	lea confirm_table(pc),a0 ; initialise cursor
 	bsr init_cursor
@@ -1694,8 +1758,10 @@ q_bios_m68_99:
 	move.l action_table(a6),a0 ; A0 = ptr: action table
 	lea cursor_spr(a6),a1 ; fetch cursor coords (centre)
 	movem sp_xpos(a1),d0/d1
-	add #10,d0
-	addq #8,d1
+	add #10*zoom_x,d0
+	add #8*zoom_y,d1
+	q_logical_x d0 ; the cursor is physical, the action table is logical
+	q_logical_y d1
 q_bios_m68_101:
 	tst (a0) ; end of data ?
 	bmi q_bios_m68_102
@@ -1753,6 +1819,7 @@ d_0:
 q_bios_m68_103:
 	clr csr_on(a6) ; cursor not active
 	clr cockpit_on(a6) ; cockpit not displayed
+	jsr amiga_rows_art ; 200-row artwork keeps its original framing
 	clr disp_type(a6) ; no display type
 	clr display_clock(a6) ; stop clock
 	clr icon_inverted(a6) ; icon not inverted
@@ -1902,13 +1969,13 @@ q_bios_m68_109:
 	lea temp_spr(a6),a4 ; use other screen for buffer
 	move.l scr_base(a6),d0
 	jsr amiga_flip_address
-	add.l #16384,d0
+	add.l #scr_bytes/2,d0
 	move.l d0,buffer_ptr(a4)
 	moveq #bit_error_box,d0 ; find error box bitmap
 	jsr find_bitmap
 	move.l a0,data_ptr(a4)
-	move #error_x,sp_xpos(a4) ; position box
-	move #error_y,sp_ypos(a4)
+	move #error_x*zoom_x,sp_xpos(a4) ; position box
+	move #error_y*zoom_y,sp_ypos(a4)
 	jsr draw_sprite ; display error box
 	moveq #white,d0 ; print in white
 	moveq #trans,d1
