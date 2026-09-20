@@ -4,6 +4,8 @@ Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `s
 
 During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
+Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
+
 With **Reverse dive/climb** off (the default), moving the mouse up dives and
 moving it down climbs in both enhanced versions. Turn this option on to restore
 the previous mouse pitch direction.

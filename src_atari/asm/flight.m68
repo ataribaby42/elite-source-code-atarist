@@ -1283,9 +1283,13 @@ q_flight_m68_167:
 	jsr cargo_spare ; enough room for one unit ?
 	cmp.l d4,d3
 	q_ret lo ; no, return
-	jsr random ; determine amount to add (1..4)
-	and #3,d0
+	moveq #1,d0 ; tonne commodities always contain one unit
+	cmp.l #1000000,d4
+	beq.s salvage_amount_ready
+	moveq #10,d2 ; kilogram/gram commodities contain 1..10 units
+	jsr rand
 	q_inc d0
+salvage_amount_ready:
 	move cargo_type(a5),d1 ; index into cargo hold array
 	asl #2,d1
 	lea hold(a6),a0
