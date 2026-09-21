@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
+## 21.09.2029 V1.68
+
+- Reduced the AI laser damage multiplier from 2–4 to 1–3 for both player and AI targets on Atari and Amiga; updated documentation.
+
 ## 21.09.2029 V1.67
 
 - Fixed encounter ships spawning beyond scanner range by reducing the leader’s maximum spawn radius on Atari and Amiga.

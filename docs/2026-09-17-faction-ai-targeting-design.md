@@ -354,18 +354,20 @@ whenever two pirates fight each other near the station.
 
 The damage path branches on the target:
 
-- **Target is the player** — `reduce_shields` (`combat.m68:505`) unchanged,
-  including the rating-dependent damage table, the front/aft shield choice and
-  equipment destruction. Combat against the player is bit-for-bit what it is
-  today.
-- **Target is an NPC** — new routine: `rand(1..npc_damage) * rand(2..4)`
-  subtracted from `health(a4)`. The 2..4 multiplier is the one `do_attack`
-  already applies and is shared with the player-facing path, so only
+- **Target is the player** — `reduce_shields` retains the front/aft shield
+  choice and equipment destruction. The rating-dependent base damage table
+  is unchanged; successful hits use the shared 1..3 multiplier.
+- **Target is an NPC** — `rand(1..npc_damage) * rand(1..3)` is
+  subtracted from `health(a4)`. The 1..3 multiplier is the one `do_attack`
+  applies and is shared with the player-facing path, so only
   `npc_damage` distinguishes the two. It is **3**, below the `damage` table's
   own range (`logic.m68`, `dc.w 3,3,3,5,5,5,7,7,7`): a hit between two ships
-  lands in 2..12 and averages 6, against the 9 an average-rated player takes.
-  Their fights are meant to last long enough to be worth flying into, and a
-  Mamba survives about seven hits rather than four.
+  lands in 1..9 and averages 4, against the 6 an average-rated player takes.
+  Their fights are meant to last long enough to be worth flying into.
+
+On 2026-09-21, the shared multiplier was reduced from 2, 3 or 4 to 1, 2 or 3
+on both platforms. The choices remain equally weighted; base damage, hit
+probability and random-number consumption are unchanged.
 
 ### 6.4.1 The damaged ship's reaction
 

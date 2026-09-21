@@ -38,8 +38,8 @@ dist_peel_off: equ 480 ; distance to peel off (max)
 max_rad: equ 255 ; maximum explosion radius
 fire_range: equ radar_range/2 ; 12288 world units: half the scanner range at x1
 npc_damage: equ 3 ; fixed AI to AI strength, below the DAMAGE table's own
-; range: a hit between two ships is 1..3 times the 2..4 multiplier, so it
-; averages 6 against the 9 an average-rated player takes. Their fights are
+; range: a hit between two ships is 1..3 times the 1..3 multiplier, so it
+; averages 4 against the 6 an average-rated player takes. Their fights are
 ; meant to last long enough to be worth flying into.
 run_limit: equ $1200 ; min. run away distance
 run_range: equ $1000 ; range of run away distances
@@ -627,8 +627,8 @@ q_logic_m68_35:
 	jsr random
 	and.w #3,d0
 	cmp.w #3,d0
-	beq.s .damage_multiplier ; reject fourth choice: equal chances for 2, 3, 4
-	addq.w #2,d0
+	beq.s .damage_multiplier ; reject fourth choice: equal chances for 1, 2, 3
+	addq.w #1,d0
 	mulu.w (sp)+,d0 ; combine the old projectile's repeated hits into one hit
 	tst.l target(a5) ; the player or another ship ?
 	bne.s .hit_ship
