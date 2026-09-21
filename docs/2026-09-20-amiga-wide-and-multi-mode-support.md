@@ -109,7 +109,7 @@ One image therefore runs on a stock machine and uses the wider instructions wher
 
 ## Clearing the viewport
 
-`fastdraw=yes` lets the machine choose how the viewport is cleared and where the view is drawn: the blitter on a 68000, a Fast RAM shadow on anything faster that has Fast RAM, the CPU otherwise. `2026-09-21-amiga-fastdraw.md` carries the measurements and the register values; the flag group of `frametime=yes` says which one ran.
+`fastdraw=yes` lets the machine choose how the viewport is cleared and where the view is drawn: the blitter on a 68000, a Fast RAM shadow on anything faster that has Fast RAM, the CPU otherwise. `2026-09-21-amiga-fastdraw.md` carries the measurements and the register values, and the row offset table that `dot_to_addr` reads instead of multiplying; the flag group of `frametime=yes` says which clear ran.
 
 ## Chip RAM
 

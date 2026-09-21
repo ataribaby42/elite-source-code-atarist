@@ -62,3 +62,9 @@ From the 68040 up, `MOVE16` writes a whole sixteen byte line at once, and the CP
 `clear_burst_ok` in `geometry.def` is the assembly-time condition: the viewport must span whole rows and hold a whole number of sixteen byte lines, which is true of every frameless build and of no framed one. Either test failing keeps the `movem.l` span loop.
 
 AmigaDOS aligns a hunk to eight bytes, not sixteen, so `clear_image` reads the screen's own alignment. On an eight byte start a pair of long writes covers the half line at each end and the burst runs one line shorter; anything else falls back to the spans. The source is sixteen zero bytes in the `workspace` section, which is not Chip attributed and lands in Fast RAM where the machine has any. `MOVE16` ignores the low four bits of both addresses, so the block is 32 bytes and the source points into the middle of it, which keeps the transfer inside the zeros whatever the section alignment turns out to be.
+
+## The row offset table
+
+`dot_to_addr` turns a row and a column into an address, and every dot, line, character, sprite and block goes through it. It reached the row with `mulu #row_stride`, which a 68000 pays around forty cycles for. The offsets are now a table built at assembly time, one long per physical screen row, a kilobyte in a 320 mode and two in an interlaced one.
+
+Measured on an A500, the frame in deep space fell from 49 ms to 36 and its rasterising from 28 to 18. The gain is in the count of calls, not in the pixels: the starfield and the dust go through `dot_to_addr` once per plotted dot, while a planet disc calls it once per row and a filled polygon not at all, because `solid_polygon` walks the rows by adding `row_stride` itself. So the scenes that gain are the sparse ones, and the floor that every flight frame pays is a third lower.

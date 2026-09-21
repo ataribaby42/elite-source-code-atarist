@@ -140,9 +140,12 @@ q_graphics_m68_6\@:
     move.w #-1,in_shadow
 .screen:
     endc
-    mulu #row_stride,d1
     lsr.w #3,d0
     and.w #$fffe,d0
+    add.w d1,d1 ; a table read, because MULU #row_stride costs a 68000 forty cycles
+    add.w d1,d1
+    lea row_offset,a0
+    move.l (a0,d1.w),d1
     add.w d0,d1
     move.l scr_base(a6),a0
     ifne shadow_ok
@@ -2692,6 +2695,14 @@ edge_masks:
 	dc.l %00000000000000010000000000000001
 
 * List of bits and intersection routines for clipping.
+
+; Byte offset of each physical screen row, so DOT_TO_ADDR needs no multiply.
+row_offset:
+dot_row: set 0
+	rept scr_rows
+	dc.l dot_row*row_stride
+dot_row: set dot_row+1
+	endr
 
 clip_list:
 
