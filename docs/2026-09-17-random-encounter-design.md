@@ -22,6 +22,11 @@ the original single hook in `create_pirates` missed torus entirely. See
 [Normal-flight and torus routing](2026-09-21-random-encounter-torus-routing.md)
 for the correction and native regression results.
 
+Update 2026-09-21: the leader now uses a nominal radius of 16,384..22,527,
+reserving 2,048 units for follower offsets, integer trigonometry and a safety
+margin. The earlier use of the full ambush radius could remove newly spawned
+ships immediately. See [Spawn range audit and fix](2026-09-21-random-encounter-spawn-range-audit.md).
+
 ## 1. Goal
 
 Deep space offers one kind of event: `create_pirates` calls `pirate_attack`,
@@ -165,16 +170,16 @@ no government condition.
 
 ## 6. Building the group
 
-1. **Place the first member.** `orbit` with radius `rand(rand_range) +
-   rand_limit`, the same 16384..24576 the ambush uses.
+1. **Place the first member.** `orbit` with radius `rand(encounter_range) +
+   rand_limit`, now 16384..22527. The reduced maximum reserves room for the
+   entire formation and trigonometric rounding inside scanner range.
 2. **Force the front hemisphere.** `orbit` computes `z = r*sin(a)*cos(b)`, so
    the sign of `zpos` is the only thing to correct: negate it when it is
    negative. The radius is unchanged and the distribution stays even over the
    half sphere the player is facing.
-3. **Point it at the player** with `vector_pos`. This is not decoration. The
-   spawn radius reaches `radar_range` exactly, and `do_cruising` removes an
-   object once `obj_range` passes that, so a group in `log_cruise` facing away
-   would delete itself within a frame or two.
+3. **Point it at the player** with `vector_pos`. Peaceful ships initially
+   approach; the radius reserve also protects them before their first move.
+   `do_cruising` still removes an object once `obj_range` passes `radar_range`.
 4. **Copy the rest** from the first member with `copy_object`, offset by
    `spacing2` (1000) along its own x and y vectors, in the manner of
    `squadron_positions`.

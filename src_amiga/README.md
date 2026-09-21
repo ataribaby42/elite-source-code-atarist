@@ -277,9 +277,11 @@ one, and the pirates leave out the Boa and the Wolf: these are the small and
 medium raiders. The original "Condition RED!" ambush is untouched and keeps its
 own wider table, Thargoid included.
 
-A group appears at the ambush's range, 16384 to 24576 units away, but always in
-the half of space the player is facing, with its members a thousand units
-apart. Mixed groups enter combat through the existing faction rules. The
+A group's leader uses a nominal radius of 16384 to 22527 units, in the half
+of space the player is facing. A 2048-unit reserve below the scanner boundary
+keeps all followers inside range despite formation offsets and rounded
+trigonometry; members remain a thousand units apart. Mixed groups enter combat
+through the existing faction rules. The
 trader-only group starts with identical headings and keeps the slower ship's
 maximum speed during peaceful flight, even with different ship models. A lone
 trader uses its own maximum. Each member leaves the formation speed setting

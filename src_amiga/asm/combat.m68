@@ -39,6 +39,7 @@ platlet_life: equ 50 ; life of platlet
 platlet_vel: equ 50 ; speed of platlet
 spacing1: equ 700 ; spacing of squadrons
 spacing2: equ 1000 ; spacing of encounter groups
+encounter_range: equ radar_range-rand_limit-$800 ; room for formation offsets and trig rounding
 ; Roles a random encounter's template can ask for. The pirate and trader roles
 ; roll from their own tables, which are narrower than RANDOM_PIRATE's type
 ; range on purpose; the other three name one ship and are never rolled.
@@ -2479,12 +2480,12 @@ encounter_groups:
 ; **											  **
 ; **************************************************
 
-; The ambush's own range, but always in the half of space the player is facing
-; and pointing back at him. ORBIT computes z = r*sin(a)*cos(b), so the sign of
-; ZPOS is the only thing to correct and the radius is untouched. Facing him is
-; not decoration: the range reaches RADAR_RANGE, and DO_CRUISING removes an
-; object that passes it, so a group in LOG_CRUISE facing away would delete
-; itself within a frame or two.
+; Keep the leader's nominal radius below RADAR_RANGE by 2048 units. This
+; covers a follower's 1000-unit stored-axis offset (including fixed-point
+; normalization), ORBIT's rounded trig values, and a small safety margin.
+; All members start inside scanner range before their first cruise update.
+; ORBIT computes z = r*sin(a)*cos(b); mirror ZPOS to put the group ahead and
+; point its heading back at the player so peaceful ships initially approach.
 
 ; Entry: A4 = ptr: the first member
 ; Exit:  None
@@ -2494,7 +2495,7 @@ encounter_groups:
 
 	q_subr encounter_place
 
-	move #rand_range,d2 ; range = rand(rand_range)+rand_limit
+	move #encounter_range,d2 ; nominal radius 16384..22527, leaving room for followers
 	jsr rand
 	add #rand_limit,d0
 	ext.l d0
@@ -2621,9 +2622,10 @@ encounter_positions:
 ; **												**
 ; ****************************************************
 
-; Places a small battle or peaceful trader convoy in front of the player at
-; the ambush's range. Nothing is announced. RETARGET starts a mixed group's
-; fight through the existing faction rules; traders do not attack each other.
+; Places a small battle or peaceful trader convoy in front of the player,
+; with room for the whole formation inside scanner range. Nothing is announced.
+; RETARGET starts a mixed group's fight through the existing faction rules;
+; traders do not attack each other.
 ; Convoy members keep their common heading and speed until combat intervenes.
 
 ; Entry: None
