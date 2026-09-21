@@ -9,16 +9,20 @@ Status: implemented in `src_amiga`
 
 | `display=` | screen | view, `frame=no` | view, `frame=yes` | recommended |
 | --- | --- | --- | --- | --- |
-| `pal` | 320 x 256, or 320 x 200 framed | 320 x 168 | 256 x 112 | 68000 framed, 68020 wide |
-| `ntsc` | 320 x 200 | 320 x 112 | 256 x 112 | 68000 framed, 68020 wide |
-| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 168 | 512 x 112 | 68030 at 33 MHz |
-| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 336 | 512 x 224 | 68040 at 33 MHz |
-| `ntsc-hires` | 640 x 200 | 640 x 112 | 512 x 112 | 68030 at 33 MHz |
-| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 512 x 224 | 68040 at 25 MHz |
+| `pal` | 320 x 256, or 320 x 200 framed | 320 x 176 | 256 x 112 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 120 | 256 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 176 | 512 x 112 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 352 | 512 x 224 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 120 | 512 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 240 | 512 x 224 | 68040 at 25 MHz |
 
 `frame=yes` is the default and builds the original game. `hires` and `hireslace` are accepted as the PAL spellings, and an interlaced screen needs a flicker fixer or a multisync monitor.
 
 Every coordinate in the game is authored on a logical 320 x 200 grid. `zoom_x` and `zoom_y` in `asm/geometry.def` carry that grid to the physical screen, so a mode is a set of constants rather than a code path: one build of one source tree covers all six.
+
+## The view name
+
+A framed build keeps the name of the view in the strip above the window, as the original does. A frameless one has no strip: `y_top` is zero, the flight view reaches the top of the screen and `name_view` prints FRONT, REAR, LEFT or RIGHT over it on a transparent paper, the way the 8-bit game does. The viewport gains that text row, eight logical rows in every mode, and the main loop reprints the name each frame because `clear_image` now wipes it with the rest of the view.
 
 ## The cockpit frame
 
@@ -74,7 +78,7 @@ Artwork screens are 200 logical rows. Rather than move every text and icon coord
 
 ## Frame time
 
-`frametime=yes` prints two numbers in the top left corner of the buffer being drawn. `swap_screen` prints them, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
+`frametime=yes` prints two numbers in the top left corner. `swap_screen` prints them before it presents, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
 
 ```
 047 002 6MLF   FRONT

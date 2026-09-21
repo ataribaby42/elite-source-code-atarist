@@ -53,12 +53,13 @@ diwstop_art: equ (((44+art_rows)&255)<<8)|$c1 ; Copper window for artwork
 
 ; Dimensions of cockpit.
 
-y_top: equ 8*zoom_y ; y coordinate of top edge, clear of the view indicator
 	ifne frame
+y_top: equ 8*zoom_y ; y coordinate of top edge, clear of the view indicator
 no_cols: equ 32 ; columns across the window the frame leaves
 no_rows: equ 14 ; rows down it
 	endc
 	ifeq frame
+y_top: equ 0 ; the flight view reaches the top and carries its own name
 no_cols: equ art_cols ; text columns across the flight view
 no_rows: equ (scr_rows-panel_rows-y_top)/char_h ; text rows down it
 	endc

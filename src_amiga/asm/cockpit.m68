@@ -58,7 +58,7 @@ no_steps: equ 6 ; no. steps in hexagon
 view_x: equ 136*zoom_x ; position of the view sprite in the frame
 view_y: equ 1*zoom_y
 	endc
-view_name_y: equ 0 ; the strip above the flight view
+view_name_y: equ 0 ; the top text row: above the view when framed, in it when not
 schar_x: equ 206 ; position of 'S' sprite, in logical units
 schar_y: equ 185+panel_shift
 schar_width: equ 13
@@ -169,23 +169,6 @@ q_cockpit_m68_1:
 	bclr #dual_screen,sp_flags(a4)
 	bclr #dont_save,sp_flags(a4)
 	endc
-	ifeq frame
-	moveq #0,d0 ; clear the strip on both screens
-	moveq #0,d1
-	moveq #1,d2
-	move #view_x_size,d3
-	moveq #8,d4
-	moveq #0,d5
-	jsr block
-	bsr name_view ; print the name on both screens
-	move.l scr_base(a6),d0
-	move.l flip_screen(a6),d1
-	eor.l d1,d0
-	move.l scr_base(a6),-(sp)
-	move.l d0,scr_base(a6)
-	bsr name_view
-	move.l (sp)+,scr_base(a6)
-	endc
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)
@@ -202,7 +185,7 @@ q_cockpit_m68_3:
 * **									 **
 * *****************************************
 
-* Prints the name of the current view above the flight view.
+* Prints the name of the current view over the top of the flight view.
 
 * Entry: None
 * Exit:  None
@@ -212,9 +195,9 @@ q_cockpit_m68_3:
 
 	ifeq frame
 
-	q_subr name_view
+	q_subr name_view,global
 
-	moveq #white,d0 ; white on the cleared strip
+	moveq #white,d0 ; white over whatever the view has drawn behind it
 	moveq #trans,d1
 	jsr text_colour
 	move view(a6),d0 ; one six byte name per view

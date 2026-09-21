@@ -22,7 +22,7 @@
 ;						capsule.
 
 	include "macros.m68"
-	xref advance_sky,queue_ai_laser
+	xref advance_sky,queue_ai_laser,name_view
 	xref registration_assign,registration_new_player
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
@@ -187,6 +187,9 @@ q_main_m68_19:
 	jsr draw_space ; planet/sun, starfield, then the remaining objects
 	jsr draw_lasers ; draw our lasers
 	jsr draw_sight ; draw laser sight
+	ifeq frame
+	jsr name_view ; the view name sits in the viewport and is cleared with it
+	endc
 	moveq #lgt_blue,d0 ; display any messages
 	jsr text_blatt
 *			jsr disp_debug

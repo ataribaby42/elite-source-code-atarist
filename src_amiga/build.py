@@ -111,7 +111,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('CPU: ' + ('MC68020 or better, native 32-bit maths only' if cpu == '68020'
                      else 'MC68000, with the native 32-bit maths patched in where it exists'))
     if frametime:
-        print('Frame time: shown above the flight view')
+        print('Frame time: shown in the top left corner')
     if fastdraw:
         print('Flight view: Fast RAM or the blitter, whichever the machine has')
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))

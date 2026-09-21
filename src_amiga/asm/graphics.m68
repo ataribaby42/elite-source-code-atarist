@@ -431,6 +431,11 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	ifne blit_ok
 	jsr wait_clear ; nothing is presented while the blitter is still filling it
 	endc
+	ifne frametime
+	movem.l d0-d7/a0-a6,-(sp) ; the held reading, before the copy carries it out
+	bsr show_frame_time
+	movem.l (sp)+,d0-d7/a0-a6
+	endc
 	ifne shadow_ok
 	tst.w shadow_live ; the whole flight view, in one run to Chip RAM
 	beq.s .no_shadow
@@ -461,11 +466,6 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
 	move.l d0,scr_base(a6)
-	ifne frametime
-	movem.l d0-d7/a0-a6,-(sp) ; the reading goes into the released buffer
-	bsr show_frame_time
-	movem.l (sp)+,d0-d7/a0-a6
-	endc
 
 	q_ret
 
