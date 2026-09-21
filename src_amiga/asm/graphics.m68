@@ -16,6 +16,9 @@
 	include "raster.inc"
 
 	xref text_colour,locate,print_char,print_number
+	ifne blit_ok
+	xref wait_clear
+	endc
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
 
@@ -123,11 +126,28 @@ q_graphics_m68_6\@:
 	q_subr dot_to_addr,global
 
     move.w d0,-(sp)
+    ifne shadow_ok
+    clr.w in_shadow ; a row of the flight view goes to the shadow, the rest does not
+    tst.w shadow_live
+    beq.s .screen
+    cmp.w #y_top,d1
+    blo.s .screen
+    cmp.w #y_top+y_size,d1
+    bhs.s .screen
+    move.w #-1,in_shadow
+.screen:
+    endc
     mulu #row_stride,d1
     lsr.w #3,d0
     and.w #$fffe,d0
     add.w d0,d1
     move.l scr_base(a6),a0
+    ifne shadow_ok
+    tst.w in_shadow
+    beq.s .based
+    move.l view_base,a0
+.based:
+    endc
     adda.l d1,a0
     move.w (sp)+,d0
     rts
@@ -159,8 +179,36 @@ q_graphics_m68_6\@:
     bsr raster_line
     move d0,frame_start(a6)
     endc
+    ifne shadow_ok
+    clr.w shadow_live
+    move.l shadow_base,d0
+    beq.s .screen_clear
+    move.w #-1,shadow_live
+    move.l d0,a0
+    bra.s .cleared_base
+.screen_clear:
+    endc
     move.l scr_base(a6),a0
     lea y_top*row_stride+x_left/8(a0),a0
+    ifne shadow_ok
+.cleared_base:
+    endc
+    ifne blit_ok
+    tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
+    beq.s .no_blit
+    jsr wait_clear ; a frame that never drew can still have one in flight
+    lea $dff000,a1
+    move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
+    clr.w $42(a1) ; BLTCON1: ascending, no fill
+    move.w #-1,$44(a1) ; BLTAFWM
+    move.w #-1,$46(a1) ; BLTALWM
+    move.w #blit_mod,$66(a1) ; BLTDMOD walks plane to plane and row to row
+    move.l a0,$54(a1) ; BLTDPT
+    move.w #((blit_rows<<6)|blit_words),$58(a1) ; BLTSIZE starts it
+    st clear_pending
+    bra .cleared
+.no_blit:
+    endc
     ifne clear_burst_ok
     tst.b clear_burst ; 68040 or better, so MOVE16 exists
     beq .spans
@@ -310,6 +358,20 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	moveq #'L',d0 ; 32-bit multiply and divide
 .no_long:
 	jsr print_char
+	moveq #'C',d0 ; the frame was drawn straight into Chip RAM
+	ifne blit_ok
+	tst.b clear_blit
+	beq.s .no_blit
+	moveq #'B',d0 ; the blitter cleared it while the CPU drew
+.no_blit:
+	endc
+	ifne shadow_ok
+	tst.l shadow_base
+	beq.s .no_fast
+	moveq #'F',d0 ; drawn in Fast RAM and copied once
+.no_fast:
+	endc
+	jsr print_char
 	q_pop pad_char(a6)
 	q_pop.l text_addr(a6)
 	q_pop row(a6)
@@ -366,6 +428,26 @@ frame_text_y: equ 0 ; the top row, above the flight view
 
 	q_subr swap_screen,global
 
+	ifne blit_ok
+	jsr wait_clear ; nothing is presented while the blitter is still filling it
+	endc
+	ifne shadow_ok
+	tst.w shadow_live ; the whole flight view, in one run to Chip RAM
+	beq.s .no_shadow
+	movem.l d0-d7/a0-a2,-(sp)
+	clr.w shadow_live
+	move.l shadow_base,a0
+	move.l scr_base(a6),a1
+	lea y_top*row_stride(a1),a1
+	move.w #view_bytes/32-1,d0
+.shadow_row:
+	movem.l (a0)+,d1-d7/a2
+	movem.l d1-d7/a2,(a1)
+	lea 32(a1),a1
+	dbra d0,.shadow_row
+	movem.l (sp)+,d0-d7/a0-a2
+.no_shadow:
+	endc
 	ifne frametime
 	movem.l d0-d1,-(sp) ; read the work before the wait for the vertical blank
 	bsr raster_line
@@ -948,6 +1030,9 @@ circle_horiz_done:
 
 	q_subr block,global
 
+	ifne blit_ok
+	jsr wait_clear
+	endc
 	ifne display_hires
 	add.w d0,d0 ; logical units to physical pixels
 	add.w d3,d3
@@ -1020,8 +1105,24 @@ q_graphics_m68_63:
 ; Quelo: 	if <ne> then.s						yes
 	beq q_graphics_m68_65
 	move.l d0,-(sp)
+	ifne shadow_ok
+	tst.w in_shadow ; swap_screen copies the shadow to one buffer, so the copy
+	beq.s .flip     ; goes to the other one at the same offset, not to a flip
+	move.l d1,-(sp)
+	move.l a0,d1
+	sub.l view_base,d1
+	move.l scr_base(a6),d0
+	jsr amiga_flip_address
+	add.l d1,d0
+	move.l (sp)+,d1
+	bra.s .copy
+.flip:
+	endc
 	move.l a0,d0
 	jsr amiga_flip_address
+	ifne shadow_ok
+.copy:
+	endc
 	move.l d0,a1
 	move.l (sp)+,d0
 	bsr blitter ; execute blitter
@@ -1939,7 +2040,21 @@ q_graphics_m68_140:
 q_graphics_m68_153:
 	move d7,d0 ; calculate start line screen address
 	mulu #row_stride,d0
+	ifne shadow_ok
+	tst.w shadow_live
+	beq.s q_solid_screen
+	cmp.w #y_top,d7
+	blo.s q_solid_screen
+	cmp.w #y_top+y_size,d7
+	bhs.s q_solid_screen
+	add.l view_base,d0
+	bra.s q_solid_based
+q_solid_screen:
+	endc
 	add.l scr_base(a6),d0
+	ifne shadow_ok
+q_solid_based:
+	endc
 	move.l d0,line_addr(a6)
 	lea left_arm,a3 ; start of x coordinate data
 	lea right_arm,a4

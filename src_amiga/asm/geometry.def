@@ -71,11 +71,34 @@ y_max: equ (y_size>>1)-1
 x_left: equ (scr_width-x_size)>>1 ; x coordinate of left edge
 field_lines: equ 262+51*(1-display_ntsc) ; raster lines in one field
 line_scale: equ 66-display_ntsc ; a raster line in 1024ths of a millisecond
-clear_bursts: equ y_size*row_stride/16 ; sixteen bytes to a MOVE16
-	ifeq (scr_width-x_size)+((y_size*row_stride)&15) ; vasm binds & tighter than *
+view_bytes: equ y_size*row_stride ; the viewport, one flat run when frameless
+clear_bursts: equ view_bytes/16 ; sixteen bytes to a MOVE16
+	ifeq (scr_width-x_size)+(view_bytes&15)
 clear_burst_ok: equ 1 ; whole rows, and a whole number of MOVE16 lines
 	else
 clear_burst_ok: equ 0
+	endc
+; One blitter fill covers the viewport. A frameless viewport is one flat run,
+; so 64-word rows and no modulo; an inset one is a plane run per blit row and
+; the plane spacing carries the modulo from plane to plane and row to row.
+	ifeq scr_width-x_size
+blit_words: equ 0 ; the width field takes 64 words as zero
+blit_rows: equ view_bytes/128
+blit_mod: equ 0
+	ifeq (view_bytes&127)+blit_rows/1025 ; the division is a range check: 0 up to 1024
+blit_fits: equ 1 ; whole 64-word rows, and the height fits BLTSIZE
+	else
+blit_fits: equ 0
+	endc
+	else
+blit_words: equ x_size/16
+blit_rows: equ y_size*scr_planes
+blit_mod: equ bpr-x_size/8
+	ifeq (x_size&15)+blit_rows/1025+blit_words/65 ; the divisions are range checks
+blit_fits: equ 1 ; whole words across, and both BLTSIZE fields in range
+	else
+blit_fits: equ 0
+	endc
 	endc
 no_dust: equ 15*(x_size/zoom_x)*(y_size/zoom_y)/(256*112) ; 15 in a 256x112 view
 arm_entries: equ scr_rows+4 ; SOLID_POLYGON indexes its arms by physical screen row
