@@ -19,6 +19,9 @@
 	ifne blit_ok
 	xref wait_clear
 	endc
+	ifne frametime
+	xref begin_rasterising
+	endc
 	xref draw_ai_laser,registration_message
 
 	xref disp_message,fx,check_missile,magnitude_table,c_line
@@ -299,6 +302,9 @@ inserted:
 
 	q_subr draw_all,global
 
+	ifne frametime
+	jsr begin_rasterising
+	endc
 	ifne blit_ok
 	jsr wait_clear
 	endc
@@ -332,6 +338,9 @@ q_vector_m68_32:
 * DRAW_ALL remains the unfiltered renderer for hangars and other scenes.
 	q_subr draw_space,global
 
+	ifne frametime
+	jsr begin_rasterising
+	endc
 	ifne blit_ok
 	jsr wait_clear
 	endc

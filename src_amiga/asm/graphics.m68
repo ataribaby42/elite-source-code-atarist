@@ -16,6 +16,9 @@
 	include "raster.inc"
 
 	xref text_colour,locate,print_char,print_number
+	ifne frametime
+	xdef raster_line,begin_rasterising
+	endc
 	ifne blit_ok
 	xref wait_clear
 	endc
@@ -256,11 +259,26 @@ q_graphics_m68_6\@:
     bsr.s raster_line
     sub frame_start(a6),d0
     move d0,clear_lines(a6)
+    clr draw_lines(a6) ; a frame that rasterises nothing reports nothing
+    clr draw_started(a6)
     endc
     clr.l next_record(a6)
     rts
 
     ifne frametime
+; Open the rasterising window. DRAW_SPACE and DRAW_ALL both call it, and only
+; the first one reached in a frame records the line.
+begin_rasterising:
+    tst draw_started(a6)
+    bne.s .open
+    movem.l d0-d1,-(sp)
+    st draw_started(a6)
+    bsr.s raster_line
+    move d0,draw_start(a6)
+    movem.l (sp)+,d0-d1
+.open:
+    rts
+
 ; Raster lines since the last frame counter reset, for the frame time readings.
 raster_line:
     move.l $dff004,d0 ; VPOSR and VHPOSR in one access
@@ -300,13 +318,16 @@ raster_line:
 frame_hold: equ 16 ; frames a reading is held, so the digits stand still
 frame_lines_max: equ 4095 ; a reading long enough that the sum still fits
 frame_ms_max: equ 999 ; three digits
-frame_text_y: equ 0 ; the top row, above the flight view
+frame_text_y: equ 0 ; the top row of the screen
 	move work_lines(a6),d0
 	bsr .clamp
 	add d0,work_sum(a6)
 	move clear_lines(a6),d0
 	bsr .clamp
 	add d0,clear_sum(a6)
+	move draw_lines(a6),d0
+	bsr .clamp
+	add d0,draw_sum(a6)
 	q_inc frame_ticks(a6)
 	cmp #frame_hold,frame_ticks(a6)
 	blo.s .print
@@ -321,6 +342,11 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	clr clear_sum(a6)
 	bsr .millis
 	move d0,clear_ms(a6)
+	moveq #0,d0
+	move draw_sum(a6),d0
+	clr draw_sum(a6)
+	bsr .millis
+	move d0,draw_ms(a6)
 .print:
 	q_push text_ink(a6) ; the game's text state is not ours to change
 	q_push text_paper(a6)
@@ -329,8 +355,12 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	q_push.l text_addr(a6)
 	q_push pad_char(a6)
 	move #'0',pad_char(a6)
-	moveq #lgt_grey,d0 ; an opaque paper overwrites the digits in place
-	moveq #black,d1
+	moveq #lgt_grey,d0
+	ifeq y_top
+	moveq #trans,d1 ; the reading sits in the view, which is cleared under it
+	else
+	moveq #black,d1 ; above the view nothing clears it, so it needs a paper
+	endc
 	jsr text_colour
 	moveq #0,d0
 	moveq #frame_text_y,d1
@@ -339,10 +369,15 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	bsr .digits
 	moveq #' ',d0
 	jsr print_char
+	move draw_ms(a6),d0
+	bsr .digits
+	moveq #' ',d0
+	jsr print_char
 	move clear_ms(a6),d0
 	bsr .digits
-	moveq #' ',d0 ; and what cleared it
-	jsr print_char
+	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
+	moveq #frame_text_y,d1
+	jsr locate
 	move cpu_level,d0
 	add #'0',d0
 	jsr print_char
@@ -428,6 +463,17 @@ frame_text_y: equ 0 ; the top row, above the flight view
 
 	q_subr swap_screen,global
 
+	ifne frametime
+	movem.l d0-d1,-(sp) ; the rasterising window closes here, however the frame drew
+	tst draw_started(a6)
+	beq.s .untimed
+	clr draw_started(a6)
+	bsr raster_line
+	sub draw_start(a6),d0
+	move d0,draw_lines(a6)
+.untimed:
+	movem.l (sp)+,d0-d1
+	endc
 	ifne blit_ok
 	jsr wait_clear ; nothing is presented while the blitter is still filling it
 	endc

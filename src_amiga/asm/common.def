@@ -627,6 +627,11 @@ work_sum: rs.w 1 ; work lines counted over those frames
 clear_sum: rs.w 1 ; clear lines likewise
 work_ms: rs.w 1 ; milliseconds the digits show
 clear_ms: rs.w 1 ; and the clear's share of them
+draw_started: rs.w 1 ; flag  the rasterising window is open
+draw_start: rs.w 1 ; raster line where it opened
+draw_lines: rs.w 1 ; raster lines that rasterising took
+draw_sum: rs.w 1 ; counted over the same frames
+draw_ms: rs.w 1 ; milliseconds the digits show
 	endc
 game_over: rs.w 1 ; flag  game is over
 reason: rs.w 1 ; reason for game over

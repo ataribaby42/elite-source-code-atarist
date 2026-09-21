@@ -78,24 +78,26 @@ Artwork screens are 200 logical rows. Rather than move every text and icon coord
 
 ## Frame time
 
-`frametime=yes` prints two numbers in the top left corner. `swap_screen` prints them before it presents, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
+`frametime=yes` prints three numbers in the top left corner and the flags at the right edge of the same row, clear of the view name between them. `swap_screen` prints them before it presents, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
 
 ```
-047 002 6MLF   FRONT
-^   ^   ^^^^
-|   |   |||+- where the view was drawn: F Fast RAM, B blitter, C Chip RAM
-|   |   ||+-- the 32-bit multiply and divide are patched in
-|   |   |+--- the MOVE16 clear is running
-|   |   +---- the processor from AttnFlags
-|   +-------- clearing the viewport
-+------------ the whole frame, budget is 60
+047 031 002              FRONT                6MLF
+^   ^   ^                                     ^^^^
+|   |   |                                     |||+- where the view was drawn:
+|   |   |                                     |||   F Fast RAM, B blitter, C Chip
+|   |   |                                     ||+-- 32-bit multiply and divide
+|   |   |                                     |+--- the MOVE16 clear
+|   |   |                                     +---- the processor from AttnFlags
+|   |   +- clearing the viewport
+|   +----- rasterising it
++--------- the whole frame, budget is 60
 ```
 
 A dot in place of `M` or `L` means that path is not running, and the digit says why. The last letter is always one of the three.
 
-The left number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The right number is how much of that work was `clear_image`; the difference between the two is everything else, from the transform and the AI to the ships, the starfield and the panel.
+The first number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The second is how much of that work was rasterising, measured from `draw_space` or `draw_all` to the handover in `swap_screen`, and the third is how much was `clear_image`. What the three leave over is the transform, the projection, the collisions and the AI.
 
-Both are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on an opaque paper, so they overwrite in place, and the text state they use is saved and restored around the call.
+All three are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on a transparent paper where the view reaches the top of the screen, because the clear takes the old reading with it; a framed build keeps an opaque paper, since nothing clears the row above its window. The text state they use is saved and restored around the call.
 
 ## The processor, decided at startup
 
