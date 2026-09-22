@@ -949,6 +949,9 @@ screen1_ptr: rs.l 1 ; ptr  screen #1
 screen2_ptr: rs.l 1 ; ptr  screen #2
 flip_screen: rs.l 1 ; eor mask for flipping screens
 
+bomb_flash_ticks: rs.w 1 ; energy-bomb discharge lifetime, in sound VBL ticks
+bomb_flash_seed: rs.w 1 ; cosmetic RNG, independent of gameplay randomness
+
 sky_vsize: equ 256
 sky_vars: rs.w sky_vsize ; distant-star matrix and pixel cache
 

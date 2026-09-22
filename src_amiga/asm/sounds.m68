@@ -34,6 +34,10 @@ fx:
     move.w #ecm_wave,ecm_ticks
     st ecm_on(a6)
 .enabled:
+    cmp.w #sfx_bomb,d0
+    bne .bomb_ready
+    move.w #bomb_audio_ticks+1,bomb_flash_ticks(a6) ; sample starts at the next VBL
+.bomb_ready:
     btst #f_fx,user(a6)
     beq .return
     cmp.w #16,d0
@@ -209,6 +213,7 @@ audio_settle:
 
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
+    clr bomb_flash_ticks(a6)
     bsr stop_engine_voice
     clr engine_request
     clr rcs_voice
@@ -263,6 +268,10 @@ start_fade:
 sound:
     tst audio_resetting
     bne .return
+    tst bomb_flash_ticks(a6)
+    beq .bomb_done
+    subq.w #1,bomb_flash_ticks(a6)
+.bomb_done:
     tst warp_ticks
     beq .ecm
     subq.w #1,warp_ticks

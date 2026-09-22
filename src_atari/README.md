@@ -299,9 +299,14 @@ but cargo canisters still drop, so waiting for two ships to fight can pay. It is
 also silent, so a distant fight does not announce itself. Ships destroyed by the
 player's laser, missile or collision play the normal explosion sound. A successful
 energy bomb plays its dedicated rising-and-fading noise effect once, suppressing
-the individual ship explosion sounds. Failed activation keeps the existing beep
-and does not consume the bomb. An enemy beam is drawn from its gun to its actual
-target, with a small random offset when the shot misses; beams aimed at the
+the individual ship explosion sounds. Two light-blue electrical arcs change on
+every rendered flight frame for the effect's 107 VBL ticks. They stay inside the
+viewport and clear with each buffer; Effects OFF mutes the sound but retains the
+visual blast. Their private random state does not affect gameplay. Failed
+activation keeps the existing beep and does not consume the bomb.
+
+An enemy beam is drawn from its gun to its actual target, with a small random
+offset when the shot misses; beams aimed at the
 player are drawn as before.
 
 ## Verification

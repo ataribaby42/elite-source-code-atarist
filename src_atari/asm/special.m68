@@ -17,7 +17,7 @@
 	include "macros.m68"
 
 	xref set_colour,polygon,circle,c_line,c_plotxy,explode_vectors
-	xref solid_polygon
+	xref solid_polygon,line
 	xref calc_yvector,transform
 
 	q_module special
@@ -178,6 +178,68 @@ q_special_m68_15:
 	q_next 1 ; next point
 
 	q_ret
+
+
+; Two thin, jagged electrical arcs cross the flight viewport for the bomb's
+; sound lifetime. MAIN draws a new pair after CLEAR_IMAGE on every frame.
+; Coordinates are physical viewport pixels; the native ST raster keeps both
+; arcs inside the cockpit window.
+; No game RNG calls: this cosmetic effect cannot change encounters or combat.
+; All registers and the caller's colour are preserved.
+	q_subr draw_bomb_discharge,global
+
+	tst bomb_flash_ticks(a6)
+	beq .done
+	tst cockpit_on(a6)
+	beq .done
+	tst docked(a6)
+	bne .done
+	tst game_over(a6)
+	bne .done
+	movem.l d0-d7/a0-a5,-(sp)
+	move.l colour_ptr(a6),-(sp)
+	subq.l #4,sp
+	move.l sp,a4 ; previous vertex: physical x,y
+	moveq #lgt_blue,d0
+	jsr set_colour
+	bsr .bolt
+	bsr .bolt
+	addq.l #4,sp
+	move.l (sp)+,colour_ptr(a6)
+	movem.l (sp)+,d0-d7/a0-a5
+.done:
+	rts
+
+.bolt:
+	move.w #x_left,(a4)
+	bsr .height
+	move.w d3,2(a4)
+	moveq #7,d7
+.segment:
+	move.w (a4),d2
+	add.w #x_size/8,d2
+	cmp.w #x_left+x_size-1,d2
+	bls.s .inside
+	move.w #x_left+x_size-1,d2
+.inside:
+	bsr .height
+	movem.w (a4),d0-d1
+	movem.w d2-d3,(a4)
+	jsr line ; native LINE preserves D7 and A4
+	dbra d7,.segment
+	rts
+
+.height:
+	moveq #0,d3
+	move.w bomb_flash_seed(a6),d3
+	mulu #25173,d3
+	add.w #13849,d3
+	move.w d3,bomb_flash_seed(a6)
+	and.l #$ffff,d3
+	mulu #y_size-2*(y_size/12),d3
+	swap d3
+	add.w #y_top+y_size/12,d3 ; leave a small margin at top and bottom
+	rts
 
 
 * ---- BBC-STYLE SCREEN-SPACE LASERS ----

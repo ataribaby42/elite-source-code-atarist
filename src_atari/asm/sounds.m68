@@ -300,6 +300,10 @@ q_sounds_m68_1:
 	move.w #ecm_wave,ecm_ticks(a6)
 	st ecm_on(a6)
 .enabled:
+	cmp.w #sfx_bomb,d0
+	bne.s .bomb_ready
+	move.w #107,bomb_flash_ticks(a6) ; FX_BANG: 32 attack + 75 decay VBLs
+.bomb_ready:
 	btst #f_fx,user(a6) ; effects enabled ?
 	q_ret eq ; no, return
 	cmp #1,sound_type(a6) ; music playing ?
@@ -428,6 +432,10 @@ q_sounds_m68_5:
 
 	q_subr sound,global
 
+	tst bomb_flash_ticks(a6)
+	beq.s .bomb_done
+	subq.w #1,bomb_flash_ticks(a6)
+.bomb_done:
 	tst warp_ticks(a6)
 	beq.s .ecm
 	subq.w #1,warp_ticks(a6)
@@ -1218,6 +1226,7 @@ q_sounds_m68_37:
 * Subr:  ?
 
 	q_subr quiet,global
+	clr bomb_flash_ticks(a6)
 
 	clr warp_ticks(a6)
 	clr end_hyperspace(a6)

@@ -389,9 +389,15 @@ player's laser, missile or collision play the normal explosion sound. A successf
 energy bomb plays one dedicated sample based on the Atari effect's rising noise,
 pitch sweep and decay, suppressing the individual ship explosion sounds. The
 sample is generated locally by `tools/bomb_audio.py`; both original Amiga ADFs
-use the ordinary explosion sample for bomb kills. Failed activation keeps the
-existing beep and does not consume the bomb. An enemy beam is drawn from its gun
-to its actual target, with a small random offset when the shot misses; beams
+use the ordinary explosion sample for bomb kills. Two light-blue electrical arcs
+change on every rendered flight frame for the sample's PAL/NTSC lifetime. Their
+coordinates follow the actual viewport in framed, wide, hires and interlaced
+builds, and both screen buffers clear normally. Effects OFF retains the visual
+blast; its private random state does not affect gameplay. Failed activation
+keeps the existing beep and does not consume the bomb.
+
+An enemy beam is drawn from its gun to its actual target, with a small random
+offset when the shot misses; beams
 aimed at the player are drawn as before.
 
 ## Validation

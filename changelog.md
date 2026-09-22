@@ -6,6 +6,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.71
 
+- Added NES-inspired Energy Bomb electrical arcs on Atari ST and Amiga. Two light-blue zigzags change every rendered flight frame for the sound effect's duration, scale to framed, WIDE, HIRES and interlaced viewports, and leave no trails in either screen buffer.
 - Fixed Energy Bomb activation audio on Atari ST and Amiga: successful blasts now play one dedicated effect instead of individual ship explosion sounds. Atari ST uses its original bomb effect; Amiga uses a new sample based on it. Failed activations retain the error beep and do not consume the bomb.
 
 ## 22.09.2029 V1.70

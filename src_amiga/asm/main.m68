@@ -41,6 +41,7 @@
 	xref draw_lasers,orthogonal,torus_drive,collision,update_inst,run_docking
 	xref check_cargo,check_police,check_inflight,draw_space,text_blatt,docking_sequence
 	xref retarget
+	xref draw_bomb_discharge
 
 * ---- LOCAL CONSTANTS ----
 
@@ -194,6 +195,7 @@ q_main_m68_19:
 	beq.s q_main_m68_21
 	jsr draw_space ; planet/sun, starfield, then the remaining objects
 	jsr draw_lasers ; draw our lasers
+	jsr draw_bomb_discharge ; fresh electrical arcs on every rendered flight frame
 	jsr draw_sight ; draw laser sight
 	ifeq frame
 	jsr name_view ; the view name sits in the viewport and is cleared with it
