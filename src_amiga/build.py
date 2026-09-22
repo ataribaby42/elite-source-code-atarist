@@ -18,6 +18,7 @@ from tools.gfx_assets import compile_assets
 from tools.beam_audio import generate_beam_audio
 from tools.rcs_audio import generate_rcs_audio
 from tools.engine_audio import generate_engine_audio
+from tools.bomb_audio import generate_bomb_audio
 from tools.make_adf import make_adf
 from tools.amiga_hunk import verify_hunk
 
@@ -79,6 +80,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     audio['continuous_lasers'] = generate_beam_audio(BUILD)
     audio['rcs'] = generate_rcs_audio(BUILD)
     audio['engine'] = generate_engine_audio(BUILD)
+    audio['energy_bomb'] = generate_bomb_audio(BUILD)
     def run(command, name):
         result = subprocess.run(list(map(str,command)), cwd=BUILD, capture_output=True, text=True)
         (BUILD/name).write_text(result.stdout+result.stderr)

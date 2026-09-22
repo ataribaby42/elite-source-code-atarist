@@ -295,11 +295,14 @@ slots. See
 [../docs/2026-09-17-thargon-dormancy-on-mother-death.md](../docs/2026-09-17-thargon-dormancy-on-mother-death.md).
 
 An NPC kill awards the player no score, rating, bounty or police-record change,
-but cargo canisters still drop, so waiting for two ships to fight can pay. It is also silent: the explosion sound
-belongs to the ships he destroys himself, with a laser, a missile, by ramming or
-with the energy bomb, so a distant fight does not announce itself. An
-enemy beam is drawn from its gun to its actual target, with a small random
-offset when the shot misses; beams aimed at the player are drawn as before.
+but cargo canisters still drop, so waiting for two ships to fight can pay. It is
+also silent, so a distant fight does not announce itself. Ships destroyed by the
+player's laser, missile or collision play the normal explosion sound. A successful
+energy bomb plays its dedicated rising-and-fading noise effect once, suppressing
+the individual ship explosion sounds. Failed activation keeps the existing beep
+and does not consume the bomb. An enemy beam is drawn from its gun to its actual
+target, with a small random offset when the shot misses; beams aimed at the
+player are drawn as before.
 
 ## Verification
 

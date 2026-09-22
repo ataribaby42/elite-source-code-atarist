@@ -9,6 +9,7 @@
     include "beam-loops.inc"
     include "rcs-loop.inc"
     include "engine-loop.inc"
+    include "bomb-sample.inc"
     xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
 ; Length of the ECM wave in VBL ticks, 2.32 seconds at PAL 50 Hz. The Atari
@@ -107,6 +108,15 @@ play_effect:
     and.w #3,next_channel
     lea effect_ids,a0
     move.b d0,(a0,d6.w)
+    cmp.w #sfx_bomb,d0
+    bne .original_sample
+    lea bomb_sample,a0
+    move.w #bomb_sample_bytes,d2
+    move.w #bomb_audio_period,d7
+    move.w #bomb_audio_ticks,d3
+    lea bomb_descriptor(pc),a2
+    bra .finite
+.original_sample:
     lea effect_map(pc),a0
     move.b (a0,d0.w),d0
     and.w #255,d0
@@ -857,10 +867,17 @@ play_music:
 
     include "amiga-samples.inc"
 ; Shared ST events -> corresponding effects in the supplied Amiga player.
+; SFX_BOMB bypasses this table and uses BOMB_SAMPLE above.
 effect_map:
     dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
     even
+; The bomb's attack, noise sweep and fade are baked into its own PCM sample.
+bomb_descriptor:
+    dc.b 0,0,0,64,0,0,0,0
     section amiga_audio,data
+bomb_sample:
+    incbin "bomb-sample.bin"
+    even
 amiga_samples:
     incbin "amiga-samples.bin"
     even

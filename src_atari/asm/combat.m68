@@ -63,6 +63,7 @@ npc_launch_prob: equ 4*4+missile_prob
 	q_vars combat
 
 exploded: rs.w 1 ; flag: object exploded
+bomb_active: rs.w 1 ; suppress individual explosions during an energy bomb
 found: rs.w 1 ; object found
 launch_rate: rs.w 1 ; rate of viper launch
 next_pos: rs.w 1 ; next position for pirate
@@ -739,6 +740,8 @@ give_up:
 
 	tst npc_kill(a6) ; a kill he had no part in stays quiet: his laser,
 	bne.s .silent ; missile, ramming and energy bomb all leave this clear
+	tst bomb_active(a6) ; LAUNCH_BOMB plays one effect for the whole blast
+	bne.s .silent
 	q_sfx explosion ; sfx: explosion
 .silent:
 	clr collided(a6) ; clear collided flag
@@ -2772,6 +2775,7 @@ q_combat_m68_161:
 	subq #3,d7
 q_combat_m68_163:
 	clr exploded(a6) ; nothing exploded yet
+	st bomb_active(a6)
 	q_loop 1 ; loop for each object
 	btst #in_use,flags(a4) ; in use ?
 ; Quelo: 		if <ne> then.s					yes
@@ -2795,10 +2799,12 @@ ignore_bomb:
 q_combat_m68_165:
 	lea obj_len(a4),a4 ; next object
 	q_next 1
+	clr bomb_active(a6)
 	tst exploded(a6) ; anything exploded ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_combat_m68_167
 	clr equip+energy_bomb(a6) ; only use once
+	q_sfx bomb ; one energy-bomb effect, only after a successful blast
 	bra.s q_combat_m68_168
 q_combat_m68_167:
 	bsr beep ; beep (nothing to destroy)

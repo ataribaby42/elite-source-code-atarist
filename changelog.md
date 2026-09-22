@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
+## xx.xx.2029 V1.71
+
+- Fixed Energy Bomb activation audio on Atari ST and Amiga: successful blasts now play one dedicated effect instead of individual ship explosion sounds. Atari ST uses its original bomb effect; Amiga uses a new sample based on it. Failed activations retain the error beep and do not consume the bomb.
+
 ## 22.09.2029 V1.70
 
 - Wide flight view, with six screens to choose from: PAL or NTSC, each in lores, hires and hires interlaced.

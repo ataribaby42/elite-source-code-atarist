@@ -8,6 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.amiga_assets import extract_assets
+from tools.bomb_audio import generate_bomb_audio, PAL_CLOCK, NTSC_CLOCK, PERIOD
 from tools.amiga_hunk import verify_hunk
 from tools.make_adf import make_adf, verify_adf
 
@@ -85,6 +86,26 @@ class AmigaTests(unittest.TestCase):
                          '98560c1cc7ad3bbd58a7c02c0ea7fc80a0cc5d23373800bb23b8621cbc275cff')
         self.assertEqual(music['score_sha256'],
                          'de21d507e3dc4d0282522277f54be690f6da1d75789483d18539e6730fa806e8')
+
+    def test_energy_bomb_attack_decay_and_dma_tail(self):
+        report = generate_bomb_audio(self.temp)
+        data = (self.temp/'bomb-sample.bin').read_bytes()
+        samples = [v if v < 128 else v-256 for v in data]
+        self.assertEqual(len(data) % 2, 0)  # Paula DMA counts words
+        self.assertLessEqual(max(map(abs, samples)), 127)
+        rate = PAL_CLOCK / PERIOD
+        def power(start, end):
+            part = samples[int(start*rate):int(end*rate)]
+            return sum(v*v for v in part) / len(part)
+        self.assertGreater(power(.50, .62), 10*power(.10, .22))
+        self.assertGreater(power(.80, 1.0), 10*power(1.9, 2.1))
+        for clock, hz, ticks in ((PAL_CLOCK, 50, report['pal_ticks']),
+                                 (NTSC_CLOCK, 60, report['ntsc_ticks'])):
+            stop = int(ticks / hz * clock / PERIOD)
+            self.assertLess(stop, len(data))  # stop before DMA repeats the sample
+            self.assertGreater(stop, 0)
+            self.assertTrue(any(data[:stop]))
+            self.assertEqual(data[stop-100:], bytes(len(data)-stop+100))
 
 
 if __name__ == '__main__':
