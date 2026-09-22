@@ -6,9 +6,9 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## 22.09.2029 V1.70
 
-- Changed the AI laser damage multiplier from 1–3 to an equally weighted 2 or 3 for both player and AI targets on Atari and Amiga; updated documentation.
 - Wide flight view, with six screens to choose from: PAL or NTSC, each in lores, hires and hires interlaced.
 - Faster flight view and the view reaching the top of the screen.
+- Changed the AI laser damage multiplier from 1–3 to an equally weighted 2 or 3 for both player and AI targets on Atari and Amiga; updated documentation.
 
 ## 21.09.2029 V1.68
 
