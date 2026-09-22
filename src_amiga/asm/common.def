@@ -90,7 +90,7 @@ cockpit_vsize: equ 16
 dust_vsize: equ 600
 graphics_vsize: equ 300
 flight_vsize: equ 16
-action_vsize: equ 220+(no_cols+2)*16 ; includes the screen scroll buffer
+action_vsize: equ 220+scroll_stride*4 ; words, and the buffer is bytes
 orbit_vsize: equ 16
 radar_vsize: equ 16
 combat_vsize: equ 16
