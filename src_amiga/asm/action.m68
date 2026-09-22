@@ -93,7 +93,7 @@ scroll_text: rs.b 384 ; buffer of text to scroll on
 scroll_ptr: rs.l 1 ; ptr: next character to scroll
 scroll_pos: rs.w 1 ; position of scroll
 spaces_left: rs.w 1 ; # spaces left on the end
-buffer: rs.b (no_cols+2)*4*8 ; screen scroll buffer
+buffer: rs.b scroll_stride*8 ; screen scroll buffer
 scrolling: rs.w 1 ; flag: message scrolling
 
 	q_end_vars action
@@ -500,7 +500,7 @@ q_action_m68_48:
 	lea text10(pc),a1
 	jsr str_cat
 	lea buffer(a6),a0 ; clear buffer
-	q_loop 1,(no_cols+2)*4*8/4
+	q_loop 1,scroll_stride*8/4
 	clr.l (a0)+
 	q_next 1
 	lea scroll_text(a6),a0 ; set next character pointer
@@ -566,13 +566,13 @@ q_action_m68_52:
 	bne q_action_m68_53
 	bsr get_next_char ; get the next character
 q_action_m68_53:
-	lea buffer+no_cols*4(a6),a0 ; point to last character
+	lea buffer+scroll_words*8(a6),a0 ; point to last character
 	q_loop 1,8 ; loop for each pixel line
 	q_loop 2,d6,2 ; scroll x 2
 	q_push.l a0
 	q_loop 3,d5,4 ; scroll four planes
 	q_push.l a0
-	q_loop 4,d4,(no_cols/2+1) ; loop for each word
+	q_loop 4,d4,(scroll_words+1) ; loop for each word
 	roxl (a0)
 	subq.l #8,a0
 	q_next 4,d4
@@ -581,7 +581,7 @@ q_action_m68_53:
 	q_next 3,d5
 	q_pop.l a0 ; scroll again
 	q_next 2,d6
-	lea (no_cols+2)*4(a0),a0 ; next line
+	lea scroll_stride(a0),a0 ; next line
 	q_next 1
 	q_dec scroll_pos(a6) ; on scroll position used
 	clr flyback(a6) ; wait for flyback
@@ -598,7 +598,7 @@ q_action_m68_56:
 	q_loop 1,8 ; loop for each pixel line
 	q_push.l a0
 	q_push.l a1
-	q_loop 2,d6,no_cols/2 ; loop for each word
+	q_loop 2,d6,scroll_words ; loop for each word
 	move (a0),d0 ; build mask
 	or 2(a0),d0
 	or 4(a0),d0
@@ -624,11 +624,36 @@ q_action_m68_56:
 	q_next 2,d6 ; next word across
 	q_pop.l a1 ; next pixel line
 	q_pop.l a0
-	lea (no_cols+2)*4(a0),a0
+	lea scroll_stride(a0),a0
 	lea row_stride(a1),a1
 	q_next 1
 
 	q_ret return
+
+
+* One pixel line of a scroll cell, four planes of it. The size is the cell's
+* width: a byte in a 320 screen, a word in a 640 one.
+
+scroll_cell macro
+
+	move.\0 (a0)+,d0 ; the glyph's pixels
+	move.\0 d0,d1 ; build paper mask
+	not.\0 d1
+	q_loop 2,d6,4 ; loop for each plane
+	move.b (a1)+,d4 ; one colour byte covers the cell either way
+	ext.w d4
+	move.\0 d0,d2 ; build ink
+	and.\0 d4,d2
+	move.b (a2)+,d4
+	ext.w d4
+	move.\0 d1,d3 ; build paper
+	and.\0 d4,d3
+	or.\0 d2,d3 ; combine ink and paper
+	move.\0 d3,(a3) ; store in buffer
+	addq #2,a3 ; next plane
+	q_next 2,d6
+
+	endm
 
 
 * ************************************************
@@ -672,30 +697,23 @@ q_action_m68_61:
 	move.b #' ',d0
 q_action_m68_58:
 	and #255,d0 ; index into character set
-	asl #3,d0
+	asl #3+display_hires,d0 ; a hires glyph takes sixteen bytes, not eight
 	move.l charset_ptr(a6),a0
 	lea 0(a0,d0),a0
 	move.l ink_ptr(a6),a1 ; get ink and paper pointers
 	move.l paper_ptr(a6),a2
-	lea buffer+no_cols*4(a6),a3 ; fetch text screen address
+	lea buffer+scroll_words*8(a6),a3 ; fetch text screen address
 	q_loop 1,d7,8 ; 8 pixel lines deep
-	move.b (a0)+,d0 ; get next data byte
-	move d0,d1 ; build paper mask
-	not d1
-	q_loop 2,d6,4 ; loop for each plane
-	move.b d0,d2 ; build ink byte
-	and.b (a1)+,d2
-	move.b d1,d3 ; build paper byte
-	and.b (a2)+,d3
-	or.b d2,d3 ; combine ink and paper
-	move.b d3,(a3) ; store in buffer
-	addq #2,a3 ; next plane
-	q_next 2,d6
-	lea (no_cols+2)*4-8(a3),a3 ; next pixel line
+	ifeq display_hires
+	scroll_cell.b
+	else
+	scroll_cell.w
+	endc
+	lea scroll_stride-8(a3),a3 ; next pixel line
 	subq.l #4,a1
 	subq.l #4,a2
 	q_next 1,d7
-	move #4,scroll_pos(a6) ; scroll in two pixel jumps
+	move #4*zoom_x,scroll_pos(a6) ; two pixel jumps, and a hires cell is twice as wide
 
 	q_ret
 

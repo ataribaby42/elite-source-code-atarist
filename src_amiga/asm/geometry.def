@@ -65,6 +65,10 @@ no_cols: equ art_cols ; text columns across the flight view
 no_rows: equ (scr_rows-panel_rows-y_top)/char_h ; text rows down it
 	endc
 x_size: equ no_cols*char_w ; width in pixels
+; The credit scroller keeps one character per byte of each plane, so a hires
+; cell fills a whole word instead of half of one.
+scroll_words: equ no_cols*zoom_x/2 ; words it writes across the view
+scroll_stride: equ (no_cols*zoom_x+2)*4 ; bytes one pixel line takes in it
 y_size: equ no_rows*char_h ; depth in pixels
 x_min: equ -(x_size>>1) ; inclusive bounds cover every viewport column
 x_max: equ (x_size>>1)-1
