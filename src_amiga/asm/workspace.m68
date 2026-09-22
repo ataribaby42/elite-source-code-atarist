@@ -8,7 +8,7 @@ amiga_workspace_implementation: equ 1
 textscr: ds.b 3590
 hyper_buffer: ds.b 360*zoom_x*zoom_y ; a wider sprite saves more background
 left_arm: ds.w arm_entries ; indexed by physical screen row, not viewport row
-right_arm: ds.w arm_entries
+right_arm: ds.w arm_entries ; SOLID_POLYGON reads this one at arm_entries*2 from the first
 save1_buffer: ds.b 4096
 max1:
 save2_buffer: ds.b 4096

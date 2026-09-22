@@ -48,8 +48,6 @@ last_coords: rs.w 4*2 ; table of last point coords
 judder: rs.w 1 ; amount of screen judder
 top_y: rs.w 1 ; y coord of top of polygon
 bottom_y: rs.w 1 ; y coord of bottom of polygon
-offset: rs.w 1 ; odd/even line offset (0 or 8)
-line_addr: rs.l 1 ; screen address of base of line
 flare: rs.w 1 ; flare bits
 vertex_list1: rs.b node_len*max_vert ; vertex list #1
 vertex_list2: rs.b node_len*max_vert ; vertex list #2
@@ -2130,11 +2128,13 @@ q_graphics_m68_146:
 	blt q_graphics_m68_139
 q_graphics_m68_140:
 	move top_y(a6),d7 ; fetch start y coordinate
-	clr offset(a6) ; assume even line
+	q_push.l a5 ; one dither phase per address register
+	move.l colour_ptr(a6),a1
+	lea 8(a1),a5
 	btst #dither_bit,d7 ; second row of the phase ?
 ; Quelo: 	if <ne> then.s						no
-	beq q_graphics_m68_153
-	move #8,offset(a6)
+	beq.s q_graphics_m68_153
+	exg a1,a5
 q_graphics_m68_153:
 	move d7,d0 ; calculate start line screen address
 	mulu #row_stride,d0
@@ -2153,12 +2153,11 @@ q_solid_screen:
 	ifne shadow_ok
 q_solid_based:
 	endc
-	move.l d0,line_addr(a6)
+	move.l d0,a4 ; the row address walks in a register HORIZ_LINE leaves alone
 	lea left_arm,a3 ; start of x coordinate data
-	lea right_arm,a4
 q_graphics_m68_155:
+	move arm_entries*2(a3),d2 ; the right arm is the array that follows
 	move (a3)+,d0 ; fetch left x coord
-	move (a4)+,d2 ; fetch right x coord
 ; Quelo: 		if d0 <hi> d2 then.s			make sure about the above
 	cmp d2,d0
 	bls q_graphics_m68_157
@@ -2168,23 +2167,21 @@ q_graphics_m68_157:
 	lsr #3,d1
 	and #$7ffe,d1
 	ext.l d1
-	add.l line_addr(a6),d1
-	move.l d1,a0
-	move.l colour_ptr(a6),a1 ; get pointer to colour data
-	move offset(a6),d1
-	lea (a1,d1),a1
+	move.l a4,a0
+	add.l d1,a0
 	bsr horiz_line ; draw horizontal line
-	add.l #row_stride,line_addr(a6) ; relocatable buffers may cross a 64 KB boundary
+	add.l #row_stride,a4 ; relocatable buffers may cross a 64 KB boundary
 	ifne display_lace
 	btst #0,d7 ; hold the phase for two rows, one per field
 	beq.s .keep_phase
 	endc
-	eor #8,offset(a6)
+	exg a1,a5
 .keep_phase:
 	q_inc d7
 	cmp bottom_y(a6),d7
 	bls q_graphics_m68_155
 q_graphics_m68_156:
+	q_pop.l a5
 
 	q_ret return
 
