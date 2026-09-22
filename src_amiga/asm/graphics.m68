@@ -938,13 +938,19 @@ q_graphics_m68_38:
 
 	movem d5-d6,poly_x(a6) ; save parameters
 	st first_point(a6) ; this will be the first point
-	lea edge_masks(pc),a4 ; A4 = ptr: edge masks table
+	move.l a3,-(sp)
+	move d5,d0 ; the centre and the colour survive HORIZ_LINE in these registers
+	ext.l d0
+	move.l d0,a3
+	move d6,d0
+	ext.l d0
+	move.l d0,a4
+	move.l colour_ptr(a6),a1
 	clr d5 ; x = 0
 	move d7,d6 ; y = radius
 	add d7,d7 ; d = 3 - 2*radius
 	subq #3,d7
 	neg d7
-	move d5,a1 ; initialise last y coords
 q_graphics_m68_39:
 	exg d5,d6 ; draw bottom half
 	bsr circle_plotxy
@@ -970,6 +976,7 @@ q_graphics_m68_42:
 	cmp d6,d5
 	ble q_graphics_m68_39
 q_graphics_m68_40:
+	move.l (sp)+,a3
 
 	q_ret
 
@@ -985,6 +992,8 @@ q_graphics_m68_40:
 * until CIRCLE_HORIZ adds any sun flare and clips to the full viewport.
 
 * Entry: (D5,D6) = x,y offset
+*		 A1 	 = ptr: colour masks
+*		 (A3,A4) = centre coords, sign extended
 * Exit:  None
 
 * Regs:  ?
@@ -994,8 +1003,7 @@ q_graphics_m68_40:
 
 	move d5,d4 ; signed 32-bit ends also handle circles crossing far off-screen
 	ext.l d4
-	move poly_x(a6),d0
-	ext.l d0
+	move.l a3,d0
 	ifne circle_stretch
 	add.l d4,d4 ; keep the circle round where a pixel is half as wide as tall
 	endc
@@ -1006,7 +1014,7 @@ q_graphics_m68_40:
 	q_ret lt
 	cmp.l #x_max+1,d2
 	q_ret gt
-	move poly_y(a6),d1 ; calculate top y
+	move.l a4,d1 ; calculate top y
 	add d6,d1
 	cmp #y_min,d1 ; outside bottom edge ?
 	q_ret lt ; yes, don't draw
@@ -1017,7 +1025,7 @@ q_graphics_m68_40:
 	bsr circle_horiz
 	movem.l (sp)+,d0/d2
 q_graphics_m68_47:
-	move poly_y(a6),d1 ; calculate bottom y
+	move.l a4,d1 ; calculate bottom y
 	sub d6,d1
 	cmp #y_max,d1 ; outside top edge ?
 	q_ret gt ; yes, don't draw
@@ -1038,6 +1046,7 @@ q_graphics_m68_47:
 * Entry: D0.L = x coord of right edge (unclipped)
 *		 D2.L = x coord of left edge (unclipped)
 *		 D1 = y coord of line
+*		 A1 = ptr: colour masks
 * Exit:  None
 
 * Regs:  ?
@@ -1045,7 +1054,7 @@ q_graphics_m68_47:
 
 	q_subr circle_horiz
 
-	movem d5-d7,-(sp) ; save circle parameters
+	movem d5-d6,-(sp) ; save circle parameters
 	tst sun_flare(a6) ; sun flare ?
 ; Quelo: 	if <ne> then.s						yes
 	beq q_graphics_m68_49
@@ -1087,10 +1096,9 @@ circle_left_inside:
 	add #y_top+y_max,d1
 	exg d0,d2 ; exchange x coords
 	bsr dot_to_addr ; calculate screen address
-	move.l colour_ptr(a6),a1 ; fetch pointer to colour masks
 	bsr horiz_line ; draw horizontal line
 circle_horiz_done:
-	movem (sp)+,d5-d7 ; restore circle parameters
+	movem (sp)+,d5-d6 ; restore circle parameters
 
 	q_ret return
 
