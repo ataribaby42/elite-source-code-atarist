@@ -20,7 +20,7 @@
 	xdef raster_line,begin_rasterising
 	endc
 	ifne blit_ok
-	xref wait_clear
+	xref wait_clear,graphics_base,blitter_owned
 	endc
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
@@ -475,7 +475,13 @@ frame_text_y: equ 0 ; the top row of the screen
 	q_subr begin_clear,global
 
 	ifne blit_ok
-	movem.l a0/a1,-(sp)
+	movem.l d0/d1/a0/a1,-(sp)
+	move.l a6,-(sp) ; holding the blitter across a disk load hangs the OS, so
+	move.l graphics_base,a6 ; take it here and hand it back when the fill ends
+	jsr -456(a6) ; OwnBlitter
+	jsr -228(a6) ; WaitBlit, since the system's last blit may still be running
+	move.l (sp)+,a6
+	st blitter_owned
 	move.l scr_base(a6),a0
 	lea y_top*row_stride+x_left/8(a0),a0
 	lea $dff000,a1
@@ -487,7 +493,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l a0,$54(a1) ; BLTDPT
 	move.w #((blit_rows<<6)|blit_words),$58(a1) ; BLTSIZE starts it
 	st clear_pending
-	movem.l (sp)+,a0/a1
+	movem.l (sp)+,d0/d1/a0/a1
 	endc
 
 	q_ret
