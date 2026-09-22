@@ -13,6 +13,7 @@ amiga_implementation: equ 1
     xdef cpu_level,clear_burst,maths_fast
     ifne blit_ok
     xdef clear_blit,clear_pending,clear_early,wait_clear
+    xdef graphics_base,blitter_owned
     endc
     ifne blit_ok*frametime
     xref raster_line
@@ -106,10 +107,6 @@ amiga_entry:
     move.w $dff002,saved_dma
     move.w #$0120,$dff096        ; stop old bitplanes and sprites
     st display_owned
-    ifne blit_ok
-    jsr -456(a6)                 ; OwnBlitter: CLEAR_IMAGE programmes the registers
-    st blitter_owned
-    endc
     jsr elite
 amiga_exit:
     clr amiga_active
@@ -148,7 +145,7 @@ amiga_exit:
     move.w #$01af,$dff096        ; stop our display/audio DMA
     move.l graphics_base,a6
     ifne blit_ok
-    tst blitter_owned
+    tst blitter_owned            ; a clear caught mid-flight still holds it
     beq.s .no_blitter
     jsr -228(a6)                 ; WaitBlit before the blitter goes back
     jsr -462(a6)                 ; DisownBlitter
@@ -482,6 +479,11 @@ wait_clear:
     endc
     movem.l (sp)+,d0/d1/a1
     clr.b clear_pending
+    move.l a6,-(sp)              ; the blitter goes back the moment the fill ends
+    move.l graphics_base,a6
+    jsr -462(a6)                 ; DisownBlitter
+    move.l (sp)+,a6
+    clr blitter_owned
 .idle:
     rts
     endc
