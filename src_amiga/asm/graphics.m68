@@ -1768,6 +1768,7 @@ q_graphics_m68_92:
 * Entry: D0 = x coord of left end
 *		 D2 = x coord of right end
 *		 A0 = screen address
+*		 A1 = ptr: colour masks
 * Exit:  None
 
 * Regs: D0-D6, A0 and A2 corrupt.
@@ -1778,6 +1779,7 @@ q_graphics_m68_92:
 	sub d0,d2 ; calculate width in pixels
 	q_inc d2
 	lea edge_masks(pc),a2 ; A2 = ptr: edge masks
+	movem.w (a1),d1/d3/d4/d6 ; the plane words, for both edges and the fill
 	and #15,d0 ; starting on word edge ?
 ; Quelo: 	if <ne> then						no
 	beq q_graphics_m68_113
@@ -1803,40 +1805,39 @@ q_graphics_m68_113:
 ; Quelo: 	if <ne> then						some words
 	beq q_graphics_m68_117
 	and #15,d2 ; adjust no. pixels left to draw
-	movem.w (a1),d0/d1/d4/d6 ; cache the four plane words before filling
-	cmp #long_fill_min,d5 ; wide enough to pay for doubling them ?
+	cmp #long_fill_min,d5 ; wide enough to pay for doubling the plane words ?
 	blo.s .fill_words
 .fill_longs:
-	move.w d0,d3 ; a long writes two words for one instruction
-	swap d0
-	move.w d3,d0
-	move.w d1,d3
+	move.w d1,d0 ; a long writes two words for one instruction
 	swap d1
-	move.w d3,d1
-	move.w d4,d3
+	move.w d0,d1
+	move.w d3,d0
+	swap d3
+	move.w d0,d3
+	move.w d4,d0
 	swap d4
-	move.w d3,d4
-	move.w d6,d3
+	move.w d0,d4
+	move.w d6,d0
 	swap d6
-	move.w d3,d6
-	move d5,d3
-	lsr #1,d3
-	q_dec d3 ; adjust counter for DBRA
+	move.w d0,d6
+	move d5,d0
+	lsr #1,d0
+	q_dec d0 ; adjust counter for DBRA
 	q_loop 2 ; fill long pairs
-	move.l d0,(a0)
-	move.l d1,plane1(a0)
+	move.l d1,(a0)
+	move.l d3,plane1(a0)
 	move.l d4,plane2(a0)
 	move.l d6,plane3(a0)
 	addq.l #4,a0
-	q_next 2,d3
+	q_next 2,d0
 	btst #0,d5 ; odd word left over ?
 	beq.s q_graphics_m68_117
-	native_fill d0,d1,d4,d6,a0
+	native_fill d1,d3,d4,d6,a0
 	bra.s q_graphics_m68_117
 .fill_words:
 	q_dec d5 ; adjust counter for DBRA
 	q_loop 1 ; fill words
-	native_fill d0,d1,d4,d6,a0
+	native_fill d1,d3,d4,d6,a0
 	q_next 1,d5
 q_graphics_m68_117:
 	tst d2 ; any pixels left to draw ?
@@ -1905,16 +1906,16 @@ q_graphics_m68_117:
 * Plots a series of pixels using a mask.
 
 * Entry: D0.L = plotting mask, e.g $80008000
+*		 D1,D3,D4,D6 = the four plane words
 *		 A0.L = ptr: screen address
-*		 A1.L = ptr: colour masks
 * Exit:  None
 
-* Regs: D1,D5 and A0 corrupt.
+* Regs: D0,D5 and A0 corrupt.
 * Subr: ?
 
 	q_subr mask_plot
 
-    native_plot d0,a1,a0,d5
+    native_mask_plot d0,d1,d3,d4,d6,a0,d5
     addq.l #2,a0
     rts
 
