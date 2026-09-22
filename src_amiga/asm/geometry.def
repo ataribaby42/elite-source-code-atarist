@@ -30,6 +30,7 @@ plane1: equ bpr ; plane offsets within a pixel row
 plane2: equ bpr*2
 plane3: equ bpr*3
 row_stride: equ bpr*scr_planes ; bytes per pixel row
+long_fill_min: equ 6 ; span words from which HORIZ_LINE fills in longs
 art_bytes: equ row_stride*art_rows*zoom_y ; an asset expanded to screen scale
 bitmap_bytes: equ 125*8+13975*10*zoom_x*zoom_y ; BITMAPS.IMG expanded to screen scale
 	ifne display_ntsc+frame
