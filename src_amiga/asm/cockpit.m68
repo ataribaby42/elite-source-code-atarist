@@ -1078,16 +1078,16 @@ no_flags: equ (*-inst_list)/4
 * Sprite data generated from gfx/gadgets.png; edit the PNG source.
 
 empty_defn:
-	incbin "MISSILE_EMPTY.IMG"
+	incbin "MISSILE_EMPTY_SCALED.IMG"
 
 installed_defn:
-	incbin "MISSILE_INSTALLED.IMG"
+	incbin "MISSILE_INSTALLED_SCALED.IMG"
 
 active_defn:
-	incbin "MISSILE_ACTIVE.IMG"
+	incbin "MISSILE_ACTIVE_SCALED.IMG"
 
 locked_defn:
-	incbin "MISSILE_LOCKED.IMG"
+	incbin "MISSILE_LOCKED_SCALED.IMG"
 
 * Laser sight information. Format:
 

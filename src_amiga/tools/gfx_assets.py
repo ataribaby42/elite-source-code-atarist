@@ -168,12 +168,25 @@ def crop(pixels, size, rect):
             for value in pixels[line*size[0]+x:line*size[0]+x+width]]
 
 
-def compile_assets(root, altgfx=False):
+def missile_at_scale(pixels, zoom_x, zoom_y):
+    """The 16x6 cell at the display's scale. Ten columns opaque, six transparent."""
+    width, depth = 16*zoom_x, 6*zoom_y
+    grown = [pixels[(y//zoom_y)*16 + x//zoom_x] for y in range(depth) for x in range(width)]
+    planar = planar_encode(grown, width, depth)
+    opaque = 10*zoom_x
+    masks = [sum(1 << (15-x) for x in range(16) if word*16 + x >= opaque)
+             for word in range(zoom_x)]
+    return struct.pack('>HH', zoom_x, depth) + b''.join(
+        struct.pack('>H', masks[word]) + planar[(y*zoom_x+word)*8:(y*zoom_x+word)*8+8]
+        for y in range(depth) for word in range(zoom_x))
+
+
+def compile_assets(root, altgfx=False, zoom_x=1, zoom_y=1, build=None):
     """Validate every PNG before replacing any generated asset. No baseline hash gate."""
     root = Path(root)
     gfx, assets = root / ('gfx_alt' if altgfx else 'gfx'), root / 'assets'
     layout = json.loads((gfx / 'layout.json').read_text(encoding='utf-8'))
-    outputs = {}
+    outputs, scaled = {}, {}
     for name, metadata in layout['screens'].items():
         pixels = read_png(gfx / f'{name}.png', (320, 200))
         outputs[name.upper()+'.PC1'] = encode_pc1(pixels, metadata)
@@ -206,9 +219,15 @@ def compile_assets(root, altgfx=False):
         if any(pixels[y*16+x] != 0 for y in range(6) for x in range(10, 16)):
             raise ValueError('gadgets.png: missile padding (last six columns) must remain '
                              'index 0 (#00FFFF or fully transparent)')
-        planar = planar_encode(pixels, 16, 6)
-        outputs[entry['file']] = struct.pack('>HH', 1, 6) + b''.join(
-            b'\x00\x3f' + planar[y*8:y*8+8] for y in range(6))
+        outputs[entry['file']] = missile_at_scale(pixels, 1, 1)
+        scaled[entry['file'][:-4] + '_SCALED.IMG'] = missile_at_scale(pixels, zoom_x, zoom_y)
+    if build is not None:
+        build = Path(build)
+        build.mkdir(parents=True, exist_ok=True)
+        for name, data in scaled.items():
+            target = build / name
+            if not target.exists() or target.read_bytes() != data:
+                target.write_bytes(data)
     assets.mkdir(parents=True, exist_ok=True)
     for name, data in outputs.items():
         target = assets / name

@@ -73,7 +73,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
             raise ValueError('Missing build tool: ' + str(tool))
     print(f'Assembler: {vasm}')
     print(f'Linker: {vlink}')
-    graphics = compile_assets(ROOT, altgfx=altgfx)
+    graphics = compile_assets(ROOT, altgfx=altgfx, zoom_x=1+hires, zoom_y=1+lace, build=BUILD)
     print(f'Compiled editable PNG graphics from {"gfx_alt" if altgfx else "gfx"}/ into assets/.')
     boot, audio = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', BUILD)
     audio['continuous_lasers'] = generate_beam_audio(BUILD)
