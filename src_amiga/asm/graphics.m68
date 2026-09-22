@@ -1588,6 +1588,17 @@ q_graphics_m68_81:
 	bls q_graphics_m68_85
 	exg d0,d2
 q_graphics_m68_85:
+	ifne display_lace
+; A horizontal line covers one physical row, so it shows in one field only.
+; Draw the other row of the pair as well. Toggling the low bit keeps both
+; inside the viewport, which starts on an even row and has an even height.
+	movem.l d0/d1/d2,-(sp)
+	jsr dot_to_addr
+	bsr horiz_line
+	movem.l (sp)+,d0/d1/d2
+	eori.w #1,d1
+	move.l colour_ptr(a6),a1
+	endc
 	jsr dot_to_addr ; calculate screen address
 	bra horiz_line ; draw horizontal line
 q_graphics_m68_83:
