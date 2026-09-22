@@ -136,13 +136,14 @@ accuracy, damage, firing opportunities or random-number consumption.
 
 Base damage retains the original random 1..3, 1..5 or 1..7 according to player
 rating; the Constrictor's base damage remains 6. Each successful hit makes a
-separate random choice of multiplier 1, 2 or 3, with equal selection weights,
+separate random choice of multiplier 2 or 3, with equal selection weights,
 and applies base damage times that multiplier in one shield/energy update.
-The fourth two-bit random value is rejected to avoid favouring any multiplier.
+One random call supplies a single bit; adding 2 gives either multiplier
+without rejection or retries.
 Misses cause no damage and do not roll a multiplier. Final ordinary damage is
-1..9, 1..15 or 1..21 (only products of the base and multiplier are possible);
-Constrictor hits deal 6, 12 or 18. Against another AI ship, every attacker uses
-a random base of 1..3 with the same multiplier, dealing 1..9 damage regardless
+2..9, 2..15 or 2..21 (only products of the base and multiplier are possible);
+Constrictor hits deal 12 or 18. Against another AI ship, every attacker uses
+a random base of 1..3 with the same multiplier, dealing 2..9 damage regardless
 of player rating.
 
 This approximates the repeated damage that one old travelling projectile could

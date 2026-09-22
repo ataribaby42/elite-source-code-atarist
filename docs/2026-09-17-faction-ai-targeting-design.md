@@ -356,18 +356,23 @@ The damage path branches on the target:
 
 - **Target is the player** — `reduce_shields` retains the front/aft shield
   choice and equipment destruction. The rating-dependent base damage table
-  is unchanged; successful hits use the shared 1..3 multiplier.
-- **Target is an NPC** — `rand(1..npc_damage) * rand(1..3)` is
-  subtracted from `health(a4)`. The 1..3 multiplier is the one `do_attack`
+  is unchanged; successful hits use the shared 2..3 multiplier.
+- **Target is an NPC** — `rand(1..npc_damage) * rand(2..3)` is
+  subtracted from `health(a4)`. The 2..3 multiplier is the one `do_attack`
   applies and is shared with the player-facing path, so only
   `npc_damage` distinguishes the two. It is **3**, below the `damage` table's
   own range (`logic.m68`, `dc.w 3,3,3,5,5,5,7,7,7`): a hit between two ships
-  lands in 1..9 and averages 4, against the 6 an average-rated player takes.
+  lands in 2..9 and averages 5, against the 7.5 an average-rated player takes.
   Their fights are meant to last long enough to be worth flying into.
 
 On 2026-09-21, the shared multiplier was reduced from 2, 3 or 4 to 1, 2 or 3
-on both platforms. The choices remain equally weighted; base damage, hit
-probability and random-number consumption are unchanged.
+on both platforms. That change preserved equal selection weights, base damage,
+hit probability and random-number consumption.
+
+On 2026-09-22, the shared multiplier was changed to 2 or 3, each with a 50%
+selection weight, on both platforms. One random call and a single-bit mask
+replace the rejection loop. Base damage and hit probability are unchanged;
+the multiplier no longer consumes extra random calls for rejected values.
 
 ### 6.4.1 The damaged ship's reaction
 
