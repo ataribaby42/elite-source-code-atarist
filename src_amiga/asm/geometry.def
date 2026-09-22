@@ -130,6 +130,10 @@ tunnel_scale: equ 2
 	endc
 tunnel_x: equ tunnel_scale*100*view_num_x/view_den_x
 tunnel_y: equ tunnel_scale*45*view_num_y/view_den_y
+; The docking doors are as tall as half the tunnel, so the pair fills it,
+; and each clears the view after travelling its own height again.
+dock_door_open: equ tunnel_scale*95*view_num_y/view_den_y
+bay_door_open: equ tunnel_scale*90*view_num_y/view_den_y
 
 ; Hangar and bay walls, which end 1600 units ahead of the viewer. The top
 ; overshoots the view, as the ship sits low in the bay.
