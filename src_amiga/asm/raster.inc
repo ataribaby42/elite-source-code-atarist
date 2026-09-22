@@ -23,6 +23,28 @@ native_plot macro
     or.w \4,plane3(\3)
     endm
 
+native_mask_plot macro
+    ; Mask, four cached plane words, destination, temporary data register.
+    not.w \1
+    and.w \1,(\6)
+    and.w \1,plane1(\6)
+    and.w \1,plane2(\6)
+    and.w \1,plane3(\6)
+    not.w \1
+    move.w \2,\7
+    and.w \1,\7
+    or.w \7,(\6)
+    move.w \3,\7
+    and.w \1,\7
+    or.w \7,plane1(\6)
+    move.w \4,\7
+    and.w \1,\7
+    or.w \7,plane2(\6)
+    move.w \5,\7
+    and.w \1,\7
+    or.w \7,plane3(\6)
+    endm
+
 native_plot_cached macro
     ; Mask, two cached pairs of plane words, destination, temporary data register.
     not.w \1

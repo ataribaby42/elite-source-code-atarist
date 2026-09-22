@@ -22,6 +22,7 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 | [2026-09-19-missile-scanner-range-cleanup.md](2026-09-19-missile-scanner-range-cleanup.md) | Change: discard player and NPC missiles beyond the fixed scanner range |
 | [2026-09-19-editable-png-graphics.md](2026-09-19-editable-png-graphics.md) | Editable graphics, exact RGB-to-index palette mapping, source sheets and build conversion |
 | [2026-09-20-amiga-wide-and-multi-mode-support.md](2026-09-20-amiga-wide-and-multi-mode-support.md) | Six Amiga screens from one source tree, the frameless flight view and the framed option |
+| [2026-09-21-amiga-fastdraw.md](2026-09-21-amiga-fastdraw.md) | Taking the flight view off the chip bus: the blitter on a 68000, a Fast RAM shadow above it |
 
 Each tree's own `README.md` describes the shipped behaviour; these documents
 record why it is the way it is.

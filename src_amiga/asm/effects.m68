@@ -1104,14 +1104,14 @@ q_effects_m68_71:
 ; Quelo: 	if <pl> then.s						moving up
 	bmi.s q_effects_m68_73
 ; Quelo: 		if.l d0 <gt> #95 then.s 		off the top
-	cmp.l #95,d0
+	cmp.l #dock_door_open,d0
 	ble.s q_effects_m68_75
 	bset #remove,flags(a5)
 q_effects_m68_75:
 	bra.s q_effects_m68_74
 q_effects_m68_73:
 ; Quelo: 		if.l d0 <lt> #-45 then.s		off bottom
-	cmp.l #-45,d0
+	cmp.l #-tunnel_y,d0
 	bge.s q_effects_m68_77
 	bset #remove,flags(a5)
 q_effects_m68_77:
@@ -1186,14 +1186,14 @@ q_effects_m68_85:
 ; Quelo: 	if <pl> then.s						moving up
 	bmi.s q_effects_m68_87
 ; Quelo: 		if.l d0 <gt> #90 then.s 		off the top
-	cmp.l #90,d0
+	cmp.l #bay_door_open,d0
 	ble.s q_effects_m68_89
 	bset #remove,flags(a5)
 q_effects_m68_89:
 	bra.s q_effects_m68_88
 q_effects_m68_87:
 ; Quelo: 		if.l d0 <lt> #-45 then.s		off bottom
-	cmp.l #-45,d0
+	cmp.l #-tunnel_y,d0
 	bge.s q_effects_m68_91
 	bset #remove,flags(a5)
 q_effects_m68_91:
@@ -1478,9 +1478,9 @@ d_side_tunnel: dc.l -tunnel_x,0,12000
 d_top_tunnel: dc.l 0,tunnel_y,12000
 d_pulsing: dc.l 0,0,12000
 d_pulsing2: dc.l 0,45,12000
-d_top_door: dc.l 0,45,12010 ; end tunnel top red door
+d_top_door: dc.l 0,tunnel_y,12010 ; end tunnel top red door
 d_bottom_door: dc.l 0,0,12010 ; end tunnel bottom red door
-d_black_upper: dc.l 0,45,2000 ; upper main black door
+d_black_upper: dc.l 0,tunnel_y,2000 ; upper main black door
 d_black_lower: dc.l 0,0,2000 ; lower main black door
 d_side: dc.l -hangar_x,bay_shift,$866+3000 ; bay side panels
 d_top: dc.l 0,bay_shift+hangar_top,$866+3000 ; bay top panel

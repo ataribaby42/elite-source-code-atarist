@@ -9,16 +9,20 @@ Status: implemented in `src_amiga`
 
 | `display=` | screen | view, `frame=no` | view, `frame=yes` | recommended |
 | --- | --- | --- | --- | --- |
-| `pal` | 320 x 256, or 320 x 200 framed | 320 x 168 | 256 x 112 | 68000 framed, 68020 wide |
-| `ntsc` | 320 x 200 | 320 x 112 | 256 x 112 | 68000 framed, 68020 wide |
-| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 168 | 512 x 112 | 68030 at 33 MHz |
-| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 336 | 512 x 224 | 68040 at 33 MHz |
-| `ntsc-hires` | 640 x 200 | 640 x 112 | 512 x 112 | 68030 at 33 MHz |
-| `ntsc-hireslace` | 640 x 400 | 640 x 224 | 512 x 224 | 68040 at 25 MHz |
+| `pal` | 320 x 256, or 320 x 200 framed | 320 x 176 | 256 x 112 | 68000 framed, 68020 wide |
+| `ntsc` | 320 x 200 | 320 x 120 | 256 x 112 | 68000 framed, 68020 wide |
+| `pal-hires` | 640 x 256, or 640 x 200 framed | 640 x 176 | 512 x 112 | 68030 at 33 MHz |
+| `pal-hireslace` | 640 x 512, or 640 x 400 framed | 640 x 352 | 512 x 224 | 68040 at 33 MHz |
+| `ntsc-hires` | 640 x 200 | 640 x 120 | 512 x 112 | 68030 at 33 MHz |
+| `ntsc-hireslace` | 640 x 400 | 640 x 240 | 512 x 224 | 68040 at 25 MHz |
 
 `frame=yes` is the default and builds the original game. `hires` and `hireslace` are accepted as the PAL spellings, and an interlaced screen needs a flicker fixer or a multisync monitor.
 
 Every coordinate in the game is authored on a logical 320 x 200 grid. `zoom_x` and `zoom_y` in `asm/geometry.def` carry that grid to the physical screen, so a mode is a set of constants rather than a code path: one build of one source tree covers all six.
+
+## The view name
+
+A framed build keeps the name of the view in the strip above the window, as the original does. A frameless one has no strip: `y_top` is zero, the flight view reaches the top of the screen and `name_view` prints FRONT, REAR, LEFT or RIGHT over it on a transparent paper, the way the 8-bit game does. The viewport gains that text row, eight logical rows in every mode, and the main loop reprints the name each frame because `clear_image` now wipes it with the rest of the view.
 
 ## The cockpit frame
 
@@ -74,23 +78,26 @@ Artwork screens are 200 logical rows. Rather than move every text and icon coord
 
 ## Frame time
 
-`frametime=yes` prints two numbers in the top left corner of the buffer being drawn. `swap_screen` prints them, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
+`frametime=yes` prints three numbers in the top left corner and the flags at the right edge of the same row, clear of the view name between them. `swap_screen` prints them before it presents, so every animated screen carries the reading: the flight view, the docking and hangar sequences, hyperspace and the title screen. `all` turns the option on for every frameless image it builds.
 
 ```
-080 039 6ML   FRONT
-^   ^   ^^^
-|   |   ||+- the 32-bit multiply and divide are patched in
-|   |   |+-- the MOVE16 clear is running
-|   |   +--- the processor from AttnFlags
-|   +------- clearing the viewport
-+----------- the whole frame, budget is 60
+047 031 002              FRONT                6MLF
+^   ^   ^                                     ^^^^
+|   |   |                                     |||+- where the view was drawn:
+|   |   |                                     |||   F Fast RAM, B blitter, C Chip
+|   |   |                                     ||+-- 32-bit multiply and divide
+|   |   |                                     |+--- the MOVE16 clear
+|   |   |                                     +---- the processor from AttnFlags
+|   |   +- what the clear held it up by
+|   +----- rasterising it
++--------- the whole frame, budget is 60
 ```
 
-A dot in place of a letter means that path is not running, and the digit says why.
+A dot in place of `M` or `L` means that path is not running, and the digit says why. The last letter is always one of the three.
 
-The left number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The right number is how much of that work was `clear_image`; the difference between the two is everything else, from the transform and the AI to the ships, the starfield and the panel.
+The first number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The second is how much of that work was rasterising, measured from `draw_space` or `draw_all` to the handover in `swap_screen`, and the third is what the clear held the frame up by: the CPU sweep where the CPU clears, and the wait in `wait_clear` where the blitter does, which is not zero once the blit runs long enough to still be filling when the drawing starts. What the three leave over is the transform, the projection, the collisions and the AI.
 
-Both are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on an opaque paper, so they overwrite in place, and the text state they use is saved and restored around the call.
+All three are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on a transparent paper where the view reaches the top of the screen, because the clear takes the old reading with it; a framed build keeps an opaque paper, since nothing clears the row above its window. The text state they use is saved and restored around the call.
 
 ## The processor, decided at startup
 
@@ -102,13 +109,7 @@ One image therefore runs on a stock machine and uses the wider instructions wher
 
 ## Clearing the viewport
 
-`clear_image` writes `y_size` rows of `x_size/8` bytes in each of four planes and nothing reads them. From the 68040 up, `MOVE16` writes a whole sixteen byte line at once, and the clear uses it where it exists. Measured on a 68060 it changes nothing: Chip RAM delivers the same bytes per second whatever the transaction width, so the sweep is bound by bus slots and not by the instruction. The path stays because it costs nothing and another memory controller may answer differently.
-
-`probe_cpu` in `asm/system.m68` reads `ExecBase.AttnFlags` once at startup into `cpu_level` and sets `clear_burst` from the 68040 up. `clear_burst_ok` in `geometry.def` adds the assembly-time half: the viewport must span whole rows and hold a whole number of sixteen byte lines, which is true of every frameless build and of no framed one, where the viewport starts four or eight bytes into the row. Either test failing keeps the `movem.l` span loop, so a 68000 build runs exactly as before.
-
-AmigaDOS aligns a hunk to eight bytes, not sixteen, so `clear_image` reads the screen's own alignment. On an eight byte start a pair of long writes covers the half line at each end and the burst runs one line shorter; anything else falls back to the spans.
-
-The source is sixteen zero bytes in the `workspace` section, which is not Chip attributed and lands in Fast RAM where the machine has any. `MOVE16` ignores the low four bits of both addresses, so the block is 32 bytes and the source points into the middle of it, which keeps the transfer inside the zeros whatever the section alignment turns out to be.
+`fastdraw=yes` lets the machine choose how the viewport is cleared and where the view is drawn: the blitter on a 68000, a Fast RAM shadow on anything faster that has Fast RAM, the CPU otherwise. `2026-09-21-amiga-fastdraw.md` carries the measurements and the register values, and the row offset table that `dot_to_addr` reads instead of multiplying; the flag group of `frametime=yes` says which clear ran.
 
 ## Chip RAM
 

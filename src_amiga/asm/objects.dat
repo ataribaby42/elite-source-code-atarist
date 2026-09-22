@@ -3087,7 +3087,7 @@ panel10_text:
 
 panel10_nodes:
 
-	dc -100,0,0,0,100,0,0,0,100,-45,0,0,-100,-45,0,0
+	dc -tunnel_x,0,0,0,tunnel_x,0,0,0,tunnel_x,-tunnel_y,0,0,-tunnel_x,-tunnel_y,0,0
 
 panel10_surfaces:
 

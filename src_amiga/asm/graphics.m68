@@ -16,6 +16,12 @@
 	include "raster.inc"
 
 	xref text_colour,locate,print_char,print_number
+	ifne frametime
+	xdef raster_line,begin_rasterising
+	endc
+	ifne blit_ok
+	xref wait_clear
+	endc
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
 
@@ -42,8 +48,6 @@ last_coords: rs.w 4*2 ; table of last point coords
 judder: rs.w 1 ; amount of screen judder
 top_y: rs.w 1 ; y coord of top of polygon
 bottom_y: rs.w 1 ; y coord of bottom of polygon
-offset: rs.w 1 ; odd/even line offset (0 or 8)
-line_addr: rs.l 1 ; screen address of base of line
 flare: rs.w 1 ; flare bits
 vertex_list1: rs.b node_len*max_vert ; vertex list #1
 vertex_list2: rs.b node_len*max_vert ; vertex list #2
@@ -123,11 +127,31 @@ q_graphics_m68_6\@:
 	q_subr dot_to_addr,global
 
     move.w d0,-(sp)
-    mulu #row_stride,d1
+    ifne shadow_ok
+    clr.w in_shadow ; a row of the flight view goes to the shadow, the rest does not
+    tst.w shadow_live
+    beq.s .screen
+    cmp.w #y_top,d1
+    blo.s .screen
+    cmp.w #y_top+y_size,d1
+    bhs.s .screen
+    move.w #-1,in_shadow
+.screen:
+    endc
     lsr.w #3,d0
     and.w #$fffe,d0
+    add.w d1,d1 ; a table read, because MULU #row_stride costs a 68000 forty cycles
+    add.w d1,d1
+    lea row_offset,a0
+    move.l (a0,d1.w),d1
     add.w d0,d1
     move.l scr_base(a6),a0
+    ifne shadow_ok
+    tst.w in_shadow
+    beq.s .based
+    move.l view_base,a0
+.based:
+    endc
     adda.l d1,a0
     move.w (sp)+,d0
     rts
@@ -159,8 +183,30 @@ q_graphics_m68_6\@:
     bsr raster_line
     move d0,frame_start(a6)
     endc
+    ifne shadow_ok
+    clr.w shadow_live
+    move.l shadow_base,d0
+    beq.s .screen_clear
+    move.w #-1,shadow_live
+    move.l d0,a0
+    bra.s .cleared_base
+.screen_clear:
+    endc
     move.l scr_base(a6),a0
     lea y_top*row_stride+x_left/8(a0),a0
+    ifne shadow_ok
+.cleared_base:
+    endc
+    ifne blit_ok
+    tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
+    beq.s .no_blit
+    st clear_early ; and SWAP_SCREEN starts the next one as soon as it can
+    tst.b clear_pending ; unless it already has
+    bne .cleared
+    bsr begin_clear
+    bra .cleared
+.no_blit:
+    endc
     ifne clear_burst_ok
     tst.b clear_burst ; 68040 or better, so MOVE16 exists
     beq .spans
@@ -208,11 +254,26 @@ q_graphics_m68_6\@:
     bsr.s raster_line
     sub frame_start(a6),d0
     move d0,clear_lines(a6)
+    clr draw_lines(a6) ; a frame that rasterises nothing reports nothing
+    clr draw_started(a6)
     endc
     clr.l next_record(a6)
     rts
 
     ifne frametime
+; Open the rasterising window. DRAW_SPACE and DRAW_ALL both call it, and only
+; the first one reached in a frame records the line.
+begin_rasterising:
+    tst draw_started(a6)
+    bne.s .open
+    movem.l d0-d1,-(sp)
+    st draw_started(a6)
+    bsr.s raster_line
+    move d0,draw_start(a6)
+    movem.l (sp)+,d0-d1
+.open:
+    rts
+
 ; Raster lines since the last frame counter reset, for the frame time readings.
 raster_line:
     move.l $dff004,d0 ; VPOSR and VHPOSR in one access
@@ -236,7 +297,7 @@ raster_line:
 * **									  **
 * ********************************************
 
-* Prints the frame's work and the clear's share of it in milliseconds, in the
+* Prints the frame's work and what the clear cost it, in milliseconds, in the
 * top left corner of the buffer being drawn. SWAP_SCREEN calls it, so every
 * animated screen shows the reading, not only the flight view.
 
@@ -252,13 +313,16 @@ raster_line:
 frame_hold: equ 16 ; frames a reading is held, so the digits stand still
 frame_lines_max: equ 4095 ; a reading long enough that the sum still fits
 frame_ms_max: equ 999 ; three digits
-frame_text_y: equ 0 ; the top row, above the flight view
+frame_text_y: equ 0 ; the top row of the screen
 	move work_lines(a6),d0
 	bsr .clamp
 	add d0,work_sum(a6)
 	move clear_lines(a6),d0
 	bsr .clamp
 	add d0,clear_sum(a6)
+	move draw_lines(a6),d0
+	bsr .clamp
+	add d0,draw_sum(a6)
 	q_inc frame_ticks(a6)
 	cmp #frame_hold,frame_ticks(a6)
 	blo.s .print
@@ -273,6 +337,11 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	clr clear_sum(a6)
 	bsr .millis
 	move d0,clear_ms(a6)
+	moveq #0,d0
+	move draw_sum(a6),d0
+	clr draw_sum(a6)
+	bsr .millis
+	move d0,draw_ms(a6)
 .print:
 	q_push text_ink(a6) ; the game's text state is not ours to change
 	q_push text_paper(a6)
@@ -281,8 +350,12 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	q_push.l text_addr(a6)
 	q_push pad_char(a6)
 	move #'0',pad_char(a6)
-	moveq #lgt_grey,d0 ; an opaque paper overwrites the digits in place
-	moveq #black,d1
+	moveq #lgt_grey,d0
+	ifeq y_top
+	moveq #trans,d1 ; the reading sits in the view, which is cleared under it
+	else
+	moveq #black,d1 ; above the view nothing clears it, so it needs a paper
+	endc
 	jsr text_colour
 	moveq #0,d0
 	moveq #frame_text_y,d1
@@ -291,10 +364,15 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	bsr .digits
 	moveq #' ',d0
 	jsr print_char
+	move draw_ms(a6),d0
+	bsr .digits
+	moveq #' ',d0
+	jsr print_char
 	move clear_ms(a6),d0
 	bsr .digits
-	moveq #' ',d0 ; and what cleared it
-	jsr print_char
+	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
+	moveq #frame_text_y,d1
+	jsr locate
 	move cpu_level,d0
 	add #'0',d0
 	jsr print_char
@@ -309,6 +387,20 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	beq.s .no_long
 	moveq #'L',d0 ; 32-bit multiply and divide
 .no_long:
+	jsr print_char
+	moveq #'C',d0 ; the frame was drawn straight into Chip RAM
+	ifne blit_ok
+	tst.b clear_blit
+	beq.s .no_blit
+	moveq #'B',d0 ; the blitter cleared it while the CPU drew
+.no_blit:
+	endc
+	ifne shadow_ok
+	tst.l shadow_base
+	beq.s .no_fast
+	moveq #'F',d0 ; drawn in Fast RAM and copied once
+.no_fast:
+	endc
 	jsr print_char
 	q_pop pad_char(a6)
 	q_pop.l text_addr(a6)
@@ -364,8 +456,81 @@ frame_text_y: equ 0 ; the top row, above the flight view
 * Regs:  ?
 * Subr:  None
 
+* ***********************************************
+* **                                           **
+* ** BEGIN_CLEAR - START THE BLITTER ON A VIEW **
+* **                                           **
+* ***********************************************
+
+* Fills the viewport of SCR_BASE with the blitter and returns while it runs.
+* CLEAR_IMAGE calls it for the frame ahead; SWAP_SCREEN calls it for the next
+* one, on the buffer the present has just released.
+
+* Entry: None
+* Exit:  None
+
+* Regs:  None
+* Subr:  None
+
+	q_subr begin_clear,global
+
+	ifne blit_ok
+	movem.l a0/a1,-(sp)
+	move.l scr_base(a6),a0
+	lea y_top*row_stride+x_left/8(a0),a0
+	lea $dff000,a1
+	move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
+	clr.w $42(a1) ; BLTCON1: ascending, no fill
+	move.w #-1,$44(a1) ; BLTAFWM
+	move.w #-1,$46(a1) ; BLTALWM
+	move.w #blit_mod,$66(a1) ; BLTDMOD walks plane to plane and row to row
+	move.l a0,$54(a1) ; BLTDPT
+	move.w #((blit_rows<<6)|blit_words),$58(a1) ; BLTSIZE starts it
+	st clear_pending
+	movem.l (sp)+,a0/a1
+	endc
+
+	q_ret
+
+
 	q_subr swap_screen,global
 
+	ifne frametime
+	movem.l d0-d1,-(sp) ; the rasterising window closes here, however the frame drew
+	tst draw_started(a6)
+	beq.s .untimed
+	clr draw_started(a6)
+	bsr raster_line
+	sub draw_start(a6),d0
+	move d0,draw_lines(a6)
+.untimed:
+	movem.l (sp)+,d0-d1
+	endc
+	ifne blit_ok
+	jsr wait_clear ; nothing is presented while the blitter is still filling it
+	endc
+	ifne frametime
+	movem.l d0-d7/a0-a6,-(sp) ; the held reading, before the copy carries it out
+	bsr show_frame_time
+	movem.l (sp)+,d0-d7/a0-a6
+	endc
+	ifne shadow_ok
+	tst.w shadow_live ; the whole flight view, in one run to Chip RAM
+	beq.s .no_shadow
+	movem.l d0-d7/a0-a2,-(sp)
+	clr.w shadow_live
+	move.l shadow_base,a0
+	move.l scr_base(a6),a1
+	lea y_top*row_stride(a1),a1
+	move.w #view_bytes/32-1,d0
+.shadow_row:
+	movem.l (a0)+,d1-d7/a2
+	movem.l d1-d7/a2,(a1)
+	lea 32(a1),a1
+	dbra d0,.shadow_row
+	movem.l (sp)+,d0-d7/a0-a2
+.no_shadow:
+	endc
 	ifne frametime
 	movem.l d0-d1,-(sp) ; read the work before the wait for the vertical blank
 	bsr raster_line
@@ -379,10 +544,12 @@ frame_text_y: equ 0 ; the top row, above the flight view
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
 	move.l d0,scr_base(a6)
-	ifne frametime
-	movem.l d0-d7/a0-a6,-(sp) ; the reading goes into the released buffer
-	bsr show_frame_time
-	movem.l (sp)+,d0-d7/a0-a6
+	ifne blit_ok
+	tst.b clear_early ; only a frame that cleared hands the next one on
+	beq.s .no_early
+	clr.b clear_early
+	bsr begin_clear
+.no_early:
 	endc
 
 	q_ret
@@ -771,13 +938,19 @@ q_graphics_m68_38:
 
 	movem d5-d6,poly_x(a6) ; save parameters
 	st first_point(a6) ; this will be the first point
-	lea edge_masks(pc),a4 ; A4 = ptr: edge masks table
+	move.l a3,-(sp)
+	move d5,d0 ; the centre and the colour survive HORIZ_LINE in these registers
+	ext.l d0
+	move.l d0,a3
+	move d6,d0
+	ext.l d0
+	move.l d0,a4
+	move.l colour_ptr(a6),a1
 	clr d5 ; x = 0
 	move d7,d6 ; y = radius
 	add d7,d7 ; d = 3 - 2*radius
 	subq #3,d7
 	neg d7
-	move d5,a1 ; initialise last y coords
 q_graphics_m68_39:
 	exg d5,d6 ; draw bottom half
 	bsr circle_plotxy
@@ -803,6 +976,7 @@ q_graphics_m68_42:
 	cmp d6,d5
 	ble q_graphics_m68_39
 q_graphics_m68_40:
+	move.l (sp)+,a3
 
 	q_ret
 
@@ -818,6 +992,8 @@ q_graphics_m68_40:
 * until CIRCLE_HORIZ adds any sun flare and clips to the full viewport.
 
 * Entry: (D5,D6) = x,y offset
+*		 A1 	 = ptr: colour masks
+*		 (A3,A4) = centre coords, sign extended
 * Exit:  None
 
 * Regs:  ?
@@ -827,8 +1003,7 @@ q_graphics_m68_40:
 
 	move d5,d4 ; signed 32-bit ends also handle circles crossing far off-screen
 	ext.l d4
-	move poly_x(a6),d0
-	ext.l d0
+	move.l a3,d0
 	ifne circle_stretch
 	add.l d4,d4 ; keep the circle round where a pixel is half as wide as tall
 	endc
@@ -839,7 +1014,7 @@ q_graphics_m68_40:
 	q_ret lt
 	cmp.l #x_max+1,d2
 	q_ret gt
-	move poly_y(a6),d1 ; calculate top y
+	move.l a4,d1 ; calculate top y
 	add d6,d1
 	cmp #y_min,d1 ; outside bottom edge ?
 	q_ret lt ; yes, don't draw
@@ -850,7 +1025,7 @@ q_graphics_m68_40:
 	bsr circle_horiz
 	movem.l (sp)+,d0/d2
 q_graphics_m68_47:
-	move poly_y(a6),d1 ; calculate bottom y
+	move.l a4,d1 ; calculate bottom y
 	sub d6,d1
 	cmp #y_max,d1 ; outside top edge ?
 	q_ret gt ; yes, don't draw
@@ -871,6 +1046,7 @@ q_graphics_m68_47:
 * Entry: D0.L = x coord of right edge (unclipped)
 *		 D2.L = x coord of left edge (unclipped)
 *		 D1 = y coord of line
+*		 A1 = ptr: colour masks
 * Exit:  None
 
 * Regs:  ?
@@ -878,7 +1054,7 @@ q_graphics_m68_47:
 
 	q_subr circle_horiz
 
-	movem d5-d7,-(sp) ; save circle parameters
+	movem d5-d6,-(sp) ; save circle parameters
 	tst sun_flare(a6) ; sun flare ?
 ; Quelo: 	if <ne> then.s						yes
 	beq q_graphics_m68_49
@@ -920,10 +1096,9 @@ circle_left_inside:
 	add #y_top+y_max,d1
 	exg d0,d2 ; exchange x coords
 	bsr dot_to_addr ; calculate screen address
-	move.l colour_ptr(a6),a1 ; fetch pointer to colour masks
 	bsr horiz_line ; draw horizontal line
 circle_horiz_done:
-	movem (sp)+,d5-d7 ; restore circle parameters
+	movem (sp)+,d5-d6 ; restore circle parameters
 
 	q_ret return
 
@@ -948,6 +1123,9 @@ circle_horiz_done:
 
 	q_subr block,global
 
+	ifne blit_ok
+	jsr wait_clear
+	endc
 	ifne display_hires
 	add.w d0,d0 ; logical units to physical pixels
 	add.w d3,d3
@@ -1003,7 +1181,7 @@ q_graphics_m68_57:
 	q_next 1,d4
 	movem.l (sp)+,d4/a0 ; restore depth and addresses
 	q_inc d5 ; update addresses
-	mulu #2,d5
+	add.w d5,d5
 	add d5,a0
 	add d5,a1
 q_graphics_m68_61:
@@ -1020,8 +1198,24 @@ q_graphics_m68_63:
 ; Quelo: 	if <ne> then.s						yes
 	beq q_graphics_m68_65
 	move.l d0,-(sp)
+	ifne shadow_ok
+	tst.w in_shadow ; swap_screen copies the shadow to one buffer, so the copy
+	beq.s .flip     ; goes to the other one at the same offset, not to a flip
+	move.l d1,-(sp)
+	move.l a0,d1
+	sub.l view_base,d1
+	move.l scr_base(a6),d0
+	jsr amiga_flip_address
+	add.l d1,d0
+	move.l (sp)+,d1
+	bra.s .copy
+.flip:
+	endc
 	move.l a0,d0
 	jsr amiga_flip_address
+	ifne shadow_ok
+.copy:
+	endc
 	move.l d0,a1
 	move.l (sp)+,d0
 	bsr blitter ; execute blitter
@@ -1094,7 +1288,7 @@ q_graphics_m68_67:
 	q_next 1,d4
 	movem.l (sp)+,d4/a0/a1 ; restore width, depth and addresses
 	q_inc d5 ; update addresses
-	mulu #2,d5
+	add.w d5,d5
 	add d5,a0
 	add d5,a1
 q_graphics_m68_71:
@@ -1262,7 +1456,7 @@ q_graphics_m68_75:
 	q_next 1,d3
 	movem.l (sp)+,d3/a0 ; restore depth and screen address
 	q_inc d5 ; update addresses
-	mulu #2,d5
+	add.w d5,d5
 	add d5,a0
 q_graphics_m68_79:
 	tst d2 ; any pixels left to draw ?
@@ -1438,6 +1632,17 @@ q_graphics_m68_81:
 	bls q_graphics_m68_85
 	exg d0,d2
 q_graphics_m68_85:
+	ifne display_lace
+; A horizontal line covers one physical row, so it shows in one field only.
+; Draw the other row of the pair as well. Toggling the low bit keeps both
+; inside the viewport, which starts on an even row and has an even height.
+	movem.l d0/d1/d2,-(sp)
+	jsr dot_to_addr
+	bsr horiz_line
+	movem.l (sp)+,d0/d1/d2
+	eori.w #1,d1
+	move.l colour_ptr(a6),a1
+	endc
 	jsr dot_to_addr ; calculate screen address
 	bra horiz_line ; draw horizontal line
 q_graphics_m68_83:
@@ -1563,6 +1768,7 @@ q_graphics_m68_92:
 * Entry: D0 = x coord of left end
 *		 D2 = x coord of right end
 *		 A0 = screen address
+*		 A1 = ptr: colour masks
 * Exit:  None
 
 * Regs: D0-D6, A0 and A2 corrupt.
@@ -1573,6 +1779,7 @@ q_graphics_m68_92:
 	sub d0,d2 ; calculate width in pixels
 	q_inc d2
 	lea edge_masks(pc),a2 ; A2 = ptr: edge masks
+	movem.w (a1),d1/d3/d4/d6 ; the plane words, for both edges and the fill
 	and #15,d0 ; starting on word edge ?
 ; Quelo: 	if <ne> then						no
 	beq q_graphics_m68_113
@@ -1598,10 +1805,39 @@ q_graphics_m68_113:
 ; Quelo: 	if <ne> then						some words
 	beq q_graphics_m68_117
 	and #15,d2 ; adjust no. pixels left to draw
+	cmp #long_fill_min,d5 ; wide enough to pay for doubling the plane words ?
+	blo.s .fill_words
+.fill_longs:
+	move.w d1,d0 ; a long writes two words for one instruction
+	swap d1
+	move.w d0,d1
+	move.w d3,d0
+	swap d3
+	move.w d0,d3
+	move.w d4,d0
+	swap d4
+	move.w d0,d4
+	move.w d6,d0
+	swap d6
+	move.w d0,d6
+	move d5,d0
+	lsr #1,d0
+	q_dec d0 ; adjust counter for DBRA
+	q_loop 2 ; fill long pairs
+	move.l d1,(a0)
+	move.l d3,plane1(a0)
+	move.l d4,plane2(a0)
+	move.l d6,plane3(a0)
+	addq.l #4,a0
+	q_next 2,d0
+	btst #0,d5 ; odd word left over ?
+	beq.s q_graphics_m68_117
+	native_fill d1,d3,d4,d6,a0
+	bra.s q_graphics_m68_117
+.fill_words:
 	q_dec d5 ; adjust counter for DBRA
-	movem.w (a1),d0/d1/d4/d6 ; cache the four plane words before filling
 	q_loop 1 ; fill words
-	native_fill d0,d1,d4,d6,a0
+	native_fill d1,d3,d4,d6,a0
 	q_next 1,d5
 q_graphics_m68_117:
 	tst d2 ; any pixels left to draw ?
@@ -1670,16 +1906,16 @@ q_graphics_m68_117:
 * Plots a series of pixels using a mask.
 
 * Entry: D0.L = plotting mask, e.g $80008000
+*		 D1,D3,D4,D6 = the four plane words
 *		 A0.L = ptr: screen address
-*		 A1.L = ptr: colour masks
 * Exit:  None
 
-* Regs: D1,D5 and A0 corrupt.
+* Regs: D0,D5 and A0 corrupt.
 * Subr: ?
 
 	q_subr mask_plot
 
-    native_plot d0,a1,a0,d5
+    native_mask_plot d0,d1,d3,d4,d6,a0,d5
     addq.l #2,a0
     rts
 
@@ -1931,21 +2167,36 @@ q_graphics_m68_146:
 	blt q_graphics_m68_139
 q_graphics_m68_140:
 	move top_y(a6),d7 ; fetch start y coordinate
-	clr offset(a6) ; assume even line
+	q_push.l a5 ; one dither phase per address register
+	move.l colour_ptr(a6),a1
+	lea 8(a1),a5
 	btst #dither_bit,d7 ; second row of the phase ?
 ; Quelo: 	if <ne> then.s						no
-	beq q_graphics_m68_153
-	move #8,offset(a6)
+	beq.s q_graphics_m68_153
+	exg a1,a5
 q_graphics_m68_153:
 	move d7,d0 ; calculate start line screen address
 	mulu #row_stride,d0
+	ifne shadow_ok
+	tst.w shadow_live
+	beq.s q_solid_screen
+	cmp.w #y_top,d7
+	blo.s q_solid_screen
+	cmp.w #y_top+y_size,d7
+	bhs.s q_solid_screen
+	add.l view_base,d0
+	bra.s q_solid_based
+q_solid_screen:
+	endc
 	add.l scr_base(a6),d0
-	move.l d0,line_addr(a6)
+	ifne shadow_ok
+q_solid_based:
+	endc
+	move.l d0,a4 ; the row address walks in a register HORIZ_LINE leaves alone
 	lea left_arm,a3 ; start of x coordinate data
-	lea right_arm,a4
 q_graphics_m68_155:
+	move arm_entries*2(a3),d2 ; the right arm is the array that follows
 	move (a3)+,d0 ; fetch left x coord
-	move (a4)+,d2 ; fetch right x coord
 ; Quelo: 		if d0 <hi> d2 then.s			make sure about the above
 	cmp d2,d0
 	bls q_graphics_m68_157
@@ -1955,23 +2206,21 @@ q_graphics_m68_157:
 	lsr #3,d1
 	and #$7ffe,d1
 	ext.l d1
-	add.l line_addr(a6),d1
-	move.l d1,a0
-	move.l colour_ptr(a6),a1 ; get pointer to colour data
-	move offset(a6),d1
-	lea (a1,d1),a1
+	move.l a4,a0
+	add.l d1,a0
 	bsr horiz_line ; draw horizontal line
-	add.l #row_stride,line_addr(a6) ; relocatable buffers may cross a 64 KB boundary
+	add.l #row_stride,a4 ; relocatable buffers may cross a 64 KB boundary
 	ifne display_lace
 	btst #0,d7 ; hold the phase for two rows, one per field
 	beq.s .keep_phase
 	endc
-	eor #8,offset(a6)
+	exg a1,a5
 .keep_phase:
 	q_inc d7
 	cmp bottom_y(a6),d7
 	bls q_graphics_m68_155
 q_graphics_m68_156:
+	q_pop.l a5
 
 	q_ret return
 
@@ -2531,6 +2780,14 @@ edge_masks:
 	dc.l %00000000000000010000000000000001
 
 * List of bits and intersection routines for clipping.
+
+; Byte offset of each physical screen row, so DOT_TO_ADDR needs no multiply.
+row_offset:
+dot_row: set 0
+	rept scr_rows
+	dc.l dot_row*row_stride
+dot_row: set dot_row+1
+	endr
 
 clip_list:
 

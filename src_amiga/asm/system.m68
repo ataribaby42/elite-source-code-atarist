@@ -11,6 +11,15 @@ amiga_implementation: equ 1
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
     xdef cpu_level,clear_burst,maths_fast
+    ifne blit_ok
+    xdef clear_blit,clear_pending,clear_early,wait_clear
+    endc
+    ifne blit_ok*frametime
+    xref raster_line
+    endc
+    ifne shadow_ok
+    xdef shadow_base,view_base,shadow_live,in_shadow
+    endc
     ifeq cpu_68020
     xref divide_by_10,divide_by_10_020,divide_by_1e5,divide_by_1e5_020
     xref sky_multiply,sky_multiply_020
@@ -68,6 +77,21 @@ amiga_entry:
     jsr -198(a6)                 ; AllocMem
     move.l d0,bitmap_bank
     beq startup_failed
+    ifne shadow_ok
+; The flight view is drawn here and copied to the screen once a frame. Fast RAM
+; or nothing: in Chip RAM the copy would cost more than the drawing it saves.
+; A 68000 pays the same way round, so it keeps the memory and blits instead.
+    tst.w cpu_level
+    beq.s .no_shadow
+    move.l #view_bytes,d0
+    move.l #$10004,d1           ; MEMF_FAST|MEMF_CLEAR
+    jsr -198(a6)                 ; AllocMem
+    move.l d0,shadow_base
+    beq.s .no_shadow
+    sub.l #y_top*row_stride,d0  ; the drawing maths adds the row back
+    move.l d0,view_base
+.no_shadow:
+    endc
     lea graphics_name(pc),a1
     moveq #0,d0
     jsr -552(a6)
@@ -82,6 +106,10 @@ amiga_entry:
     move.w $dff002,saved_dma
     move.w #$0120,$dff096        ; stop old bitplanes and sprites
     st display_owned
+    ifne blit_ok
+    jsr -456(a6)                 ; OwnBlitter: CLEAR_IMAGE programmes the registers
+    st blitter_owned
+    endc
     jsr elite
 amiga_exit:
     clr amiga_active
@@ -119,6 +147,14 @@ amiga_exit:
     jsr quiet                   ; mute Paula before returning display ownership
     move.w #$01af,$dff096        ; stop our display/audio DMA
     move.l graphics_base,a6
+    ifne blit_ok
+    tst blitter_owned
+    beq.s .no_blitter
+    jsr -228(a6)                 ; WaitBlit before the blitter goes back
+    jsr -462(a6)                 ; DisownBlitter
+    clr blitter_owned
+.no_blitter:
+    endc
     move.l old_view,a1
     jsr -222(a6)
     move.l 38(a6),$dff080       ; restore graphics.library's Copper startup list
@@ -156,6 +192,15 @@ startup_failed:
     clr workbench_directory_changed
 .directory_restored:
     move.l exec_base,a6
+    ifne shadow_ok
+    move.l shadow_base,d0
+    beq.s .no_shadow_free
+    move.l d0,a1
+    move.l #view_bytes,d0
+    jsr -210(a6)                 ; FreeMem
+    clr.l shadow_base
+.no_shadow_free:
+    endc
     move.l bitmap_bank,d0
     beq .no_bitmaps
     move.l d0,a1
@@ -314,6 +359,15 @@ probe_cpu:
     moveq #6,d1
 .level:
     move.w d1,cpu_level
+    ifne blit_ok
+    clr.b clear_pending
+    clr.b clear_early
+    clr.b clear_blit
+    tst.w d1                     ; a 68000 or 68010 clears with the blitter
+    bne.s .blit_done
+    st clear_blit
+.blit_done:
+    endc
     clr.b clear_burst
     ifne clear_burst_ok
     cmp.w #4,d1
@@ -398,6 +452,40 @@ amiga_poll:
     tst quit_requested
     bne amiga_exit
     rts
+
+    ifne blit_ok
+; Drain a clear started by CLEAR_IMAGE. Every routine that begins writing
+; inside the viewport calls this first; with no blit running it is one byte
+; test, so machines that clear another way pay nothing.
+wait_clear:
+    tst.b clear_pending
+    beq.s .idle
+    movem.l d0/d1/a1,-(sp)
+    ifne frametime
+    jsr raster_line             ; what the clear costs here is the wait, not the fill
+    move d0,-(sp)
+    endc
+    lea $dff000,a1
+    move.w #-1,d0               ; a blit that never ends stutters, it does not hang
+.busy:
+    btst #6,2(a1)               ; DMACONR, BBUSY
+    bne.s .again
+    btst #6,2(a1)               ; Agnus can raise it late, so read it twice
+    beq.s .done
+.again:
+    dbra d0,.busy
+.done:
+    ifne frametime
+    jsr raster_line
+    sub (sp)+,d0
+    add d0,clear_lines(a6)
+    endc
+    movem.l (sp)+,d0/d1/a1
+    clr.b clear_pending
+.idle:
+    rts
+    endc
+
 
 amiga_vblank:
     movem.l d0-d7/a0-a6,-(sp)
@@ -598,6 +686,9 @@ title_frame: ds.l 1
 palette: ds.w 16
 saved_dma: ds.w 1
 display_owned: ds.w 1
+    ifne blit_ok
+blitter_owned: ds.w 1
+    endc
 amiga_active: ds.w 1
 ready: ds.w 1
 quit_requested: ds.w 1
@@ -609,5 +700,17 @@ mouse_right: ds.w 1
 cpu_level: ds.w 1
 clear_burst: ds.b 1
 maths_fast: ds.b 1
+    ifne blit_ok
+clear_blit: ds.b 1
+clear_pending: ds.b 1
+clear_early: ds.b 1
+    endc
+    even
+    ifne shadow_ok
+shadow_base: ds.l 1
+view_base: ds.l 1
+shadow_live: ds.w 1
+in_shadow: ds.w 1
+    endc
 	even
 instance_owned: ds.w 1

@@ -30,6 +30,7 @@ plane1: equ bpr ; plane offsets within a pixel row
 plane2: equ bpr*2
 plane3: equ bpr*3
 row_stride: equ bpr*scr_planes ; bytes per pixel row
+long_fill_min: equ 6 ; span words from which HORIZ_LINE fills in longs
 art_bytes: equ row_stride*art_rows*zoom_y ; an asset expanded to screen scale
 bitmap_bytes: equ 125*8+13975*10*zoom_x*zoom_y ; BITMAPS.IMG expanded to screen scale
 	ifne display_ntsc+frame
@@ -53,12 +54,13 @@ diwstop_art: equ (((44+art_rows)&255)<<8)|$c1 ; Copper window for artwork
 
 ; Dimensions of cockpit.
 
-y_top: equ 8*zoom_y ; y coordinate of top edge, clear of the view indicator
 	ifne frame
+y_top: equ 8*zoom_y ; y coordinate of top edge, clear of the view indicator
 no_cols: equ 32 ; columns across the window the frame leaves
 no_rows: equ 14 ; rows down it
 	endc
 	ifeq frame
+y_top: equ 0 ; the flight view reaches the top and carries its own name
 no_cols: equ art_cols ; text columns across the flight view
 no_rows: equ (scr_rows-panel_rows-y_top)/char_h ; text rows down it
 	endc
@@ -71,11 +73,34 @@ y_max: equ (y_size>>1)-1
 x_left: equ (scr_width-x_size)>>1 ; x coordinate of left edge
 field_lines: equ 262+51*(1-display_ntsc) ; raster lines in one field
 line_scale: equ 66-display_ntsc ; a raster line in 1024ths of a millisecond
-clear_bursts: equ y_size*row_stride/16 ; sixteen bytes to a MOVE16
-	ifeq (scr_width-x_size)+((y_size*row_stride)&15) ; vasm binds & tighter than *
+view_bytes: equ y_size*row_stride ; the viewport, one flat run when frameless
+clear_bursts: equ view_bytes/16 ; sixteen bytes to a MOVE16
+	ifeq (scr_width-x_size)+(view_bytes&15)
 clear_burst_ok: equ 1 ; whole rows, and a whole number of MOVE16 lines
 	else
 clear_burst_ok: equ 0
+	endc
+; One blitter fill covers the viewport. A frameless viewport is one flat run,
+; so 64-word rows and no modulo; an inset one is a plane run per blit row and
+; the plane spacing carries the modulo from plane to plane and row to row.
+	ifeq scr_width-x_size
+blit_words: equ 0 ; the width field takes 64 words as zero
+blit_rows: equ view_bytes/128
+blit_mod: equ 0
+	ifeq (view_bytes&127)+blit_rows/1025 ; the division is a range check: 0 up to 1024
+blit_fits: equ 1 ; whole 64-word rows, and the height fits BLTSIZE
+	else
+blit_fits: equ 0
+	endc
+	else
+blit_words: equ x_size/16
+blit_rows: equ y_size*scr_planes
+blit_mod: equ bpr-x_size/8
+	ifeq (x_size&15)+blit_rows/1025+blit_words/65 ; the divisions are range checks
+blit_fits: equ 1 ; whole words across, and both BLTSIZE fields in range
+	else
+blit_fits: equ 0
+	endc
 	endc
 no_dust: equ 15*(x_size/zoom_x)*(y_size/zoom_y)/(256*112) ; 15 in a 256x112 view
 arm_entries: equ scr_rows+4 ; SOLID_POLYGON indexes its arms by physical screen row
@@ -106,6 +131,10 @@ tunnel_scale: equ 2
 	endc
 tunnel_x: equ tunnel_scale*100*view_num_x/view_den_x
 tunnel_y: equ tunnel_scale*45*view_num_y/view_den_y
+; The docking doors are as tall as half the tunnel, so the pair fills it,
+; and each clears the view after travelling its own height again.
+dock_door_open: equ tunnel_scale*95*view_num_y/view_den_y
+bay_door_open: equ tunnel_scale*90*view_num_y/view_den_y
 
 ; Hangar and bay walls, which end 1600 units ahead of the viewer. The top
 ; overshoots the view, as the ship sits low in the bay.

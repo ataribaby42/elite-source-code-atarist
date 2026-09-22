@@ -18,6 +18,9 @@
 	include "bitlist.m68"
 
 	xref dot_to_addr,fx,clear_command,divide_by_10,remove_sprite
+	ifne blit_ok
+	xref wait_clear
+	endc
 	xref draw_screen,xor,kill_sprites,set_colour,textscr
 	xref amiga_rows_art
 	xref find_bitmap,put_bitmap,draw_sprite,monst,blank_screen,random
@@ -523,6 +526,10 @@ q_bios_m68_9:
 * Subr:   ?
 
 	q_subr print_string,global
+
+	ifne blit_ok
+	jsr wait_clear
+	endc
 
 q_bios_m68_11:
 	tst capture_ctr(a6) ; capturing control codes ?
