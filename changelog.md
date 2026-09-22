@@ -4,9 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
-## 22.09.2029 V1.69
+## xx.xx.2029 V1.69
 
 - Changed the AI laser damage multiplier from 1–3 to an equally weighted 2 or 3 for both player and AI targets on Atari and Amiga; updated documentation.
+- Faster flight view and the view reaching the top of the screen
 
 ## 21.09.2029 V1.68
 
