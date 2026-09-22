@@ -88,14 +88,14 @@ Artwork screens are 200 logical rows. Rather than move every text and icon coord
 |   |   |                                     ||+-- 32-bit multiply and divide
 |   |   |                                     |+--- the MOVE16 clear
 |   |   |                                     +---- the processor from AttnFlags
-|   |   +- clearing the viewport
+|   |   +- what the clear held it up by
 |   +----- rasterising it
 +--------- the whole frame, budget is 60
 ```
 
 A dot in place of `M` or `L` means that path is not running, and the digit says why. The last letter is always one of the three.
 
-The first number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The second is how much of that work was rasterising, measured from `draw_space` or `draw_all` to the handover in `swap_screen`, and the third is how much was `clear_image`. What the three leave over is the transform, the projection, the collisions and the AI.
+The first number is the work of one game frame in milliseconds, from the start of the clear to the last pixel drawn. The wait that pads the frame out to the three field budget is not in it, so under 60 on PAL means the game runs at the speed it was written for and over 60 means it does not. The second is how much of that work was rasterising, measured from `draw_space` or `draw_all` to the handover in `swap_screen`, and the third is what the clear held the frame up by: the CPU sweep where the CPU clears, and the wait in `wait_clear` where the blitter does, which is not zero once the blit runs long enough to still be filling when the drawing starts. What the three leave over is the transform, the projection, the collisions and the AI.
 
 All three are measured from the raster position, a line being 64 us on PAL and 63.6 on NTSC, then averaged over sixteen frames and held, so the digits stand still. The digits print on a transparent paper where the view reaches the top of the screen, because the clear takes the old reading with it; a framed build keeps an opaque paper, since nothing clears the row above its window. The text state they use is saved and restored around the call.
 

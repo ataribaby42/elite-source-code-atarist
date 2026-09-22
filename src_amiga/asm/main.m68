@@ -23,6 +23,9 @@
 
 	include "macros.m68"
 	xref advance_sky,queue_ai_laser,name_view
+	ifne blit_ok
+	xref wait_clear
+	endc
 	xref registration_assign,registration_new_player
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
@@ -85,7 +88,12 @@ fuel_dist: equ max_ctemp*23/24 ; temperature for fuel scooping
 	jsr clear_image ; clear image buffer
 	jsr remove_radar ; remove radar from screen
 	jsr update_inst ; update instruments (as required)
+	bra q_main_m68_2
 q_main_m68_1:
+	ifne blit_ok
+	jsr wait_clear ; no clear this frame, so nothing may still be filling
+	endc
+q_main_m68_2:
 	bsr do_countdown ; perform any countdown
 	bsr damping ; automatic damping
 	jsr publish_rcs_sound

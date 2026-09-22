@@ -12,7 +12,10 @@ amiga_implementation: equ 1
     xdef amiga_flip_address
     xdef cpu_level,clear_burst,maths_fast
     ifne blit_ok
-    xdef clear_blit,clear_pending,wait_clear
+    xdef clear_blit,clear_pending,clear_early,wait_clear
+    endc
+    ifne blit_ok*frametime
+    xref raster_line
     endc
     ifne shadow_ok
     xdef shadow_base,view_base,shadow_live,in_shadow
@@ -358,6 +361,7 @@ probe_cpu:
     move.w d1,cpu_level
     ifne blit_ok
     clr.b clear_pending
+    clr.b clear_early
     clr.b clear_blit
     tst.w d1                     ; a 68000 or 68010 clears with the blitter
     bne.s .blit_done
@@ -456,7 +460,11 @@ amiga_poll:
 wait_clear:
     tst.b clear_pending
     beq.s .idle
-    movem.l d0/a1,-(sp)
+    movem.l d0/d1/a1,-(sp)
+    ifne frametime
+    jsr raster_line             ; what the clear costs here is the wait, not the fill
+    move d0,-(sp)
+    endc
     lea $dff000,a1
     move.w #-1,d0               ; a blit that never ends stutters, it does not hang
 .busy:
@@ -467,7 +475,12 @@ wait_clear:
 .again:
     dbra d0,.busy
 .done:
-    movem.l (sp)+,d0/a1
+    ifne frametime
+    jsr raster_line
+    sub (sp)+,d0
+    add d0,clear_lines(a6)
+    endc
+    movem.l (sp)+,d0/d1/a1
     clr.b clear_pending
 .idle:
     rts
@@ -690,6 +703,7 @@ maths_fast: ds.b 1
     ifne blit_ok
 clear_blit: ds.b 1
 clear_pending: ds.b 1
+clear_early: ds.b 1
     endc
     even
     ifne shadow_ok

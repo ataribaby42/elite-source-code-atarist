@@ -202,16 +202,10 @@ q_graphics_m68_6\@:
     ifne blit_ok
     tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
     beq.s .no_blit
-    jsr wait_clear ; a frame that never drew can still have one in flight
-    lea $dff000,a1
-    move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
-    clr.w $42(a1) ; BLTCON1: ascending, no fill
-    move.w #-1,$44(a1) ; BLTAFWM
-    move.w #-1,$46(a1) ; BLTALWM
-    move.w #blit_mod,$66(a1) ; BLTDMOD walks plane to plane and row to row
-    move.l a0,$54(a1) ; BLTDPT
-    move.w #((blit_rows<<6)|blit_words),$58(a1) ; BLTSIZE starts it
-    st clear_pending
+    st clear_early ; and SWAP_SCREEN starts the next one as soon as it can
+    tst.b clear_pending ; unless it already has
+    bne .cleared
+    bsr begin_clear
     bra .cleared
 .no_blit:
     endc
@@ -305,7 +299,7 @@ raster_line:
 * **									  **
 * ********************************************
 
-* Prints the frame's work and the clear's share of it in milliseconds, in the
+* Prints the frame's work and what the clear cost it, in milliseconds, in the
 * top left corner of the buffer being drawn. SWAP_SCREEN calls it, so every
 * animated screen shows the reading, not only the flight view.
 
@@ -464,6 +458,43 @@ frame_text_y: equ 0 ; the top row of the screen
 * Regs:  ?
 * Subr:  None
 
+* ***********************************************
+* **                                           **
+* ** BEGIN_CLEAR - START THE BLITTER ON A VIEW **
+* **                                           **
+* ***********************************************
+
+* Fills the viewport of SCR_BASE with the blitter and returns while it runs.
+* CLEAR_IMAGE calls it for the frame ahead; SWAP_SCREEN calls it for the next
+* one, on the buffer the present has just released.
+
+* Entry: None
+* Exit:  None
+
+* Regs:  None
+* Subr:  None
+
+	q_subr begin_clear,global
+
+	ifne blit_ok
+	movem.l a0/a1,-(sp)
+	move.l scr_base(a6),a0
+	lea y_top*row_stride+x_left/8(a0),a0
+	lea $dff000,a1
+	move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
+	clr.w $42(a1) ; BLTCON1: ascending, no fill
+	move.w #-1,$44(a1) ; BLTAFWM
+	move.w #-1,$46(a1) ; BLTALWM
+	move.w #blit_mod,$66(a1) ; BLTDMOD walks plane to plane and row to row
+	move.l a0,$54(a1) ; BLTDPT
+	move.w #((blit_rows<<6)|blit_words),$58(a1) ; BLTSIZE starts it
+	st clear_pending
+	movem.l (sp)+,a0/a1
+	endc
+
+	q_ret
+
+
 	q_subr swap_screen,global
 
 	ifne frametime
@@ -515,6 +546,13 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l flip_screen(a6),d1
 	eor.l d1,d0
 	move.l d0,scr_base(a6)
+	ifne blit_ok
+	tst.b clear_early ; only a frame that cleared hands the next one on
+	beq.s .no_early
+	clr.b clear_early
+	bsr begin_clear
+.no_early:
+	endc
 
 	q_ret
 
