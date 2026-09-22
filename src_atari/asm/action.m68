@@ -775,7 +775,7 @@ text2: dc.b c_ink,pulse,'** PAUSED **',0
 text3: dc.b $00,$00
 text4: dc.b 'Press ''H'' to confirm',0
 text5: dc.b 'Inter-Galaxy Jump Aborted',0
-text6: dc.b 'Atari ST Elite Version 1.69       '
+text6: dc.b 'Atari ST Elite Version 1.70       '
 	dc.b 'You have scored ',0
 text7: dc.b ' points and have been playing for ',0
 text8: dc.b ' days, ',0
@@ -783,4 +783,4 @@ text9: dc.b ' hours and ',0
 text10: dc.b ' minutes.        '
 	dc.b 'Atari ST Conversion by Rob Nicholson of Mr. Micro Ltd.        '
 	dc.b 'With Assistance From Gary Patchen.        '
-	dc.b 'All Graphix by James McDermott.        Modified by Ataribaby 2026        ',0
+	dc.b 'All Graphix by James McDermott.        Modified by Ataribaby 2026        Contributors: Jaroslav Pulchart        ',0

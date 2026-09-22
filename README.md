@@ -288,6 +288,38 @@ The independent version has been checked in WinUAE 6.0.3 through startup, launch
 
 See [Amiga development and testing notes](src_amiga/README.md) for the current validation scope and limitations. The independent build does not modify Atari sources or outputs.
 
+### What new in the Amiga version
+
+Wide flight view, with six screens to choose from: PAL or NTSC, each in lores, hires and hires interlaced.
+
+The game picks the fastest drawing path for the machine it finds. A 68020 or better with Fast RAM draws the view in Fast RAM and carries it to the screen once a frame. On a 68000 the blitter clears the view while the processor keeps drawing. A 68040 or 68060 clears with MOVE16.
+
+Every wide image prints the frame time in the top left: three numbers in milliseconds, the whole frame's work, the rasterising inside it, and the clear. Four characters sit at the right. The first is the processor family (0, 2, 4, 6), then `M` when the clear uses MOVE16 and `L` when the maths is 32-bit, a dot otherwise. The last one says how the frame was drawn: `C` straight into Chip RAM, `B` cleared by the blitter, `F` through Fast RAM.
+
+### Screens
+
+| image | screen | flight view |
+| --- | --- | --- |
+| `ELITE` | 320 x 200 | 256 x 112, framed |
+| `ELITE.WIDE.NTSC` | 320 x 200 | 320 x 120 |
+| `ELITE.WIDE.PAL` | 320 x 256 | 320 x 176 |
+| `ELITE.WIDE.NTSC-HIRES` | 640 x 200 | 640 x 120 |
+| `ELITE.WIDE.PAL-HIRES` | 640 x 256 | 640 x 176 |
+| `ELITE.WIDE.NTSC-HIRESLACE` | 640 x 400 | 640 x 240 |
+| `ELITE.WIDE.PAL-HIRESLACE` | 640 x 512 | 640 x 352 |
+
+### Recommended configurations
+
+| machine | image |
+| --- | --- |
+| 68000 at 7 MHz, no Fast RAM (A500, A600) | `ELITE`, `ELITE.NTSC` |
+| 68020 at 14 MHz, no Fast RAM (A1200) | `ELITE.WIDE.NTSC` |
+| 68020 at 14 MHz with Fast RAM (A1200) | `ELITE.WIDE.NTSC`, `ELITE.WIDE.PAL` |
+| 68030 with Fast RAM, from 33 MHz | `ELITE.WIDE.NTSC-HIRES` |
+| 68030 with Fast RAM, 50 MHz | `ELITE.WIDE.PAL-HIRES` |
+| 68040+ with Fast RAM, from 33 MHz | `ELITE.WIDE.NTSC-HIRESLACE` |
+| 68040+ with Fast RAM, from 50 MHz | `ELITE.WIDE.PAL-HIRESLACE` |
+​
 ## Project structure
 
 | Path | Purpose |
