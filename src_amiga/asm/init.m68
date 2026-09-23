@@ -1,3 +1,4 @@
+	xref ship_apply
 	include "common.def"
 ; Ported from src_orig/asm/init.m68; edit this copy.
 * @@@@@@ @@   @@  @@@@@@  @@@@@@
@@ -158,6 +159,7 @@ size macro
 	endc
 	q_let.l display_char,print_ptr ; direct print_char to display_char
 	jsr default_game ; setup default game
+	jsr ship_apply ; initialise hull limits before the attract cockpit
 	moveq #1,d0 ; initialise variables
 	move d0,csr_clk(a6)
 	move d0,csr_speed(a6)
@@ -593,7 +595,10 @@ q_init_m68_34:
 	moveq #9,d1
 	asl d1,d0
 	move d0,pirate_ctr(a6)
-	move #max_speed*3/4,speed(a6) ; set Cobra's speed
+	move.w hull_speed(a6),d0
+	mulu #3,d0
+	lsr.w #2,d0
+	move.w d0,speed(a6) ; set Cobra's speed
 	move #max_energy,energy(a6) ; maximum energy
 	move #max_shield,front_shield(a6) ; shields at full power
 	move #max_shield,aft_shield(a6)
@@ -826,6 +831,8 @@ reset_table:
 
 	dc.l $52494431 ; RID1 registration extension (normal and max commander)
 	dc.b "JS",42,0 ; default Cobra registration JS-042
+	dc.l $53485031 ; SHP1 player hull extension
+	dc.w 0 ; Cobra Mk III
 
 	ds.b 256-(*-new_game) ; pad out to 256 bytes
 

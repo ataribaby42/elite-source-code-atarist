@@ -238,8 +238,8 @@ q_missions_m68_13:
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_missions_m68_15
 	move.l #1,hold+documents*4(a6) ; install documents
-	move #70,equip+fuel(a6) ; fill her up
-	move #4,equip+missiles(a6)
+	move.w hull_fuel(a6),equip+fuel(a6) ; fill her up
+	move.w hull_missiles(a6),equip+missiles(a6)
 	lea text20(pc),a0 ; display screen
 	bsr mission_screen
 	bra.s q_missions_m68_16

@@ -1,0 +1,20 @@
+; Player hull profile. Persistent IDs match Elite: Unbound; Cobra III is zero.
+ship_count equ 13
+ship_profile_size equ 40
+sp_speed equ 0
+sp_fuel equ 2
+sp_roll equ 4
+sp_pitch equ 6
+sp_strength equ 8
+sp_recharge equ 10
+sp_class equ 12
+sp_missiles equ 14
+sp_mounts equ 16
+sp_cargo equ 18
+sp_expanded equ 20
+sp_category equ 22
+sp_model equ 24
+sp_atlas equ 26
+sp_price equ 28
+sp_trade equ 32
+sp_name equ 36

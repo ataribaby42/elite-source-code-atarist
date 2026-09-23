@@ -196,14 +196,14 @@ dust_vertical_cos: rs.w 1
     eor.w #1,dust_motion(a6)
 .speed:
     move.w speed(a6),d0
-    cmp.w #max_speed,d0
+    cmp.w hull_speed(a6),d0
     bls.s .retro
-    move.w #max_speed,d0
+    move.w hull_speed(a6),d0
 .retro:
     tst.w retro_count(a6)
     beq.s .special
     move.w retro_count(a6),d0
-    mulu #max_speed,d0
+    mulu hull_speed(a6),d0
     divu #retro_life,d0
 .special:
     tst.w dust_type(a6)
@@ -212,7 +212,7 @@ dust_vertical_cos: rs.w 1
     bra.s .step
 .normal:
     mulu #((max_speed*3/2-1)*64),d0
-    divu #max_speed,d0
+    divu hull_speed(a6),d0
     add.w #64,d0
 .step:
     move.w d0,dust_step(a6)

@@ -712,7 +712,8 @@ q_sounds_m68_11:
 	beq .stop
 	tst.b key_states+$39(a6)
 	beq.s .decelerate
-	cmp.w #max_speed,speed(a6)
+	move.w speed(a6),d3
+	cmp.w hull_speed(a6),d3
 	blt.s .speed
 .decelerate:
 	tst.b key_states+$35(a6)
@@ -724,12 +725,12 @@ q_sounds_m68_11:
 	bpl.s .positive
 	moveq #0,d3
 .positive:
-	cmp.w #max_speed,d3
+	cmp.w hull_speed(a6),d3
 	bls.s .speed_ok
-	move.w #max_speed,d3
+	move.w hull_speed(a6),d3
 .speed_ok:
 	mulu.w #960,d3
-	divu.w #max_speed,d3
+	divu.w hull_speed(a6),d3
 	neg.w d3
 	add.w #1920,d3 ; deeper pitch range, close to the Amiga engine fundamental
 	tst.l engine_channel(a6)

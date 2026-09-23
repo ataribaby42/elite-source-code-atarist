@@ -1,3 +1,4 @@
+	xref ship_cargo_spare
 	include "common.def"
 ; Ported from src_orig/asm/cargo.m68; edit this copy.
 *	@@@@	 @@   @@@@@@	@@@@	@@@
@@ -554,6 +555,10 @@ q_cargo_m68_31:
 	bra buy_again
 q_cargo_m68_33:
 	bsr cargo_spare ; calculate free cargo space
+	tst.l d3
+	bpl.s .hold_nonnegative
+	moveq #0,d3
+.hold_nonnegative:
 	move units(a5),d0 ; determine size of each unit
 	bsr get_unit
 	bsr reduce_hold ; enough room in cargo hold ?
@@ -1366,16 +1371,7 @@ q_cargo_m68_59:
 
 	q_subr cargo_spare,global
 
-	move.l #20000000,d3 ; assume 20t cargo hold
-	tst equip+cargo_bay(a6)
-; Quelo: 	if <ne> then.s
-	beq.s q_cargo_m68_61
-	move.l #35000000,d3 ; wrong we have 35t
-q_cargo_m68_61:
-	lea hold(a6),a0 ; subtract any cargo in the hold
-	q_loop 1,max_products
-	sub.l (a0)+,d3
-	q_next 1
+	jmp ship_cargo_spare
 
 	q_ret
 
@@ -1436,7 +1432,7 @@ cargo_coords:
 
 buy_cargo_action:
 
-	q_action 77,174,97,180,0,0,buy_icon
+	q_action 59,175,79,181,0,0,buy_icon
 	q_action cargo_x,cargo_y,cargo_x+39,cargo_y+39,0,-1,buy
 	q_action cargo_x+48,cargo_y,cargo_x+87,cargo_y+39,1,-1,buy
 	q_action cargo_x+96,cargo_y,cargo_x+135,cargo_y+39,2,-1,buy
@@ -1463,7 +1459,7 @@ buy_cargo_action:
 
 sell_cargo_action:
 
-	q_action 101,174,127,180,0,0,sell_icon
+	q_action 83,175,109,181,0,0,sell_icon
 	q_action cargo_x,cargo_y,cargo_x+39,cargo_y+39,0,-1,sell
 	q_action cargo_x+48,cargo_y,cargo_x+87,cargo_y+39,1,-1,sell
 	q_action cargo_x+96,cargo_y,cargo_x+135,cargo_y+39,2,-1,sell

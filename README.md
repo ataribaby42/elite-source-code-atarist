@@ -2,6 +2,11 @@
 
 Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `src_atari`, a separate native Amiga port in `src_amiga`, and the preserved original Atari ST version in `src_orig`. All three use **vasm 2.0f and vlink 0.18a** with independent source trees and build scripts. The untouched historical sources remain in `resources/elite_atarist_source.zip`; no build uses the old `.LTX` object files.
 
+Both enhanced versions offer 13 player hulls through **Ships / Shipyards**, with
+ship-specific flight limits, cargo capacity and equipment prices. **Equip** has
+Buy / Sell controls for preparing a hull exchange. See the
+[shipyards rules and balance table](docs/2026-09-24-player-shipyards.md).
+
 During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
 Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
@@ -270,9 +275,9 @@ Mount `output_atari/ELITE.ST` in drive A: and reset the Atari to boot from the f
 
 To run from C:, copy the entire contents of `output_atari/ELITE` to a directory such as `C:\ELITE`, then run `C:\ELITE\ELITE.TOS`. **All files must be in the same directory as `ELITE.TOS`, with no separate data subdirectory.** When updating, replace every file, including `LOADER.IMG`, or replace the entire floppy image.
 
-The target is a standard Atari ST with a colour monitor. A plain 512 KB ST remains supported. For hard-drive setups, the launcher places the game above resident software inside the free ST-RAM block assigned by TOS, rather than requiring fixed low addresses. Enough contiguous free ST RAM is still required; the launcher checks the game workspace, screen placement and startup stack before loading. The original novella protection questions are enabled unless built with `noprotect=yes`.
+The enhanced game targets an Atari ST with a colour monitor and **1 MB RAM**. The player ship atlases are resident in memory. For hard-drive setups, the launcher places the game above resident software inside the free ST-RAM block assigned by TOS, rather than requiring fixed low addresses. Enough contiguous free ST RAM is still required; the launcher checks the game workspace, screen placement and startup stack before loading. The original novella protection questions are enabled unless built with `noprotect=yes`.
 
-The relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE: automatic floppy startup on a 512 KB ST, normal C: startup on a 1 MB ST, and C: startup with a 128 KB resident program occupying low memory. In the last configuration, the previous launcher reported low memory; the new launcher reached the animated ship and commander prompt. The resident program simulates occupied memory; compatibility with PP HDD Driver on physical hardware still needs confirmation.
+Before the player ship feature, the relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE on 512 KB and 1 MB configurations, including C: startup with a 128 KB resident program occupying low memory. The current shipyard build is tested with 1 MB. Compatibility with PP HDD Driver on physical hardware still needs confirmation.
 
 ## Independent Amiga version
 

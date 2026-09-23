@@ -1,3 +1,4 @@
+	xref ship_validate
 	include "common.def"
 ; Ported from src_orig/asm/disk.m68; edit this copy.
 ; @@@@@    @@@@@@	@@@@  @@@  @@
@@ -94,6 +95,7 @@ q_disk_m68_1:
 	q_next 1
 	bra q_disk_m68_1
 q_disk_m68_2:
+	jsr ship_validate
 	jsr registration_validate ; accept the extension or migrate an old save
 	jsr restore_sky ; apply the saved Stars preference, including default Jameson
 	move current(a6),req_planet(a6) ; generate system planet and prices
@@ -1015,6 +1017,7 @@ var_list:
 	dc.w retro_used,1
 	dc.w logo_shown,1
 	dc.w registration_tag,4 ; eight bytes in the formerly unused save tail
+	dc.w player_ship_tag,3 ; SHP1 tag and persistent hull ID
 	dc.w -1
 
 ; Disk icon draw data table.

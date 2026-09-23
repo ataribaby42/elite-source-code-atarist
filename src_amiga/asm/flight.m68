@@ -1,3 +1,4 @@
+	xref ship_collision_damage
 	include "common.def"
 	xref init_ai_laser_colour
 ; Ported from src_orig/asm/flight.m68; edit this copy.
@@ -157,15 +158,16 @@ q_flight_m68_18:
 
 	q_subr increase_speed,global
 
-	cmp #max_speed,speed(a6) ; at maximum speed ?
+	move.w speed(a6),d0
+	cmp.w hull_speed(a6),d0 ; at maximum speed ?
 ; Quelo: 	if <lo> then.s						no
 	bhs.s q_flight_m68_19
 	move speed(a6),d0 ; increase speed
 	addq #1,d0
 ; Quelo: 		if d0 <hi> #max_speed then.s
-	cmp #max_speed,d0
+	cmp hull_speed(a6),d0
 	bls.s q_flight_m68_21
-	moveq #max_speed,d0
+	move.w hull_speed(a6),d0
 q_flight_m68_21:
 	move d0,speed(a6)
 	clr f_speed(a6)
@@ -223,7 +225,8 @@ q_flight_m68_23:
 
 	q_subr roll_left,global
 
-	move #-max_roll,d0 ; maximum rol angle
+	move.w hull_roll(a6),d0
+	neg.w d0 ; maximum rol angle
 	lea roll_angle(a6),a0 ; ptr: angle to change
 	lea inhibit_roll(a6),a1 ; ptr: inhibit flag
 	lea f_roll(a6),a2 ; ptr: instrument change flag
@@ -247,7 +250,7 @@ q_flight_m68_23:
 
 	q_subr roll_right,global
 
-	move #max_roll,d0 ; maximum rol angle
+	move hull_roll(a6),d0 ; maximum rol angle
 	lea roll_angle(a6),a0 ; ptr: angle to change
 	lea inhibit_roll(a6),a1 ; ptr: inhibit flag
 	lea f_roll(a6),a2 ; ptr: instrument change flag
@@ -271,7 +274,7 @@ q_flight_m68_23:
 
 	q_subr climb,global
 
-	move #max_climb,d0 ; maximum climb angle
+	move hull_pitch(a6),d0 ; maximum climb angle
 	lea climb_angle(a6),a0 ; ptr: angle to change
 	lea inhibit_climb(a6),a1 ; ptr: inhibit flag
 	lea f_climb(a6),a2 ; ptr: instrument change flag
@@ -295,7 +298,8 @@ q_flight_m68_23:
 
 	q_subr dive,global
 
-	move #-max_climb,d0 ; maximum climb angle
+	move.w hull_pitch(a6),d0
+	neg.w d0 ; maximum climb angle
 	lea climb_angle(a6),a0 ; ptr: angle to change
 	lea inhibit_climb(a6),a1 ; ptr: inhibit flag
 	lea f_climb(a6),a2 ; ptr: instrument change flag
@@ -861,7 +865,7 @@ q_flight_m68_111:
 	move #y_size/zoom_y,d4
 	move #red,d5
 	jsr block
-	moveq #70,d0 ; calculate balance count
+	move.w hull_fuel(a6),d0 ; calculate balance count
 	sub equip+fuel(a6),d0
 	q_push d0
 q_flight_m68_113:
@@ -919,7 +923,8 @@ q_flight_m68_115:
 	jsr disp_message
 	bra beep
 q_flight_m68_117:
-	cmp #max_speed,speed(a6) ; at maximum speed ?
+	move.w speed(a6),d0
+	cmp.w hull_speed(a6),d0 ; at maximum speed ?
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_flight_m68_119
 	lea text7(pc),a0 ; print 'Velocity Locked'
@@ -1159,25 +1164,23 @@ q_flight_m68_147:
 	cmp #spacestn,type(a5) ; space station ?
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_flight_m68_151
-	sub #25,health(a5) ; reduce health
-; Quelo: 		if <cs> then.s					oops
-	bcc.s q_flight_m68_153
-	move.l a5,a4 ; explode object
+	jsr ship_collision_damage
+	cmp.w #constr,type(a5)
+	beq.s .fatal_collision ; preserve the mission ship's ram protection
+	tst.w d0
+	bmi.s .fatal_collision
+	move.w d0,-(sp)
+	move.l a5,a4
 	bset #no_bounty,flags(a4)
 	st collided(a6)
 	jsr explode_object
-	jsr target_lost ; check for lost missile target
-	q_sfx explosion ; trigger explosion effect
-q_flight_m68_153:
-	cmp #constr,type(a5) ; constrictor ?
-; Quelo: 		if <eq> then.s					yes
-	bne.s q_flight_m68_155
-	move #255,d0 ; bye, bye
-	bra.s q_flight_m68_156
-q_flight_m68_155:
-	moveq #10,d0
-q_flight_m68_156:
-	jmp reduce_shields ; reduce shields and return
+	jsr target_lost
+	move.w (sp)+,d0
+	jmp reduce_shields
+.fatal_collision:
+	st game_over(a6)
+	move.w #no_energy,reason(a6)
+	rts
 q_flight_m68_151:
 	move z_vector+k(a5),d3 ; get z vector k component
 	tst.l d2 ; behind us ?
@@ -1283,6 +1286,8 @@ q_flight_m68_167:
 	move units(a4,d0),d0
 	jsr get_unit
 	jsr cargo_spare ; enough room for one unit ?
+	tst.l d3
+	q_ret mi
 	cmp.l d4,d3
 	q_ret lo ; no, return
 	moveq #1,d0 ; tonne commodities always contain one unit

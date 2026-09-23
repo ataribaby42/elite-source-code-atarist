@@ -7,7 +7,7 @@ SECTIONS
     . = ALIGN(2);
     textscr = .;
     *(workspace)
-    . = . + 3588;
+    . = . + 4094;
     hyper_buffer = .;  . = . + 3 * 15 * 8;
     left_arm = .;      . = . + 200 * 2;
     right_arm = .;     . = . + 200 * 2;

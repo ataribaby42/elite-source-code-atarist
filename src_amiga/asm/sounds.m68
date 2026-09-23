@@ -680,7 +680,8 @@ update_engine_sound:
     beq .stop
     tst.b key_states+$40(a6)
     beq.s .decelerate
-    cmp.w #max_speed,speed(a6)
+    move.w speed(a6),d3
+    cmp.w hull_speed(a6),d3
     blt.s .speed
 .decelerate:
     tst.b key_states+$3a(a6)
@@ -692,12 +693,12 @@ update_engine_sound:
     bpl.s .positive
     moveq #0,d3
 .positive:
-    cmp.w #max_speed,d3
+    cmp.w hull_speed(a6),d3
     bls.s .speed_ok
-    move.w #max_speed,d3
+    move.w hull_speed(a6),d3
 .speed_ok:
     mulu.w #214,d3
-    divu.w #max_speed,d3
+    divu.w hull_speed(a6),d3
     neg.w d3
     add.w #428,d3
     tst engine_voice

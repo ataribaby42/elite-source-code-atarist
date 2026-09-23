@@ -1,3 +1,4 @@
+	xref ship_bitmap
 	include "common.def"
 ; Ported from src_orig/asm/pdata.m68; edit this copy.
 * @@@@@@  @@@@@ 	 @@    @@@@@@	 @@
@@ -195,8 +196,8 @@ q_pdata_m68_4:
 	jsr print_string
 	jsr funny_str ; print funny description
 	bsr draw_planet ; draw the planet
-	moveq #bit_small_cobra,d0 ; draw the Cobra
-	jsr find_bitmap
+	moveq #1,d0
+	jsr ship_bitmap
 	moveq #text_x,d0
 	moveq #planet_y-21,d1
 	jsr put_bitmap

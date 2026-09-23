@@ -1,0 +1,832 @@
+{
+  "version": 1,
+  "source": "asm/objects.dat, variant 1; asm/vector.m68 panel_colours",
+  "palette": [
+    "#00FFFF",
+    "#929292",
+    "#494949",
+    "#FF6D00",
+    "#FF00FF",
+    "#FFFF00",
+    "#FF0000",
+    "#92FF00",
+    "#6DB600",
+    "#496D00",
+    "#92B6FF",
+    "#496DDB",
+    "#0024DB",
+    "#000000",
+    "#6D4900",
+    "#FFFFFF"
+  ],
+  "png_bit_depth": 4,
+  "border_index": 6,
+  "border_width": 1,
+  "background_index": 0,
+  "excluded_pixel_indices": [
+    14
+  ],
+  "order": [
+    "Sidewinder",
+    "Adder",
+    "Krait",
+    "Gecko",
+    "Moray",
+    "Mamba",
+    "Cobra Mk I",
+    "Cobra Mk III",
+    "Fer-de-Lance",
+    "Python",
+    "Boa",
+    "Anaconda",
+    "Asp Mk II"
+  ],
+  "atlases": {
+    "ships.png": {
+      "size": [
+        520,
+        212
+      ],
+      "columns": 4,
+      "rows": 4,
+      "cell_size": [
+        130,
+        53
+      ],
+      "interior_size": [
+        128,
+        51
+      ],
+      "view": "rear_above",
+      "projection": "orthographic",
+      "reference_bitmap": "bit_cobra",
+      "reference_bitmap_id": 54,
+      "elevation_degrees": 45,
+      "empty_slots": [
+        13,
+        14,
+        15
+      ],
+      "ships": [
+        {
+          "index": 0,
+          "name": "Sidewinder",
+          "model": "sidewnd",
+          "rect": [
+            1,
+            1,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            10,
+            2,
+            110,
+            49
+          ],
+          "model_scale": 0.84852814
+        },
+        {
+          "index": 1,
+          "name": "Adder",
+          "model": "adder",
+          "rect": [
+            131,
+            1,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            171,
+            2,
+            48,
+            49
+          ],
+          "model_scale": 0.59028044
+        },
+        {
+          "index": 2,
+          "name": "Krait",
+          "model": "krait",
+          "rect": [
+            261,
+            1,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            287,
+            2,
+            76,
+            49
+          ],
+          "model_scale": 0.41902624
+        },
+        {
+          "index": 3,
+          "name": "Gecko",
+          "model": "gecko",
+          "rect": [
+            391,
+            1,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            398,
+            2,
+            114,
+            49
+          ],
+          "model_scale": 0.84852814
+        },
+        {
+          "index": 4,
+          "name": "Moray",
+          "model": "moray",
+          "rect": [
+            1,
+            54,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            25,
+            55,
+            80,
+            49
+          ],
+          "model_scale": 0.66551226
+        },
+        {
+          "index": 5,
+          "name": "Mamba",
+          "model": "mamba",
+          "rect": [
+            131,
+            54,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            153,
+            55,
+            84,
+            49
+          ],
+          "model_scale": 0.59545834
+        },
+        {
+          "index": 6,
+          "name": "Cobra Mk I",
+          "model": "cobmk1",
+          "rect": [
+            261,
+            54,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            283,
+            55,
+            84,
+            49
+          ],
+          "model_scale": 0.56568542
+        },
+        {
+          "index": 7,
+          "name": "Cobra Mk III",
+          "model": "cobra",
+          "rect": [
+            391,
+            54,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            398,
+            55,
+            114,
+            49
+          ],
+          "model_scale": 0.62853936
+        },
+        {
+          "index": 8,
+          "name": "Fer-de-Lance",
+          "model": "ferdela",
+          "rect": [
+            1,
+            107,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            48,
+            108,
+            34,
+            49
+          ],
+          "model_scale": 0.42426407
+        },
+        {
+          "index": 9,
+          "name": "Python",
+          "model": "python",
+          "rect": [
+            131,
+            107,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            176,
+            108,
+            38,
+            49
+          ],
+          "model_scale": 0.18856181
+        },
+        {
+          "index": 10,
+          "name": "Boa",
+          "model": "boa",
+          "rect": [
+            261,
+            107,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            307,
+            108,
+            36,
+            49
+          ],
+          "model_scale": 0.286423
+        },
+        {
+          "index": 11,
+          "name": "Anaconda",
+          "model": "anacon",
+          "rect": [
+            391,
+            107,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            439,
+            108,
+            32,
+            49
+          ],
+          "model_scale": 0.22256476
+        },
+        {
+          "index": 12,
+          "name": "Asp Mk II",
+          "model": "asp",
+          "rect": [
+            1,
+            160,
+            128,
+            51
+          ],
+          "artwork_bounds": [
+            28,
+            161,
+            74,
+            49
+          ],
+          "model_scale": 0.52217116
+        }
+      ]
+    },
+    "shipsplanetinfo.png": {
+      "size": [
+        136,
+        188
+      ],
+      "columns": 4,
+      "rows": 4,
+      "cell_size": [
+        34,
+        47
+      ],
+      "interior_size": [
+        32,
+        45
+      ],
+      "view": "top_right",
+      "projection": "orthographic",
+      "reference_bitmap": "bit_small_cobra",
+      "reference_bitmap_id": 95,
+      "elevation_degrees": 90,
+      "empty_slots": [
+        13,
+        14,
+        15
+      ],
+      "ships": [
+        {
+          "index": 0,
+          "name": "Sidewinder",
+          "model": "sidewnd",
+          "rect": [
+            1,
+            1,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            6,
+            2,
+            22,
+            43
+          ],
+          "model_scale": 0.328125
+        },
+        {
+          "index": 1,
+          "name": "Adder",
+          "model": "adder",
+          "rect": [
+            35,
+            1,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            36,
+            12,
+            30,
+            23
+          ],
+          "model_scale": 0.27358491
+        },
+        {
+          "index": 2,
+          "name": "Krait",
+          "model": "krait",
+          "rect": [
+            69,
+            1,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            70,
+            5,
+            30,
+            37
+          ],
+          "model_scale": 0.20138889
+        },
+        {
+          "index": 3,
+          "name": "Gecko",
+          "model": "gecko",
+          "rect": [
+            103,
+            1,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            107,
+            2,
+            24,
+            43
+          ],
+          "model_scale": 0.31818182
+        },
+        {
+          "index": 4,
+          "name": "Moray",
+          "model": "moray",
+          "rect": [
+            1,
+            48,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            2,
+            53,
+            30,
+            35
+          ],
+          "model_scale": 0.27619048
+        },
+        {
+          "index": 5,
+          "name": "Mamba",
+          "model": "mamba",
+          "rect": [
+            35,
+            48,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            36,
+            51,
+            30,
+            39
+          ],
+          "model_scale": 0.27619048
+        },
+        {
+          "index": 6,
+          "name": "Cobra Mk I",
+          "model": "cobmk1",
+          "rect": [
+            69,
+            48,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            70,
+            50,
+            30,
+            41
+          ],
+          "model_scale": 0.26851852
+        },
+        {
+          "index": 7,
+          "name": "Cobra Mk III",
+          "model": "cobra",
+          "rect": [
+            103,
+            48,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            108,
+            49,
+            22,
+            43
+          ],
+          "model_scale": 0.23333333
+        },
+        {
+          "index": 8,
+          "name": "Fer-de-Lance",
+          "model": "ferdela",
+          "rect": [
+            1,
+            95,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            2,
+            110,
+            30,
+            15
+          ],
+          "model_scale": 0.18125
+        },
+        {
+          "index": 9,
+          "name": "Python",
+          "model": "python",
+          "rect": [
+            35,
+            95,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            36,
+            109,
+            30,
+            17
+          ],
+          "model_scale": 0.08630952
+        },
+        {
+          "index": 10,
+          "name": "Boa",
+          "model": "boa",
+          "rect": [
+            69,
+            95,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            70,
+            108,
+            30,
+            19
+          ],
+          "model_scale": 0.145
+        },
+        {
+          "index": 11,
+          "name": "Anaconda",
+          "model": "anacon",
+          "rect": [
+            103,
+            95,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            104,
+            111,
+            30,
+            13
+          ],
+          "model_scale": 0.09294872
+        },
+        {
+          "index": 12,
+          "name": "Asp Mk II",
+          "model": "asp",
+          "rect": [
+            1,
+            142,
+            32,
+            45
+          ],
+          "artwork_bounds": [
+            2,
+            148,
+            30,
+            33
+          ],
+          "model_scale": 0.2265625
+        }
+      ]
+    },
+    "shipyards.png": {
+      "size": [
+        264,
+        172
+      ],
+      "columns": 4,
+      "rows": 4,
+      "cell_size": [
+        66,
+        43
+      ],
+      "interior_size": [
+        64,
+        41
+      ],
+      "view": "top_up",
+      "projection": "orthographic",
+      "reference_bitmap": "bit_equipment[0]",
+      "reference_bitmap_id": 32,
+      "elevation_degrees": 90,
+      "empty_slots": [
+        13,
+        14,
+        15
+      ],
+      "ships": [
+        {
+          "index": 0,
+          "name": "Sidewinder",
+          "model": "sidewnd",
+          "rect": [
+            1,
+            1,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            2,
+            6,
+            62,
+            31
+          ],
+          "model_scale": 0.4765625
+        },
+        {
+          "index": 1,
+          "name": "Adder",
+          "model": "adder",
+          "rect": [
+            67,
+            1,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            84,
+            2,
+            30,
+            39
+          ],
+          "model_scale": 0.35849057
+        },
+        {
+          "index": 2,
+          "name": "Krait",
+          "model": "krait",
+          "rect": [
+            133,
+            1,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            141,
+            2,
+            48,
+            39
+          ],
+          "model_scale": 0.26388889
+        },
+        {
+          "index": 3,
+          "name": "Gecko",
+          "model": "gecko",
+          "rect": [
+            199,
+            1,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            200,
+            5,
+            62,
+            33
+          ],
+          "model_scale": 0.46212121
+        },
+        {
+          "index": 4,
+          "name": "Moray",
+          "model": "moray",
+          "rect": [
+            1,
+            44,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            11,
+            45,
+            44,
+            39
+          ],
+          "model_scale": 0.36190476
+        },
+        {
+          "index": 5,
+          "name": "Mamba",
+          "model": "mamba",
+          "rect": [
+            67,
+            44,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            73,
+            45,
+            52,
+            39
+          ],
+          "model_scale": 0.36190476
+        },
+        {
+          "index": 6,
+          "name": "Cobra Mk I",
+          "model": "cobmk1",
+          "rect": [
+            133,
+            44,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            139,
+            45,
+            52,
+            39
+          ],
+          "model_scale": 0.35185185
+        },
+        {
+          "index": 7,
+          "name": "Cobra Mk III",
+          "model": "cobra",
+          "rect": [
+            199,
+            44,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            200,
+            49,
+            62,
+            31
+          ],
+          "model_scale": 0.33888889
+        },
+        {
+          "index": 8,
+          "name": "Fer-de-Lance",
+          "model": "ferdela",
+          "rect": [
+            1,
+            87,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            23,
+            88,
+            20,
+            39
+          ],
+          "model_scale": 0.2375
+        },
+        {
+          "index": 9,
+          "name": "Python",
+          "model": "python",
+          "rect": [
+            67,
+            87,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            88,
+            88,
+            22,
+            39
+          ],
+          "model_scale": 0.11309524
+        },
+        {
+          "index": 10,
+          "name": "Boa",
+          "model": "boa",
+          "rect": [
+            133,
+            87,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            153,
+            88,
+            24,
+            39
+          ],
+          "model_scale": 0.19
+        },
+        {
+          "index": 11,
+          "name": "Anaconda",
+          "model": "anacon",
+          "rect": [
+            199,
+            87,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            222,
+            88,
+            18,
+            39
+          ],
+          "model_scale": 0.12179487
+        },
+        {
+          "index": 12,
+          "name": "Asp Mk II",
+          "model": "asp",
+          "rect": [
+            1,
+            130,
+            64,
+            41
+          ],
+          "artwork_bounds": [
+            12,
+            131,
+            42,
+            39
+          ],
+          "model_scale": 0.296875
+        }
+      ]
+    }
+  }
+}

@@ -1,3 +1,4 @@
+	xref ship_shield_damage
 	include "common.def"
 ; Ported from src_orig/asm/combat.m68; edit this copy.
 ;	@@@@	@@@   @@   @@ @@@@@@	 @@    @@@@@@
@@ -841,7 +842,9 @@ q_combat_m68_30:
 	lea recharge_count(a6),a0 ; ready for recharge ?
 	q_dec (a0)
 	q_ret ne ; no
-	move equip+energy_unit(a6),d0 ; do we have an energy unit ?
+	move equip+energy_unit(a6),d0 ; hull recharge plus fitted unit
+	add.w hull_recharge(a6),d0
+	subq.w #1,d0
 ; Quelo: 	if <eq> then.s						no
 	bne.s q_combat_m68_33
 	move #slow_charge,(a0) ; reload counter
@@ -859,6 +862,11 @@ q_combat_m68_33:
 	moveq #medium_charge,d0
 	bra.s q_combat_m68_38
 q_combat_m68_37:
+	cmp.w #2,d0
+	blo.s .naval_rate
+	moveq #7,d0
+	bra.s q_combat_m68_38
+.naval_rate:
 	moveq #fast_charge,d0
 q_combat_m68_38:
 	move d0,(a0) ; reload counter
@@ -953,6 +961,7 @@ q_combat_m68_45:
 ; Subr: ?
 
 	q_subr reduce_shields,global
+	jsr ship_shield_damage
 
 ; Original listing option: 	list on
 

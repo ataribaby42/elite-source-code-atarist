@@ -384,10 +384,10 @@ q_auto_m68_47:
 	bls.s q_auto_m68_49
 	addq.l #4,sp ; balance stack
 	bsr angle_diff ; calculate angle difference
-	cmp #max_roll,d0 ; angle too high ?
+	cmp hull_roll(a6),d0 ; angle too high ?
 ; Quelo: 		if <hi> then.s					yes
 	bls.s q_auto_m68_51
-	move #max_roll,d0 ; clamp to maximum
+	move hull_roll(a6),d0 ; clamp to maximum
 q_auto_m68_51:
 	eor d4,d3 ; set correct angle
 ; Quelo: 		if <mi> then.s
@@ -420,7 +420,7 @@ q_auto_m68_49:
 	tst d5 ; z signs different ?
 ; Quelo: 		if <mi> then.s					yes
 	bpl.s q_auto_m68_55
-	move #max_climb,d1 ; fetch rotation angle and adjust sign
+	move hull_pitch(a6),d1 ; fetch rotation angle and adjust sign
 	tst d0
 ; Quelo: 			if <mi> then.s
 	bpl.s q_auto_m68_57
@@ -443,10 +443,10 @@ q_auto_m68_59:
 	bls.s q_auto_m68_61
 	q_push d0 ; calculate angle difference
 	bsr angle_diff
-	cmp #max_climb,d0 ; angle too high ?
+	cmp hull_pitch(a6),d0 ; angle too high ?
 ; Quelo: 				if <hi> then.s			yes, clamp to maximum
 	bls.s q_auto_m68_63
-	move #max_climb,d0
+	move hull_pitch(a6),d0
 q_auto_m68_63:
 	tst (sp)+ ; set correct angle
 ; Quelo: 				if <mi> then.s
@@ -630,10 +630,11 @@ q_auto_m68_80:
 	beq.s q_auto_m68_91
 	clr computer_on(a6) ; turn it off
 	clr controls_locked(a6) ; release controls
-	cmp #max_speed,speed(a6) ; clamp speed at maximum
+	move.w speed(a6),d0
+	cmp.w hull_speed(a6),d0 ; clamp speed at maximum
 ; Quelo: 		if <hi> then.s
 	bls.s q_auto_m68_93
-	move #max_speed,speed(a6)
+	move hull_speed(a6),speed(a6)
 	clr f_speed(a6)
 q_auto_m68_93:
 	jmp start_fade ; stop music and return
@@ -812,7 +813,7 @@ q_auto_m68_107:
 	q_subr stage4
 
 	moveq #-1,d0 ; travel for a while
-	move #auto_speed,magnitude(a6)
+	move hull_auto_speed(a6),magnitude(a6)
 	bsr speed_control
 	q_dec stage_ctr(a6)
 	q_ret ne
@@ -822,7 +823,7 @@ q_auto_m68_107:
 
 	q_subr stage5
 
-	move #auto_speed,magnitude(a6) ; accelerate to max speed
+	move hull_auto_speed(a6),magnitude(a6) ; accelerate to max speed
 	moveq #-1,d0
 	bsr speed_control
 
@@ -850,13 +851,13 @@ q_auto_m68_107:
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_auto_m68_109
 ; Quelo: 		if d1 <lo> #auto_speed then.s	speed up to maximum
-	cmp #auto_speed,d1
+	cmp hull_auto_speed(a6),d1
 	bhs.s q_auto_m68_111
 	addq #speed_rate,d1
 ; Quelo: 			if d1 <hi> #auto_speed then.s
-	cmp #auto_speed,d1
+	cmp hull_auto_speed(a6),d1
 	bls.s q_auto_m68_113
-	move #auto_speed,d1
+	move hull_auto_speed(a6),d1
 q_auto_m68_113:
 	clr f_speed(a6) ; update instruments
 q_auto_m68_111:

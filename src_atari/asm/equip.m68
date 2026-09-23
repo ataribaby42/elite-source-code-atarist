@@ -1,3 +1,4 @@
+	xref ship_bitmap,ship_equipment_price,ship_equip_transaction
 	include "common.def"
 ; Ported from src_orig/asm/equip.m68; edit this copy.
 ; @@@@@@@	@@@    @@  @@  @@@@@@ @@@@@@
@@ -96,7 +97,11 @@ draw_line macro
 	moveq #icon_equip,d0 ; invert icon
 	jsr invert_icon
 	jsr prepare_text ; prepare text screen
-	lea text1(pc),a0 ; print "Equip Ship"
+	lea text1(pc),a0 ; print current equipment mode
+	tst.w equip_sell_mode(a6)
+	beq.s .buy_title
+	lea sell_title(pc),a0
+.buy_title:
 	moveq #title_y,d1
 	jsr print_centre
 	clr d7 ; work out how much of the list can be
@@ -108,12 +113,25 @@ q_equip_m68_1:
 	q_inc d7
 	bra q_equip_m68_1
 q_equip_m68_2:
+	tst.w equip_sell_mode(a6)
+	beq.s .buy_count
+	moveq #15,d7
+.buy_count:
 	move d7,max_equip(a6)
 	moveq #orange,d0 ; print in orange
 	moveq #trans,d1
 	jsr text_colour
 	clr this_equip(a6) ; start at item #0
 q_equip_m68_3:
+	tst.w equip_sell_mode(a6)
+	beq.s .draw_item
+	bsr find_equip
+	move.w (a5),d0
+	and.w #$7fff,d0
+	beq equip_next_item
+	tst.w this_equip(a6)
+	beq equip_next_item
+.draw_item:
 	move this_equip(a6),d0 ; find bit map for equipment icon
 	add #bit_equipment,d0
 	jsr find_bitmap
@@ -130,6 +148,14 @@ q_equip_m68_3:
 	move #128,d1 ; print in floating point
 	bra.s q_equip_m68_6
 q_equip_m68_5:
+	move.l d0,d3
+	divu #10,d3
+	swap d3
+	tst.w d3
+	beq.s equip_whole_price
+	move.w #128,d1
+	bra.s q_equip_m68_6
+equip_whole_price:
 	divu #10,d0
 	q_hclr d0
 	move #$8004,d1
@@ -137,6 +163,7 @@ q_equip_m68_6:
 	jsr print_number
 	lea text2(pc),a0 ; print "Cr"
 	jsr print_string
+equip_next_item:
 	q_inc this_equip(a6) ; next item of equipment
 	move this_equip(a6),d0
 	cmp max_equip(a6),d0
@@ -220,34 +247,14 @@ q_equip_m68_7:
 	cmp max_equip(a6),d0 ; valid click ?
 	bhs no_select ; no, clear any selection
 	bsr draw_highlight ; highlight selected item
-	bsr find_equip ; find equipement record
-	move this_equip(a6),d1 ; fuel ?
-; Quelo: 	if d1 <eq> #0 then.s				yes
-	cmp #0,d1
-	bne.s q_equip_m68_9
-	bra buy_fuel
-q_equip_m68_9:
-	cmp #1,d1 ; buy missiles ?
-	beq buy_missiles ; yes
-	tst (a5) ; laser ?
-	bmi buy_laser ; yes
-	tst (a5) ; already got one ?
-	beq deduct ; no, purchase and deduct
-	lea text9(pc),a0 ; copy "Only 1" into buffer
-	lea pad(a6),a1
-	jsr str_copy
-	lea equipment_list,a0 ; add description
-	move this_equip(a6),d0
-	jsr find_table
-	move.l a0,a1
-	lea pad(a6),a0
-	jsr str_cat
-	lea pad(a6),a0 ; add " allowed"
-	lea text10(pc),a1
-	jsr str_cat
-	lea pad(a6),a0 ; print error box
-	jsr error_box
-	bra no_select ; remove highlight
+	bsr find_equip
+	tst.w (a5)
+	bmi buy_laser
+	tst.w equip_sell_mode(a6)
+	bne equip_transaction
+	tst.w this_equip(a6)
+	beq buy_fuel
+	bra equip_transaction
 
 
 ; ****************************************
@@ -277,7 +284,7 @@ q_equip_m68_9:
 	jsr error_box
 	bra no_select ; remove highlight and return
 q_equip_m68_11:
-	moveq #70,d0 ; calculate how much fuel is required
+	move.w hull_fuel(a6),d0 ; calculate how much fuel is required
 	sub fuel(a5),d0 ; to fill the tank
 ; Quelo: 	if <eq> then.s						already full!
 	bne.s q_equip_m68_13
@@ -322,16 +329,7 @@ q_equip_m68_16:
 ; Subr: DEDUCT and MESSAGES
 
 	q_subr buy_missiles
-
-	cmp #4,(a5) ; already got 4 missiles ?
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_equip_m68_17
-	lea text7(pc),a0 ; print error message
-	jsr error_box
-	bra no_select
-q_equip_m68_17:
-	moveq #missiles,d6 ; try and buy missile
-	bra deduct
+	bra equip_transaction
 
 
 ; ****************************************
@@ -365,10 +363,12 @@ q_equip_m68_17:
 
 	q_subr buy_laser
 
-	move (a5),d1 ; already four lasers mounted ?
+	tst.w equip_sell_mode(a6)
+	bne q_equip_m68_19
+	move (a5),d1 ; already all allowed lasers mounted ?
 	and #15,d1
 ; Quelo: 	if d1 <eq> #15 then.s				yes
-	cmp #15,d1
+	cmp.w hull_mounts(a6),d1
 	bne.s q_equip_m68_19
 	lea text11(pc),a0 ; print message
 	jsr error_box
@@ -387,13 +387,22 @@ q_equip_m68_19:
 	move #laser_x,sp_xpos(a4)
 	move #laser_y,sp_ypos(a4)
 	jsr draw_sprite
-	moveq #bit_cobra,d0 ; find cobra bitmap
-	jsr find_bitmap
+	moveq #0,d0
+	jsr ship_bitmap
 	move #cobra_x1,d0 ; draw cobra
 	move #cobra_y1,d1
 	jsr put_bitmap
 	jsr find_equip ; fetch current laser state (%0010)
-	move (a5),d0
+	move.w (a5),d0
+	tst.w equip_sell_mode(a6)
+	beq.s .buy_mounts
+	not.w d0
+	bra.s .mount_mask
+.buy_mounts:
+	move.w hull_mounts(a6),d1
+	not.w d1
+	or.w d1,d0
+.mount_mask:
 	lea position_coords(pc),a0 ; loop for each position
 	q_loop 1,4
 	lsr #1,d0 ; laser mounted on this view ?
@@ -468,54 +477,31 @@ q_equip_m68_24:
 
 	q_subr mount
 
-	q_push d0 ; remove mount panel
+	move.w d0,-(sp)
 	bsr remove_mount
-	bsr find_equip ; valid mount position ?
-	q_pop d1
-	btst d1,1(a5)
-	q_ret ne ; no (already mounted)
-	lea laser_list(pc),a0 ; start of laser items array
-	lea equip(a6),a4 ; start of equipment array
-	clr d3 ; assume not replacing a laser
-	q_loop 1,4
-	move (a0)+,d2 ; fetch next laser type (index)
-	cmp this_equip(a6),d2 ; current laser ?
-; Quelo: 		if <ne> then.s					no
-	beq.s q_equip_m68_25
-	add d2,d2 ; laser to be replaced ?
-	btst d1,1(a4,d2)
-; Quelo: 			if <ne> then.s				yes
-	beq.s q_equip_m68_27
-	move d2,d3 ; save index and state for later
-	move (a4,d2),d4
-	bclr d1,1(a4,d2) ; demount laser
-	lea equip_price(pc),a1 ; reimburse cost
-	add d2,d2
-	move.l (a1,d2),d2
-	move.l cash(a6),d5
-	add.l d2,cash(a6)
-q_equip_m68_27:
-q_equip_m68_25:
-	q_next 1
-	sub.l d0,cash(a6) ; do we have enough money ?
-; Quelo: 	if <cs> then.s						no
-	bcc.s q_equip_m68_29
-	add.l d0,cash(a6) ; restore cash
-	tst d3 ; laser demounted ?
-; Quelo: 		if <ne> then.s					yes
-	beq.s q_equip_m68_31
-	move.w d4,(a4,d3) ; remount laser
-	move.l d5,cash(a6) ; restore cash
-q_equip_m68_31:
-	lea text8(pc),a0 ; print error message
-	jsr error_box
-	bra.s q_equip_m68_30
-q_equip_m68_29:
-	bset d1,1(a5) ; mount the laser
-	bsr cash_left ; print cash left
-q_equip_m68_30:
+	move.w (sp)+,d1
+	bra equip_transaction_mount
 
-	q_ret return
+equip_transaction:
+	moveq #-1,d1
+equip_transaction_mount:
+	move.w this_equip(a6),d0
+	move.w equip_sell_mode(a6),d2
+	jsr ship_equip_transaction
+	tst.w d0
+	bne.s .error
+	bsr equip_ship
+	bra cash_left
+.error:
+	lsl.w #2,d0
+	lea equip_errors(pc),a0
+	move.l (a0,d0.w),a0
+	jsr error_box
+	bra no_select
+
+equip_mode:
+	eori.w #1,equip_sell_mode(a6)
+	bra equip_ship
 
 
 ; *************************************************
@@ -564,14 +550,12 @@ q_equip_m68_30:
 	add d0,d0
 	lea equip(a6),a5
 	lea (a5,d0),a5
-	lea equip_price(pc),a0 ; fetch price of equipment
-	add d0,d0
-	move.l (a0,d0),d0
-; Quelo: 	if <eq> then.s						must be fuel (price = 0)
-	bne.s q_equip_m68_33
-	move price_fuel(a6),d0
-	ext.l d0
-q_equip_m68_33:
+	move.w this_equip(a6),d0
+	jsr ship_equipment_price
+	tst.w equip_sell_mode(a6)
+	beq.s .price_done
+	lsr.l #1,d0
+.price_done:
 
 	q_ret return
 
@@ -721,22 +705,7 @@ q_equip_m68_37:
 ; Subr: ?
 
 	q_subr deduct
-
-	sub.l d0,cash(a6) ; subtract from cash
-; Quelo: 	if <cs> then.s						not enough money ?
-	bcc.s q_equip_m68_39
-	add.l d0,cash(a6) ; restore cash
-	lea text8(pc),a0 ; print error message
-	jsr error_box
-	bsr no_select ; remove highlight
-	bra q_equip_m68_40
-q_equip_m68_39:
-	q_inc (a5) ; install equipment
-	bsr no_select ; remove highlight
-	bsr cash_left ; print cash left
-q_equip_m68_40:
-
-	q_ret return
+	bra equip_transaction
 
 
 ; ***********************************
@@ -864,8 +833,8 @@ q_equip_m68_52:
 	lea text6(pc),a0 ; (credits)
 	jsr print_string
 	jsr registration_status ; persistent player ship ID below Cash
-	moveq #bit_cobra,d0 ; display cobra
-	jsr find_bitmap
+	moveq #0,d0
+	jsr ship_bitmap
 	move #cobra_x2,d0
 	move #cobra_y2,d1
 	jsr put_bitmap
@@ -980,13 +949,17 @@ next_position:
 
 	q_subr number_missiles
 
-	move equip+missiles(a6),d0 ; find bitmap
-	add #bit_numbers-1,d0
-	jsr find_bitmap
-	move #220+58,d0 ; draw equipment text description
-	move base_y(a6),d1
-	subq #2,d1
-	jmp put_bitmap
+	moveq #35,d0
+	move.w base_y(a6),d1
+	subq.w #2,d1
+	jsr locate
+	moveq #orange,d0
+	moveq #trans,d1
+	jsr text_colour
+	moveq #0,d0
+	move.w equip+missiles(a6),d0
+	moveq #0,d1
+	jmp print_number
 
 
 ; ***************************************
@@ -1085,8 +1058,9 @@ equip_coords:
 ; Equip ship action table.
 
 equip_ship_action:
+	q_action 104,title_y,135,title_y+7,0,0,equip_mode
 
-	q_action 131,174,163,180,0,0,equip_icon
+	q_action 113,175,145,181,0,0,equip_icon
 	q_action equip_x-2,equip_y-2,equip_x+57,equip_y+40,0,-1,equip
 	q_action equip_x-2+64,equip_y-2,equip_x+57+64,equip_y+40,1,-1,equip
 	q_action equip_x-2+128,equip_y-2,equip_x+57+128,equip_y+40,2,-1,equip
@@ -1210,7 +1184,7 @@ equipment_desc:
 
 	dc.b "Fuel (WS Thru-Space Drive)",0
 	dc.b "Lance and Ferman Missiles",0
-	dc.b "Mariner 35t Freight Chamber",0
+	dc.b "Expanded Freight Chamber",0
 	dc.b "Interspace Heavy Element ECM",0
 	dc.b "Ingram Model 1919A4 Pulse Laser",0
 	dc.b "Ingram Model 1928A2 Beam Laser",0
@@ -1226,13 +1200,20 @@ equipment_desc:
 
 ; Misc. text strings,
 
-text1: dc.b 'Equip Ship',0
+	even
+equip_errors: dc.l 0,text8,equip_space,equip_already,equip_invalid,text7,equip_unique
+equip_space: dc.b 'Not enough cargo space',0
+equip_already: dc.b 'Equipment already installed',0
+equip_invalid: dc.b 'No equipment at this position',0
+equip_unique: dc.b 'Unique equipment is transferred with you',0
+sell_title: dc.b c_ink,lgt_blue,'Sell',c_ink,white,' Equipment',0
+text1: dc.b c_ink,lgt_blue,'Buy',c_ink,white,' Equipment',0
 text2: dc.b ' Cr',0
 text3: dc.b 'Fuel is not available from this station',0
-text4: dc.b 'Fuel system already full (7.0 light years)',0
+text4: dc.b 'Fuel system already full',0
 text5: dc.b 'Cash left: ',0
 text6: dc.b ' credits',0
-text7: dc.b 'Maximum of 4 missiles already installed',0
+text7: dc.b 'All missile pylons are occupied',0
 text8: dc.b 'Sorry - you don''t have enought credits',0
 text9: dc.b 'Only 1 ',0
 text10: dc.b ' allowed.',0

@@ -37,6 +37,7 @@ equip
 options
 effects
 registration
+ships
 sky
 chkend
 checksum

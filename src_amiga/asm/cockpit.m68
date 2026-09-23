@@ -1,3 +1,4 @@
+	xref locate,print_number,text_colour
 	include "common.def"
 ; Ported from src_orig/asm/cockpit.m68; edit this copy.
 *	@@@@	@@@ 	@@@@  @@@  @@ @@@@@@   @@@@@@  @@@@@@
@@ -476,7 +477,7 @@ q_cockpit_m68_11:
 
 	move equip+fuel(a6),d3 ; scale the bar
 	mulu #bar_width,d3
-	divu #max_fuel,d3
+	divu hull_fuel(a6),d3
 	move #fuel_x,d0 ; draw bar
 	move #fuel_y,d1
 	move #fuel_col,d5
@@ -569,6 +570,44 @@ q_cockpit_m68_11:
 * Subr: ?
 
 	q_subr inst_missiles,global
+	cmp.w #4,hull_missiles(a6)
+	bls.s missile_four_slots
+	move.w #43,d0
+	move.w #186+panel_shift,d1
+	moveq #0,d2
+	moveq #48,d3
+	moveq #6,d4
+	moveq #0,d5
+	jsr block
+	lea missile_spr(a6),a4
+	move.w #missile_x,sp_xpos(a4)
+	move.w #missile_y,sp_ypos(a4)
+	lea empty_defn(pc),a0
+	tst.w equip+missiles(a6)
+	beq.s .numeric_icon
+	lea installed_defn(pc),a0
+	cmp.w #1,missile_state(a6)
+	bne.s .numeric_locked
+	lea active_defn(pc),a0
+	bra.s .numeric_icon
+.numeric_locked:
+	cmp.w #2,missile_state(a6)
+	bne.s .numeric_icon
+	lea locked_defn(pc),a0
+.numeric_icon:
+	move.l a0,data_ptr(a4)
+	jsr draw_sprite
+	moveq #8,d0
+	move.w #185+panel_shift,d1
+	jsr locate
+	moveq #white,d0
+	moveq #0,d1
+	jsr text_colour
+	moveq #0,d0
+	move.w equip+missiles(a6),d0
+	move.w #$8002,d1
+	jmp print_number
+missile_four_slots:
 
 	lea missile_spr(a6),a4 ; setup pointer to sprite record
 	move #missile_x,sp_xpos(a4) ; coords of 1st sprite
@@ -631,12 +670,12 @@ q_cockpit_m68_14:
 
 	move speed(a6),d3 ; fetch speed
 ; Quelo: 	if d3 <hi> #max_speed then.s		clamp at maximum
-	cmp #max_speed,d3
+	cmp hull_speed(a6),d3
 	bls.s q_cockpit_m68_23
-	moveq #max_speed,d3
+	move.w hull_speed(a6),d3
 q_cockpit_m68_23:
 ; Quelo: 	if d3 <hs> #max_speed*7/8 then.s	determine colour
-	cmp #max_speed*7/8,d3
+	cmp hull_red_speed(a6),d3
 	blo.s q_cockpit_m68_25
 	moveq #red,d5
 	bra.s q_cockpit_m68_26
@@ -645,7 +684,7 @@ q_cockpit_m68_25:
 q_cockpit_m68_26:
 	move d5,speed_col(a6)
 	mulu #bar_width,d3 ; scale the speed
-	divu #max_speed,d3
+	divu hull_speed(a6),d3
 	move #speed_x,d0 ; draw the bar
 	move #speed_y,d1
 	bra inst_bar
@@ -668,9 +707,16 @@ q_cockpit_m68_26:
 	q_subr inst_roll,global
 
 	move roll_angle(a6),d3 ; calculate position of bar
-	add #max_roll,d3
+	add hull_roll(a6),d3
+	bpl.s .nonnegative
+	clr.w d3
+.nonnegative:
+	cmp.w hull_roll_span(a6),d3
+	bls.s .bounded
+	move.w hull_roll_span(a6),d3
+.bounded:
 	mulu #bar_width-2,d3
-	divu #max_roll*2,d3
+	divu hull_roll_span(a6),d3
 	move #roll_x,d0 ; draw the bar
 	move #roll_y,d1
 	bra inst_line
@@ -693,9 +739,16 @@ q_cockpit_m68_26:
 	q_subr inst_climb,global
 
 	move climb_angle(a6),d3 ; calculate position of bar
-	add #max_climb,d3
+	add hull_pitch(a6),d3
+	bpl.s .nonnegative
+	clr.w d3
+.nonnegative:
+	cmp.w hull_pitch_span(a6),d3
+	bls.s .bounded
+	move.w hull_pitch_span(a6),d3
+.bounded:
 	mulu #bar_width-2,d3
-	divu #max_climb*2,d3
+	divu hull_pitch_span(a6),d3
 	move #climb_x,d0 ; draw the bar
 	move #climb_y,d1
 	bra inst_line

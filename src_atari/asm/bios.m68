@@ -1773,8 +1773,8 @@ q_bios_m68_103:
 	bne.s q_bios_m68_105
 	moveq #bit_icon_front,d0 ; replace launch with front
 	jsr find_bitmap
-	move #36,d0
-	move #174,d1
+	move #18,d0
+	move #175,d1
 	jsr put_bitmap
 q_bios_m68_105:
 	move.b scr_base+1(a6),vram_base+0 ; set screen base address
@@ -2045,13 +2045,14 @@ char_colour_masks:
 
 icon_coords:
 
-	dc 36,174,73,180 ; launch
-	dc 77,174,97,180 ; buy_cargo
-	dc 101,174,127,180 ; sell_cargo
-	dc 131,174,163,180 ; equip_ship
-	dc 167,174,205,180 ; galactic_chart
-	dc 209,174,240,180 ; local_chart
-	dc 244,174,282,180 ; data
+	dc 18,175,55,181 ; launch
+	dc 59,175,79,181 ; buy_cargo
+	dc 83,175,109,181 ; sell_cargo
+	dc 113,175,145,181 ; equip_ship
+	dc 149,175,179,181 ; shipyards
+	dc 183,175,221,181 ; galactic_chart
+	dc 225,175,256,181 ; local_chart
+	dc 260,175,298,181 ; data
 	dc 19,183,57,189 ; market_prices
 	dc 61,183,116,189 ; inventory
 	dc 120,183,158,189 ; status

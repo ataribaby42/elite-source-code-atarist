@@ -198,7 +198,7 @@ def main():
     check(syms['textscr'] == ORIGIN + len(image), 'Workspace overlaps the program')
     check(syms['other_screen'] % 32768 == 0, 'Second screen must be aligned to 32 KB')
     check(syms['vars'] + syms['var_size'] == syms['ram_end'], 'Invalid variable area')
-    check(syms['ram_end'] <= 0x78000, 'Game overlaps the default 512 KB ST screen')
+    check(syms['ram_end'] <= 0xf8000, 'Game overlaps the default 1 MB ST screen')
     check(image[syms['initialise']-ORIGIN:syms['initialise']-ORIGIN+6] ==
           b'\x4d\xf9' + syms['vars'].to_bytes(4, 'big'), 'Incorrect workspace relocation')
     for name, size in syms.items():

@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.gfx_assets import (compile_assets, decode_pc1, planar_decode,
-                              read_png, png_palette, pillow)
+                              read_png, png_palette, pillow, ship_atlases, pack_ship_bank)
 
 
 class GraphicsTests(unittest.TestCase):
@@ -49,6 +49,7 @@ class GraphicsTests(unittest.TestCase):
         self.edit('font16', 0, 0, 15-wide[0], gfx='gfx_alt')
         for entry in self.layout['missiles']:
             self.edit('gadgets', *entry['rect'][:2], gfx='gfx_alt')
+        self.edit('ships', 10, 10, gfx='gfx_alt')
         # The selected set must supply its own metadata, too.
         layout_path = self.root/'gfx/layout.json'
         layout_bytes = layout_path.read_bytes()
@@ -85,6 +86,64 @@ class GraphicsTests(unittest.TestCase):
         compile_assets(self.root)  # Must work without any pre-existing binary assets.
         for name, digest in reference['outputs'].items():
             self.assertEqual(hashlib.sha256((self.root/'assets'/name).read_bytes()).hexdigest(), digest, name)
+
+    def test_ship_views_export_exact_rectangles_without_editing_frames(self):
+        metadata = json.loads((self.root/'gfx/ship-atlases.json').read_text())
+        for zx, zy in ((1, 1), (2, 1), (2, 2)):
+            bank = ship_atlases(self.root/'gfx', zx, zy)
+            index = 0
+            for name in ('ships.png', 'shipsplanetinfo.png', 'shipyards.png'):
+                atlas = metadata['atlases'][name]
+                source = read_png(self.root/'gfx'/name, atlas['size'])
+                for ship in atlas['ships']:
+                    offset = struct.unpack_from('>I', bank, index*4)[0]
+                    words, height = struct.unpack_from('>HH', bank, offset)
+                    x, y, w, h = ship['rect']
+                    self.assertEqual((words*16, height), (w*zx, h*zy))
+                    planar = bytearray()
+                    for block in range(words*height):
+                        mask, *planes = struct.unpack_from('>5H', bank, offset+4+block*10)
+                        self.assertEqual(mask, ~(planes[0]|planes[1]|planes[2]|planes[3]) & 65535)
+                        planar.extend(struct.pack('>4H', *planes))
+                    expected = [source[(y+py//zy)*atlas['size'][0]+x+px//zx]
+                                for py in range(h*zy) for px in range(w*zx)]
+                    self.assertEqual(planar_decode(planar, w*zx, h*zy), expected)
+                    index += 1
+            self.assertEqual(index, 39)
+
+    def test_compressed_ship_bank_roundtrips_all_scaled_sprites(self):
+        for zx, zy in ((1, 1), (2, 1), (2, 2)):
+            bank = ship_atlases(self.root/'gfx', zx, zy)
+            packed = pack_ship_bank(bank)
+            self.assertLess(len(packed), len(bank))
+            offsets = struct.unpack('>39I', bank[:156])
+            starts = struct.unpack('>39I', packed[:156])
+            for i, pos in enumerate(starts):
+                decoded = bytearray()
+                while packed[pos]:
+                    token = packed[pos]; pos += 1
+                    if token < 128:
+                        decoded.extend(packed[pos:pos+token]); pos += token
+                    else:
+                        distance = struct.unpack_from('>H', packed, pos)[0]; pos += 2
+                        self.assertGreater(distance, 0)
+                        self.assertLessEqual(distance, len(decoded))
+                        for _ in range((token & 127)+3):
+                            decoded.append(decoded[-distance])
+                end = offsets[i+1] if i < 38 else len(bank)
+                self.assertEqual(decoded, bank[offsets[i]:end])
+
+    def test_ship_frame_is_not_exported_and_missing_alt_atlas_fails_atomically(self):
+        original = ship_atlases(self.root/'gfx')
+        self.edit('ships', 0, 0, 15)
+        self.assertEqual(ship_atlases(self.root/'gfx'), original)
+        compile_assets(self.root)
+        expected = {p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}
+        shutil.copytree(self.root/'gfx', self.root/'gfx_alt')
+        (self.root/'gfx_alt/shipyards.png').unlink()
+        with self.assertRaisesRegex(FileNotFoundError, 'shipyards.png'):
+            compile_assets(self.root, altgfx=True)
+        self.assertEqual({p.name:p.read_bytes() for p in (self.root/'assets').iterdir()}, expected)
 
     def test_edited_screens_roundtrip_including_broken_runs(self):
         for name in ('cockpit', 'textscr'):

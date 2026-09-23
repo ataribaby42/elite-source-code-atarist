@@ -1,3 +1,4 @@
+	xref ship_missile_damage,hit_reaction
 	include "common.def"
 ; Ported from src_orig/asm/logic.m68; edit this copy.
 * @@@@		@@@ 	@@@@   @@@@@@	@@@@
@@ -770,6 +771,24 @@ no_ecm:
 	q_ret hi ; definately not!
 	cmp obj_rad(a4),d2
 	q_ret hi ; no
+	bset #remove,flags(a5) ; every impacting missile is consumed
+	jsr ship_missile_damage
+	tst.w d0
+	bne.s .missile_kill
+	btst #invincible,flags(a4)
+	q_ret ne
+	cmp.w #log_locked,logic(a5)
+	bne.s .missile_reaction
+	cmp.w #act_attack,attack_type(a4)
+	bne.s .missile_reaction
+	bset #angry,flags(a4)
+.missile_reaction:
+	move.l a5,-(sp)
+	move.l a4,a5
+	jsr hit_reaction
+	move.l (sp)+,a5
+	rts
+.missile_kill:
 	cmp #log_locked,logic(a5) ; one of the player's own missiles ?
 	beq.s q_logic_m68_48
 	st npc_kill(a6) ; no, so no score, rating, bounty or record

@@ -151,7 +151,7 @@ create_bay: rs.w 1 ; flag: create cargo bay
 	jsr clear_objects ; clear all objects
 	jsr alloc_object ; create Cobra in the distance
 	move.b #%00100001,flags(a4)
-	move #cobra,type(a4)
+	move.w hull_model(a6),type(a4)
 	lea end_game_data(pc),a0
 	lea xpos(a4),a1
 	q_loop 1,30

@@ -611,7 +611,9 @@ q_main_m68_49:
 	jsr launch_system ; create launch system
 	move.w #-1,checkpoint(a6) ; already inside S; suppress cargo/police checks on launch
 	move #-1,launch_spin(a6) ; spin as leaving
-	move #max_roll/4,roll_angle(a6)
+	move.w hull_roll(a6),d0
+	lsr.w #2,d0
+	move.w d0,roll_angle(a6)
 	jsr set_roll_angles
 	jsr front_view ; display front view
 	move mission(a6),d0 ; mission #1 state #6 ?
@@ -1046,9 +1048,11 @@ q_main_m68_112:
 	q_ret lo ; no, return
 	tst equip+fuel_scoop(a6) ; carrying fuel scoop ?
 	q_ret eq ; no, return
-	cmp #max_speed/2,speed(a6) ; moving at 1/2 speed or more ?
+	move.w speed(a6),d0
+	cmp.w hull_scoop_speed(a6),d0 ; moving at 1/2 speed or more ?
 	q_ret lo ; no
-	cmp #70,equip+fuel(a6) ; fuel tanks full ?
+	move.w equip+fuel(a6),d0
+	cmp.w hull_fuel(a6),d0 ; fuel tanks full ?
 	q_ret eq ; yes, return
 	q_inc equip+fuel(a6) ; increase fuel
 	clr f_fuel(a6) ; update display
@@ -1185,7 +1189,7 @@ q_main_m68_118:
 	st on_course(a4)
 	st velocity(a4)
 	move #log_escape,next_logic(a4) ; escape after peel off
-	move #cobra,type(a4) ; it's a cobra
+	move.w hull_model(a6),type(a4) ; abandoned player hull
 	jsr create_object ; create the object
 	move.l player_registration(a6),registration_id(a4) ; abandoned hull keeps its ID
 	jsr registration_new_player ; replacement hull receives a new ID

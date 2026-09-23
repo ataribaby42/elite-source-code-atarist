@@ -181,6 +181,86 @@ def missile_at_scale(pixels, zoom_x, zoom_y):
         for y in range(depth) for word in range(zoom_x))
 
 
+def ship_atlases(gfx, zoom_x=1, zoom_y=1):
+    """Compile the three ship views into a separate, masked sprite bank.
+
+    The original BITMAPS.IMG IDs and offsets stay stable. Each table entry is
+    relative to this bank and addresses the normal PUT_BITMAP record format.
+    Red editing frames are outside the metadata's game-image rectangles.
+    """
+    metadata = json.loads((gfx / 'ship-atlases.json').read_text(encoding='utf-8'))
+    names = ('ships.png', 'shipsplanetinfo.png', 'shipyards.png')
+    sizes = ((128, 51), (32, 45), (64, 41))
+    order = metadata['order']
+    if len(order) != 13 or len(set(order)) != 13:
+        raise ValueError('Ship atlases must describe exactly 13 distinct ships')
+    sprites = []
+    for name, dimensions in zip(names, sizes):
+        atlas = metadata['atlases'][name]
+        if tuple(atlas['interior_size']) != dimensions:
+            raise ValueError(f'{name}: invalid game-image dimensions')
+        entries = atlas['ships']
+        if [entry['name'] for entry in entries] != order:
+            raise ValueError(f'{name}: ship order does not match the atlas metadata')
+        pixels = read_png(gfx / name, atlas['size'], set(range(16)) - {14})
+        for entry in entries:
+            rect = entry['rect']
+            if tuple(rect[2:]) != dimensions:
+                raise ValueError(f'{name}: invalid rectangle for {entry["name"]}')
+            source = crop(pixels, atlas['size'], rect)
+            w, h = dimensions
+            width, height = w * zoom_x, h * zoom_y
+            grown = [source[(y // zoom_y) * w + x // zoom_x]
+                     for y in range(height) for x in range(width)]
+            planar = planar_encode(grown, width, height)
+            record = bytearray(struct.pack('>HH', width // 16, height))
+            for offset in range(0, len(planar), 8):
+                planes = struct.unpack_from('>4H', planar, offset)
+                record.extend(struct.pack('>H', ~(planes[0] | planes[1] | planes[2] | planes[3]) & 65535))
+                record.extend(planar[offset:offset + 8])
+            sprites.append(record)
+    bank = bytearray(4 * len(sprites))
+    for index, sprite in enumerate(sprites):
+        struct.pack_into('>I', bank, index * 4, len(bank))
+        bank.extend(sprite)
+    return bytes(bank)
+
+
+def pack_ship_bank(bank):
+    """Independent sprites: 1..127 literals, 128..255 = 3..130 byte back-reference."""
+    offsets=struct.unpack('>39I',bank[:156])
+    out=bytearray(156)
+    for i,o in enumerate(offsets):
+        struct.pack_into('>I',out,i*4,len(out))
+        end=offsets[i+1] if i<38 else len(bank)
+        data=bank[o:end]
+        seen={};j=0;literal=bytearray()
+        def flush():
+            if literal:
+                out.append(len(literal));out.extend(literal);literal.clear()
+        while j<len(data):
+            best=0;distance=0
+            key=data[j:j+3]
+            for pos in reversed(seen.get(key,[])):
+                if j-pos>65535:break
+                n=3
+                while n<130 and j+n<len(data) and data[pos+n]==data[j+n]:n+=1
+                if n>best:best=n;distance=j-pos
+            if best>=4:
+                flush();out.append(128+best-3);out.extend(struct.pack('>H',distance))
+                count=best
+            else:
+                literal.append(data[j]);count=1
+                if len(literal)==127:flush()
+            for k in range(j,j+count):
+                if k+3<=len(data):
+                    prior=seen.setdefault(data[k:k+3],[]);prior.append(k)
+                    if len(prior)>64:del prior[0]
+            j+=count
+        flush();out.append(0)
+        if len(out)&1:out.append(0)
+    return bytes(out)
+
 def compile_assets(root, altgfx=False, zoom_x=1, zoom_y=1, build=None, frame=True):
     """Validate every PNG before replacing any generated asset. No baseline hash gate."""
     root = Path(root)
@@ -203,6 +283,9 @@ def compile_assets(root, altgfx=False, zoom_x=1, zoom_y=1, build=None, frame=Tru
         encoded = struct.pack('>HH', width//16, height) + planar_encode(pixels, width, height)
         data[offset:offset+len(encoded)] = encoded
     outputs['BITMAPS.IMG'] = bytes(data)
+    outputs['SHIPSPRITES.IMG'] = ship_atlases(gfx)
+    scaled['SHIPSPRITES_SCALED.IMG'] = ship_atlases(gfx, zoom_x, zoom_y)
+    scaled['SHIPS_PACKED.IMG'] = pack_ship_bank(scaled['SHIPSPRITES_SCALED.IMG'])
     font = read_png(gfx / 'font.png', (128, 48), [0, 15])
     outputs['ELITECHR.IMG'] = bytes(sum((font[(glyph//16*8+y)*128+glyph%16*8+x] == 15)
                                       << (7-x) for x in range(8))
