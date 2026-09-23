@@ -11,7 +11,7 @@ On a 68020 or better with Fast RAM, `fastdraw=yes` draws the flight view into a 
 
 The shadow allocation holds three viewports of `view_bytes` each. One is being drawn into. The other two hold exactly what each Chip buffer's flight view shows, one per buffer; these are the mirrors.
 
-Once a frame has crossed, its target buffer shows exactly what the frame was drawn in, because every piece either matched that buffer's mirror or was sent. So the viewport the frame was drawn in is the new mirror of that buffer, and the mirror it replaces is cleared and drawn into next. The three trade places each frame and nothing is copied between them:
+Once a frame has crossed, its target buffer shows exactly what the frame was drawn in, because every piece either matched that buffer's mirror or was sent. So the viewport the frame was drawn in is the new mirror of that buffer, and the mirror it replaces is drawn into next. The three trade places each frame and nothing is copied between them:
 
 | frame | target | drawn into | mirror of buffer 1 | mirror of buffer 2 |
 | --- | --- | --- | --- | --- |
@@ -25,9 +25,8 @@ Once a frame has crossed, its target buffer shows exactly what the frame was dra
 ## One frame
 
 ```
-clear_image    clear the rows of the viewport about to be drawn that its old
-               picture held, which the last transfer marked from that
-               picture's empty-row flags
+clear_image    nothing, the transfer left the viewport empty; a frame drawn
+               and never carried is emptied whole
       |
       v
 draw           every primitive inside the view writes the drawn viewport
@@ -37,19 +36,23 @@ swap_screen    for each row of the view:
 
                  target's mirror unknown? ----------- yes --> send every piece
                    | no
-                 target shows the row empty? -------- yes --> send only the pieces
-                   | no                                       that hold anything
+                 target shows the row empty? -------- yes --> row empty? leave it
+                   | no                                       else send the pieces
+                   |                                          that hold anything
                  each 16-byte piece:
                    equal to the target's mirror? ---- no  --> send it to Chip RAM
                                                       yes --> leave it
+                   empty the mirror's piece
 
                then the drawn viewport becomes the target's mirror, the old
                mirror becomes the next frame's drawing viewport, present
 ```
 
-A piece is sixteen bytes, one `movem.l` of four longs, and it is compared and sent straight from the registers the comparison loaded, so nothing is read twice. The mirror and the Chip buffer are addressed from the shadow pointer through index registers. Where the target shows something in a row, the row is tested for content only until its first piece that holds any.
+A piece is sixteen bytes, one `movem.l` of four longs, and it is compared and sent straight from the registers the comparison loaded, so nothing is read twice. The mirror and the Chip buffer are addressed from the shadow pointer through index registers. Where the target shows a row empty, the drawn row is first tested eight longs at a time, so an empty row costs one pass of reads. Where the target shows something, the row is tested for content only until its first piece that holds any.
 
-For each buffer the transfer keeps one byte a row saying whether that buffer shows the row empty, set from the row it has just made the buffer show. Where it does, the mirror is not read at all. The same flags tell `clear_image` which rows of the replaced mirror to clear before the next frame draws into it.
+For each buffer the transfer keeps one byte a row saying whether that buffer shows the row empty, set from the row it has just made the buffer show. Where it does, the mirror is not read at all.
+
+The transfer empties each mirror piece it reads, so the replaced mirror comes out empty and `clear_image` has nothing to clear in the shadow. A row the target shows empty holds nothing in its mirror already.
 
 ## When a mirror is forgotten
 
@@ -101,6 +104,13 @@ The pieces count holds over the same sixteen frames as the times, so the digits 
 
 The gain shrinks as more of the view changes: a turning ship that fills half the view sends 3,800 of the 7,040 pieces, and those are written to Chip RAM whichever option is built.
 
+Emptying the mirror during the transfer, `pal-hireslace` on a 68020 at 26 MHz with Fast RAM, the ELITE title, work, draw and clear in milliseconds, the same with and without the counter:
+
+| build | work | draw | clear |
+| --- | --- | --- | --- |
+| clear by row marks | 45 | 10 | 2 |
+| mirror emptied in the transfer | 42 | 10 | 0 |
+
 ## Testing
 
-`src_amiga/tests/test_fastdraw.py` drives whole sequences of frames through the real `clear_image`, drawing and `swap_screen` and checks one property after every frame: the flight view of the buffer the frame was carried to equals the viewport it was drawn in, byte for byte. The sequences cover two longwords of a piece trading places, which a comparison by sums could not see, scattered pixels over 160 frames mixed with primitives drawn straight to Chip RAM, a large shape moving every frame, and a dual-screen block drawn while both mirrors are valid. `ELITE_SHADOW_EVERY=1` runs the same tests against `shadowcopy=all`.
+`src_amiga/tests/test_fastdraw.py` drives whole sequences of frames through the real `clear_image`, drawing and `swap_screen` and checks one property after every frame: the flight view of the buffer the frame was carried to equals the viewport it was drawn in, byte for byte. The sequences cover two longwords of a piece trading places, which a comparison by sums could not see, scattered pixels over 160 frames mixed with primitives drawn straight to Chip RAM, a large shape moving every frame, a dual-screen block drawn while both mirrors are valid, and a frame drawn and never carried. `ELITE_SHADOW_EVERY=1` runs the same tests against `shadowcopy=all`.

@@ -19,7 +19,7 @@ amiga_implementation: equ 1
     xref raster_line
     endc
     ifne shadow_ok
-    xdef shadow_base,view_base,shadow_live,in_shadow,mirror_ptr,shadow_marks
+    xdef shadow_base,view_base,shadow_live,in_shadow,mirror_ptr
     xdef mirror_valid,mirror_full,mirror_blank,forget_mirror
     endc
     ifeq cpu_68020
@@ -99,8 +99,6 @@ amiga_entry:
     add.l #view_bytes,d0
     move.l d0,mirror_ptr+4      ; and the second
     add.l #view_bytes,d0
-    move.l d0,shadow_marks
-    add.l #y_size,d0
     move.l d0,mirror_blank
 .no_shadow:
     endc
@@ -210,7 +208,6 @@ startup_failed:
     clr.l shadow_base
     clr.l view_base
     clr.l mirror_blank
-    clr.l shadow_marks
 .no_shadow_free:
     endc
     move.l bitmap_bank,d0
@@ -756,7 +753,6 @@ shadow_block: ds.l 1 ; the allocation, whichever way its viewports have turned
 shadow_base: ds.l 1
 mirror_ptr: ds.l 2 ; per buffer: the viewport holding what it shows
 mirror_blank: ds.l 1 ; per buffer and row: its viewport shows that row empty
-shadow_marks: ds.l 1
 view_base: ds.l 1
 shadow_live: ds.w 1
 mirror_valid: ds.b 2 ; per buffer: its mirror is what it holds

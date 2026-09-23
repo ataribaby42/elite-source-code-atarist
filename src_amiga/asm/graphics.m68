@@ -23,7 +23,7 @@
 	xref wait_clear,graphics_base,blitter_owned
 	endc
 	ifne shadow_ok
-	xref mirror_ptr,mirror_valid,mirror_full,mirror_blank,shadow_marks
+	xref mirror_ptr,mirror_valid,mirror_full,mirror_blank
 	endc
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
@@ -194,31 +194,24 @@ q_graphics_m68_6\@:
     move d0,frame_start(a6)
     endc
     ifne shadow_ok
-    clr.w shadow_live
     move.l shadow_base,d0
     beq.s .screen_clear
-    move.w #-1,shadow_live
-    move.l d0,a0 ; the shadow is zero everywhere the last frame left it alone
-    move.l shadow_marks,a1
+; The transfer hands over the viewport it replaced already emptied. Only a frame
+; that was drawn and never carried, which leaves the shadow still live, can have
+; left anything in it, and then the whole of it is emptied.
+    tst.w shadow_live
+    beq.s .shadow_ready
+    move.l d0,a0
     moveq #0,d0
-    move.w #y_size-1,d7
-.shadow_clear_row:
-    tst.b (a1)
-    beq.s .shadow_clear_skip
-    clr.b (a1)
-    move.w #row_stride/16-1,d1
-.shadow_clear_span:
+    move.w #view_bytes/16-1,d1
+.shadow_wipe:
     move.l d0,(a0)+
     move.l d0,(a0)+
     move.l d0,(a0)+
     move.l d0,(a0)+
-    dbra d1,.shadow_clear_span
-    bra.s .shadow_clear_step
-.shadow_clear_skip:
-    lea row_stride(a0),a0
-.shadow_clear_step:
-    addq.l #1,a1
-    dbra d7,.shadow_clear_row
+    dbra d1,.shadow_wipe
+.shadow_ready:
+    move.w #-1,shadow_live
     bra .cleared
 .screen_clear:
     endc
@@ -589,7 +582,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	seq mirror_full
 	endc
 	st (a4) ; and it is known again once this frame has crossed
-	move.l shadow_marks,a4
+	sub.l a4,a4 ; a zero, for emptying the mirror as it is read
 ; The mirror and the buffer are reached from the shadow pointer through an
 ; index, so each piece moves one pointer instead of three.
 	sub.l a0,a1
@@ -603,7 +596,8 @@ frame_text_y: equ 0 ; the top row of the screen
 	bne .shadow_onto_blank
 ; The buffer shows something in this row. Each piece is compared and only a
 ; piece that differs is written, and the row is tested for anything only until
-; the first piece that holds it.
+; the first piece that holds it. The mirror is drawn into next, so each piece
+; of it is emptied once it has been compared.
 .shadow_compare:
 	movem.l (a0)+,d0-d3
 	move.l d0,d5
@@ -619,6 +613,10 @@ frame_text_y: equ 0 ; the top row of the screen
 	cmp.l -4(a0,a1.l),d3
 	bne.s .shadow_send
 .shadow_compared:
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
 	tst.l d5
 	dbne d4,.shadow_compare
 	beq .shadow_row_empty ; ran out with nothing in the row
@@ -639,20 +637,40 @@ frame_text_y: equ 0 ; the top row of the screen
 	cmp.l -8(a0,a1.l),d2
 	bne.s .shadow_rest_send
 	cmp.l -4(a0,a1.l),d3
-	bne.s .shadow_rest_send
-	dbra d4,.shadow_rest
-	bra .shadow_row_full
+	beq.s .shadow_rest_held
 .shadow_rest_send:
 	movem.l d0-d3,-16(a0,a2.l)
 	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
+.shadow_rest_held:
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
 	dbra d4,.shadow_rest
 	bra .shadow_row_full
-; The buffer shows this row empty, and so does its mirror: only the pieces the
-; frame drew into it need sending, and the mirror need not be read.
+; The buffer shows this row empty, and so does its mirror, which therefore needs
+; no emptying. A frame rarely draws into such a row, so the row is tested whole
+; first, eight longs at a time, and gone through piece by piece only if it holds
+; anything.
 .shadow_onto_blank:
-	moveq #0,d6 ; nothing in the row yet
+	moveq #0,d5
+	move.w #row_stride/32-1,d6
+.shadow_blank_scan:
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	dbra d6,.shadow_blank_scan
+	tst.l d5
+	beq .shadow_row_empty
+	lea -row_stride(a0),a0
+	moveq #0,d6 ; nothing sent from the row yet
 .shadow_blank_piece:
 	movem.l (a0)+,d0-d3
 	move.l d0,d5
@@ -670,9 +688,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	tst.w d6
 	beq .shadow_row_empty
 	bra .shadow_row_full
-; Nothing is known of the buffer, so every piece crosses.
+; Nothing is known of the buffer, so every piece crosses. The mirror's own
+; contents are still known, so it is emptied only where it held anything.
 .shadow_full:
 	moveq #0,d6
+	tst.b (a3,d7.w)
+	bne.s .shadow_full_bare
 .shadow_full_piece:
 	movem.l (a0)+,d0-d3
 	move.l d0,d5
@@ -683,30 +704,44 @@ frame_text_y: equ 0 ; the top row of the screen
 	moveq #1,d6
 .shadow_full_zero:
 	movem.l d0-d3,-16(a0,a2.l)
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
 	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
 	dbra d4,.shadow_full_piece
 	tst.w d6
 	beq.s .shadow_row_empty
-; The viewport that held this buffer's picture is drawn into next, so its rows
-; are cleared first wherever that picture had anything, which the flag still
-; says until it is rewritten for the frame just carried.
+	bra.s .shadow_row_full
+.shadow_full_bare:
+	movem.l (a0)+,d0-d3
+	move.l d0,d5
+	or.l d1,d5
+	or.l d2,d5
+	or.l d3,d5
+	beq.s .shadow_full_bare_zero
+	moveq #1,d6
+.shadow_full_bare_zero:
+	movem.l d0-d3,-16(a0,a2.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+	dbra d4,.shadow_full_bare
+	tst.w d6
+	beq.s .shadow_row_empty
 .shadow_row_full:
-	tst.b (a3,d7.w)
-	seq (a4,d7.w)
 	sf (a3,d7.w) ; the buffer now shows something in this row
 	bra.s .shadow_row_next
 .shadow_row_empty:
-	tst.b (a3,d7.w)
-	seq (a4,d7.w)
 	st (a3,d7.w)
 .shadow_row_next:
 	addq.w #1,d7
 	cmp.w #y_size,d7
 	blo .shadow_row
 	move.l shadow_base,d0 ; what was drawn is what the buffer now shows
-	move.l (a5),shadow_base ; and the picture it replaces is drawn over next
+	move.l (a5),shadow_base ; and the emptied mirror it replaces is drawn into next
 	move.l d0,(a5)
 	move.l shadow_base,d0
 	sub.l #y_top*row_stride,d0
