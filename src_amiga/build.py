@@ -64,7 +64,7 @@ def validate_outputname(name):
     return name
 
 
-def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True, altgfx=False, outputname='ELITE', display='pal', cpu='68000', frame=True, frametime=False, fastdraw=False):
+def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True, altgfx=False, outputname='ELITE', display='pal', cpu='68000', frame=True, frametime=False, fastdraw=False, shadowcopy='changes'):
     (ntsc, hires, lace), display_name = DISPLAYS[display]
     game = OUTPUT / validate_outputname(outputname)
     BUILD.mkdir(parents=True, exist_ok=True)
@@ -97,7 +97,8 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
              f'-Dscannerlogo={int(scannerlogo)}',
              f'-Ddisplay_ntsc={ntsc}', f'-Ddisplay_hires={hires}', f'-Ddisplay_lace={lace}',
              f'-Dframe={int(frame)}', f'-Dframetime={int(frametime)}',
-             f'-Dfastdraw={int(fastdraw)}',
+             f'-Dfastdraw={int(fastdraw)}', f'-Dshadow_every={int(shadowcopy == "all")}',
+             f'-Dshadow_count={int(shadowcopy == "counter")}',
              f'-Dlaser_singlebeam={int(laser == "singlebeam")}','-F'+fmt,'-I'+str(BUILD),
              '-I'+str(ROOT/'asm'),'-I'+str(ROOT/'assets'),'-o',output,ROOT/'asm'/(name+'.m68')], name+'.log')
     modules = (ROOT/'modules.txt').read_text().split()
@@ -117,6 +118,10 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
         print('Frame time: shown in the top left corner')
     if fastdraw:
         print('Flight view: Fast RAM or the blitter, whichever the machine has')
+        if shadowcopy == 'all':
+            print('Shadow transfer: every piece, every frame, for comparison')
+        elif shadowcopy == 'counter':
+            print('Shadow transfer: the changes, counted on the frame time line')
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
     for module in modules:
         assemble(module)
@@ -179,7 +184,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC' + cpu,'minimum_kickstart':'1.3',
               'png_graphics':graphics,
-              'build_options':{'cpu':cpu,'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo,'altgfx':altgfx,'outputname':outputname,'display':display,'frame':frame,'frametime':frametime,'fastdraw':fastdraw},
+              'build_options':{'cpu':cpu,'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo,'altgfx':altgfx,'outputname':outputname,'display':display,'frame':frame,'frametime':frametime,'fastdraw':fastdraw,'shadowcopy':shadowcopy},
               'output_paths':{'directory':str(game),'disk':str(disk)},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,
@@ -202,7 +207,7 @@ def read_options(parser, words):
     settings = {'noprotect': False, 'commander': 'default', 'laser': 'dualbeam',
                 'aifiresound': False, 'scannerlogo': True, 'altgfx': False,
                 'outputname': 'ELITE', 'display': 'pal', 'cpu': '68000', 'frame': True,
-                'frametime': False, 'fastdraw': False}
+                'frametime': False, 'fastdraw': False, 'shadowcopy': 'changes'}
     for option in words:
         if option in ('noprotect=yes', 'noprotect=no'):
             settings['noprotect'] = option == 'noprotect=yes'
@@ -226,6 +231,8 @@ def read_options(parser, words):
             settings['frametime'] = option == 'frametime=yes'
         elif option in ('fastdraw=yes', 'fastdraw=no'):
             settings['fastdraw'] = option == 'fastdraw=yes'
+        elif option in ('shadowcopy=changes', 'shadowcopy=counter', 'shadowcopy=all'):
+            settings['shadowcopy'] = option.split('=', 1)[1]
         elif option.startswith('display=') and option.split('=', 1)[1] in DISPLAYS:
             settings['display'] = option.split('=', 1)[1]
         else:
@@ -233,6 +240,7 @@ def read_options(parser, words):
                          'or commander=max|default or laser=dualbeam|singlebeam '
                          'or aifiresound=yes|no or scannerlogo=yes|no or altgfx=yes|no '
                          'or outputname=NAME or frame=yes|no or frametime=yes|no or fastdraw=yes|no '
+                         'or shadowcopy=changes|counter|all '
                          'or display=' + '|'.join(DISPLAYS))
     try:
         validate_outputname(settings['outputname'])
@@ -263,6 +271,8 @@ def main():
                              'frame=yes|no (default: yes, the original cockpit frame); '
                              'frametime=yes|no (default: no, measures the game frame); '
                              'fastdraw=yes|no (default: no, Fast RAM or the blitter for the flight view); '
+                             'shadowcopy=changes|counter|all (default: changes; counter shows how many pieces '
+                             'cross with frametime=yes, all carries every piece); '
                              'display=' + '|'.join(DISPLAYS) + ' (default: pal, 320 x 256)')
     args = parser.parse_intermixed_args()
     build_amiga(args.vasm.resolve(), args.vlink.resolve(),

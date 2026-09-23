@@ -38,6 +38,12 @@ cpu_68020: equ 0 ; build option: 1 = MC68020 or better, native 32-bit maths
 	ifnd fastdraw
 fastdraw: equ 0 ; build option: 1 = Fast RAM or the blitter, whichever the machine has
 	endc
+	ifnd shadow_every
+shadow_every: equ 0 ; build option: 1 = the shadow carries every piece, for comparison
+	endc
+	ifnd shadow_count
+shadow_count: equ 0 ; build option: 1 = count the pieces the shadow carries, for the frame time line
+	endc
 	ifnd emulated_burst
 emulated_burst: equ 0 ; build option: 1 = same bytes without MOVE16
 	endc

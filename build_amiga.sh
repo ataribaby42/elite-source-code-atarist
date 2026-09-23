@@ -12,6 +12,8 @@ if [ "$1" != all ]; then
 fi
 
 set -e
+shift
+common="$common $*"  # extra options apply to every image, which keeps its own name and display
 "$build" $common outputname=ELITE                         altgfx=no  frame=yes display=pal
 "$build" $common outputname=ELITE.WIDE.PAL                altgfx=no  frame=no  display=pal            frametime=yes
 "$build" $common outputname=ELITE.WIDE.NTSC               altgfx=no  frame=no  display=ntsc           frametime=yes

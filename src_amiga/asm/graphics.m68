@@ -326,10 +326,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	move draw_lines(a6),d0
 	bsr .clamp
 	add d0,draw_sum(a6)
+	ifne shadow_count
 	moveq #0,d0
 	move blocks_sent(a6),d0
 	clr blocks_sent(a6)
 	add.l d0,blocks_sum(a6)
+	endc
 	q_inc frame_ticks(a6)
 	cmp #frame_hold,frame_ticks(a6)
 	blo.s .print
@@ -349,10 +351,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	clr draw_sum(a6)
 	bsr .millis
 	move d0,draw_ms(a6)
+	ifne shadow_count
 	move.l blocks_sum(a6),d0
 	clr.l blocks_sum(a6)
 	lsr.l #4,d0 ; frame_hold readings
 	move d0,blocks_held(a6)
+	endc
 .print:
 	q_push text_ink(a6) ; the game's text state is not ours to change
 	q_push text_paper(a6)
@@ -381,18 +385,28 @@ frame_text_y: equ 0 ; the top row of the screen
 	jsr print_char
 	move clear_ms(a6),d0
 	bsr .digits
-	ifne shadow_ok
-	tst.l shadow_base ; only a shadow carries blocks
+	ifne shadow_ok*(shadow_count+shadow_every) ; only these builds say what crosses
+	tst.l shadow_base ; and only when there is a shadow to carry it
 	beq.s .no_blocks
 	moveq #art_cols-14,d0 ; right of the view name, one column clear of the flags
 	moveq #frame_text_y,d1
 	jsr locate
-	move #y_size*row_blocks,d0 ; every block the view has
+	move #y_size*row_blocks,d0 ; every piece the view has
 	bsr .count
 	moveq #'/',d0
 	jsr print_char
+	ifne shadow_count
 	move blocks_held(a6),d0 ; and the ones that crossed
 	bsr .count
+	endc
+	ifne shadow_every
+	moveq #'A',d0 ; every one of them crosses
+	jsr print_char
+	moveq #'L',d0
+	jsr print_char
+	moveq #'L',d0
+	jsr print_char
+	endc
 .no_blocks:
 	endc
 	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
@@ -567,8 +581,13 @@ frame_text_y: equ 0 ; the top row of the screen
 .mirror_chosen:
 	move.l (a5),a1
 	lea y_top*row_stride(a2),a2 ; the viewport of the target buffer
+	ifne shadow_every
+	st mirror_full ; a comparison build sends every piece every frame
+	endc
+	ifeq shadow_every
 	tst.b (a4) ; a mirror of unknown contents sends every piece
 	seq mirror_full
+	endc
 	st (a4) ; and it is known again once this frame has crossed
 	move.l shadow_marks,a4
 ; The mirror and the buffer are reached from the shadow pointer through an
@@ -607,7 +626,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	bra .shadow_row_full
 .shadow_send:
 	movem.l d0-d3,-16(a0,a2.l)
-	ifne frametime
+	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
 	bra.s .shadow_compared
@@ -625,7 +644,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	bra .shadow_row_full
 .shadow_rest_send:
 	movem.l d0-d3,-16(a0,a2.l)
-	ifne frametime
+	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
 	dbra d4,.shadow_rest
@@ -643,7 +662,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	beq.s .shadow_blank_skip
 	moveq #1,d6
 	movem.l d0-d3,-16(a0,a2.l)
-	ifne frametime
+	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
 .shadow_blank_skip:
@@ -664,7 +683,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	moveq #1,d6
 .shadow_full_zero:
 	movem.l d0-d3,-16(a0,a2.l)
-	ifne frametime
+	ifne frametime*shadow_count
 	addq.w #1,blocks_sent(a6)
 	endc
 	dbra d4,.shadow_full_piece
