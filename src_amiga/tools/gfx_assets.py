@@ -17,7 +17,7 @@ COCKPIT_PNG_PALETTE = tuple(
 
 def png_palette(path):
     """Select the cockpit palette by filename; all other PNGs use the UI base."""
-    return COCKPIT_PNG_PALETTE if Path(path).stem == 'cockpit' else UI_PNG_PALETTE
+    return COCKPIT_PNG_PALETTE if Path(path).stem in ('cockpit', 'cockpit_noframe') else UI_PNG_PALETTE
 
 
 def pillow():
@@ -181,14 +181,15 @@ def missile_at_scale(pixels, zoom_x, zoom_y):
         for y in range(depth) for word in range(zoom_x))
 
 
-def compile_assets(root, altgfx=False, zoom_x=1, zoom_y=1, build=None):
+def compile_assets(root, altgfx=False, zoom_x=1, zoom_y=1, build=None, frame=True):
     """Validate every PNG before replacing any generated asset. No baseline hash gate."""
     root = Path(root)
     gfx, assets = root / ('gfx_alt' if altgfx else 'gfx'), root / 'assets'
     layout = json.loads((gfx / 'layout.json').read_text(encoding='utf-8'))
     outputs, scaled = {}, {}
     for name, metadata in layout['screens'].items():
-        pixels = read_png(gfx / f'{name}.png', (320, 200))
+        source = 'cockpit_noframe' if name == 'cockpit' and not frame else name
+        pixels = read_png(gfx / f'{source}.png', (320, 200))
         outputs[name.upper()+'.PC1'] = encode_pc1(pixels, metadata)
     sheets = {name: read_png(gfx / f'{name}.png', size)
               for name, size in layout['sheets'].items()}

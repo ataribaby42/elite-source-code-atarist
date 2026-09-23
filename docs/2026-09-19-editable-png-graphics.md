@@ -1,12 +1,12 @@
 # Editable PNG graphics
 
-Each enhanced game has eight independent source images in its own `gfx` directory.
+Each enhanced game has independent source images in its own `gfx` directory.
 Edit `src_atari/gfx` for Atari or `src_amiga/gfx` for Amiga. Neither build reads the
 other tree, `resources/gfx_assets`, or existing generated assets to reconstruct
 the graphics. The resource images remain reference previews.
 
 The build option `altgfx=yes|no` defaults to `no`, selecting `gfx/`. With
-`altgfx=yes`, all eight PNGs and `layout.json` come from the same tree's
+`altgfx=yes`, all required PNGs and `layout.json` come from the same tree's
 `gfx_alt/` directory instead. Missing files are errors; there is no fallback
 to `gfx/`. To prepare another source set, copy the complete `gfx/` directory
 to `gfx_alt/`, then edit those PNGs using the same dimensions and palette.
@@ -20,12 +20,18 @@ Use `altgfx=no` to switch back. Both selections write the usual `assets/` and
 distribution paths, replacing the preceding build's graphics. The selected
 option is recorded in `build/verification.json` under `build_options.altgfx`.
 
+On Amiga, `frame=no` selects `cockpit_noframe.png` instead of `cockpit.png`
+from the selected `gfx/` or `gfx_alt/` directory. It uses the same 320 x 200
+canvas, cockpit palette and `layout.json` metadata, and generates `COCKPIT.PC1`
+for every PAL/NTSC, WIDE, HIRES and interlaced display mode. `frame=yes` keeps
+using `cockpit.png`.
+
 ## Editing and building
 
 Use any PNG editor and keep the original canvas dimensions. RGB, RGBA and indexed
 PNG exports all work. **RGB values determine the game indices; PNG palette order
 and PNG storage indices do not matter.** The converter selects the palette by
-filename: `cockpit.png` uses the cockpit palette, while all other source PNGs use
+filename: `cockpit.png` and Amiga's `cockpit_noframe.png` use the cockpit palette, while all other source PNGs use
 the UI base palette. The same rules apply to both platforms and both source sets.
 
 | Game index | UI PNG RGB | Cockpit PNG RGB |
@@ -101,6 +107,7 @@ bitmap's original dimensions. The selected directory's `layout.json` lists the e
 | PNG | Canvas | Cell layout and contents |
 | --- | --- | --- |
 | `cockpit.png` | 320 × 200 | Full `COCKPIT.PC1` screen |
+| `cockpit_noframe.png` (Amiga) | 320 × 200 | `COCKPIT.PC1` source for `frame=no` |
 | `textscr.png` | 320 × 200 | Full `TEXTSCR.PC1` screen |
 | `font.png` | 128 × 48 | 16 columns of 8 × 8 glyphs; ASCII 32–127, including blank slots |
 | `cargo.png` | 240 × 128 | 5 columns of 48 × 32 cells; bitmap IDs 0–19 |

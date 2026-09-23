@@ -6,6 +6,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.71
 
+- Amiga builds with `frame=no` now compile `gfx/cockpit_noframe.png` for `altgfx=no` or `gfx_alt/cockpit_noframe.png` for `altgfx=yes` into `COCKPIT.PC1`, using the cockpit palette in all WIDE, HIRES and HIRES LACED modes. Builds with `frame=yes` use `cockpit.png` from the selected graphics directory.
 - Added NES-inspired Energy Bomb electrical arcs on Atari ST and Amiga. Two light-blue zigzags change every rendered flight frame for the sound effect's duration, scale to framed, WIDE, HIRES and interlaced viewports, and leave no trails in either screen buffer.
 - Fixed Energy Bomb activation audio on Atari ST and Amiga: successful blasts now play one dedicated effect instead of individual ship explosion sounds. Atari ST uses its original bomb effect; Amiga uses a new sample based on it. Failed activations retain the error beep and do not consume the bomb.
 

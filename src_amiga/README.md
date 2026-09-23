@@ -6,14 +6,17 @@ This source tree started as a copy of the corrected Atari sources before the com
 
 The build option `altgfx=yes|no` defaults to `no` (`gfx/`). Run
 `build_amiga.bat altgfx=yes` from the project root to use this tree's `gfx_alt/`
-instead. The selected directory must contain all eight PNGs and `layout.json`.
+instead. The selected directory must contain the required PNGs and `layout.json`.
+`frame=yes` compiles `cockpit.png`; `frame=no` compiles `cockpit_noframe.png`
+from that same directory into `COCKPIT.PC1`, in every display mode. Both cockpit
+sources use a 320 x 200 canvas and the cockpit metadata from `layout.json`.
 Both choices generate the same asset and distribution paths; use `altgfx=no`
 to rebuild with the standard sources.
 
 Edit the PNGs in this tree's `gfx/` folder. `font16.png` holds the same glyphs as `font.png` at 16 x 8 and is the face a 640-wide build draws; the two are independent artwork, so a glyph changed in one does not change the other. The build requires Pillow
 (`python -m pip install Pillow`) and generates this tree's `assets/` before
 assembly. Keep canvas sizes and use each image's exact RGB palette. `cockpit.png`
-uses the cockpit palette; all other PNGs use the UI base palette, including in
+and `cockpit_noframe.png` use the cockpit palette; all other PNGs use the UI base palette, including in
 `gfx_alt/`. UI indices 6, 8 and 14 are `#FF0000`, `#6DB600` and `#6D4900`;
 cockpit indices 6 and 14 are `#DB0000` and `#FF0000`. Both use cyan `#00FFFF`
 for transparent index 0 and black `#000000` for opaque index 13. RGB, RGBA and
@@ -204,7 +207,7 @@ Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_
 
 With `frame=no` the flight view has no cockpit frame. It spans the full width, from below the view indicator down to the instrument panel: on PAL inclusive logical coordinates `x=-160..159`, `y=-84..83`, cleared screen area `x=0..319`, `y=8..175` (320 x 168 pixels), against 320 x 112 with `display=ntsc`. That is 1.9 times the area of the framed 256 x 112 view. Clipped lines and filled polygons reach both edge columns. Planets and other solid circles use the same bounds; sun flares are added before final clipping.
 
-`COCKPIT.PC1` is still decoded at its original 320 x 200 size. `place_panel` then moves its bottom 80 rows to the foot of the screen and clears everything above, which crops the frame pillars and leaves the enlarged view. Instrument, scanner and compass coordinates follow `y_shift`, so the panel keeps its internal layout. The moving starfield keeps its original density: `no_dust` scales with the viewport area.
+With `frame=no`, `COCKPIT.PC1` is compiled from `cockpit_noframe.png` and decoded at its original 320 x 200 size. `place_panel` then moves its bottom 80 rows to the foot of the screen and clears everything above, leaving the enlarged view. Instrument, scanner and compass coordinates follow `y_shift`, so the panel keeps its internal layout. The moving starfield keeps its original density: `no_dust` scales with the viewport area.
 
 The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling model. Each star is always one pixel, with nearby particles moving faster than distant ones. Front, rear and side views have their original distinct replacement rules; steering follows this game's 512-pixel object projection. The old direction lookup files are no longer loaded or distributed. See [STARFIELD.md](STARFIELD.md) for the original source references, scaling and validation.
 
