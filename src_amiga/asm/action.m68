@@ -593,6 +593,9 @@ q_action_m68_56:
 	move.l flip_screen(a6),d7
 	eor.l d7,d0
 	add.l #(y_top+y_size-10*zoom_y)*row_stride+x_left/8,d0
+	ifne shadow_ok
+	jsr forget_mirror ; straight into the shown buffer, past the shadow
+	endc
 	move.l d0,a1
 	lea buffer(a6),a0 ; blatt scroll line to window
 	q_loop 1,8 ; loop for each pixel line

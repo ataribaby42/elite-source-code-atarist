@@ -19,7 +19,8 @@ amiga_implementation: equ 1
     xref raster_line
     endc
     ifne shadow_ok
-    xdef shadow_base,view_base,shadow_live,in_shadow
+    xdef shadow_base,view_base,shadow_live,in_shadow,mirror_ptr,shadow_marks
+    xdef mirror_valid,mirror_full,mirror_blank,forget_mirror
     endc
     ifeq cpu_68020
     xref divide_by_10,divide_by_10_020,divide_by_1e5,divide_by_1e5_020
@@ -84,13 +85,23 @@ amiga_entry:
 ; A 68000 pays the same way round, so it keeps the memory and blits instead.
     tst.w cpu_level
     beq.s .no_shadow
-    move.l #view_bytes,d0
+    move.l #shadow_maps_bytes,d0
     move.l #$10004,d1           ; MEMF_FAST|MEMF_CLEAR
     jsr -198(a6)                 ; AllocMem
-    move.l d0,shadow_base
+    move.l d0,shadow_block
     beq.s .no_shadow
-    sub.l #y_top*row_stride,d0  ; the drawing maths adds the row back
-    move.l d0,view_base
+    move.l d0,shadow_base       ; drawn into first
+    move.l d0,d1
+    sub.l #y_top*row_stride,d1  ; the drawing maths adds the row back
+    move.l d1,view_base
+    add.l #view_bytes,d0
+    move.l d0,mirror_ptr        ; what the first buffer shows
+    add.l #view_bytes,d0
+    move.l d0,mirror_ptr+4      ; and the second
+    add.l #view_bytes,d0
+    move.l d0,shadow_marks
+    add.l #y_size,d0
+    move.l d0,mirror_blank
 .no_shadow:
     endc
     lea graphics_name(pc),a1
@@ -190,12 +201,16 @@ startup_failed:
 .directory_restored:
     move.l exec_base,a6
     ifne shadow_ok
-    move.l shadow_base,d0
+    move.l shadow_block,d0
     beq.s .no_shadow_free
     move.l d0,a1
-    move.l #view_bytes,d0
+    move.l #shadow_maps_bytes,d0
     jsr -210(a6)                 ; FreeMem
+    clr.l shadow_block
     clr.l shadow_base
+    clr.l view_base
+    clr.l mirror_blank
+    clr.l shadow_marks
 .no_shadow_free:
     endc
     move.l bitmap_bank,d0
@@ -443,7 +458,35 @@ amiga_flip_address:
     add.l #other_screen,d0
 .done:
     move.l (sp)+,d1
+    ifne shadow_ok
+    bsr.s forget_mirror          ; every caller writes where it points
+    endc
     rts
+
+    ifne shadow_ok
+; A write about to reach a Chip buffer past the shadow. Landing in that buffer's
+; flight view, it leaves the buffer's mirror wrong, so the mirror is forgotten
+; and the next transfer there sends every piece. D0 = the address.
+forget_mirror:
+    move.l d1,-(sp)
+    tst.l shadow_block
+    beq.s .kept
+    move.l d0,d1
+    sub.l #amiga_primary+y_top*row_stride,d1
+    cmp.l #view_bytes,d1
+    bhs.s .not_first
+    clr.b mirror_valid
+    bra.s .kept
+.not_first:
+    move.l d0,d1
+    sub.l #other_screen+y_top*row_stride,d1
+    cmp.l #view_bytes,d1
+    bhs.s .kept
+    clr.b mirror_valid+1
+.kept:
+    move.l (sp)+,d1
+    rts
+    endc
 
 amiga_poll:
     tst quit_requested
@@ -709,9 +752,15 @@ clear_early: ds.b 1
     endc
     even
     ifne shadow_ok
+shadow_block: ds.l 1 ; the allocation, whichever way its viewports have turned
 shadow_base: ds.l 1
+mirror_ptr: ds.l 2 ; per buffer: the viewport holding what it shows
+mirror_blank: ds.l 1 ; per buffer and row: its viewport shows that row empty
+shadow_marks: ds.l 1
 view_base: ds.l 1
 shadow_live: ds.w 1
+mirror_valid: ds.b 2 ; per buffer: its mirror is what it holds
+mirror_full: ds.b 1 ; this transfer sends every block
 in_shadow: ds.w 1
     endc
 	even
