@@ -26,7 +26,7 @@
 	xref display_char,default_game,find_bitmap,novella
 	xref init_sky,init_cursor_cache
 	xref init_dust,rand,monst,checksum,logo
-	xref cockpit,textscr,obj_data,bitmap_bank
+	xref cockpit,textscr,obj_data,bitmap_bank,load_buffer,amiga_exit
 	xref hyper_buffer,quiet,blank_screen
 	xref set_roll_angles,set_climb_angles
 	xref draw_screen,amiga_start_display,amiga_rows_art,expand_bytes
@@ -218,20 +218,23 @@ size macro
 	q_ret
 
 
-; The compressed title fits in the secondary screen's disk buffer. Decode it
-; into the primary Chip RAM screen before read_bitmaps reuses that buffer.
+; The compressed title is read into the bitmap bank, which READ_BITMAPS fills
+; only afterwards, and decoded into the primary Chip RAM screen.
 
 	q_subr show_title
 
-	load_file other_screen,title_file
+	move.l bitmap_bank,a5
+	lea title_file,a0
+	bsr read_file
 	cmp.l #34,d0
 	blt .done ; missing or unreadable optional loading picture
-	lea other_screen,a0
+	move.l bitmap_bank,a0
 	cmp.w #$8000,(a0)
 	bne .done
 	lea amiga_primary,a1
 	jsr draw_screen
-	lea other_screen+2,a0
+	move.l bitmap_bank,a0
+	addq.l #2,a0
 	jsr set_palette
 	jsr amiga_rows_art ; the loading picture is 200 rows
 	jsr amiga_start_display ; display-only VBL; game variables are not ready yet
@@ -427,14 +430,18 @@ dup_row:
 	bne q_init_m68_27
 	q_save_all fill ; buffer
 	movem.l d1-d3/a0,-(sp)
-	lea other_screen,a0
+	lea load_buffer,a0
 	move.l a0,d2
-	move.l #degas_bytes,d3 ; BYTES_LEFT counts in a word, so never read more
+	move.l #load_buffer_bytes,d3
 	move.l d6,d1
 	jsr file_read
 	movem.l (sp)+,d1-d3/a0
+	tst.l d0 ; an error, or the file ended before the bitmaps did
+	bgt.s .read
+	jmp amiga_exit
+.read:
 	move d0,bytes_left(a6) ; set # bytes left in buffer
-	move.l #other_screen,io_ptr(a6) ; point to start of buffer
+	move.l #load_buffer,io_ptr(a6) ; point to start of buffer
 	q_restore_all restore ; registers
 q_init_m68_27:
 	q_push.l a0 ; read byte from buffer

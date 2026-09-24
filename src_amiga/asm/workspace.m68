@@ -3,12 +3,13 @@ amiga_workspace_implementation: equ 1
     include "common.def"
     xdef var_size,textscr,hyper_buffer,left_arm,right_arm
     xdef save1_buffer,max1,save2_buffer,max2,texture,obj_data
-    xdef logo,cockpit,vars,ram_end,other_screen,zero_line
+    xdef logo,cockpit,vars,ram_end,other_screen,zero_line,load_buffer
     section workspace,bss
 textscr: ds.b 4096
 hyper_buffer: ds.b 360*zoom_x*zoom_y ; a wider sprite saves more background
 left_arm: ds.w arm_entries ; indexed by physical screen row, not viewport row
 right_arm: ds.w arm_entries ; SOLID_POLYGON reads this one at arm_entries*2 from the first
+load_buffer: ds.b load_buffer_bytes ; DOS reads land here, in Fast RAM when there is some
 save1_buffer: ds.b 4096
 max1:
 save2_buffer: ds.b 4096
@@ -24,4 +25,4 @@ ram_end:
     xdef amiga_primary
 amiga_primary: ds.b scr_bytes
     section amiga_video2,bss     ; a second hunk: the KS1.x limit is per hunk
-other_screen: ds.b scr_bytes    ; original bitmap loader uses this as its disk buffer
+other_screen: ds.b scr_bytes

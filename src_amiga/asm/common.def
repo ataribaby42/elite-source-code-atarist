@@ -55,6 +55,7 @@ calc_checksum: equ -0 ; flag  calculate and display checksum
 valid equ $5123
 	endc
 debug: equ -0 ; include debug code
+load_buffer_bytes: equ 4096 ; read buffer for BITMAPS.IMG
 
 	include "geometry.def"
 ; Both accelerated paths need the option, so they live here rather than in

@@ -167,8 +167,8 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     for name, (start, end) in capacities.items():
         if (game/name).stat().st_size > symbols[end]-symbols[start]:
             raise ValueError('Asset exceeds its workspace buffer: ' + name)
-    if (game/'TITLE.PC1').stat().st_size > hunks['amiga_video2']['bytes']:
-        raise ValueError('TITLE.PC1 exceeds the secondary screen loading buffer')
+    if (game/'TITLE.PC1').stat().st_size > symbols['bitmap_bytes']:
+        raise ValueError('TITLE.PC1 exceeds the bitmap bank it is loaded into')
     # The loader expands every source column to a mask plus four planes at display scale.
     bank = (game/'BITMAPS.IMG').read_bytes()
     entries = struct.unpack('>I', bank[:4])[0]//4
