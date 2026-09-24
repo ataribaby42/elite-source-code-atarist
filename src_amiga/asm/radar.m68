@@ -217,7 +217,7 @@ q_radar_m68_11:
 *	dc.l previous			- pointer to previous record
 *	dc.l addr				- screen address
 *	dc.w offset 			- offset between lines (144 or -176)
-*	dc.w depth				- depth (-1)
+*	dc.w depth				- depth (-1), bit 15: left word only
 *	dc.w data_words 		- saved data words
 
 * Note - the width is the no. of words saved, NOT the no. words wide on the
@@ -257,11 +257,20 @@ q_radar_m68_15:
 	move.l (a0)+,a1 ; fetch screen address
 	move.w (a0)+,a2 ; fetch offset between lines
 	move.w (a0)+,d7 ; fetch the depth
-	q_loop 1 ; restore saved background
+	bclr #15,d7 ; left word only ?
+	bne.s .left_only
+.both_halves: ; restore both words of each line
 	native_restore a0,a1
 	native_restore a0,a1
 	add a2,a1
-	q_next 1
+	dbra d7,.both_halves
+	bra.s .restored
+.left_only: ; restore the left word of each line
+	native_restore a0,a1
+	addq.l #2,a1
+	add a2,a1
+	dbra d7,.left_only
+.restored:
 	q_pop.l a0 ; next record
 	bra q_radar_m68_15
 q_radar_m68_16:
@@ -301,6 +310,18 @@ q_radar_m68_16:
 
 * Regs: ?
 * Subr: ?
+
+* BLIP_WORD plane,colour - save and draw one plane word of the trace
+
+blip_word macro
+	move.w \1(a0),d7 ; fetch screen word
+	move.w d7,(a4)+ ; save it
+	and.w d1,d7 ; clear the trace pixels
+	move.w \2(a3),d4 ; colour them
+	and.w d0,d4
+	or.w d4,d7
+	move.w d7,\1(a0) ; store screen word
+	endm
 
 	q_subr radar,global
 
@@ -381,56 +402,26 @@ q_radar_m68_21:
 q_radar_m68_23:
 	swap d0 ; left half
 	swap d1
-	move 0(a0),(a4)+ ; plane #0
-	and d1,0(a0)
-	move 0(a3),d4
-	and d0,d4
-	or d4,0(a0)
-	move plane1(a0),(a4)+ ; plane #1
-	and d1,plane1(a0)
-	move 2(a3),d4
-	and d0,d4
-	or d4,plane1(a0)
-	move plane2(a0),(a4)+ ; plane #2
-	and d1,plane2(a0)
-	move 4(a3),d4
-	and d0,d4
-	or d4,plane2(a0)
-	move plane3(a0),(a4)+ ; plane #3
-	and d1,plane3(a0)
-	move 6(a3),d4
-	and d0,d4
-	or d4,plane3(a0)
+	blip_word 0,0 ; plane #0
+	blip_word plane1,2 ; plane #1
+	blip_word plane2,4 ; plane #2
+	blip_word plane3,6 ; plane #3
 	addq.l #2,a0
 	swap d0 ; right half
 	swap d1
 	tst d0 ; any thing to draw ?
-; Quelo: 		if <ne> then.s					yes
-	beq q_radar_m68_25
-	move 0(a0),(a4)+ ; plane #0
-	and d1,0(a0)
-	move 0(a3),d4
-	and d0,d4
-	or d4,0(a0)
-	move plane1(a0),(a4)+ ; plane #1
-	and d1,plane1(a0)
-	move 2(a3),d4
-	and d0,d4
-	or d4,plane1(a0)
-	move plane2(a0),(a4)+ ; plane #2
-	and d1,plane2(a0)
-	move 4(a3),d4
-	and d0,d4
-	or d4,plane2(a0)
-	move plane3(a0),(a4)+ ; plane #3
-	and d1,plane3(a0)
-	move 6(a3),d4
-	and d0,d4
-	or d4,plane3(a0)
+	beq.s q_radar_m68_25
+	blip_word 0,0 ; plane #0
+	blip_word plane1,2 ; plane #1
+	blip_word plane2,4 ; plane #2
+	blip_word plane3,6 ; plane #3
 	addq.l #2,a0
-	bra q_radar_m68_26
+	bra.s q_radar_m68_26
 q_radar_m68_25:
-	native_save a0,a4
+	tst.w 2(a1) ; head reaches right word ?
+	beq.s q_radar_m68_27
+	native_save a0,a4 ; yes, save it unchanged
+q_radar_m68_27:
 	addq.l #2,a0
 q_radar_m68_26:
 	add d5,a0 ; next pixel line
@@ -442,6 +433,10 @@ q_radar_m68_22:
 	move.l a4,radar_ptr(a6) ; store pointer for next record
 	q_pop.l a4 ; set depth entry
 	move line_count(a6),(a4)
+	tst.w 2(a1) ; head reaches right word ?
+	bne.s q_radar_m68_28
+	bset #7,(a4) ; no, left word only
+q_radar_m68_28:
 
 	q_ret
 
