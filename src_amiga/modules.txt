@@ -38,6 +38,7 @@ options
 effects
 registration
 ships
+shipgfx
 sky
 chkend
 checksum

@@ -1206,6 +1206,7 @@ q_vector_m68_109:
 
 * Table of plane colour data for the panels.
 
+	xdef panel_colours
 panel_colours:
 
 	dc.w $0000,$0000,$0000,$0000

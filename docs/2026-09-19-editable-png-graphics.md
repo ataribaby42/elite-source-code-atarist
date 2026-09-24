@@ -3,7 +3,8 @@
 Each enhanced game has independent source images in its own `gfx` directory.
 Edit `src_atari/gfx` for Atari or `src_amiga/gfx` for Amiga. Neither build reads the
 other tree, `resources/gfx_assets`, or existing generated assets to reconstruct
-the graphics. The resource images remain reference previews.
+the graphics. The resource images remain reference previews and archives,
+including the former ship PNG atlases.
 
 The build option `altgfx=yes|no` defaults to `no`, selecting `gfx/`. With
 `altgfx=yes`, all required PNGs and `layout.json` come from the same tree's
@@ -110,11 +111,22 @@ bitmap's original dimensions. The selected directory's `layout.json` lists the e
 | `cockpit_noframe.png` (Amiga) | 320 × 200 | `COCKPIT.PC1` source for `frame=no` |
 | `textscr.png` | 320 × 200 | Full `TEXTSCR.PC1` screen |
 | `font.png` | 128 × 48 | 16 columns of 8 × 8 glyphs; ASCII 32–127, including blank slots |
+| `font16.png` (Amiga) | 256 × 48 | Independent 16 × 8 versions of the same glyphs for 640-pixel-wide modes |
 | `cargo.png` | 240 × 128 | 5 columns of 48 × 32 cells; bitmap IDs 0–19 |
 | `equipment.png` | 448 × 432 | 4 columns of 112 × 48 cells; IDs 32–47, then equipment labels 58–74 |
-| `panels.png` | 320 × 576 | One column of 320 × 96 cells; IDs 20, 21, 48, 49, 54, 113 |
+| `panels.png` | 320 × 576 | One column of 320 × 96 cells; IDs 20, 21, 48, 49, 113; Cobra cell 54 is retained as artwork only |
 | `characters.png` | 320 × 288 | 5 columns of 64 × 72 cells; heads 75–84, then bodies 85–94 |
 | `gadgets.png` | 384 × 432 | 6 columns of 64 × 48 cells; remaining bitmap IDs in ascending order, then four missile states |
+
+**The Cobra image in `panels.png` is not used by either the Amiga or Atari game.**
+It remains in the PNG as reference artwork only; no game asset is generated
+from it. Both games render the current player's ship from its 3D model instead.
+
+The old 128 x 51 Cobra's `layout.json` entry
+keeps ID 54 and its source rectangle for reference, with `export: false` and
+`offset: 0`. The bitmap file retains a null pointer at that ID but contains no
+Cobra header, pixels or padding; all other IDs remain unchanged. Editing the
+Cobra cell therefore has no effect on generated assets. The PNG itself is unchanged.
 
 Missile states are empty, installed, active and locked. Each has a 16 × 6 source
 rectangle, but only its first 10 columns are painted; keep the final six columns
@@ -123,12 +135,39 @@ including its black pixels,
 matching the original fixed sprite masks. Missile binaries are embedded during
 assembly; they are not additional disk files.
 
+## Runtime ship images and archived PNGs
+
+The three ship views are rendered from native models in both enhanced games,
+outside this PNG conversion workflow. Shipyards keeps a complete 13-tile atlas
+of 64 x 41 images. Status and the laser mount dialog share a single 128 x 51
+image of the current hull; Planet Data uses a single 32 x 45 image. Startup
+generates Shipyards, while new game, commander load and hull purchase refresh
+the two current-ship pictures. These cached dimensions do not depend on WIDE,
+HIRES or HIRES-LACED; drawing applies the selected UI scale.
+
+`ships.png`, `shipsplanetinfo.png`, `shipyards.png` and `ship-atlases.json` are
+archived in [`resources/gfx_assets`](../resources/gfx_assets). Neither `gfx/`
+nor `gfx_alt/` needs them, and editing the archived PNGs has no effect on builds.
+The obsolete one-off PNG generator and its temporary previews were removed.
+To change these pictures, use the platform's model/material data or its own
+`asm/shipgfx.m68`; the original Cobra tiles in the general PNG sheets no longer
+supply the player pictures on these screens.
+
+The converter removes stale `SHIPSPRITES.IMG`, `SHIPSPRITES_SCALED.IMG` and
+`SHIPS_PACKED.IMG` exports from `assets/`, and from the Amiga build directory
+when supplied by the build. They are not regenerated or needed at runtime.
+Other PNG-derived assets continue to compile normally. See
+[runtime ship images](2026-09-24-runtime-ship-images.md) for buffer ownership,
+camera views, palette handling and validation.
+
 ## Binary compatibility and validation
 
-The supplied default PNGs reproduce all eight generated binary files byte for
-byte, including after migration to the per-image RGB palettes. Full default Atari
-and Amiga game executables and distributed data files were also compared against
-builds made before the initial PNG workflow change.
+The initial PNG workflow reproduced the original generated binary files byte
+for byte, including after migration to the per-image RGB palettes. The current
+bitmap bank deliberately omits the unused panel Cobra while preserving all
+remaining pixel data and bitmap IDs. Its default hash fixture reflects this
+compaction. See the [Cobra bitmap removal notes](2026-09-24-unused-cobra-bitmap.md)
+for file sizes, RAM savings and loader checks.
 
 `layout.json` retains the historical bitmap ordering and PC1 trailer bytes,
 without storing a second copy of the pixel artwork. The standard source set

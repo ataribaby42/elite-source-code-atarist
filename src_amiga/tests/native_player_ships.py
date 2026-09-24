@@ -98,19 +98,6 @@ def make_suite(root,s):
     emit(' lea objects(a6),a4\n clr.w flags(a4)\n move.w #cobra,type(a4)\n move.w #72,health(a4)\n'+call('ship_missile_damage'));eq(0,'d0');eq(32,'health(a4)')
     emit(call('ship_missile_damage'));eq(1,'d0');eq(0,'health(a4)')
     emit(' move.w #spacestn,type(a4)\n move.w #72,health(a4)\n'+call('ship_missile_damage'));eq(0,'d0');eq(72,'health(a4)')
-    if 'ship_decode_bitmap' in s:
-        import struct
-        bank=(root/'assets/SHIPSPRITES.IMG').read_bytes()
-        offsets=struct.unpack('>39I',bank[:156])
-        for i,start in enumerate(offsets):
-            end=offsets[i+1] if i<38 else len(bank)
-            checksum=0
-            for byte in bank[start:end]:
-                checksum=(((checksum<<1)|(checksum>>31))&0xffffffff)^byte
-            case(f'Sprite {i}: native decompression matches the complete masked PNG export')
-            emit(f' move.w #{i*4},d0\n'+call('ship_decode_bitmap'))
-            emit(f' moveq #0,d2\n move.w #{end-start-1},d7\nqa_bitmap_{i}:\n rol.l #1,d2\n move.b (a0)+,d1\n eor.b d1,d2\n dbra d7,qa_bitmap_{i}\n')
-            eq(f'${checksum:08x}','d2','l')
     case('Save and reload retain hull, rewards, fuel, cash and registration')
     hull(8);emit(' move.w #12,equip+missiles(a6)\n move.w #96,equip+fuel(a6)\n move.l #$53485031,player_ship_tag(a6)\n'+call('save_state'))
     hull(10);emit(' clr.w equip+missiles(a6)\n'+call('restore_state'));eq(8,'player_ship(a6)');eq(12,'equip+missiles(a6)');eq(96,'equip+fuel(a6)');eq(16,'hull_missiles(a6)')

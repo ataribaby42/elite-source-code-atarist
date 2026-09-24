@@ -1,5 +1,10 @@
 # Shipyards and menu regression check
 
+This records the initial PNG-based integration, before the move to
+[runtime ship images](2026-09-24-runtime-ship-images.md). Its decompression cases
+are historical; the current implementation uses the native renderer and memory
+checks described there.
+
 The review covered the player hull integration and the subsequent changes to the
 Equip title toggle, top-row menu rectangles and in-flight Front replacement.
 No game source changes were needed during this review. No confirmed gameplay

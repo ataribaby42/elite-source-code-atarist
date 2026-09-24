@@ -1,8 +1,12 @@
 # Amiga ship atlases
 
-The three indexed, 4-bit PNGs in `src_amiga/gfx` contain the 13 player ships.
-As of September 24, they supply the status-screen, planet-detail and Shipyards
-images in both enhanced games; see [player shipyards](2026-09-24-player-shipyards.md).
+This document records the original three indexed, 4-bit PNG atlases and their
+camera conventions. They were superseded on September 24 by
+[runtime ship images](2026-09-24-runtime-ship-images.md) in both enhanced games.
+The original PNGs and extraction metadata are archived in
+[`resources/gfx_assets`](../resources/gfx_assets). They are no longer present in
+the source graphics folders or required by builds. The dimensions and views
+below remain the reference for the native renderer.
 
 | Atlas | PNG size | Game image, excluding border | Cell pitch, including border | View |
 | --- | --- | --- | --- | --- |
@@ -37,15 +41,16 @@ The last three cells are empty. All artwork is centered and scaled uniformly
 per ship and per view to fit its rectangle, including modeled guns. Physical
 size differences between ships are intentionally not retained.
 
-`gfx/ship-atlases.json` records the order, palette, dimensions, reference bitmap
-IDs and exact border-free `[x, y, width, height]` rectangles for extraction.
+The archived [`ship-atlases.json`](../resources/gfx_assets/ship-atlases.json)
+records the order, palette, dimensions, reference bitmap IDs and exact
+border-free `[x, y, width, height]` rectangles used for extraction.
 For zero-based ship index `i`, the image begins at
 `x = (i % 4) * cell_width + 1`, `y = (i // 4) * cell_height + 1`.
 
 ## Rendering and palette
 
-The renderer reads the actual Amiga ship vertices, surface normals, polygons,
-details and first material variant from `asm/objects.dat`. It decodes the
+The original PNG renderer read the actual Amiga ship vertices, surface normals,
+polygons, details and first material variant from `asm/objects.dat`. It decoded the
 two-row, four-plane material patterns in `asm/vector.m68`'s `panel_colours`
 table. The aft view uses an orthographic camera 45 degrees above the ship,
 without yaw or roll; the other two views are directly overhead.
@@ -64,14 +69,13 @@ three files, with PNG indices matching game indices.
 
 ## Validation
 
-The initial September 23 work prepared artwork only. The one-off rendering
-helper and review images are kept under
-`src_amiga/build/ship-atlases`, outside the source tools and build pipeline.
-The September 24 integration adds platform-owned importers and tests described
-in the shipyards notes above.
+The initial September 23 work prepared artwork only. Its checks covered mesh
+counts, reference extraction dimensions, image bounds, the 4-bit indexed PNG
+header, exact palette, red frames, empty cells and absence of index 14. All RGB
+values were also validated using the graphics compiler's read-only `read_png`
+function.
 
-The rendering checks cover mesh counts, reference extraction dimensions, image
-bounds, the 4-bit indexed PNG header, exact palette, red frames, empty cells
-and absence of index 14. All RGB values are also validated using the existing
-graphics compiler's read-only `read_png` function. The verification report is
-`src_amiga/build/ship-atlases/verification.json`.
+The obsolete one-off PNG generator, review images and temporary verification
+report were removed after migration to runtime rendering. The archived originals
+remain available for comparison. Current renderer and memory-ownership checks
+are described in the [runtime ship images notes](2026-09-24-runtime-ship-images.md).

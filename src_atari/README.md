@@ -23,6 +23,31 @@ supported, and game pixel indices and hardware palettes stay unchanged. See the
 [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md) for the complete
 palette, alpha handling, sheet layouts and verification commands.
 
+## Player ship images
+
+This tree's `asm/shipgfx.m68` renders pictures from its existing flight models.
+It creates all 13 Shipyards tiles once at startup (64 x 41 pixels each, nose up).
+Status and the laser mount dialog share one 128 x 51 rear/above view of the
+current hull; Planet Data keeps one 32 x 45 overhead view with the nose right.
+New game, commander load and successful hull purchase regenerate only those
+two current-ship images.
+
+The linker reserves the cache between the bounded cockpit input buffer and
+game variables. It cannot be reused by the asset loader, screens, cursor backups
+or drawing workspaces. The renderer uses the UI palette without flashing ship
+colours or added outlines.
+
+The former ship PNG atlases and metadata are reference-only backups in
+[`resources/gfx_assets`](../resources/gfx_assets). They are not read from `gfx/`
+or `gfx_alt/`, embedded in the executable or exported as ship bitmap files.
+See [runtime ship images](../docs/2026-09-24-runtime-ship-images.md) for memory
+sizes and verification, and [Shipyards](../docs/2026-09-24-player-shipyards.md)
+for purchasing rules and hull statistics.
+
+The original 128 x 51 Cobra cell in `panels.png` is also excluded from export.
+Its reserved bitmap ID stays in the table with a null pointer. Removing its
+payload saves 3,268 bytes on disk and 4,084 bytes of reserved bitmap RAM.
+
 ## RCS sound
 
 RCS FX also enables a motor tone while the player holds Space (accelerate)
@@ -55,7 +80,7 @@ also stop RCS immediately and discard pending steering audio before drawing.
 | Path | Purpose |
 | --- | --- |
 | `src_atari/asm/` | 39 converted game modules, macros, definitions, loader, font, and ship data |
-| `src_atari/assets/` | Game bitmaps, loading artwork, images, and trigonometric tables |
+| `src_atari/assets/` | Game bitmaps, loading artwork, fonts, missile sprites and planet colour data |
 | `src_atari/modules.txt` | Game module order from the original `ELITE.LNK` |
 | `src_atari/elite.ld` | Reference memory layout and linker symbols for runtime relocation |
 | `src_atari/build.py` | Assembly, linking, verification, and floppy image creation |

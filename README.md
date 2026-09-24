@@ -169,7 +169,7 @@ Alternatively, run `python src_atari/build.py` directly. The scripts resolve pro
 
 ## Editing PNG graphics
 
-Edit the eight source PNGs in `src_atari/gfx/` or `src_amiga/gfx/`. Each normal
+Edit the source PNGs in `src_atari/gfx/` or `src_amiga/gfx/`. Each normal
 build uses Pillow to convert its own PNGs into binary files in its `assets/`
 directory before assembly. Keep the original canvas dimensions.
 
@@ -183,8 +183,10 @@ To use `src_atari/gfx_alt/` or
 .\build_amiga.bat altgfx=yes
 ```
 
-Each `gfx_alt/` directory must contain all eight PNGs and its `layout.json`;
-missing files cause a build error. Use `altgfx=no` to switch back. Both choices
+Each `gfx_alt/` directory must contain the PNGs required by its platform and
+selected cockpit mode, plus `layout.json`; missing files cause a build error.
+Amiga also uses `font16.png` for its wider font and `cockpit_noframe.png` for
+`frame=no`. Use `altgfx=no` to switch back. Both choices
 generate the same asset filenames and distribution paths, so the next build
 replaces the previous selection's outputs.
 
@@ -215,10 +217,35 @@ PNG pixels also map to 0. Partial alpha and colours outside the selected palette
 are rejected with the offending pixel's coordinates; colours are never rounded
 to the nearest match. The font uses only index 0 and white index 15.
 
-The migrated default PNGs still generate byte-for-byte identical original binary
-assets. Edited PNGs supply the new artwork and are not required to match default
-hashes. See the [PNG editing guide](docs/2026-09-19-editable-png-graphics.md) for
+PNG palette migration preserved the original pixel indices. The general bitmap
+bank now omits the unused Cobra from `panels.png`, retaining all other IDs and
+artwork. Edited PNGs are not required to match default hashes. See the
+[PNG editing guide](docs/2026-09-19-editable-png-graphics.md) for
 the complete 16-colour palette, sheet layouts and verification commands.
+
+## Ship images
+
+Both enhanced games render ship pictures directly from their existing 3D models
+into reserved memory. Startup creates the full Shipyards atlas: 13 tiles of
+64 x 41 pixels, viewed from above with the nose pointing up. Only the current
+player ship is kept for Status and the laser mount dialog (128 x 51, rear/above)
+and Planet Data (32 x 45, nose right). These two images are regenerated on a new
+game, commander load or successful hull purchase.
+
+The cached dimensions stay fixed in WIDE, HIRES and HIRES-LACED. Amiga scales the
+images when drawing to match the rest of the UI, without allocating larger
+atlases. The image buffers are separate from screens and drawing workspaces.
+
+The former `ships.png`, `shipsplanetinfo.png`, `shipyards.png` and extraction
+metadata are archived in [`resources/gfx_assets`](resources/gfx_assets).
+They are no longer build inputs or distributed ship assets; editing them does
+not change the game. See [runtime ship images](docs/2026-09-24-runtime-ship-images.md)
+for buffer sizes, rendering details, measured savings and validation.
+
+The original Cobra in `panels.png` is not used by either enhanced game. It remains
+in the PNG as reference artwork only and generates no game bitmap.
+Its former ID is reserved and its file and RAM
+storage have been removed on both platforms; the runtime ship view replaces it.
 
 ## Planet colours
 
@@ -275,7 +302,7 @@ Mount `output_atari/ELITE.ST` in drive A: and reset the Atari to boot from the f
 
 To run from C:, copy the entire contents of `output_atari/ELITE` to a directory such as `C:\ELITE`, then run `C:\ELITE\ELITE.TOS`. **All files must be in the same directory as `ELITE.TOS`, with no separate data subdirectory.** When updating, replace every file, including `LOADER.IMG`, or replace the entire floppy image.
 
-The enhanced game targets an Atari ST with a colour monitor and **1 MB RAM**. The player ship atlases are resident in memory. For hard-drive setups, the launcher places the game above resident software inside the free ST-RAM block assigned by TOS, rather than requiring fixed low addresses. Enough contiguous free ST RAM is still required; the launcher checks the game workspace, screen placement and startup stack before loading. The original novella protection questions are enabled unless built with `noprotect=yes`.
+The enhanced game targets an Atari ST with a colour monitor and **1 MB RAM**. Ship pictures are rendered into memory from the game's models: the full Shipyards atlas and two views of the current player ship. For hard-drive setups, the launcher places the game above resident software inside the free ST-RAM block assigned by TOS, rather than requiring fixed low addresses. Enough contiguous free ST RAM is still required; the launcher checks the game workspace, screen placement and startup stack before loading. The original novella protection questions are enabled unless built with `noprotect=yes`.
 
 Before the player ship feature, the relocated startup was verified in Hatari 2.6.1 with TOS 1.04 DE on 512 KB and 1 MB configurations, including C: startup with a 128 KB resident program occupying low memory. The current shipyard build is tested with 1 MB. Compatibility with PP HDD Driver on physical hardware still needs confirmation.
 

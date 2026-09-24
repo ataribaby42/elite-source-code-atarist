@@ -14,7 +14,7 @@ bit_equipment: rs.b 16 ; equipment icons
 bit_keypad: rs.b 1 ; numeric keypad
 bit_lasers: rs.b 1 ; mount lasers (cobra)
 bit_positions: rs.b 4 ; different laser positions
-bit_cobra: rs.b 1 ; equipment cobra
+bit_cobra: rs.b 1 ; reserved ID: PNG Cobra is not exported; runtime portraits replace it
 bit_arrow_right: rs.b 1 ; arrow pointing right
 bit_arrow_left: rs.b 1 ; arrow pointing left
 bit_arrow_up: rs.b 1 ; arrow pointing up
@@ -66,3 +66,4 @@ bit_icon_front: rs.b 1
 * bit_aliens:		  ds.b 4
 
 bit_last: rs.b 1
+bit_stored: equ bit_last-1 ; table keeps the unused Cobra ID, but no bitmap follows it

@@ -198,6 +198,14 @@ def main():
     check(syms['textscr'] == ORIGIN + len(image), 'Workspace overlaps the program')
     check(syms['other_screen'] % 32768 == 0, 'Second screen must be aligned to 32 KB')
     check(syms['vars'] + syms['var_size'] == syms['ram_end'], 'Invalid variable area')
+    check(syms['ship_graphics_begin'] == syms['cockpit_end'] and
+          syms['ship_graphics_end'] == syms['vars'],
+          'Generated ship images overlap another workspace region')
+    for cache_start, cache_end, cache_size in (('ship_yard_atlas', 'ship_yard_end', 13*1644),
+                                               ('ship_status_image', 'ship_status_end', 4084),
+                                               ('ship_planet_image', 'ship_planet_end', 904)):
+        check(syms[cache_end]-syms[cache_start] == cache_size,
+              'Invalid generated ship image capacity: ' + cache_start)
     check(syms['ram_end'] <= 0xf8000, 'Game overlaps the default 1 MB ST screen')
     check(image[syms['initialise']-ORIGIN:syms['initialise']-ORIGIN+6] ==
           b'\x4d\xf9' + syms['vars'].to_bytes(4, 'big'), 'Incorrect workspace relocation')
@@ -271,9 +279,21 @@ def main():
                   'TEXTURE.PC1': syms['obj_data']-syms['texture'],
                   'OBJECTS.IMG': syms['logo']-syms['obj_data'],
                   'LOGO.PC1': syms['cockpit']-syms['logo'],
-                  'COCKPIT.PC1': syms['vars']-syms['cockpit']}
+                  'COCKPIT.PC1': syms['cockpit_end']-syms['cockpit']}
     for name, capacity in capacities.items():
         check((game / name).stat().st_size <= capacity, f'{name} exceeds its reserved buffer')
+
+    # Null offsets retain unused IDs without storing or expanding their artwork.
+    bank = (game / 'BITMAPS.IMG').read_bytes()
+    entries = struct.unpack_from('>I', bank)[0] // 4
+    table = struct.unpack_from('>'+str(entries)+'I', bank)
+    offsets = sorted(set(table)-{0})
+    check(entries == 125 and len(offsets) == 124 and table[54] == 0,
+          'Bitmap table must retain 125 IDs and omit only the PNG Cobra')
+    columns = sum(width*depth for width, depth in
+                  (struct.unpack_from('>HH', bank, offset) for offset in offsets))
+    check(entries*4 + len(offsets)*4 + columns*10 <= syms['texture']-syms['bitmaps'],
+          'Expanded BITMAPS.IMG exceeds its reserved buffer')
 
     names = (*ASSET_NAMES, 'ELITE.IMG', 'LOADER.IMG', 'ELITE.TOS', 'OBJECTS.IMG', 'ELITECHR.IMG')
     files = [game / name for name in names]

@@ -1,7 +1,7 @@
 # Player shipyards on Amiga and Atari ST
 
 The enhanced Amiga and Atari versions support the same 13 player hulls. Each
-platform owns its assembly module, PNG importer and tests. The preserved original
+platform owns its gameplay module, runtime ship renderer and tests. The preserved original
 version is unchanged. The target for this feature is **1 MB RAM** on both machines;
 the standard Amiga configuration is 512 KB Chip RAM plus 512 KB expansion RAM.
 
@@ -105,14 +105,14 @@ in the original HUD strip. The status equipment list also supports two digits.
 
 ## Assets and saved commanders
 
-Both `gfx` and `gfx_alt` must supply `ships.png`, `shipsplanetinfo.png`,
-`shipyards.png` and `ship-atlases.json`. The existing bitmap IDs stay unchanged.
-Each importer generates a separate masked `SHIPSPRITES.IMG` bank. Atari embeds
-that bank directly. Amiga scales and losslessly compresses each tile into
-`build/SHIPS_PACKED.IMG`, embeds the compressed bank, and decodes one tile into
-a small reusable buffer before drawing. This also keeps hireslace ADFs within
-the 880 KB floppy capacity.
-The red editing frames never enter the game, and palette index 14 is rejected.
+Ship images are now [rendered from native models at runtime](2026-09-24-runtime-ship-images.md).
+Startup creates the thirteen Shipyards tiles; new game, load and successful
+purchase regenerate only the two player portraits. The former three PNG atlases
+and their metadata are archived in [`resources/gfx_assets`](../resources/gfx_assets)
+and are no longer build inputs. The graphics compiler also removes obsolete
+`SHIPSPRITES.IMG`, `SHIPSPRITES_SCALED.IMG` and `SHIPS_PACKED.IMG` exports.
+The original general bitmap IDs stay unchanged. The renderer maps opaque black
+to UI index 13 and flashing material 14 to steady red 6.
 Status and the laser mount dialog use the current hull's status view; planet
 data uses its right-facing overhead view; Shipyards uses upward overhead views.
 Status prints `Registration: <model name> <ID>` using the same existing model
@@ -132,17 +132,17 @@ The native regression scenario generator is retained independently in each
 platform's `tests/native_player_ships.py`. It exercises linked 68000 routines for
 all hull purchases, cargo and missile boundaries, rejected transactions, laser
 replacement and resale, reward transfer, offer lists, resistance, collisions,
-missile damage and saved commanders. The image tests compare all 39 exported
-sprites and masks with their exact PNG rectangles, including scaled Amiga views.
+missile damage and saved commanders. Runtime image coverage now lives in each
+tree's `tests/native_ship_graphics.py`; it checks cache boundaries, immutable
+Shipyards artwork, screen consumers, purchase, load, new game and subsequent flight.
 
 Runtime checks use private copies of WinUAE and Hatari on separate hidden Windows
 desktops. Native scenario reports and captured screens are under each platform's
 `build/shipyards-qa`. Standard 1 MB boots, Shipyards, selection, Equip buy/sell,
 Anaconda status/planet views and the 16-missile HUD are included.
 
-The final standard builds passed 93 native scenarios on Atari ST and 132 on
-Amiga; the additional 39 Amiga scenarios verify every compressed sprite against
-its uncompressed bytes. Each platform's Python suite ran 35 tests with one
-historical artwork-baseline check skipped for the edited source graphics.
-Both normal and alternate artwork distributions build successfully. The Amiga
-PAL hireslace build also fits its ADF after sprite compression.
+The original PNG integration passed 93 native gameplay scenarios on Atari ST and
+132 on Amiga, including 39 Amiga decompression checks. These describe that earlier
+implementation; current renderer verification and measured resource use are in
+the runtime image document. Both normal and alternate artwork distributions
+continue to build, including Amiga HIRES-LACED floppy images.

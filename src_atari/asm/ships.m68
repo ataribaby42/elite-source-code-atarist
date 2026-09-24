@@ -5,6 +5,7 @@
 	xref build_number,registration_new_player,hide_cursor,restore_cursor,set_colour,line
 	xref launch,buy_cargo,sell_cargo,equip_ship,galactic_chart,local_chart,data
 	xref market_prices,inventory,status,disk,find_planet,home_cursor,options
+	xref ship_refresh,ship_yard_bitmap,ship_put_bitmap
 	xref obj_data
 	q_module ships
 
@@ -73,22 +74,7 @@
 	add.w d0,d0
 	move.w d0,hull_pitch_span(a6)
 	movem.l (sp)+,d0-d1/a0-a1
-	rts
-
-; D0.w atlas group (0=status, 1=planet, 2=yard) -> A0 current-hull bitmap.
-	q_subr ship_bitmap,global
-	movem.l d0-d1/a1,-(sp)
-	mulu #ship_count,d0
-	move.w d0,d1
-	move.w player_ship(a6),d0
-	bsr ship_profile
-	add.w sp_atlas(a0),d1
-	lsl.w #2,d1
-	lea ship_sprite_bank,a0
-	move.l (a0,d1.w),a1
-	adda.l a1,a0
-	movem.l (sp)+,d0-d1/a1
-	rts
+	jmp ship_refresh
 
 ; Equipment prices in tenths of a credit. D0.w item -> D0.l price only.
 	q_subr ship_equipment_price,global
@@ -477,13 +463,9 @@
 .draw:
 	bsr yard_profile
 	move.w sp_atlas(a0),d0
-	add.w #ship_count*2,d0
-	lsl.w #2,d0
-	lea ship_sprite_bank,a0
-	move.l (a0,d0.w),d0
-	adda.l d0,a0
+	jsr ship_yard_bitmap
 	bsr yard_coords
-	jsr put_bitmap
+	jsr ship_put_bitmap
 	bsr yard_coords
 	lsr.w #3,d0
 	addq.w #1,d0 ; centre the six-character price in the 64-pixel tile
@@ -708,5 +690,3 @@ yard_cargo: dc.b 'Cargo and retained equipment do not fit',0
 yard_missiles: dc.b 'Too many missiles for this ship',0
 yard_same: dc.b 'You already own this type of ship',0
 	even
-ship_sprite_bank:
-	incbin "SHIPSPRITES.IMG"

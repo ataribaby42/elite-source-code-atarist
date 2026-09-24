@@ -1,4 +1,4 @@
-	xref ship_apply
+	xref ship_apply,ship_graphics_init
 	include "common.def"
 ; Ported from src_orig/asm/init.m68; edit this copy.
 * @@@@@@ @@   @@  @@@@@@  @@@@@@
@@ -143,6 +143,7 @@ size macro
 	jsr init_cursor_cache
 	load_file logo,logo_file
 	bsr relocate ; relocate object data
+	jsr ship_graphics_init ; private in-memory UI atlas from relocated models
 	bsr check_vars ; check variable areas
 	st stop_cycle(a6) ; don't cycle colours yet
 	move.l #amiga_primary,d0 ; OCS Chip RAM screen
@@ -321,7 +322,7 @@ q_init_m68_3:
 	move.b d0,(a0)+
 	q_inc.l d5
 	q_next 1
-	q_loop 1,bit_last ; loop for each bitmap
+	q_loop 1,bit_stored ; only stored bitmaps; unused IDs have zero table offsets
 	q_push d7
 	move.l bitmap_bank,a1 ; search for reference to offset in
 q_init_m68_21:

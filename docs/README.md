@@ -5,6 +5,13 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 
 | Document | Purpose |
 | --- | --- |
+| [2026-09-24-unused-cobra-bitmap.md](2026-09-24-unused-cobra-bitmap.md) | Remove the unused panel Cobra from the generated bitmap bank and RAM while preserving its PNG artwork and all other bitmap IDs |
+| [2026-09-24-runtime-ship-images.md](2026-09-24-runtime-ship-images.md) | Current ship graphics: runtime rendering, fixed image sizes, isolated memory buffers, archived PNGs and measured savings on both platforms |
+| [2026-09-24-player-shipyards.md](2026-09-24-player-shipyards.md) | Ship purchasing, equipment resale, hull statistics, combat balance and saved commanders |
+| [2026-09-24-shipyards-regression-check.md](2026-09-24-shipyards-regression-check.md) | Historical validation of the initial Shipyards integration and menu controls before runtime ship rendering |
+| [2026-09-24-death-and-ship-screen-fixes.md](2026-09-24-death-and-ship-screen-fixes.md) | Station clipping overflow, death flashing, purchase confirmation and ship image placement fixes |
+| [2026-09-24-viewport-rendering-bounds.md](2026-09-24-viewport-rendering-bounds.md) | General polygon, line and flight-text bounds checks across Atari and Amiga display modes |
+| [2026-09-23-amiga-ship-atlases.md](2026-09-23-amiga-ship-atlases.md) | Archived PNG atlas reference: original dimensions, camera views, palette and tile order; superseded by runtime rendering |
 | [2026-09-21-random-encounter-spawn-range-audit.md](2026-09-21-random-encounter-spawn-range-audit.md) | Fix: reserve space for encounter formations so all eight templates start inside scanner range |
 | [2026-09-21-random-encounter-torus-routing.md](2026-09-21-random-encounter-torus-routing.md) | Fix: apply the 50% encounter substitution to both timed waves and torus interruptions, preserving mission spawns |
 | [2026-09-20-convoy-spawn-regression-checks.md](2026-09-20-convoy-spawn-regression-checks.md) | Validation: existing spawn paths, missions, missiles, cargo and object-slot reuse after adding trader convoys |

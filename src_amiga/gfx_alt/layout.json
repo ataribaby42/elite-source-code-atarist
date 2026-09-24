@@ -2321,7 +2321,7 @@
     },
     {
       "id": 54,
-      "offset": 60416,
+      "offset": 0,
       "sheet": "panels",
       "rect": [
         0,
@@ -2329,11 +2329,12 @@
         128,
         51
       ],
-      "name": "bit_cobra"
+      "name": "bit_cobra",
+      "export": false
     },
     {
       "id": 55,
-      "offset": 63684,
+      "offset": 60416,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2345,7 +2346,7 @@
     },
     {
       "id": 56,
-      "offset": 63728,
+      "offset": 60460,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2357,7 +2358,7 @@
     },
     {
       "id": 57,
-      "offset": 63772,
+      "offset": 60504,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2369,7 +2370,7 @@
     },
     {
       "id": 58,
-      "offset": 64388,
+      "offset": 61120,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2381,7 +2382,7 @@
     },
     {
       "id": 59,
-      "offset": 65204,
+      "offset": 61936,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2393,7 +2394,7 @@
     },
     {
       "id": 60,
-      "offset": 64224,
+      "offset": 60956,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2405,7 +2406,7 @@
     },
     {
       "id": 61,
-      "offset": 66384,
+      "offset": 63116,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2417,7 +2418,7 @@
     },
     {
       "id": 62,
-      "offset": 66588,
+      "offset": 63320,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2429,7 +2430,7 @@
     },
     {
       "id": 63,
-      "offset": 64060,
+      "offset": 60792,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2441,7 +2442,7 @@
     },
     {
       "id": 64,
-      "offset": 63816,
+      "offset": 60548,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2453,7 +2454,7 @@
     },
     {
       "id": 65,
-      "offset": 65896,
+      "offset": 62628,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2465,7 +2466,7 @@
     },
     {
       "id": 66,
-      "offset": 65692,
+      "offset": 62424,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2477,7 +2478,7 @@
     },
     {
       "id": 67,
-      "offset": 65448,
+      "offset": 62180,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2489,7 +2490,7 @@
     },
     {
       "id": 68,
-      "offset": 64960,
+      "offset": 61692,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2501,7 +2502,7 @@
     },
     {
       "id": 69,
-      "offset": 66752,
+      "offset": 63484,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2513,7 +2514,7 @@
     },
     {
       "id": 70,
-      "offset": 66956,
+      "offset": 63688,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2525,7 +2526,7 @@
     },
     {
       "id": 71,
-      "offset": 67200,
+      "offset": 63932,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2537,7 +2538,7 @@
     },
     {
       "id": 72,
-      "offset": 64796,
+      "offset": 61528,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2549,7 +2550,7 @@
     },
     {
       "id": 73,
-      "offset": 64552,
+      "offset": 61284,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2561,7 +2562,7 @@
     },
     {
       "id": 74,
-      "offset": 66100,
+      "offset": 62832,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2573,7 +2574,7 @@
     },
     {
       "id": 75,
-      "offset": 68344,
+      "offset": 65076,
       "sheet": "characters",
       "rect": [
         0,
@@ -2585,7 +2586,7 @@
     },
     {
       "id": 76,
-      "offset": 75540,
+      "offset": 72272,
       "sheet": "characters",
       "rect": [
         64,
@@ -2597,7 +2598,7 @@
     },
     {
       "id": 77,
-      "offset": 69372,
+      "offset": 66104,
       "sheet": "characters",
       "rect": [
         128,
@@ -2609,7 +2610,7 @@
     },
     {
       "id": 78,
-      "offset": 77596,
+      "offset": 74328,
       "sheet": "characters",
       "rect": [
         192,
@@ -2621,7 +2622,7 @@
     },
     {
       "id": 79,
-      "offset": 70400,
+      "offset": 67132,
       "sheet": "characters",
       "rect": [
         256,
@@ -2633,7 +2634,7 @@
     },
     {
       "id": 80,
-      "offset": 74512,
+      "offset": 71244,
       "sheet": "characters",
       "rect": [
         0,
@@ -2645,7 +2646,7 @@
     },
     {
       "id": 81,
-      "offset": 71428,
+      "offset": 68160,
       "sheet": "characters",
       "rect": [
         64,
@@ -2657,7 +2658,7 @@
     },
     {
       "id": 82,
-      "offset": 72456,
+      "offset": 69188,
       "sheet": "characters",
       "rect": [
         128,
@@ -2669,7 +2670,7 @@
     },
     {
       "id": 83,
-      "offset": 76568,
+      "offset": 73300,
       "sheet": "characters",
       "rect": [
         192,
@@ -2681,7 +2682,7 @@
     },
     {
       "id": 84,
-      "offset": 73484,
+      "offset": 70216,
       "sheet": "characters",
       "rect": [
         256,
@@ -2693,7 +2694,7 @@
     },
     {
       "id": 85,
-      "offset": 85548,
+      "offset": 82280,
       "sheet": "characters",
       "rect": [
         0,
@@ -2705,7 +2706,7 @@
     },
     {
       "id": 86,
-      "offset": 87856,
+      "offset": 84588,
       "sheet": "characters",
       "rect": [
         64,
@@ -2717,7 +2718,7 @@
     },
     {
       "id": 87,
-      "offset": 80932,
+      "offset": 77664,
       "sheet": "characters",
       "rect": [
         128,
@@ -2729,7 +2730,7 @@
     },
     {
       "id": 88,
-      "offset": 83240,
+      "offset": 79972,
       "sheet": "characters",
       "rect": [
         192,
@@ -2741,7 +2742,7 @@
     },
     {
       "id": 89,
-      "offset": 90164,
+      "offset": 86896,
       "sheet": "characters",
       "rect": [
         256,
@@ -2753,7 +2754,7 @@
     },
     {
       "id": 90,
-      "offset": 78624,
+      "offset": 75356,
       "sheet": "characters",
       "rect": [
         0,
@@ -2765,7 +2766,7 @@
     },
     {
       "id": 91,
-      "offset": 92472,
+      "offset": 89204,
       "sheet": "characters",
       "rect": [
         64,
@@ -2777,7 +2778,7 @@
     },
     {
       "id": 92,
-      "offset": 97088,
+      "offset": 93820,
       "sheet": "characters",
       "rect": [
         128,
@@ -2789,7 +2790,7 @@
     },
     {
       "id": 93,
-      "offset": 94780,
+      "offset": 91512,
       "sheet": "characters",
       "rect": [
         192,
@@ -2801,7 +2802,7 @@
     },
     {
       "id": 94,
-      "offset": 99396,
+      "offset": 96128,
       "sheet": "characters",
       "rect": [
         256,
@@ -2813,7 +2814,7 @@
     },
     {
       "id": 95,
-      "offset": 67620,
+      "offset": 64352,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2825,7 +2826,7 @@
     },
     {
       "id": 96,
-      "offset": 67444,
+      "offset": 64176,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2837,7 +2838,7 @@
     },
     {
       "id": 97,
-      "offset": 67488,
+      "offset": 64220,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2849,7 +2850,7 @@
     },
     {
       "id": 98,
-      "offset": 67532,
+      "offset": 64264,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2861,7 +2862,7 @@
     },
     {
       "id": 99,
-      "offset": 67576,
+      "offset": 64308,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2873,7 +2874,7 @@
     },
     {
       "id": 100,
-      "offset": 101704,
+      "offset": 98436,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2885,7 +2886,7 @@
     },
     {
       "id": 101,
-      "offset": 103116,
+      "offset": 99848,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2897,7 +2898,7 @@
     },
     {
       "id": 102,
-      "offset": 104528,
+      "offset": 101260,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2909,7 +2910,7 @@
     },
     {
       "id": 103,
-      "offset": 105940,
+      "offset": 102672,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2921,7 +2922,7 @@
     },
     {
       "id": 104,
-      "offset": 107288,
+      "offset": 104020,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2933,7 +2934,7 @@
     },
     {
       "id": 105,
-      "offset": 108700,
+      "offset": 105432,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2945,7 +2946,7 @@
     },
     {
       "id": 106,
-      "offset": 108944,
+      "offset": 105676,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2957,7 +2958,7 @@
     },
     {
       "id": 107,
-      "offset": 109188,
+      "offset": 105920,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2969,7 +2970,7 @@
     },
     {
       "id": 108,
-      "offset": 109432,
+      "offset": 106164,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2981,7 +2982,7 @@
     },
     {
       "id": 109,
-      "offset": 109676,
+      "offset": 106408,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2993,7 +2994,7 @@
     },
     {
       "id": 110,
-      "offset": 109920,
+      "offset": 106652,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -3005,7 +3006,7 @@
     },
     {
       "id": 111,
-      "offset": 110164,
+      "offset": 106896,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -3017,7 +3018,7 @@
     },
     {
       "id": 112,
-      "offset": 110528,
+      "offset": 107260,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -3029,7 +3030,7 @@
     },
     {
       "id": 113,
-      "offset": 110892,
+      "offset": 107624,
       "sheet": "panels",
       "rect": [
         0,
@@ -3232,5 +3233,5 @@
     800,
     1911
   ],
-  "bitmap_bytes": 112800
+  "bitmap_bytes": 109532
 }

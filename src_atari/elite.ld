@@ -17,11 +17,14 @@ SECTIONS
     max1 = .;
     save2_buffer = .;  . = . + 4096;
     max2 = .;
-    bitmaps = .;       . = . + 146862;
+    bitmaps = .;       . = . + 142778; /* PNG Cobra removed: 4084 masked bytes. */
     texture = .;       . = . + 24358;
     obj_data = .;      . = . + 20292;
     logo = .;          . = . + 16276;
     cockpit = .;       . = . + 13386;
+    cockpit_end = .;
+    /* Keep the cache outside the bounded cockpit input buffer. */
+    *(ship_graphics)
     vars = .;
     . = . + var_size;
     ram_end = .;

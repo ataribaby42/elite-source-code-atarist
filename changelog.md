@@ -6,6 +6,8 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.80
 
+- Stopped exporting the unused Cobra from panels.png on Atari ST and Amiga, preserving the PNG artwork and bitmap IDs while saving 3,268 disk bytes and 4,084 bytes of bitmap RAM (8,164 in HIRES, 16,324 in HIRES-LACED).
+- Replaced disk-based ship atlases with native model rendering on Atari ST and Amiga: generate all Shipyards tiles at startup and only the current hull's Status and Planet Data views on new game, load or purchase; keep fixed image sizes across display modes and isolated memory buffers. Original PNGs remain archived in resources/gfx_assets; obsolete PNG generation files were removed.
 - Fixed polygon and line clipping overflows causing screen corruption and white flashing, protected vertex buffers, and limited flight message width; verified on Atari and Amiga, including WIDE, HIRES, HIRES-LACED and shadowcopy=changes.
 - Faster Amiga rendering where Chip RAM is the bottleneck. The flight view sends Chip RAM only what changed, and drawing that goes straight to the screen touches each screen word once.
 - New build option shadowcopy=changes (default), counter (frame-time line also shows pieces sent), all (copy everything every frame, for comparison).

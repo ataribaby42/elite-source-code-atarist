@@ -1,4 +1,4 @@
-	xref ship_bitmap
+	xref ship_put_bitmap,ship_bitmap
 	include "common.def"
 ; Ported from src_orig/asm/pdata.m68; edit this copy.
 * @@@@@@  @@@@@ 	 @@    @@@@@@	 @@
@@ -213,7 +213,7 @@ q_pdata_m68_4:
 	jsr ship_bitmap
 	moveq #text_x,d0
 	moveq #planet_y-22,d1
-	jsr put_bitmap
+	jsr ship_put_bitmap
 	moveq #orange,d0 ; print in orange
 	moveq #trans,d1
 	jsr text_colour

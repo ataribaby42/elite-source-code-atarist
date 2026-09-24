@@ -24,6 +24,32 @@ reordered indexed PNGs are supported, and game pixel indices and hardware
 palettes stay unchanged. See the [PNG editing guide](../docs/2026-09-19-editable-png-graphics.md)
 for the complete palette, alpha handling, sheet layouts and verification commands.
 
+## Player ship images
+
+This tree's `asm/shipgfx.m68` renders pictures from its existing flight models.
+It creates all 13 Shipyards tiles once at startup (64 x 41 pixels each, nose up).
+Status and the laser mount dialog share one 128 x 51 rear/above view of the
+current hull; Planet Data keeps one 32 x 45 overhead view with the nose right.
+New game, commander load and successful hull purchase regenerate only those
+two current-ship images.
+
+The cache occupies its own BSS Hunk, separate from screens, cursor backups and
+drawing workspaces. WIDE, HIRES and HIRES-LACED keep the same cached dimensions;
+higher-resolution drawing expands one row at a time to the normal UI scale.
+The renderer uses the UI palette without flashing ship colours or added outlines.
+
+The former ship PNG atlases and metadata are reference-only backups in
+[`resources/gfx_assets`](../resources/gfx_assets). They are not read from `gfx/`
+or `gfx_alt/`, embedded in the executable or exported as ship bitmap files.
+See [runtime ship images](../docs/2026-09-24-runtime-ship-images.md) for memory
+sizes and verification, and [Shipyards](../docs/2026-09-24-player-shipyards.md)
+for purchasing rules and hull statistics.
+
+The original 128 x 51 Cobra cell in `panels.png` is also excluded from export.
+Its reserved bitmap ID stays in the table with a null pointer. Removing its
+payload saves 3,268 bytes on disk and 4,084 / 8,164 / 16,324 bytes of bitmap RAM
+in normal / HIRES / HIRES-LACED modes; WIDE alone does not change that saving.
+
 ## RCS sound
 
 RCS FX also enables a synthesized motor hum while Space (accelerate)

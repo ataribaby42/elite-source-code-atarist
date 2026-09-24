@@ -47,7 +47,7 @@ shadow_maps_bytes: equ view_bytes*3+y_size*2
 	fail "the transfer tests an empty row eight longs at a time"
 	endc
 art_bytes: equ row_stride*art_rows*zoom_y ; an asset expanded to screen scale
-bitmap_bytes: equ 125*8+13975*10*zoom_x*zoom_y ; BITMAPS.IMG expanded to screen scale
+bitmap_bytes: equ 125*4+124*4+13567*10*zoom_x*zoom_y ; table + stored headers + masked pixels; no PNG Cobra
 	ifne display_ntsc+frame
 scr_rows: equ art_rows*zoom_y ; 60 Hz row count, or as many rows as the frame has
 	endc

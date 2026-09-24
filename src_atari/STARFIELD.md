@@ -46,7 +46,7 @@ The view-dependent in-plane/vertical angles are:
 
 The flight frame draws the distant white sky first, then the planet and sun, then the moving starfield, followed by all other 3D objects, laser beams, the laser sight and viewport messages. Stars therefore overlay the planet and sun, while ships, stations, other objects and the UI can cover them. Each object layer retains its existing depth order. The unfiltered renderer used by hangars and other scenes is unchanged. The starfield draws the current particle positions, then rotates and advances them for the following frame. Coordinates are checked after rotation and movement; invalid depths are recycled before division. Coloured jump trails keep their existing repeated drawing, duration and growth. The existing witchspace suppression remains in effect.
 
-The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-byte workspace allocation is removed. The original files under `assets` remain unchanged for reference. Builds omit the files from the disk images and remove stale copies from their generated distribution directory.
+The runtime no longer loads `DCOS.DAT` or `DSIN.DAT`, and their former 29,412-byte workspace allocation is removed. The unused files have been deleted from this tree's `assets` and working backups. Builds omit them from disk images and still remove stale copies from their generated distribution directory. The preserved original game continues to use its separate copies in `src_orig/assets`; those files and the historical source archive are unchanged.
 
 ## Distant white sky
 

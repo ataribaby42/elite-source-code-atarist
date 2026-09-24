@@ -149,6 +149,15 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
             raise ValueError('Module variable area overflow: ' + name)
     if symbols['vars'] + symbols['var_size'] != symbols['ram_end']:
         raise ValueError('Invalid game workspace size')
+    # The generated pictures own a complete BSS Hunk, never a borrowed UI buffer.
+    if (symbols['ship_graphics_begin'] != 0 or
+            symbols['ship_graphics_end'] != hunks['ship_graphics']['bytes']):
+        raise ValueError('Generated ship images do not own their complete Hunk')
+    for start, end, size in (('ship_yard_atlas', 'ship_yard_end', 13*1644),
+                             ('ship_status_image', 'ship_status_end', 4084),
+                             ('ship_planet_image', 'ship_planet_end', 904)):
+        if symbols[end]-symbols[start] != size:
+            raise ValueError('Invalid generated ship image capacity: ' + start)
     screen = hunks['amiga_video']['bytes']
     if screen % 4 or hunks['amiga_video2']['bytes'] != screen:
         raise ValueError('Expected exactly two equal native Chip RAM screens')
@@ -172,11 +181,14 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     # The loader expands every source column to a mask plus four planes at display scale.
     bank = (game/'BITMAPS.IMG').read_bytes()
     entries = struct.unpack('>I', bank[:4])[0]//4
-    offsets = sorted({struct.unpack('>I', bank[i*4:i*4+4])[0] for i in range(entries)})
+    table = struct.unpack_from('>'+str(entries)+'I', bank)
+    offsets = sorted(set(table)-{0})
+    if entries != 125 or len(offsets) != 124 or table[54] != 0:
+        raise ValueError('Bitmap table must retain 125 IDs and omit only the PNG Cobra')
     columns = sum(width*depth for width, depth in
                   (struct.unpack('>HH', bank[o:o+4]) for o in offsets))
     zoom = (1 + hires)*(1 + lace)
-    if entries*8 + columns*10*zoom > symbols['bitmap_bytes']:
+    if entries*4 + len(offsets)*4 + columns*10*zoom > symbols['bitmap_bytes']:
         raise ValueError('Expanded BITMAPS.IMG exceeds its bitmap bank')
     files = {'ELITE': data, 's/startup-sequence': b'ELITE\n'}
     files.update({name:(game/name).read_bytes() for name in (*ASSET_NAMES,'OBJECTS.IMG','ELITECHR.IMG')})
