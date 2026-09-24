@@ -41,6 +41,18 @@ only if the new hull has room. Each mounted laser and installed device uses 1 t;
 missiles and cargo expansion use no cargo space. Naval Energy Unit uses 1 t,
 regardless of its internal value of 2. Retro rockets count as one device.
 
+On Status, **Equipment** shows installed device and laser mass; **Spare** shows
+the remaining hold capacity after equipment and all cargo. Both use tonnes with
+one decimal place, with magenta labels and light-green values (including the `t`
+suffix). Spare capacity is rounded down to 0.1 t and displayed as zero for an
+overloaded legacy commander.
+The rows are drawn after the ship image at logical y=148 and y=156, so they can
+overlap the artwork while leaving the rear laser label and registration readable.
+The rear laser label is centred at x=160, y=156 beside Spare, above registration
+at y=164.
+Amiga WIDE, HIRES and HIRES-LACED use the same logical layout as normal Amiga and
+Atari ST.
+
 A successful exchange adds the old hull's trade-in, deducts the new price, fills
 the new fuel tank and assigns a fresh registration. No ordinary equipment is
 automatically installed. A failed exchange or equipment replacement preserves

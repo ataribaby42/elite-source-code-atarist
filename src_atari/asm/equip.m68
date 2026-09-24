@@ -1,4 +1,5 @@
 	xref ship_put_bitmap,ship_bitmap,ship_equipment_price,ship_equip_transaction
+	xref ship_equipment_mass,ship_cargo_spare,divide_by_1e5
 	include "common.def"
 ; Ported from src_orig/asm/equip.m68; edit this copy.
 ; @@@@@@@	@@@    @@  @@  @@@@@@ @@@@@@
@@ -917,6 +918,7 @@ next_position:
 
 	lea 16(a5),a5 ; next position of laser
 	q_next 1
+	bsr status_hold ; draw over the ship, beside the rear laser label
 	moveq #white,d0 ; draw clock outline
 	jsr set_colour
 	lea clock_outline(pc),a0
@@ -924,6 +926,31 @@ next_position:
 	st display_clock(a6) ; display the clock
 	lea status_action_table(pc),a0 ; initialise cursor
 	jmp init_cursor
+
+
+; Display installed equipment mass and remaining hold space in tonnes.
+; Keep these rows above registration and left of the rear laser label.
+status_hold:
+	lea status_equipment_text(pc),a0
+	jsr print_string
+	jsr ship_equipment_mass ; whole tonnes, including each mounted laser
+	mulu #10,d0
+	move.w #128,d1
+	jsr print_number
+	lea status_tonnes(pc),a0
+	jsr print_string
+	lea status_spare_text(pc),a0
+	jsr print_string
+	jsr ship_cargo_spare ; grams after equipment and all cargo
+	tst.l d3
+	bpl.s .nonnegative
+	moveq #0,d3 ; an overloaded old commander has no free space
+.nonnegative:
+	jsr divide_by_1e5 ; tenths of a tonne, as on the cargo screen
+	move.w #128,d1
+	jsr print_number
+	lea status_tonnes(pc),a0
+	jmp print_string
 
 
 ; **********************************************************
@@ -1144,7 +1171,7 @@ laser_data:
 
 	dc.w 0,bit_arrow_right,115,97,78,86 ; front
 	dc.l front_lines
-	dc.w 1,bit_arrow_up,131,144,112,152 ; rear
+	dc.w 1,bit_arrow_up,131,144,160,156 ; rear, beside the Spare readout
 	dc.l rear_lines
 	dc.w 2,bit_arrow_right,76,124,44,112 ; left
 	dc.l left_lines
@@ -1162,7 +1189,7 @@ front_lines:
 
 rear_lines:
 
-	dc 112,150,112,148,133,148,133,147,-1
+	dc 160,154,160,148,133,148,133,147,-1
 
 left_lines:
 
@@ -1234,6 +1261,11 @@ text14: dc.b 'Commander ',0
 text15: dc.b 'Not Known',0
 text16: dc.b ' light years',0
 text17: dc.b c_ink,lgt_green,'Docked',0
+status_equipment_text:
+	dc.b c_cursor,0,148,c_ink,magenta,'Equipment: ',c_ink,lgt_green,0
+status_spare_text:
+	dc.b c_cursor,0,156,c_ink,magenta,'Spare: ',c_ink,lgt_green,0
+status_tonnes: dc.b 't',0
 
 ; Table of legal status strings.
 

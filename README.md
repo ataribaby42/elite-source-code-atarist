@@ -6,6 +6,8 @@ Both enhanced versions offer 13 player hulls through **Ships / Shipyards**, with
 ship-specific flight limits, cargo capacity and equipment prices. **Equip** has
 Buy / Sell controls for preparing a hull exchange. See the
 [shipyards rules and balance table](docs/2026-09-24-player-shipyards.md).
+Status shows **Equipment** mass and **Spare** cargo capacity in tonnes, including
+the space used by mounted lasers and installed devices.
 
 During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
