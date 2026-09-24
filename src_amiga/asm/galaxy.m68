@@ -1083,7 +1083,7 @@ q_galaxy_m68_58:
 	and.w d0,d2
 	q_ret ne
 	lea colour_masks+white*8,a1
-	native_plot d0,a1,a0,d2
+	native_plot d0,a1,a0,d2,d1
 
 	q_ret
 

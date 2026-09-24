@@ -1598,7 +1598,7 @@ q_graphics_m68_73:
     move.l a0,a1
     move.w d4,d6
 .row:
-    native_plot d0,a2,a1,d7
+    native_plot d0,a2,a1,d7,d1
     lea row_stride(a1),a1
     dbra d6,.row
     addq.l #2,a0
@@ -1810,7 +1810,7 @@ q_graphics_m68_81:
     lsl.w d0,d1
     move.w d1,d0
     move.l colour_ptr(a6),a1
-    native_plot d0,a1,a0,d2
+    native_plot d0,a1,a0,d2,d1
     rts
 
 
@@ -1889,6 +1889,8 @@ q_graphics_m68_89:
 	lea bit_masks(pc),a3
 	move.l (a3,d0),d0
 	move.l d7,-(sp) ; preserve the caller's loop counter while caching colours
+	move.w d2,a2 ; x and y difference, freeing D2/D3 for the plane words
+	move.w d3,a3
 ; Quelo: 	if d2 <hs> d3 then					if x diff >= y diff
 	cmp d3,d2
 	blo q_graphics_m68_91
@@ -1898,35 +1900,35 @@ q_graphics_m68_89:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_93
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_95
 	addq.l #2,a0
 q_graphics_m68_95:
-	sub d3,d1 ; trial subtract
+	sub a3,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_97
-	add d2,d1 ; add x difference
+	add a2,d1 ; add x difference
 	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_97:
 	q_next 1,d6 ; next point
 	bra q_graphics_m68_94
 q_graphics_m68_93:
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_99
 	subq.l #2,a0
 q_graphics_m68_99:
-	sub d3,d1 ; trial subtract
+	sub a3,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_101
-	add d2,d1 ; add x difference
+	add a2,d1 ; add x difference
 	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_101:
 	q_next 1,d6 ; next point
@@ -1939,14 +1941,14 @@ q_graphics_m68_91:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_103
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	lea row_stride(a0),a0 ; move down a line
-	sub d2,d1 ; trial subtract
+	sub a2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_105
-	add d3,d1 ; add y difference
+	add a3,d1 ; add y difference
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 					if <cs> then.s		carry, move to new word
 	bcc q_graphics_m68_107
@@ -1956,14 +1958,14 @@ q_graphics_m68_105:
 	q_next 1,d6 ; next pixel
 	bra q_graphics_m68_104
 q_graphics_m68_103:
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	lea row_stride(a0),a0 ; move down a line
-	sub d2,d1 ; trial subtract
+	sub a2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_109
-	add d3,d1 ; add y difference
+	add a3,d1 ; add y difference
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 					if <cs> then.s		carry, move to new word
 	bcc q_graphics_m68_111
@@ -2085,6 +2087,13 @@ q_graphics_m68_117:
 * Regs: D0-D5,A0-A2 corrupt.
 * Subr: DOT_TO_ADDR
 
+vert_word macro
+    move.w \2,d6 ; fetch screen word
+    and.w d0,d6 ; clear the pixel
+    or.w \1,d6 ; colour it
+    move.w d6,\2 ; store screen word
+    endm
+
 	q_subr vert_line
 
     cmp.w d1,d3
@@ -2104,17 +2113,15 @@ q_graphics_m68_117:
     and.w d0,d4
     and.w d0,d5
     not.w d0 ; the pixel mask and all four colours are constant down the column
+    move.l d6,-(sp)
 .row:
-    and.w d0,(a0)
-    or.w d1,(a0)
-    and.w d0,plane1(a0)
-    or.w d2,plane1(a0)
-    and.w d0,plane2(a0)
-    or.w d4,plane2(a0)
-    and.w d0,plane3(a0)
-    or.w d5,plane3(a0)
+    vert_word d1,(a0)
+    vert_word d2,plane1(a0)
+    vert_word d4,plane2(a0)
+    vert_word d5,plane3(a0)
     lea row_stride(a0),a0
     dbra d3,.row
+    move.l (sp)+,d6
     rts
 
 
