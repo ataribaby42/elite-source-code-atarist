@@ -70,13 +70,6 @@ native_restore macro
     addq.l #2,\2
     endm
 
-native_sprite_save macro
-    btst #dont_save,sp_flags(a4)
-    bne native_no_save\@
-    native_save a0,a2
-native_no_save\@:
-    endm
-
 native_clear_burst macro
     ; A0 advances by one 16-byte line; the source is fixed and in Fast RAM.
     ifne emulated_burst ; a core without MOVE16 writes the same bytes

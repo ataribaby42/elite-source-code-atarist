@@ -62,6 +62,7 @@ r_mask2: rs.w 1
 pre_rotate: rs.w 1 ; pre-rotation flag
 max_data: rs.w 1 ; maximum no. of words
 clip_ctr: rs.w 1 ; ctr: clip counter
+spr_scratch: rs.w 4 ; background saves of a sprite that keeps none
 bit_spr: rs.b sprite_len ; put_bitmap sprite record
 
 	q_end_vars sprites
