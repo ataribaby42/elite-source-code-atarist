@@ -10,7 +10,12 @@ the standard Amiga configuration is 512 KB Chip RAM plus 512 KB expansion RAM.
 The edited first menu row opens **Shipyards** between Equip and Galaxy. Single
 click selects a hull and shows its full name. Double click purchases it; clicking
 Ships again also purchases the selection. Each button shows the full hull price as a centered number without a currency suffix.
-The unselected bottom line shows the current hull's trade-in value and cash.
+Shipyards reads the name directly from the selected hull's existing object model,
+using the same text pointer as in-flight identification with **I**. Hull profiles
+contain no duplicate name strings.
+The unselected bottom line shows only the current hull's trade-in value.
+Cash is omitted. The shorter line cannot wrap beyond the final screen row into
+the cursor backup memory, which previously caused trails after clicking.
 The top menu uses the edited PNG's button rectangles at rows 175 through 181
 for both clicks and pressed feedback. The in-flight Front bitmap replaces Launch
 at the same origin, (18, 175).
@@ -88,6 +93,9 @@ Constrictor ram protection and station docking checks remain in place.
 
 Speed, fuel, roll and pitch indicators use the current hull's limits. Autopilot,
 fuel purchases, scooping, mission refills and manual controls use the same limits.
+Moving starfield translation follows absolute speed with Cobra Mk III's speed
+of 22 as the fixed reference. Full throttle is visibly slower in Anaconda and
+faster in Asp; equal absolute speeds give equal starfield motion across hulls.
 Hulls with more than four missile pylons use one state icon and a numeric count
 in the original HUD strip. The status equipment list also supports two digits.
 
@@ -103,6 +111,11 @@ the 880 KB floppy capacity.
 The red editing frames never enter the game, and palette index 14 is rejected.
 Status and the laser mount dialog use the current hull's status view; planet
 data uses its right-facing overhead view; Shipyards uses upward overhead views.
+Status prints `Registration: <model name> <ID>` using the same existing model
+name as Shipyards and in-flight identification. The longest line is
+`Registration: Boa Class Cruiser CF-125`: 38 of the 40 character cells.
+It occupies its own row at y=164 above the menu, so even a full equipment tree
+cannot overwrite it; the status clock moves eight pixels upward to make room.
 
 The 256-byte commander record gains an optional `SHP1` tag and 16-bit hull ID
 after the existing `RID1` registration extension. Missing or invalid hull tags

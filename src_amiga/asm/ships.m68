@@ -5,6 +5,7 @@
 	xref build_number,registration_new_player,hide_cursor,restore_cursor,set_colour,ui_line
 	xref launch,buy_cargo,sell_cargo,equip_ship,galactic_chart,local_chart,data
 	xref market_prices,inventory,status,disk,find_planet,home_cursor,options
+	xref obj_data
 	q_module ships
 
 ; D0.w persistent hull ID -> A0 profile. D0 and all other registers preserved.
@@ -13,6 +14,18 @@
 	mulu #ship_profile_size,d0
 	lea ship_profiles(pc),a0
 	adda.l d0,a0
+	move.l (sp)+,d0
+	rts
+
+; A0 profile -> A0 existing model name, also used by in-flight identification.
+; Object headers and their text pointers are relocated during game startup.
+	q_subr ship_name,global
+	move.l d0,-(sp)
+	move.w sp_model(a0),d0
+	lsl.w #2,d0
+	lea obj_data,a0
+	move.l (a0,d0.w),a0
+	move.l text-nodes(a0),a0
 	move.l (sp)+,d0
 	rts
 
@@ -610,7 +623,7 @@ s_yard:
 	bsr yard_highlight
 	jsr clear_input
 	bsr yard_profile
-	move.l sp_name(a0),a0
+	bsr ship_name
 	move.w #prompt_y,d1
 	jmp print_centre
 yard_none:
@@ -624,11 +637,6 @@ yard_balance:
 	move.w player_ship(a6),d0
 	bsr ship_profile
 	move.l sp_trade(a0),d0
-	move.w #128,d1
-	jsr print_number
-	lea yard_cash_text(pc),a0
-	jsr print_string
-	move.l cash(a6),d0
 	move.w #128,d1
 	jmp print_number
 yard_icon:
@@ -694,38 +702,37 @@ ship_equipment_prices:
 	dc.l 0,250,4000,3000,4000,10000,4500,2500,9380,7000,7000,30000,8000,60000,80000
 
 ; speed, fuel, roll, pitch, resistance, recharge, size, missiles, mounts,
-; base/expanded hold, equipment category, native model, atlas index; price, trade, name.
+; base/expanded hold, equipment category, native model, atlas index; price, trade.
 ship_profiles:
 	dc.w 22,70,40,40,7,1,3,4,15,25,35,0,cobra,7
-	dc.l 1000000,600000,ship_name_0
+	dc.l 1000000,600000
 	dc.w 19,60,34,34,4,1,2,1,3,8,12,1,adder,1
-	dc.l 270000,162000,ship_name_1
+	dc.l 270000,162000
 	dc.w 24,70,40,40,5,1,2,2,15,9,11,1,gecko,3
-	dc.l 325000,195000,ship_name_2
+	dc.l 325000,195000
 	dc.w 20,80,40,40,6,1,3,2,15,11,15,4,moray,4
-	dc.l 360000,216000,ship_name_3
+	dc.l 360000,216000
 	dc.w 20,60,28,29,5,1,3,3,15,14,20,1,cobra_mk1,6
-	dc.l 395000,237000,ship_name_4
+	dc.l 395000,237000
 	dc.w 24,85,34,34,8,2,3,3,15,9,11,2,ferdelance,8
-	dc.l 1435000,861000,ship_name_5
+	dc.l 1435000,861000
 	dc.w 16,80,16,17,11,1,4,4,15,106,125,3,python,9
-	dc.l 2050000,1230000,ship_name_6
+	dc.l 2050000,1230000
 	dc.w 19,90,22,23,10,1,4,6,3,132,155,3,boa,10
-	dc.l 2400000,1440000,ship_name_7
+	dc.l 2400000,1440000
 	dc.w 11,100,16,17,13,1,4,16,15,215,253,3,anaconda,11
-	dc.l 4000000,2400000,ship_name_8
+	dc.l 4000000,2400000
 	dc.w 31,125,34,34,10,1,3,1,1,6,9,2,asp,12
-	dc.l 8950000,5370000,ship_name_9
+	dc.l 8950000,5370000
 	dc.w 29,50,41,40,2,1,1,1,1,4,5,4,sidewinder,0
-	dc.l 205000,123000,ship_name_10
+	dc.l 205000,123000
 	dc.w 24,60,34,34,3,1,2,0,1,10,12,4,krait,2
-	dc.l 305000,183000,ship_name_11
+	dc.l 305000,183000
 	dc.w 25,60,40,40,4,1,2,2,1,10,12,4,mamba,5
-	dc.l 375000,225000,ship_name_12
+	dc.l 375000,225000
 
 yard_errors: dc.l 0,yard_cash,yard_equipment,yard_cargo,yard_missiles,yard_same
 yard_trade_text: dc.b 'Trade-in: ',0
-yard_cash_text: dc.b ' Cr  Cash: ',0
 yard_title: dc.b 'Shipyards',0
 yard_bought: dc.b 'Ship purchased - fuel tanks filled',0
 yard_cash: dc.b 'Not enough credits after trade-in',0
@@ -733,19 +740,6 @@ yard_equipment: dc.b 'Sell ordinary equipment and lasers first',0
 yard_cargo: dc.b 'Cargo and retained equipment do not fit',0
 yard_missiles: dc.b 'Too many missiles for this ship',0
 yard_same: dc.b 'You already own this type of ship',0
-ship_name_0: dc.b 'Cobra Mk III',0
-ship_name_1: dc.b 'Adder',0
-ship_name_2: dc.b 'Gecko',0
-ship_name_3: dc.b 'Moray',0
-ship_name_4: dc.b 'Cobra Mk I',0
-ship_name_5: dc.b 'Fer-de-Lance',0
-ship_name_6: dc.b 'Python',0
-ship_name_7: dc.b 'Boa',0
-ship_name_8: dc.b 'Anaconda',0
-ship_name_9: dc.b 'Asp Mk II',0
-ship_name_10: dc.b 'Sidewinder',0
-ship_name_11: dc.b 'Krait',0
-ship_name_12: dc.b 'Mamba',0
 	even
 ship_sprite_bank:
 	incbin "SHIPS_PACKED.IMG"

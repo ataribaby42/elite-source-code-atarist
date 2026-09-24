@@ -2,7 +2,8 @@
 ; IDs use their own generator and never advance the gameplay random seed.
     include "common.def"
     include "macros.m68"
-    xref disp_message,locate,text_colour,print_string
+    xref disp_message,locate,text_colour,print_string,print_char
+    xref ship_profile,ship_name
     q_module registration
 
 ; Assign a fresh identity after CREATE_OBJECT has installed the model header.
@@ -215,12 +216,12 @@
     move.b d0,(a1)+
     rts
 
-; Status row below Cash and above the forward laser label (which starts y=86).
-; Column 14 keeps the six-character ID wholly left of the equipment tree.
+; Full-width status row above the menu, below the laser labels and clock.
+; The longest model name (Boa Class Cruiser) plus ID ends at column 38 of 40.
     q_subr registration_status,global
     movem.l d0-d7/a0-a5,-(sp)
     moveq #0,d0
-    moveq #text_top+2+56,d1
+    move.w #164,d1
     jsr locate
     moveq #magenta,d0
     moveq #trans,d1
@@ -228,11 +229,17 @@
     lea registration_heading(pc),a0
     jsr print_string
     moveq #14,d0
-    moveq #text_top+2+56,d1
+    move.w #164,d1
     jsr locate
     moveq #yellow,d0
     moveq #trans,d1
     jsr text_colour
+    move.w player_ship(a6),d0
+    jsr ship_profile
+    jsr ship_name
+    jsr print_string
+    moveq #' ',d0
+    jsr print_char
     lea player_registration(a6),a0
     lea registration_buffer(a6),a1
     bsr registration_format

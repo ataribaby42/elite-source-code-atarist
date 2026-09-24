@@ -179,8 +179,9 @@ dust_vertical_cos: rs.w 1
     dbra d7,.loop
     rts
 
-; Map throttle linearly to visual speed 1..33, retaining fractional steps:
-; minimum drift at zero throttle, and 150% of the former full-speed rate.
+; Map absolute ship speed using Cobra Mk III (22) as the fixed reference:
+; its visual range remains 1..33; other hulls have different full-speed rates.
+; Retain fractional steps and the same minimum drift at zero throttle.
 ; All four views share this rate; coloured jump trails keep their own rate.
     q_subr setup_dust
     move.w view(a6),d0
@@ -212,7 +213,7 @@ dust_vertical_cos: rs.w 1
     bra.s .step
 .normal:
     mulu #((max_speed*3/2-1)*64),d0
-    divu hull_speed(a6),d0
+    divu #max_speed,d0         ; fixed Cobra reference, not current-hull throttle
     add.w #64,d0
 .step:
     move.w d0,dust_step(a6)

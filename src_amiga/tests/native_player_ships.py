@@ -17,6 +17,13 @@ def make_suite(root,s):
     shield=[7,4,5,6,5,8,11,10,13,10,2,3,4]
     rolls=[40,34,40,40,28,34,16,22,16,34,41,34,40]
     pitches=[40,34,40,40,29,34,17,23,17,34,40,34,40]
+    models=['cobra','adder','gecko','moray','cobra_mk1','ferdelance','python','boa','anaconda','asp','sidewinder','krait','mamba']
+    for n,model in enumerate(models):
+        case(f'Hull {n}: Shipyards reuses the exact text pointer of an identified flight object')
+        emit(f' lea objects(a6),a4\n move.w #{model},type(a4)\n'+call('create_object'))
+        emit(f' moveq #{n},d0\n'+call('ship_profile')+call('ship_name'))
+        emit(' cmpa.l text(a4),a0\n bne fail\n')
+        eq(n,'d0')
     for n in range(13):
         case(f'Hull {n}: purchase, trade-in, full fuel, stats and empty cargo')
         hull(1 if n==0 else 0)

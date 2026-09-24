@@ -62,3 +62,30 @@ This check does not establish long-session stability, every mission path,
 physical hardware compatibility or runtime correctness of every Amiga display
 mode. The earlier normal/alternate builds and PAL hireslace build remain valid,
 but the runtime checks here use the standard framed display.
+
+## Follow-up: Shipyards cursor trails
+
+A million-credit commander exposed a missed case in the original review.
+The bottom line started at column 4 but printed 37 characters, so its final
+character wrapped to row 200 and wrote outside the screen. In the reproduced
+Amiga allocation, the other screen began eight bytes later and held the cursor
+background. Repeated clicks redrew the overflowing line and then restored the
+corrupted background at each cursor position. Four clicks reproduced 136 stray
+pixels. The earlier menu checks hid the cursor and used a small cash balance.
+
+The bottom line now displays only the trade-in value, as requested; the cash
+field and its label have been removed independently from both platforms.
+The longest trade-in prompt occupies 18 of the 36 available character cells.
+
+The independent `tests/native_shipyard_cursor.py` generators exercise actual
+VBL click timing and foreground dispatch with all three cursor types, four
+empty tile positions, and Equipment/Shipyards menu round trips. They cover the
+Cobra and the largest trade-in (Asp), with million-credit and maximum unsigned
+cash balances, and change cash after capturing the baseline to verify that it
+does not affect the displayed prompt. Each platform passed 30 full-screen
+pixel comparisons with no cursor trails on the final implementation, in an
+isolated emulator with 1 MB RAM.
+
+Evidence is retained under each platform's `build/shipyards-qa` in
+`clicks-trade-only*.log`; the Amiga captures and `clicks-verification.json` are
+in `clicks`, while Atari snapshots and the same report are in the QA directory.

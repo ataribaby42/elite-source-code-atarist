@@ -224,7 +224,7 @@ node_len: equ 16 ; bytes per node record
 node_mult: equ 4 ; log2(node_len)
 retro_life: equ 500 ; life of retro-rockets
 clock_x: equ 26 ; coords of time clock
-clock_y: equ 148
+clock_y: equ 140 ; leave a full-width registration row above the status menu
 
 ; Joystick movements.
 
