@@ -165,45 +165,68 @@ q_bios_m68_1:
 	endc
 	q_next 1,d7
 	bra q_bios_m68_4
-q_bios_m68_3:
-	q_loop 1,d7,8 ; 8 pixel lines deep
+* GLYPH_PLANE plane - one plane of a transparent glyph row in ink GLYPH_INK.
+
+glyph_plane macro
+	ifne glyph_ink&(1<<\1)
+	ifeq display_hires
+	or.b d0,\1*bpr(a3) ; set the glyph pixels
+	else
+	or.w d0,\1*bpr(a3)
+	endc
+	ifne display_lace
+	or.w d0,row_stride+\1*bpr(a3) ; and on the doubled row
+	endc
+	else
+	ifeq display_hires
+	and.b d1,\1*bpr(a3) ; clear the glyph pixels
+	else
+	and.w d1,\1*bpr(a3)
+	endc
+	ifne display_lace
+	and.w d1,row_stride+\1*bpr(a3)
+	endc
+	endc
+	endm
+
+* GLYPH_INK_ROWS - the eight rows of a transparent glyph in ink GLYPH_INK.
+
+glyph_ink_rows macro
+	moveq #8-1,d7
+glyph_row\@:
 	ifeq display_hires
 	move.b (a0)+,d0 ; get next data byte
 	move.b d0,d1 ; build clear mask
 	not.b d1
-	q_loop 2,d6,4 ; loop for each plane
-	and.b d1,(a3) ; mask out current setting
-	move.b d0,d2 ; plot pixels
-	and.b (a1)+,d2
-	or.b d2,(a3)
-	lea bpr(a3),a3 ; next OCS plane
-	q_next 2,d6
-; Four plane steps already advance to the next pixel row.
-	subq.l #4,a1
-	endc
-	ifne display_hires
+	else
 	move.w (a0)+,d0 ; get next data word
-	move.w d0,d1 ; build clear mask
+	move.w d0,d1
 	not.w d1
-	q_loop 2,d6,4 ; loop for each plane
-	and.w d1,(a3) ; mask out current setting
-	move.w d0,d2 ; plot pixels
-	move.b (a1)+,d4 ; one mask byte per plane, widened by EXT
-	ext.w d4
-	and.w d4,d2
-	or.w d2,(a3)
-	ifne display_lace
-	and.w d1,row_stride(a3) ; and again on the doubled row
-	or.w d2,row_stride(a3)
 	endc
-	lea bpr(a3),a3 ; next OCS plane
-	q_next 2,d6
-	ifne display_lace
-	lea row_stride(a3),a3 ; step over the row just duplicated
-	endc
-	subq.l #4,a1
-	endc
-	q_next 1,d7
+	glyph_plane 0
+	glyph_plane 1
+	glyph_plane 2
+	glyph_plane 3
+	lea row_stride*(1+display_lace)(a3),a3 ; next pixel row
+	dbra d7,glyph_row\@
+	bra.w q_bios_m68_4
+	endm
+
+q_bios_m68_3:
+; A transparent paper leaves every plane of the ink either set or cleared under
+; the glyph, so each ink has its own row loop with one instruction per plane.
+	move text_ink(a6),d3
+	mulu #glyph_rows_size,d3
+	lea glyph_rows(pc),a1
+	jmp (a1,d3.l)
+glyph_rows:
+glyph_ink set 0
+	rept 16
+	glyph_ink_rows
+glyph_ink set glyph_ink+1
+	endr
+glyph_rows_end:
+glyph_rows_size equ (glyph_rows_end-glyph_rows)/16
 q_bios_m68_4:
 	addq.l #zoom_x,text_addr(a6) ; next cell in the same bitplane
 	q_inc column(a6) ; ++column

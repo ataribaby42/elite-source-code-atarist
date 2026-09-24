@@ -3,70 +3,38 @@
 ; All addresses below are actual DMA-visible Chip RAM addresses.
 
 native_plot macro
+    ; Mask, colour masks, destination, two temporary data registers.
     not.w \1
-    and.w \1,0(\3)
-    and.w \1,plane1(\3)
-    and.w \1,plane2(\3)
-    and.w \1,plane3(\3)
+    native_plot_word 0(\2),0(\3),\1,\4,\5
+    native_plot_word 2(\2),plane1(\3),\1,\4,\5
+    native_plot_word 4(\2),plane2(\3),\1,\4,\5
+    native_plot_word 6(\2),plane3(\3),\1,\4,\5
     not.w \1
-    move.w 0(\2),\4
-    and.w \1,\4
-    or.w \4,0(\3)
-    move.w 2(\2),\4
-    and.w \1,\4
-    or.w \4,plane1(\3)
-    move.w 4(\2),\4
-    and.w \1,\4
-    or.w \4,plane2(\3)
-    move.w 6(\2),\4
-    and.w \1,\4
-    or.w \4,plane3(\3)
+    endm
+
+native_plot_word macro
+    ; Colour, screen word, inverted mask, two temporary data registers.
+    move.w \1,\5 ; fetch colour
+    native_mask_word \5,\2,\3,\4
+    endm
+
+native_mask_word macro
+    ; Colour register, screen word, inverted mask, temporary data register.
+    move.w \2,\4 ; fetch screen word
+    eor.w \1,\4 ; colour in the mask, screen outside it
+    and.w \3,\4
+    eor.w \1,\4
+    move.w \4,\2 ; store screen word
     endm
 
 native_mask_plot macro
-    ; Mask, four cached plane words, destination, temporary data register.
+    ; Mask, four plane words, destination, temporary data register.
     not.w \1
-    and.w \1,(\6)
-    and.w \1,plane1(\6)
-    and.w \1,plane2(\6)
-    and.w \1,plane3(\6)
+    native_mask_word \2,(\6),\1,\7
+    native_mask_word \3,plane1(\6),\1,\7
+    native_mask_word \4,plane2(\6),\1,\7
+    native_mask_word \5,plane3(\6),\1,\7
     not.w \1
-    move.w \2,\7
-    and.w \1,\7
-    or.w \7,(\6)
-    move.w \3,\7
-    and.w \1,\7
-    or.w \7,plane1(\6)
-    move.w \4,\7
-    and.w \1,\7
-    or.w \7,plane2(\6)
-    move.w \5,\7
-    and.w \1,\7
-    or.w \7,plane3(\6)
-    endm
-
-native_plot_cached macro
-    ; Mask, two cached pairs of plane words, destination, temporary data register.
-    not.w \1
-    and.w \1,(\4)
-    and.w \1,plane1(\4)
-    and.w \1,plane2(\4)
-    and.w \1,plane3(\4)
-    not.w \1
-    move.l \2,\5
-    swap \5
-    and.w \1,\5
-    or.w \5,(\4)
-    move.w \2,\5
-    and.w \1,\5
-    or.w \5,plane1(\4)
-    move.l \3,\5
-    swap \5
-    and.w \1,\5
-    or.w \5,plane2(\4)
-    move.w \3,\5
-    and.w \1,\5
-    or.w \5,plane3(\4)
     endm
 
 native_fill macro
@@ -100,13 +68,6 @@ native_restore macro
     move.w (\1)+,plane2(\2)
     move.w (\1)+,plane3(\2)
     addq.l #2,\2
-    endm
-
-native_sprite_save macro
-    btst #dont_save,sp_flags(a4)
-    bne native_no_save\@
-    native_save a0,a2
-native_no_save\@:
     endm
 
 native_clear_burst macro

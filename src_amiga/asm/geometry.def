@@ -31,6 +31,21 @@ plane2: equ bpr*2
 plane3: equ bpr*3
 row_stride: equ bpr*scr_planes ; bytes per pixel row
 long_fill_min: equ 6 ; span words from which HORIZ_LINE fills in longs
+; The shadow crosses sixteen bytes at a time, one MOVEM's worth, and each such
+; piece is compared and sent on its own. It must divide the row.
+copy_block: equ 16
+row_blocks: equ row_stride/copy_block ; pieces in one viewport row
+	ifne row_stride-row_blocks*copy_block
+	fail "copy_block does not divide row_stride; the shadow would lose the right edge"
+	endc
+; Three viewports' worth: the one being drawn, and one for each Chip buffer
+; holding exactly what that buffer shows. Once a frame has crossed, the one it
+; was drawn in is what its buffer shows, so the three trade places instead of
+; being copied. Then, for each buffer, one byte a row its viewport shows empty.
+shadow_maps_bytes: equ view_bytes*3+y_size*2
+	ifne row_stride&31
+	fail "the transfer tests an empty row eight longs at a time"
+	endc
 art_bytes: equ row_stride*art_rows*zoom_y ; an asset expanded to screen scale
 bitmap_bytes: equ 125*8+13975*10*zoom_x*zoom_y ; BITMAPS.IMG expanded to screen scale
 	ifne display_ntsc+frame

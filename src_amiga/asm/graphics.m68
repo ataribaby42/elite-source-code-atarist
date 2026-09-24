@@ -22,6 +22,9 @@
 	ifne blit_ok
 	xref wait_clear,graphics_base,blitter_owned
 	endc
+	ifne shadow_ok
+	xref mirror_ptr,mirror_valid,mirror_full,mirror_blank
+	endc
 	xref locate,display_char,str_copy,circle_trigs,wait_key
 	xref left_arm,right_arm,monst,random,bitmap_bank
 
@@ -129,12 +132,19 @@ q_graphics_m68_6\@:
     move.w d0,-(sp)
     ifne shadow_ok
     clr.w in_shadow ; a row of the flight view goes to the shadow, the rest does not
-    tst.w shadow_live
-    beq.s .screen
     cmp.w #y_top,d1
     blo.s .screen
     cmp.w #y_top+y_size,d1
     bhs.s .screen
+    tst.w shadow_live
+    bne.s .to_shadow
+; Outside the window the shadow is live, a flight view row is written straight
+; to Chip RAM, behind both mirrors' backs.
+    tst.l shadow_base
+    beq.s .screen
+    clr.w mirror_valid ; neither mirror knows its buffer any more
+    bra.s .screen
+.to_shadow:
     move.w #-1,in_shadow
 .screen:
     endc
@@ -184,19 +194,29 @@ q_graphics_m68_6\@:
     move d0,frame_start(a6)
     endc
     ifne shadow_ok
-    clr.w shadow_live
     move.l shadow_base,d0
     beq.s .screen_clear
-    move.w #-1,shadow_live
+; The transfer hands over the viewport it replaced already emptied. Only a frame
+; that was drawn and never carried, which leaves the shadow still live, can have
+; left anything in it, and then the whole of it is emptied.
+    tst.w shadow_live
+    beq.s .shadow_ready
     move.l d0,a0
-    bra.s .cleared_base
+    moveq #0,d0
+    move.w #view_bytes/16-1,d1
+.shadow_wipe:
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+    move.l d0,(a0)+
+    dbra d1,.shadow_wipe
+.shadow_ready:
+    move.w #-1,shadow_live
+    bra .cleared
 .screen_clear:
     endc
     move.l scr_base(a6),a0
     lea y_top*row_stride+x_left/8(a0),a0
-    ifne shadow_ok
-.cleared_base:
-    endc
     ifne blit_ok
     tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
     beq.s .no_blit
@@ -206,30 +226,6 @@ q_graphics_m68_6\@:
     bsr begin_clear
     bra .cleared
 .no_blit:
-    endc
-    ifne clear_burst_ok
-    tst.b clear_burst ; 68040 or better, so MOVE16 exists
-    beq .spans
-    moveq #0,d0
-    move #clear_bursts,d7
-    move.l a0,d1
-    and.w #15,d1 ; AmigaDOS aligns a hunk to eight bytes, not sixteen
-    beq.s .lines
-    cmp.w #8,d1
-    bne .spans
-    subq #1,d7 ; a long pair covers the half line at each end
-    move.l d0,(a0)+
-    move.l d0,(a0)+
-.lines:
-    subq #1,d7
-.line:
-    native_clear_burst
-    dbra d7,.line
-    tst.w d1
-    beq .cleared
-    move.l d0,(a0)+
-    move.l d0,(a0)+
-    bra .cleared
     endc
 .spans:
     moveq #0,d0
@@ -323,6 +319,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	move draw_lines(a6),d0
 	bsr .clamp
 	add d0,draw_sum(a6)
+	ifne shadow_count
+	moveq #0,d0
+	move blocks_sent(a6),d0
+	clr blocks_sent(a6)
+	add.l d0,blocks_sum(a6)
+	endc
 	q_inc frame_ticks(a6)
 	cmp #frame_hold,frame_ticks(a6)
 	blo.s .print
@@ -342,6 +344,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	clr draw_sum(a6)
 	bsr .millis
 	move d0,draw_ms(a6)
+	ifne shadow_count
+	move.l blocks_sum(a6),d0
+	clr.l blocks_sum(a6)
+	lsr.l #4,d0 ; frame_hold readings
+	move d0,blocks_held(a6)
+	endc
 .print:
 	q_push text_ink(a6) ; the game's text state is not ours to change
 	q_push text_paper(a6)
@@ -370,6 +378,30 @@ frame_text_y: equ 0 ; the top row of the screen
 	jsr print_char
 	move clear_ms(a6),d0
 	bsr .digits
+	ifne shadow_ok*(shadow_count+shadow_every) ; only these builds say what crosses
+	tst.l shadow_base ; and only when there is a shadow to carry it
+	beq.s .no_blocks
+	moveq #art_cols-14,d0 ; right of the view name, one column clear of the flags
+	moveq #frame_text_y,d1
+	jsr locate
+	move #y_size*row_blocks,d0 ; every piece the view has
+	bsr .count
+	moveq #'/',d0
+	jsr print_char
+	ifne shadow_count
+	move blocks_held(a6),d0 ; and the ones that crossed
+	bsr .count
+	endc
+	ifne shadow_every
+	moveq #'A',d0 ; every one of them crosses
+	jsr print_char
+	moveq #'L',d0
+	jsr print_char
+	moveq #'L',d0
+	jsr print_char
+	endc
+.no_blocks:
+	endc
 	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
 	moveq #frame_text_y,d1
 	jsr locate
@@ -434,6 +466,10 @@ frame_text_y: equ 0 ; the top row of the screen
 .digits:
 	and.l #$ffff,d0
 	move #$8000+3,d1 ; fixed field, three digits
+	jmp print_number
+.count:
+	and.l #$ffff,d0
+	move #$8000+4,d1 ; fixed field, four digits
 	jmp print_number
 	endc
 
@@ -521,21 +557,200 @@ frame_text_y: equ 0 ; the top row of the screen
 	movem.l (sp)+,d0-d7/a0-a6
 	endc
 	ifne shadow_ok
-	tst.w shadow_live ; the whole flight view, in one run to Chip RAM
-	beq.s .no_shadow
-	movem.l d0-d7/a0-a2,-(sp)
+	tst.w shadow_live ; the flight view, carried to Chip RAM where it changed
+	beq .no_shadow
+	movem.l d0-d7/a0-a5,-(sp)
 	clr.w shadow_live
-	move.l shadow_base,a0
-	move.l scr_base(a6),a1
-	lea y_top*row_stride(a1),a1
-	move.w #view_bytes/32-1,d0
+	move.l shadow_base,a0 ; the frame as it was drawn
+	lea mirror_ptr,a5 ; the viewport holding what the target buffer shows
+	move.l mirror_blank,a3 ; and the rows that buffer shows empty
+	move.l scr_base(a6),a2
+	lea mirror_valid,a4
+	cmp.l screen1_ptr(a6),a2
+	beq.s .mirror_chosen
+	addq.l #4,a5
+	lea y_size(a3),a3
+	addq.l #1,a4
+.mirror_chosen:
+	move.l (a5),a1
+	lea y_top*row_stride(a2),a2 ; the viewport of the target buffer
+	ifne shadow_every
+	st mirror_full ; a comparison build sends every piece every frame
+	endc
+	ifeq shadow_every
+	tst.b (a4) ; a mirror of unknown contents sends every piece
+	seq mirror_full
+	endc
+	st (a4) ; and it is known again once this frame has crossed
+	sub.l a4,a4 ; a zero, for emptying the mirror as it is read
+; The mirror and the buffer are reached from the shadow pointer through an
+; index, so each piece moves one pointer instead of three.
+	sub.l a0,a1
+	sub.l a0,a2
+	moveq #0,d7 ; row
 .shadow_row:
-	movem.l (a0)+,d1-d7/a2
-	movem.l d1-d7/a2,(a1)
-	lea 32(a1),a1
-	dbra d0,.shadow_row
-	movem.l (sp)+,d0-d7/a0-a2
-.no_shadow:
+	move.w #row_blocks-1,d4
+	tst.b mirror_full
+	bne .shadow_full
+	tst.b (a3,d7.w)
+	bne .shadow_onto_blank
+; The buffer shows something in this row. Each piece is compared and only a
+; piece that differs is written, and the row is tested for anything only until
+; the first piece that holds it. The mirror is drawn into next, so each piece
+; of it is emptied once it has been compared.
+.shadow_compare:
+	movem.l (a0)+,d0-d3
+	move.l d0,d5
+	or.l d1,d5
+	or.l d2,d5
+	or.l d3,d5
+	cmp.l -16(a0,a1.l),d0
+	bne.s .shadow_send
+	cmp.l -12(a0,a1.l),d1
+	bne.s .shadow_send
+	cmp.l -8(a0,a1.l),d2
+	bne.s .shadow_send
+	cmp.l -4(a0,a1.l),d3
+	bne.s .shadow_send
+.shadow_compared:
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
+	tst.l d5
+	dbne d4,.shadow_compare
+	beq .shadow_row_empty ; ran out with nothing in the row
+	dbra d4,.shadow_rest
+	bra .shadow_row_full
+.shadow_send:
+	movem.l d0-d3,-16(a0,a2.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+	bra.s .shadow_compared
+.shadow_rest:
+	movem.l (a0)+,d0-d3
+	cmp.l -16(a0,a1.l),d0
+	bne.s .shadow_rest_send
+	cmp.l -12(a0,a1.l),d1
+	bne.s .shadow_rest_send
+	cmp.l -8(a0,a1.l),d2
+	bne.s .shadow_rest_send
+	cmp.l -4(a0,a1.l),d3
+	beq.s .shadow_rest_held
+.shadow_rest_send:
+	movem.l d0-d3,-16(a0,a2.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+.shadow_rest_held:
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
+	dbra d4,.shadow_rest
+	bra .shadow_row_full
+; The buffer shows this row empty, and so does its mirror, which therefore needs
+; no emptying. A frame rarely draws into such a row, so the row is tested whole
+; first, eight longs at a time, and gone through piece by piece only if it holds
+; anything.
+.shadow_onto_blank:
+	moveq #0,d5
+	move.w #row_stride/32-1,d6
+.shadow_blank_scan:
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	or.l (a0)+,d5
+	dbra d6,.shadow_blank_scan
+	tst.l d5
+	beq .shadow_row_empty
+	lea -row_stride(a0),a0
+	moveq #0,d6 ; nothing sent from the row yet
+.shadow_blank_piece:
+	movem.l (a0)+,d0-d3
+	move.l d0,d5
+	or.l d1,d5
+	or.l d2,d5
+	or.l d3,d5
+	beq.s .shadow_blank_skip
+	moveq #1,d6
+	movem.l d0-d3,-16(a0,a2.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+.shadow_blank_skip:
+	dbra d4,.shadow_blank_piece
+	tst.w d6
+	beq .shadow_row_empty
+	bra .shadow_row_full
+; Nothing is known of the buffer, so every piece crosses. The mirror's own
+; contents are still known, so it is emptied only where it held anything.
+.shadow_full:
+	moveq #0,d6
+	tst.b (a3,d7.w)
+	bne.s .shadow_full_bare
+.shadow_full_piece:
+	movem.l (a0)+,d0-d3
+	move.l d0,d5
+	or.l d1,d5
+	or.l d2,d5
+	or.l d3,d5
+	beq.s .shadow_full_zero
+	moveq #1,d6
+.shadow_full_zero:
+	movem.l d0-d3,-16(a0,a2.l)
+	move.l a4,-16(a0,a1.l)
+	move.l a4,-12(a0,a1.l)
+	move.l a4,-8(a0,a1.l)
+	move.l a4,-4(a0,a1.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+	dbra d4,.shadow_full_piece
+	tst.w d6
+	beq.s .shadow_row_empty
+	bra.s .shadow_row_full
+.shadow_full_bare:
+	movem.l (a0)+,d0-d3
+	move.l d0,d5
+	or.l d1,d5
+	or.l d2,d5
+	or.l d3,d5
+	beq.s .shadow_full_bare_zero
+	moveq #1,d6
+.shadow_full_bare_zero:
+	movem.l d0-d3,-16(a0,a2.l)
+	ifne frametime*shadow_count
+	addq.w #1,blocks_sent(a6)
+	endc
+	dbra d4,.shadow_full_bare
+	tst.w d6
+	beq.s .shadow_row_empty
+.shadow_row_full:
+	sf (a3,d7.w) ; the buffer now shows something in this row
+	bra.s .shadow_row_next
+.shadow_row_empty:
+	st (a3,d7.w)
+.shadow_row_next:
+	addq.w #1,d7
+	cmp.w #y_size,d7
+	blo .shadow_row
+	move.l shadow_base,d0 ; what was drawn is what the buffer now shows
+	move.l (a5),shadow_base ; and the emptied mirror it replaces is drawn into next
+	move.l d0,(a5)
+	move.l shadow_base,d0
+	sub.l #y_top*row_stride,d0
+	move.l d0,view_base
+	movem.l (sp)+,d0-d7/a0-a5
+	bra.s .shadow_done
+.no_shadow: ; a frame drawn straight to Chip RAM: neither mirror knows its buffer
+	clr.w mirror_valid
+.shadow_done:
 	endc
 	ifne frametime
 	movem.l d0-d1,-(sp) ; read the work before the wait for the vertical blank
@@ -1383,7 +1598,7 @@ q_graphics_m68_73:
     move.l a0,a1
     move.w d4,d6
 .row:
-    native_plot d0,a2,a1,d7
+    native_plot d0,a2,a1,d7,d1
     lea row_stride(a1),a1
     dbra d6,.row
     addq.l #2,a0
@@ -1595,7 +1810,7 @@ q_graphics_m68_81:
     lsl.w d0,d1
     move.w d1,d0
     move.l colour_ptr(a6),a1
-    native_plot d0,a1,a0,d2
+    native_plot d0,a1,a0,d2,d1
     rts
 
 
@@ -1674,6 +1889,8 @@ q_graphics_m68_89:
 	lea bit_masks(pc),a3
 	move.l (a3,d0),d0
 	move.l d7,-(sp) ; preserve the caller's loop counter while caching colours
+	move.w d2,a2 ; x and y difference, freeing D2/D3 for the plane words
+	move.w d3,a3
 ; Quelo: 	if d2 <hs> d3 then					if x diff >= y diff
 	cmp d3,d2
 	blo q_graphics_m68_91
@@ -1683,35 +1900,35 @@ q_graphics_m68_89:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_93
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_95
 	addq.l #2,a0
 q_graphics_m68_95:
-	sub d3,d1 ; trial subtract
+	sub a3,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_97
-	add d2,d1 ; add x difference
+	add a2,d1 ; add x difference
 	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_97:
 	q_next 1,d6 ; next point
 	bra q_graphics_m68_94
 q_graphics_m68_93:
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 				if <cs> then.s			carry, move to new word
 	bcc q_graphics_m68_99
 	subq.l #2,a0
 q_graphics_m68_99:
-	sub d3,d1 ; trial subtract
+	sub a3,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_101
-	add d2,d1 ; add x difference
+	add a2,d1 ; add x difference
 	lea row_stride(a0),a0 ; move down a line
 q_graphics_m68_101:
 	q_next 1,d6 ; next point
@@ -1724,14 +1941,14 @@ q_graphics_m68_91:
 	tst d4 ; drawing left to right ?
 ; Quelo: 		if <pl> then.s					yes
 	bmi q_graphics_m68_103
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	lea row_stride(a0),a0 ; move down a line
-	sub d2,d1 ; trial subtract
+	sub a2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_105
-	add d3,d1 ; add y difference
+	add a3,d1 ; add y difference
 	ror.l #1,d0 ; rotate mask right
 ; Quelo: 					if <cs> then.s		carry, move to new word
 	bcc q_graphics_m68_107
@@ -1741,14 +1958,14 @@ q_graphics_m68_105:
 	q_next 1,d6 ; next pixel
 	bra q_graphics_m68_104
 q_graphics_m68_103:
-	movem.l (a1),d4/d7 ; cache both plane pairs after selecting direction
+	movem.w (a1),d2/d3/d4/d7 ; cache the plane words after selecting direction
 	q_loop 1 ; loop for each pixel
-	native_plot_cached d0,d4,d7,a0,d5
+	native_mask_plot d0,d2,d3,d4,d7,a0,d5
 	lea row_stride(a0),a0 ; move down a line
-	sub d2,d1 ; trial subtract
+	sub a2,d1 ; trial subtract
 ; Quelo: 				if <cs> then.s			failed
 	bcc q_graphics_m68_109
-	add d3,d1 ; add y difference
+	add a3,d1 ; add y difference
 	rol.l #1,d0 ; rotate mask left
 ; Quelo: 					if <cs> then.s		carry, move to new word
 	bcc q_graphics_m68_111
@@ -1870,6 +2087,13 @@ q_graphics_m68_117:
 * Regs: D0-D5,A0-A2 corrupt.
 * Subr: DOT_TO_ADDR
 
+vert_word macro
+    move.w \2,d6 ; fetch screen word
+    and.w d0,d6 ; clear the pixel
+    or.w \1,d6 ; colour it
+    move.w d6,\2 ; store screen word
+    endm
+
 	q_subr vert_line
 
     cmp.w d1,d3
@@ -1889,17 +2113,15 @@ q_graphics_m68_117:
     and.w d0,d4
     and.w d0,d5
     not.w d0 ; the pixel mask and all four colours are constant down the column
+    move.l d6,-(sp)
 .row:
-    and.w d0,(a0)
-    or.w d1,(a0)
-    and.w d0,plane1(a0)
-    or.w d2,plane1(a0)
-    and.w d0,plane2(a0)
-    or.w d4,plane2(a0)
-    and.w d0,plane3(a0)
-    or.w d5,plane3(a0)
+    vert_word d1,(a0)
+    vert_word d2,plane1(a0)
+    vert_word d4,plane2(a0)
+    vert_word d5,plane3(a0)
     lea row_stride(a0),a0
     dbra d3,.row
+    move.l (sp)+,d6
     rts
 
 
@@ -2724,6 +2946,12 @@ expand_v set expand_v+1
 
 * Bit masks for pixel plotting.
 
+	ifne shadow_ok
+; What each Chip buffer is holding, row by row: a byte saying whether the sums
+; that follow describe it, the sum of the whole row, then one for each block of
+; it. A zero sum means a zero row, which is how the buffers start.
+	endc
+
 	q_global bit_masks
 
 	dc.l $80008000 ; * Pixel 0
@@ -2786,6 +3014,7 @@ edge_masks:
 	dc.l %00000000000000010000000000000001
 
 * List of bits and intersection routines for clipping.
+
 
 ; Byte offset of each physical screen row, so DOT_TO_ADDR needs no multiply.
 row_offset:

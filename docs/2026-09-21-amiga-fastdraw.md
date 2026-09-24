@@ -21,9 +21,9 @@ The 640 modes are bound by the chip bus, not by the processor. Four hires bitpla
 
 ### The Fast RAM shadow
 
-`fastdraw=yes` on a 68020 or better draws the viewport into a Fast RAM buffer and `swap_screen` copies it to the screen once per frame, so the bus carries one pass of `view_bytes` however busy the scene. `view_base` is that buffer minus `y_top*row_stride`, so the address arithmetic every primitive already does, base plus row times stride plus x over eight, lands in the shadow unchanged. Two places pick the base: `dot_to_addr`, which every dot, line, character, sprite and block goes through, and the row address in `solid_polygon`, which computes its own. The panel, the scanner and the instruments keep writing straight to the screen. A dual-screen `block` inside the viewport writes the shadow and the other buffer at the same offset, because the copy only reaches the one buffer it is about to present; `flight.m68` paints the fuel leak that way.
+`fastdraw=yes` on a 68020 or better draws the viewport into a Fast RAM buffer and `swap_screen` carries it to the screen once per frame, only the pieces that differ from what the target buffer shows; `2026-09-23-amiga-shadow-transfer.md` describes how. `view_base` is that buffer minus `y_top*row_stride`, so the address arithmetic every primitive already does, base plus row times stride plus x over eight, lands in the shadow unchanged. Two places pick the base: `dot_to_addr`, which every dot, line, character, sprite and block goes through, and the row address in `solid_polygon`, which computes its own. The panel, the scanner and the instruments keep writing straight to the screen. A dual-screen `block` inside the viewport writes the shadow and the other buffer at the same offset, because the copy only reaches the one buffer it is about to present; `flight.m68` paints the fuel leak that way, and that write leaves the other buffer's copy unknown, so its next transfer sends every piece.
 
-Measured on a 68060 flying towards the station:
+Measured on a 68060 flying towards the station, with the whole view still copied every frame:
 
 | mode | frame | clear |
 | --- | --- | --- |
