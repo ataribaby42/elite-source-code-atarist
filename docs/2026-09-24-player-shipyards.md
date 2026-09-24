@@ -21,6 +21,10 @@ for both clicks and pressed feedback. The in-flight Front bitmap replaces Launch
 at the same origin, (18, 175).
 Amiga pressed rectangles scale with the artwork in hires and interlaced modes.
 
+Selecting **Equip** in the bottom menu always opens **Buy**, including when the
+Equipment screen is already open. Redrawing after a transaction preserves the
+selected mode.
+
 Click the blue **Buy** or **Sell** word in the Equip title to toggle the mode;
 **Equipment** retains the normal heading colour. Selling shows installed items and
 their resale prices, irrespective of the station's technology level. Laser sales

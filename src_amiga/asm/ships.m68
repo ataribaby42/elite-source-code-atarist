@@ -652,6 +652,7 @@ d_yard:
 	tst.w d0
 	bne.s .error
 	bsr shipyards
+	jsr clear_input ; replace the trade-in line with the purchase confirmation
 	lea yard_bought(pc),a0
 	move.w #prompt_y,d1
 	jmp print_centre

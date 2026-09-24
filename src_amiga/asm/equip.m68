@@ -36,7 +36,7 @@ equip_x: equ 4 ; coords of 1st equipment icon
 equip_y: equ 17
 laser_x: equ 54 ; coords of mount laser box
 laser_y: equ 50
-cobra_x1: equ laser_x+48
+cobra_x1: equ laser_x+(208-128)/2 ; centre the 128-pixel ship atlas in the panel
 cobra_y1: equ laser_y+22
 cobra_x2: equ 81 ; status screen cobra
 cobra_y2: equ 93
@@ -94,6 +94,10 @@ draw_line macro
 	q_subr equip_ship,global
 
 	jsr check_docked ; check we are docked
+	clr.w equip_sell_mode(a6) ; every menu entry starts in Buy mode
+
+	q_subr equip_redraw
+
 	moveq #icon_equip,d0 ; invert icon
 	jsr invert_icon
 	jsr prepare_text ; prepare text screen
@@ -182,21 +186,11 @@ q_equip_m68_4:
 ; **								  **
 ; **************************************
 
-; This routine is called everytime the equip icon is clicked (single/double).
-; equip ship screen.
+; Selecting the bottom Equip button again also returns to Buy mode.
 
 	q_subr equip_icon
 
-	moveq #icon_equip,d0 ; invert icon
-	jsr invert_icon
-	tst selected(a6) ; equipment selected ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_equip_m68_7
-	move this_equip(a6),d0 ; buy it
-	bsr d_equip
-q_equip_m68_7:
-
-	q_ret
+	bra equip_ship
 
 
 ; *************************************************
@@ -490,7 +484,7 @@ equip_transaction_mount:
 	jsr ship_equip_transaction
 	tst.w d0
 	bne.s .error
-	bsr equip_ship
+	bsr equip_redraw ; retain the mode after buying or selling
 	bra cash_left
 .error:
 	lsl.w #2,d0
@@ -501,7 +495,7 @@ equip_transaction_mount:
 
 equip_mode:
 	eori.w #1,equip_sell_mode(a6)
-	bra equip_ship
+	bra equip_redraw
 
 
 ; *************************************************

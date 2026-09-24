@@ -196,11 +196,6 @@ q_pdata_m68_4:
 	jsr print_string
 	jsr funny_str ; print funny description
 	bsr draw_planet ; draw the planet
-	moveq #1,d0
-	jsr ship_bitmap
-	moveq #text_x,d0
-	moveq #planet_y-21,d1
-	jsr put_bitmap
 	moveq #lgt_grey,d0 ; draw the distance line and arrow
 	jsr set_colour
 	move #text_x+26,d0
@@ -213,6 +208,11 @@ q_pdata_m68_4:
 	jsr find_bitmap
 	move #planet_x-planet_rad-6,d0
 	move #planet_y-2,d1
+	jsr put_bitmap
+	moveq #1,d0 ; the ship covers the distance line at its origin
+	jsr ship_bitmap
+	moveq #text_x,d0
+	moveq #planet_y-22,d1
 	jsr put_bitmap
 	moveq #orange,d0 ; print in orange
 	moveq #trans,d1
