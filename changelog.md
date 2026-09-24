@@ -4,6 +4,12 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
+## xx.xx.2029 V1.80
+
+- Faster Amiga rendering where Chip RAM is the bottleneck. The flight view sends Chip RAM only what changed, and drawing that goes straight to the screen touches each screen word once.
+- New build option shadowcopy=changes (default), counter (frame-time line also shows pieces sent), all (copy everything every frame, for comparison).
+- Loading fix. On a 68040 (ACA1240) in pal-hireslace the game could freeze on the loading picture: BITMAPS.IMG read into the second screen sometimes arrived corrupted and the loader looped forever. Files now load through workspace buffers, and a failed or short read exits instead of hanging.
+
 ## 23.09.2029 V1.71
 
 - Better cockpit panel bitmap for wide variants.
