@@ -1009,6 +1009,8 @@ q_galaxy_m68_55:
 
 	q_subr l_range_circle
 
+	moveq #white,d0
+	jsr set_colour
 	clr d3 ; x = 0
 	move equip+fuel(a6),d4 ; calculate radius
 	mulu #text_depth,d4
@@ -1069,6 +1071,7 @@ q_galaxy_m68_58:
 
 	add #middle_x,d0 ; centre coords
 	add #middle_y,d1
+	movem.w d0/d1,-(sp)
 	q_display_x d0 ; the chart is laid out at authoring scale
 	q_display_y d1
 	bsr dot_to_addr ; get screen address
@@ -1081,11 +1084,11 @@ q_galaxy_m68_58:
 	or.w plane2(a0),d2
 	or.w plane3(a0),d2
 	and.w d0,d2
-	q_ret ne
-	lea colour_masks+white*8,a1
-	native_plot d0,a1,a0,d2,d1
-
-	q_ret
+	movem.w (sp)+,d0/d1
+	bne.s .taken
+	jmp ui_plot ; the whole logical dot
+.taken:
+	rts
 
 
 ; **********************************************
