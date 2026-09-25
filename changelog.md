@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
+## xx.xx.2029 V1.xx
+
+- Amiga: added DblPAL 640 x 512 mode.
+
 ## xx.xx.2029 V1.81
 
 - Hyperspace countdown now pulses red in sync with the tunnel text and ship engines.
