@@ -7,7 +7,7 @@ def make_suite(root,s):
     prefix=' include "common.def"\n include "macros.m68"\n'
     prefix+=source[source.index('ps_features:'):source.index('    q_end_vars planet_surface')]+'\n'
     call=lambda name: '' if name == 'wait_clear' and name not in s else f' jsr ${s[name]:x}\n'
-    body=' clr.w csr_on(a6)\n clr.w display_clock(a6)\n clr.w player_ship(a6)\n'
+    body=' bset #f_planets,user+1(a6)\n clr.w csr_on(a6)\n clr.w display_clock(a6)\n clr.w player_ship(a6)\n'
     body+=call('ship_apply')+call('reset_system')+call('prepare_cockpit')+call('front_view')+call('clear_objects')
     body+=' lea planet_rec(a6),a4\n move.b #$87,flags(a4)\n move.w #planet,type(a4)\n move.w #16384,obj_rad(a4)\n move.l #100000,zpos(a4)\n'
     body+=call('create_object')
@@ -128,9 +128,9 @@ def make_suite(root,s):
         body+=' tst.w ps_kind(a6)\n beq fail\n'
     case('Planets OFF draws the original plain globe and skips transformations')
     init(8)
-    body+=' bset #f_no_planets,user+1(a6)\n move.w #$1234,ps_matrix(a6)\n'
+    body+=' bclr #f_planets,user+1(a6)\n move.w #$1234,ps_matrix(a6)\n'
     render();snapshot('disabled')
-    body+=' cmp.w #$1234,ps_matrix(a6)\n bne fail\n bclr #f_no_planets,user+1(a6)\n'
+    body+=' cmp.w #$1234,ps_matrix(a6)\n bne fail\n bset #f_planets,user+1(a6)\n'
     # A clean in-game cockpit capture, separate from the guarded frame checks.
     body+=call('prepare_cockpit')+call('front_view')
     for colour,label in ((8,'sea'),(1,'crater')):
@@ -139,7 +139,7 @@ def make_suite(root,s):
         snapshot('preview_'+label)
     case('Planets OFF survives commander save and restore without other flag changes')
     body+=' move.w #$27aa,user(a6)\n'
-    body+=call('options')+' moveq #0,d0\n'+call('change_planets')+call('save_state')+' clr.w user(a6)\n'+call('restore_state')+' cmp.w #$27ab,user(a6)\n bne fail\n'
+    body+=call('options')+' moveq #0,d0\n'+call('change_planets')+call('save_state')+' clr.w user(a6)\n'+call('restore_state')+' cmp.w #$27a8,user(a6)\n bne fail\n'
     body+=call('options')+call('hide_cursor')
     snapshot('options_off',False)
     body+=call('restore_cursor')
@@ -160,11 +160,14 @@ def make_suite(root,s):
     snapshot('data_on_repeat',False)
     body+=call('restore_cursor')
     case('Planets OFF restores the original bitmap on Planet Data')
-    body+=' bset #f_no_planets,user+1(a6)\n'+call('data')+call('hide_cursor')
+    body+=' bclr #f_planets,user+1(a6)\n'+call('data')+call('hide_cursor')
     snapshot('data_off',False)
     body+=call('restore_cursor')
-    case('A default or legacy commander enables enhanced planets')
-    body+=call('default_game')+call('restore_state')+' btst #f_no_planets,user+1(a6)\n bne fail\n'
+    case('A default commander disables enhanced planets')
+    body+=call('default_game')+call('restore_state')+' btst #f_planets,user+1(a6)\n bne fail\n'
+    for old_flags in (0x2700,0x2701):
+        case(f'Legacy commander flags {old_flags:04x} keep Planets OFF')
+        body+=f' move.w #${old_flags:x},user(a6)\n'+call('save_state')+' move.w #$ffff,user(a6)\n'+call('restore_state')+f' cmp.w #${old_flags:x},user(a6)\n bne fail\n btst #f_planets,user+1(a6)\n bne fail\n'
     # Actual hardware RGB must agree with flight, including all alien palettes.
     import re,struct
     ui=list(struct.unpack_from('>16H',(root/'assets/TEXTSCR.PC1').read_bytes(),2))
@@ -185,7 +188,7 @@ def make_suite(root,s):
         for enabled in (False,True):
             state='on' if enabled else 'off'
             case(f'Planet {planet_id}: actual UI RGB with Planets {state}')
-            body+=(' bclr' if enabled else ' bset')+' #f_no_planets,user+1(a6)\n'
+            body+=(' bset' if enabled else ' bclr')+' #f_planets,user+1(a6)\n'
             body+=f' move.w #{planet_id},req_planet(a6)\n move.w #{planet_id},d0\n'+call('get_planet_info')+call('data')+call('hide_cursor')
             expected=ui[:]
             if enabled:expected[6:10]=flight[6:10]

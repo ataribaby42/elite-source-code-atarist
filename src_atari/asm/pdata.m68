@@ -357,8 +357,8 @@ q_pdata_m68_6:
 ; mapping their three private shades to the nearest fixed UI colours first.
 ; OFF retains the original palette changes and bitmap without this conversion.
     q_subr match_planet_palette
-    btst #f_no_planets,user+1(a6)
-    bne .done
+    btst #f_planets,user+1(a6)
+    beq .done
     movem.l d0-d7/a0-a5,-(sp)
     suba.w #12,sp ; original inhabitant RGBs, followed by three destination indices
     move.l palette+lgt_green*2,(sp)
@@ -625,8 +625,8 @@ q_pdata_m68_8:
 
 	q_subr draw_planet
 
-    btst #f_no_planets,user+1(a6)
-    bne.s .bitmap
+    btst #f_planets,user+1(a6)
+    beq.s .bitmap
     move.w #planet_x,d0
     move.w #planet_y,d1
     jsr draw_planet_portrait

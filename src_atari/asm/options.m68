@@ -331,18 +331,18 @@ q_options_m68_14:
     q_pop d0
     tst.w d0
     beq.s .off
-    bclr #f_no_planets,user+1(a6)
+    bset #f_planets,user+1(a6)
     bra.s .highlight
 .off:
-    bset #f_no_planets,user+1(a6)
+    bclr #f_planets,user+1(a6)
 .highlight:
     bsr planets_icon
     bra highlight_icon
 
     q_subr planets_icon
     moveq #i_planets,d0
-    btst #f_no_planets,user+1(a6)
-    beq.s .done
+    btst #f_planets,user+1(a6)
+    bne.s .done
     addq.w #1,d0
 .done:
     rts

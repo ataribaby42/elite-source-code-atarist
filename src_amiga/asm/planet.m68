@@ -576,8 +576,8 @@ ps_cross:
     rts
 
     q_subr draw_planet_surface,global
-    btst #f_no_planets,user+1(a6)
-    bne .return
+    btst #f_planets,user+1(a6)
+    beq .return
     tst.w ps_kind(a6)
     beq .return
     cmp.w #ps_min_radius,scr_radius(a5)

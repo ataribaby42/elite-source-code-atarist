@@ -46,10 +46,13 @@ portrait matches the flight view. The inhabitants' three private shades are
 mapped to their nearest fixed UI colours within the character rectangle.
 With OFF, the original inhabitant palette changes and bitmap are preserved.
 
-The preference occupies bit 0 of `USER+1`, the previously unused second byte
-of the existing saved USER word. It is included in normal and RAM commander
-saves without changing the 256-byte format or adding an extension. Zero means
-ON, including the default commander and older saves with that reserved bit clear.
+The preference occupies bit 1 of `USER+1`, the previously unused second byte
+of the existing saved USER word. A set bit explicitly enables Planets; zero
+means OFF for a new game and older saves. It is included in normal and RAM
+commander saves without changing the 256-byte format or adding an extension.
+Bit 0, used by the earlier experimental OFF flag, is ignored. Thus old saves
+from either experimental setting also default to OFF rather than accidentally
+enabling the feature. Newly saved commanders retain their selected ON/OFF state.
 
 The portrait uses a private object and backs up the entire live surface
 workspace. It renders in a bounded part of the invisible screen already used
@@ -143,6 +146,10 @@ and green values with ON and the unchanged legacy inhabitant colours with OFF.
 Atari palette reads mask undefined hardware bits; Amiga checks use the relocated
 runtime palette, not the code-hunk address. The additional captures are stored
 under `build/planet-palette-qa` and also validate the relocated options row.
+
+Default-OFF verification expands the suite to 97 scenarios. It checks a new
+commander and both legacy USER encodings, while retaining the ON/OFF save and
+restore checks. Evidence is stored under `build/planets-default-qa`.
 
 This first implementation has a measurable cost on a stock 68000. At a logical
 radius of 48 pixels, the added detail pass averaged 81.875 ms for seas and

@@ -481,7 +481,8 @@ from a projected diameter of approximately
 the longitude while preserving geography.
 `Planets: ON / OFF` in Options is saved with the commander. ON also renders
 the selected planet at zero rotation on Planet Data; OFF uses the original
-plain flight globe and textured bitmap. The default is ON.
+plain flight globe and textured bitmap. The default is OFF for new games and
+older saves; newly saved commanders retain the selected setting.
 See [Procedural planet surfaces](../docs/2026-09-25-procedural-planet-surfaces.md)
 for rendering, performance and verification details.
 

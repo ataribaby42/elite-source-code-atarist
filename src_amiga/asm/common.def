@@ -591,7 +591,8 @@ f_no_stars: rs.b 1 ; saved Stars OFF flag; zero keeps old commanders/defaults ON
 f_no_rcs: rs.b 1 ; saved RCS FX OFF flag; zero defaults to ON
 
 ; The first USER byte is full. This flag lives in the saved second byte.
-f_no_planets: equ 0 ; USER+1 bit 0: zero defaults to enhanced planets ON
+f_planets: equ 1 ; USER+1 bit 1: explicitly enable planets; old saves default OFF
+; USER+1 bit 0 was the experimental Planets OFF flag and is now ignored.
 
 ; Equipment record.
 
