@@ -170,11 +170,13 @@ q_sfx macro
 
 	endm
 
-* MODULE - Define module and RTS.
+* MODULE - Define module and RTS. Its code starts on a longword: a 68020
+* fetches one at a time, so where a loop starts decides its speed.
 
 q_module macro
 
 	section text,code
+	cnop 0,4
 
 return: set *
 

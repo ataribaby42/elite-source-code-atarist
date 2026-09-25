@@ -31,6 +31,7 @@ amiga_implementation: equ 1
     xref sky_multiply,sky_multiply_020
     endc
     section text,code
+    cnop 0,4
 amiga_entry:
     movem.l d2-d7/a2-a6,-(sp)
     move.l sp,host_stack

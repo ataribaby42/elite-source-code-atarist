@@ -128,6 +128,7 @@ q_graphics_m68_6\@:
 * Regs:  D1 and A0 corrupt.
 * Subr:  None
 
+	cnop 0,4
 	q_subr dot_to_addr,global
 
     move.w d0,-(sp)
@@ -183,6 +184,7 @@ q_graphics_m68_6\@:
 * Regs:  ?
 * Subr:  ?
 
+	cnop 0,4
 	q_subr clear_image,global
 
 .wait:
@@ -531,6 +533,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	q_ret
 
 
+	cnop 0,4
 	q_subr swap_screen,global
 
 	ifne frametime
@@ -987,6 +990,7 @@ q_graphics_m68_33:
 * Regs: ?
 * Subr: ?
 
+	cnop 0,4
 	q_subr c_plotxy,global
 
 	ifne display_hires+display_tall
@@ -1247,6 +1251,7 @@ q_graphics_m68_47:
 * Regs:  ?
 * Subr:  ?
 
+	cnop 0,4
 	q_subr circle_horiz
 
 	movem d5-d6,-(sp) ; save circle parameters
@@ -1775,6 +1780,7 @@ q_graphics_m68_81:
 	rts
 	endc
 
+	cnop 0,4
 	q_subr plotxy,global
 
     bsr dot_to_addr
@@ -1971,6 +1977,7 @@ q_graphics_m68_92:
 * Regs: D0-D6, A0 and A2 corrupt.
 * Subr: DOT_TO_ADDR, MASK_PLOT
 
+	cnop 0,4
 	q_subr horiz_line,global
 
 	sub d0,d2 ; calculate width in pixels
@@ -2115,6 +2122,7 @@ vert_word macro
 * Regs: D0,D5 and A0 corrupt.
 * Subr: ?
 
+	cnop 0,4
 	q_subr mask_plot
 
     native_mask_plot d0,d1,d3,d4,d6,a0,d5
@@ -2197,6 +2205,7 @@ q_graphics_m68_122:
 * Regs: ?
 * Subr: HORIZ_LINE
 
+	cnop 0,4
 	q_subr solid_polygon,global
 
 	move poly_min_y(a6),d0 ; convert y limits to physical screen

@@ -57,6 +57,7 @@
 	xref prepare_rcs_frame
 
 	section text,code
+	cnop 0,4
 
 	q_global elite
 

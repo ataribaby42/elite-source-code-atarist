@@ -15,6 +15,7 @@
 	xref magnitude_table
 
 	section text,code
+	cnop 0,4
 
 
 * *************************************

@@ -18,6 +18,7 @@ sounds_used: equ 0
 ; and back, ECM_DUR (20) times. Paula has no equivalent, so the wave is timed.
 ecm_wave: equ 116
     section text,code
+    cnop 0,4
 fx:
     tst audio_resetting
     bne .return

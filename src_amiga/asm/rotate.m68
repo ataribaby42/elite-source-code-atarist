@@ -61,6 +61,7 @@ rotate macro
 	endm
 
 	section text,code
+	cnop 0,4
 
 
 * **************************************

@@ -7,6 +7,7 @@ fileio_implementation: equ 1
     xdef console_write,active_files,directory_lock
     xdef file_init,file_shutdown,commander_open,commander_create
     section text,code
+    cnop 0,4
 ; Process.pr_WindowPtr is part of the original Kickstart 1.x Process ABI.
 pr_window_ptr: equ 184
 
