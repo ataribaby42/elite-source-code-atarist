@@ -34,6 +34,7 @@
 	xref publish_rcs_sound,stop_rcs_sound
 	xref wait_key,clear_image,swap_screen,clear_input,hexagon
 	xref disp_message,damping,print_string,launch_system,get_range,draw_object
+	xref disp_pulse_message
 	xref world_x_rotate,world_z_rotate,do_logic,move,hyperspace
 	xref disp_debug,mini_radar,obj_data,rand,check_hack,launch_sequence
 	xref remove_radar,radar,ecm,draw_sight,recharge,dock_check
@@ -669,7 +670,7 @@ q_main_m68_51:
 ; Quelo: 		if <ne> then.s					yes
 	beq.s q_main_m68_55
 	lea text3(pc),a0 ; print message
-	jsr disp_message
+	jsr disp_pulse_message
 	bra q_main_m68_56
 q_main_m68_55:
 	move count_down(a6),d0 ; countdown changed ?

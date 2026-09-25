@@ -55,6 +55,7 @@ flare: rs.w 1 ; flare bits
 vertex_list1: rs.b node_len*max_vert ; vertex list #1
 vertex_list2: rs.b node_len*max_vert ; vertex list #2
 which_list: rs.l 1 ; ptr: which list to use next
+message_pulse: rs.w 1 ; current message uses the engine/tunnel pulse colour
 
 	q_end_vars graphics
 
@@ -793,6 +794,7 @@ frame_text_y: equ 0 ; the top row of the screen
 
 	q_subr disp_message,global
 
+	clr.w message_pulse(a6) ; ordinary replacements retain the caller's ink
 	lea text_buffer(a6),a1 ; one plain-text row, bounded by the flight viewport
 	moveq #0,d0
 .copy:
@@ -815,6 +817,12 @@ frame_text_y: equ 0 ; the top row of the screen
 	move d0,text_offset(a6)
 	move #-persistance,text_frames(a6) ; set persistance counter
 
+	q_ret
+
+	q_subr disp_pulse_message,global
+
+	bsr disp_message
+	move.w #1,message_pulse(a6)
 	q_ret
 
 
@@ -872,6 +880,10 @@ q_graphics_m68_17:
 	move #rest_phase,(a0)
 	bra q_graphics_m68_20
 q_graphics_m68_19:
+	tst.w message_pulse(a6)
+	beq.s .message_ink_ready
+	moveq #pulse,d0
+.message_ink_ready:
 	move #trans,d1 ; set text colour
 	jsr text_colour
 	move text_offset(a6),d0 ; position cursor

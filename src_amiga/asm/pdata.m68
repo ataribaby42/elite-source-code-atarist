@@ -48,6 +48,7 @@ circle_y: rs.w 1
 xl: rs.w 1 ; x left coord
 xr: rs.w 1 ; x right coord
 yc: rs.w 1 ; y coord
+portrait_colours: rs.w 1 ; palette indices reserved by the rendered planet
 
 	q_end_vars pdata
 
@@ -353,8 +354,8 @@ q_pdata_m68_6:
 	q_ret
 
 
-; ON uses flight RGB values for the globe. Approximate the inhabitants' shades by
-; mapping their three private shades to the nearest fixed UI colours first.
+; Reserve only the flight RGB entries actually needed by the rendered globe.
+; Fit the inhabitants' shades into the remaining private palette entries.
 ; OFF retains the original palette changes and bitmap without this conversion.
     q_subr match_planet_palette
     btst #f_planets,user+1(a6)
@@ -365,7 +366,8 @@ q_pdata_m68_6:
     move.w palette+drk_green*2,4(sp)
     lea cockpit+2+red*2,a0
     lea palette+red*2,a1
-    moveq #3,d7
+    move.w portrait_colours(a6),d6
+    moveq #red,d7
 .copy_palette:
     move.w (a0)+,d0
     and.w #$0777,d0
@@ -374,18 +376,20 @@ q_pdata_m68_6:
     lsr.w #2,d1
     and.w #$0111,d1
     or.w d1,d0 ; match SET_PALETTE: ST components to native OCS RGB
-    move.w d0,(a1)+
-    dbra d7,.copy_palette
+    btst d7,d6
+    beq.s .keep_shade
+    move.w d0,(a1)
+.keep_shade:
+    addq.l #2,a1
+    addq.w #1,d7
+    cmp.w #drk_green,d7
+    bls.s .copy_palette
     tst.b cplanet+seed+5(a6)
     bpl .restore ; humans use the standard UI colours
     move.l sp,a1
     lea 6(sp),a2
-    moveq #2,d7
-.map_shade:
-    bsr nearest_inhabitant_colour
-    addq.l #2,a1
-    addq.l #2,a2
-    dbra d7,.map_shade
+    move.w d6,d0
+    bsr fit_inhabitant_palette
     lea 6(sp),a4
     move.l scr_base(a6),a0
     lea head_y*zoom_y*row_stride(a0),a0
@@ -404,10 +408,175 @@ q_pdata_m68_6:
 .done:
     rts
 
-; A1 = source native RGB, A2 = output index. Palette 14 flashes in the UI.
-    q_subr nearest_inhabitant_colour
-    movem.l d0-d7/a0,-(sp)
+
+; Evaluate all six assignments of the three original shades to palette 7..9.
+; Planet entries stay locked. Minimize RGB error weighted by actual sprite use,
+; so a large body area takes priority over a few highlight pixels.
+; D0 = locked-index mask, A1 = original shades, A2 = output pixel indices.
+ip_palette: equ 0
+ip_source: equ 32
+ip_counts: equ 38
+ip_best_palette: equ 44
+ip_best_map: equ 50
+ip_map: equ 56
+ip_best_score: equ 62
+ip_mask: equ 66
+ip_output: equ 68
+ip_size: equ 72
+
+    q_subr fit_inhabitant_palette
+    movem.l d0-d7/a0-a5,-(sp)
+    and.w #$0380,d0
+    bne.s .fit
+    move.w #lgt_green,(a2)
+    move.w #mid_green,2(a2)
+    move.w #drk_green,4(a2)
+    bra .done
+.fit:
+    suba.w #ip_size,sp
+    move.w d0,ip_mask(sp)
+    move.l a2,ip_output(sp)
+    move.l (a1),ip_source(sp)
+    move.w 4(a1),ip_source+4(sp)
+    clr.l ip_counts(sp)
+    clr.w ip_counts+4(sp)
     lea palette,a0
+    lea ip_palette(sp),a1
+    moveq #15,d7
+.copy:
+    move.w (a0)+,(a1)+
+    dbra d7,.copy
+    lea ip_counts(sp),a2
+    lea inhabitant_bit_counts(pc),a3
+    move.l scr_base(a6),a0
+    lea head_y*zoom_y*row_stride(a0),a0
+    move.w #104*zoom_y-1,d7
+.count_row:
+    move.w #5*zoom_x-1,d6
+.count_group:
+    bsr count_inhabitant_word
+    lea 2(a0),a0
+    dbra d6,.count_group
+    lea row_stride-10*zoom_x(a0),a0
+    dbra d7,.count_row
+    move.l #$7fffffff,ip_best_score(sp)
+    moveq #0,d6
+.candidate:
+    lea inhabitant_permutations(pc),a3
+    adda.w d6,a3
+    lea ip_source(sp),a1
+    lea ip_palette+lgt_green*2(sp),a0
+    move.w ip_mask(sp),d4
+    moveq #lgt_green,d5
+.assign:
+    move.w (a3)+,d0
+    btst d5,d4
+    bne.s .locked
+    move.w (a1,d0.w),(a0)
+.locked:
+    addq.l #2,a0
+    addq.w #1,d5
+    cmp.w #drk_green,d5
+    bls.s .assign
+    lea ip_palette(sp),a0
+    lea ip_source(sp),a1
+    lea ip_map(sp),a2
+    lea ip_counts(sp),a4
+    moveq #0,d4
+    moveq #2,d7
+.score:
+    bsr nearest_inhabitant_colour
+    mulu.w (a4)+,d0
+    add.l d0,d4
+    addq.l #2,a1
+    addq.l #2,a2
+    dbra d7,.score
+    cmp.l ip_best_score(sp),d4
+    bhs.s .next
+    move.l d4,ip_best_score(sp)
+    move.l ip_palette+lgt_green*2(sp),ip_best_palette(sp)
+    move.w ip_palette+drk_green*2(sp),ip_best_palette+4(sp)
+    move.l ip_map(sp),ip_best_map(sp)
+    move.w ip_map+4(sp),ip_best_map+4(sp)
+.next:
+    addq.w #6,d6
+    cmp.w #36,d6
+    blo.s .candidate
+    lea palette+lgt_green*2,a0
+    move.l ip_best_palette(sp),(a0)
+    move.w ip_best_palette+4(sp),4(a0)
+    move.l ip_output(sp),a2
+    move.l ip_best_map(sp),(a2)
+    move.w ip_best_map+4(sp),4(a2)
+    adda.w #ip_size,sp
+.done:
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; Count original indices 7..9 in a sixteen-pixel group.
+; A2 = three counters, A3 = byte popcounts. Preserve the scan counters.
+    q_subr count_inhabitant_word
+    movem.l d6/a2,-(sp)
+    move.w (a0),d0
+    move.w bpr(a0),d1
+    move.w bpr*2(a0),d2
+    move.w bpr*3(a0),d3
+    move.w d3,d4
+    not.w d4
+    and.w d0,d4
+    and.w d1,d4
+    and.w d2,d4
+    move.w d0,d5
+    or.w d1,d5
+    or.w d2,d5
+    not.w d5
+    and.w d3,d5
+    move.w d1,d6
+    or.w d2,d6
+    not.w d6
+    and.w d0,d6
+    and.w d3,d6
+    bsr.s .count_mask
+    move.w d5,d4
+    bsr.s .count_mask
+    move.w d6,d4
+    bsr.s .count_mask
+    movem.l (sp)+,d6/a2
+    rts
+.count_mask:
+    moveq #0,d0
+    move.b d4,d0
+    moveq #0,d1
+    move.b (a3,d0.w),d1
+    lsr.w #8,d4
+    add.b (a3,d4.w),d1
+    add.w d1,(a2)+
+    rts
+
+inhabitant_permutations:
+    dc.w 0,2,4, 0,4,2, 2,0,4, 2,4,0, 4,0,2, 4,2,0
+inhabitant_bit_counts:
+    dc.b 0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4
+    dc.b 1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5
+    dc.b 1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7
+    dc.b 1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7
+    dc.b 2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6
+    dc.b 3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7
+    dc.b 3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7
+    dc.b 4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8
+
+; A0 = candidate palette, A1 = source native RGB, A2 = output index.
+; Return D0 = squared RGB error. Palette 14 flashes in the UI.
+    q_subr nearest_inhabitant_colour
+    movem.l d1-d7,-(sp)
     move.w #$7fff,d7
     moveq #1,d5
 .candidate:
@@ -438,7 +607,8 @@ q_pdata_m68_6:
     addq.w #1,d5
     cmp.w #white,d5
     bls.s .candidate
-    movem.l (sp)+,d0-d7/a0
+    move.w d7,d0
+    movem.l (sp)+,d1-d7
     rts
 
 ; Recolour indices 7..9 in one sixteen-pixel group, using original masks so
@@ -634,6 +804,7 @@ q_pdata_m68_8:
     move.w #planet_x,d0
     move.w #planet_y,d1
     jsr draw_planet_portrait
+    move.w d0,portrait_colours(a6)
     bra q_pdata_m68_10 ; keep the original diameter caption and arrows
 .bitmap:
 	move.l scr_base(a6),d0 ; expand texture screen into the

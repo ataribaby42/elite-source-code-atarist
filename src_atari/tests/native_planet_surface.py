@@ -124,6 +124,18 @@ def make_suite(root,s):
         case(f'Actual {name} creation path initializes a complete surface')
         body+=call(name)+' lea planet_rec(a6),a5\n cmp.w #unit,y_vector+j(a5)\n bne fail\n cmp.w #planet,type(a5)\n bne fail\n'
         body+=' tst.w ps_kind(a6)\n beq fail\n'
+    case('Station launch with Planets ON chooses a vertical longitude')
+    body+=' bset #f_planets,user+1(a6)\n move.l #$12345678,random_seed(a6)\n'
+    body+=call('launch_system')+' lea planet_rec(a6),a5\n tst.w z_vector+i(a5)\n beq fail\n cmp.w #unit,y_vector+j(a5)\n bne fail\n tst.w x_vector+j(a5)\n bne fail\n tst.w z_vector+j(a5)\n bne fail\n'
+    body+=' move.w x_vector+i(a5),qa_launch_basis\n move.w z_vector+i(a5),qa_launch_basis+2\n move.l random_seed(a6),qa_launch_rng\n lea ps_map(a6),a0\n lea qa_map(pc),a1\n move.w #ps_features*ps_feature_bytes/2-1,d7\nqa_launch_map_save:\n move.w (a0)+,(a1)+\n dbra d7,qa_launch_map_save\n'
+    case('Planets OFF launch keeps its orientation and identical gameplay RNG')
+    body+=' bclr #f_planets,user+1(a6)\n move.l #$12345678,random_seed(a6)\n'
+    body+=call('launch_system')+' lea planet_rec(a6),a5\n cmp.w #unit,x_vector+i(a5)\n bne fail\n cmp.w #unit,y_vector+j(a5)\n bne fail\n cmp.w #unit,z_vector+k(a5)\n bne fail\n tst.w z_vector+i(a5)\n bne fail\n tst.w x_vector+k(a5)\n bne fail\n move.l qa_launch_rng(pc),d0\n cmp.l random_seed(a6),d0\n bne fail\n'
+    body+=' lea ps_map(a6),a0\n lea qa_map(pc),a1\n move.w #ps_features*ps_feature_bytes/2-1,d7\nqa_launch_off_map:\n move.w (a0)+,d0\n cmp.w (a1)+,d0\n bne fail\n dbra d7,qa_launch_off_map\n'
+    case('A later station launch changes longitude but keeps the seeded geography')
+    body+=' bset #f_planets,user+1(a6)\n move.l #$fedcba98,random_seed(a6)\n'
+    body+=call('launch_system')+' lea planet_rec(a6),a5\n move.w qa_launch_basis(pc),d0\n cmp.w x_vector+i(a5),d0\n bne.s qa_launch_changed\n move.w qa_launch_basis+2(pc),d0\n cmp.w z_vector+i(a5),d0\n beq fail\nqa_launch_changed:\n cmp.w #unit,y_vector+j(a5)\n bne fail\n tst.w x_vector+j(a5)\n bne fail\n tst.w z_vector+j(a5)\n bne fail\n'
+    body+=' lea ps_map(a6),a0\n lea qa_map(pc),a1\n move.w #ps_features*ps_feature_bytes/2-1,d7\nqa_launch_on_map:\n move.w (a0)+,d0\n cmp.w (a1)+,d0\n bne fail\n dbra d7,qa_launch_on_map\n'
     case('Planets OFF draws the original plain globe and skips transformations')
     init(8)
     body+=' bclr #f_planets,user+1(a6)\n move.w #$1234,ps_matrix(a6)\n'
@@ -192,10 +204,13 @@ def make_suite(root,s):
             if enabled:expected[6:10]=flight[6:10]
             elif seeds[planet_id][2]&128:expected[7:10]=inhabitants[(seeds[planet_id][2]>>13)&7]
             for ink in range(6,10):
+                if enabled:
+                    body+=f' move.w ps_portrait_colours(a6),d0\n btst #{ink},d0\n beq qa_rgb_skip_{planet_id}_{ink}\n'
                 body+=f' move.w palette+{ink*2},d0\n and.w #$777,d0\n cmp.w #${expected[ink]:x},d0\n bne fail\n'
+                if enabled:body+=f'qa_rgb_skip_{planet_id}_{ink}:\n'
             snapshot(f'rgb_{planet_id}_{state}',False)
             body+=call('restore_cursor')
     tail=GUARDS+'qa_case: dc.w 0\nqa_snapshot: dc.w 0\nqa_yaw: dc.w 0\nqa_repeat: dc.w 0\nqa_ticks_8: dc.w 0\nqa_ticks_1: dc.w 0\nqa_horizon: dc.w 0,4096,0,-2048,0,-3547,2048,0,-3547\nqa_map: ds.b ps_features*ps_feature_bytes\n'
     tail+='qa_live: ds.b ps_work_bytes+obj_len\nqa_seed: ds.b 6\nqa_current: dc.w 0\nqa_view: dc.l 0\n'
-    tail+='qa_palette: ds.w 16\n'
+    tail+='qa_palette: ds.w 16\nqa_launch_rng: dc.l 0\nqa_launch_basis: ds.w 2\n'
     return prefix,body,tail,names

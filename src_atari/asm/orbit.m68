@@ -204,6 +204,10 @@ q_orbit_m68_12:
 	jsr create_object ; create the object
 	jsr set_planet_colour ; cache the current system's texture colour
 	jsr init_planet_surface ; regenerate the same complete globe from its seed
+	btst #f_planets,user+1(a6)
+	beq.s .launch_orientation_ready
+	jsr turn_planet_surface ; simulate rotation during the station visit
+.launch_orientation_ready:
 
 ; Create the space station.
 
