@@ -17,7 +17,7 @@
 	include "macros.m68"
 	include "bitlist.m68"
 
-	xref vars,other_screen,vblank,critical_error,texture
+	xref vars,vblank,critical_error,texture,amiga_primary_at,other_screen_at
 	ifeq display_hires
 	xref amstrad_8x8
 	else
@@ -146,10 +146,10 @@ size macro
 	jsr ship_graphics_init ; private in-memory UI atlas from relocated models
 	bsr check_vars ; check variable areas
 	st stop_cycle(a6) ; don't cycle colours yet
-	move.l #amiga_primary,d0 ; OCS Chip RAM screen
+	move.l amiga_primary_at,d0 ; Chip RAM screen
 	move.l d0,screen1_ptr(a6)
 	move.l d0,scr_base(a6)
-	move.l #other_screen,d1 ; set pointers to other screen
+	move.l other_screen_at,d1 ; set pointers to other screen
 	move.l d1,screen2_ptr(a6)
 	eor.l d1,d0 ; calculate eor for flip screen
 	move.l d0,flip_screen(a6)
@@ -232,7 +232,7 @@ size macro
 	move.l bitmap_bank,a0
 	cmp.w #$8000,(a0)
 	bne .done
-	lea amiga_primary,a1
+	move.l amiga_primary_at,a1
 	jsr draw_screen
 	move.l bitmap_bank,a0
 	addq.l #2,a0
@@ -342,7 +342,7 @@ q_init_m68_22:
 	q_dec d4
 	q_loop 2 ; loop for each pixel line
 	q_push d3 ; save width
-	ifne display_lace
+	ifne display_tall
 	move.l a0,a5 ; remember where this row starts
 	endc
 	q_loop 3 ; loop for each word across
@@ -388,7 +388,7 @@ q_init_m68_22:
 	q_next 5
 	endc
 	q_next 3,d3 ; next word across
-	ifne display_lace
+	ifne display_tall
 	move.l a0,d0 ; lay the row down a second time
 	sub.l a5,d0 ; its length, in bytes
 	lsr.l #1,d0

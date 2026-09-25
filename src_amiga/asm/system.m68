@@ -3,7 +3,11 @@
 amiga_implementation: equ 1
     include "common.def"
     include "macros.m68"
-    xref elite,vars,vblank,key_change,other_screen,quiet
+    xref elite,vars,vblank,key_change,quiet
+    ifeq beam_prog
+    xref amiga_primary,other_screen
+    endc
+    xdef amiga_primary_at,other_screen_at
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
     xdef amiga_start_display,amiga_wait_title,amiga_rows_full,amiga_rows_art
     xdef palette,frclock,dos_base,set_palette,random_seed_value
@@ -60,6 +64,33 @@ amiga_entry:
     jsr -552(a6)                 ; OpenLibrary
     move.l d0,dos_base
     beq startup_failed
+    lea graphics_name(pc),a1
+    moveq #0,d0
+    jsr -552(a6)                 ; OpenLibrary
+    move.l d0,graphics_base
+    beq startup_failed
+    ifne cpu_68020+beam_prog
+    bsr machine_check            ; before any 68020 code
+    bne startup_failed
+    move.l exec_base,a6
+    endc
+    ifeq beam_prog
+    move.l #amiga_primary,amiga_primary_at ; the screens came with the program
+    move.l #other_screen,other_screen_at
+    endc
+    ifne beam_prog
+; after the check, so 512 KB of Chip RAM still loads the program
+    move.l #scr_bytes,d0
+    move.l #$10002,d1            ; MEMF_CLEAR|MEMF_CHIP
+    jsr -198(a6)                 ; AllocMem
+    move.l d0,amiga_primary_at
+    beq startup_failed
+    move.l #scr_bytes,d0
+    move.l #$10002,d1
+    jsr -198(a6)
+    move.l d0,other_screen_at
+    beq startup_failed
+    endc
     move.l workbench_message,d0
     beq .directory_ready
     move.l d0,a0
@@ -102,12 +133,7 @@ amiga_entry:
     move.l d0,mirror_blank
 .no_shadow:
     endc
-    lea graphics_name(pc),a1
-    moveq #0,d0
-    jsr -552(a6)
-    move.l d0,graphics_base
-    beq startup_failed
-    move.l d0,a6
+    move.l graphics_base,a6
     move.l 34(a6),old_view
     suba.l a1,a1
     jsr -222(a6)                 ; LoadView(NULL)
@@ -161,6 +187,9 @@ amiga_exit:
     clr blitter_owned
 .no_blitter:
     endc
+    ifne beam_prog
+    bsr amiga_beam_off           ; before the old view, which assumes it back
+    endc
     move.l old_view,a1
     jsr -222(a6)
     move.l 38(a6),$dff080       ; restore graphics.library's Copper startup list
@@ -210,6 +239,22 @@ startup_failed:
     clr.l mirror_blank
 .no_shadow_free:
     endc
+    ifne beam_prog
+    move.l amiga_primary_at,d0
+    beq.s .no_primary
+    move.l d0,a1
+    move.l #scr_bytes,d0
+    jsr -210(a6)                 ; FreeMem
+    clr.l amiga_primary_at
+.no_primary:
+    move.l other_screen_at,d0
+    beq.s .no_other
+    move.l d0,a1
+    move.l #scr_bytes,d0
+    jsr -210(a6)
+    clr.l other_screen_at
+.no_other:
+    endc
     move.l bitmap_bank,d0
     beq .no_bitmaps
     move.l d0,a1
@@ -256,7 +301,7 @@ amiga_start_display:
     movem.l d0-d7/a0-a6,-(sp)
     tst vblank_added
     bne .done
-    lea amiga_primary,a0
+    move.l amiga_primary_at,a0
     move.l a0,display_front
     move.l exec_base,a6
     lea vblank_server,a1
@@ -344,12 +389,77 @@ amiga_present:
 ; Display the full screen height; the flight view owns every row.
 amiga_rows_full:
     move.w #diwstop_rows,copper_diwstop
+    ifne beam_prog
+    move.w #diwhigh_rows,copper_diwhigh
+    endc
     rts
 
 ; Display art_rows only, so 200-row artwork keeps its original framing.
 amiga_rows_art:
     move.w #diwstop_art,copper_diwstop
+    ifne beam_prog
+    move.w #diwhigh_art,copper_diwhigh
+    endc
     rts
+
+    ifne beam_prog
+; restore the standard PAL or NTSC BEAMCON0 and FMODE
+amiga_beam_off:
+    move.l graphics_base,a0
+    moveq #0,d0
+    btst #2,207(a0)              ; GfxBase.DisplayFlags, the PAL bit
+    beq.s .ntsc
+    moveq #$20,d0
+.ntsc:
+    move.w d0,$dff1dc
+    ifne fmode_on
+    clr.w $dff1fc
+    endc
+    rts
+    endc
+
+    ifne cpu_68020+beam_prog
+; stop with a message without a 68020 or AGA. Out: Z clear when stopped
+machine_check:
+    ifne cpu_68020
+    tst.w cpu_level
+    beq.s .unfit
+    endc
+    ifne beam_prog
+    btst #1,$dff004              ; VPOSR chip ID: Alice, whatever SetChipRev chose
+    beq.s .unfit
+    endc
+    moveq #0,d0
+    rts
+.unfit:
+    movem.l d2-d5/a6,-(sp)
+    move.l dos_base,a6
+    moveq #0,d5                  ; our own window, to close again
+    jsr -60(a6)                  ; Output: none from Workbench
+    move.l d0,d4
+    bne.s .write
+    move.l #unfit_window,d1
+    move.l #1006,d2              ; MODE_NEWFILE
+    jsr -30(a6)                  ; Open
+    move.l d0,d4
+    beq.s .done
+    move.l d0,d5
+.write:
+    move.l d4,d1
+    move.l #unfit_text,d2
+    moveq #unfit_end-unfit_text,d3
+    jsr -48(a6)                  ; Write
+    tst.l d5
+    beq.s .done
+    move.l #250,d1               ; five seconds to read it
+    jsr -198(a6)                 ; Delay
+    move.l d5,d1
+    jsr -36(a6)                  ; Close
+.done:
+    movem.l (sp)+,d2-d5/a6
+    moveq #1,d0
+    rts
+    endc
 
 ; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060. The first is
 ; what MOVE16 needs; CLEAR_IMAGE checks the screen's alignment itself.
@@ -444,15 +554,15 @@ fast_pairs:
 amiga_flip_address:
     move.l d1,-(sp)
     move.l d0,d1
-    sub.l #amiga_primary,d1
+    sub.l amiga_primary_at,d1
     cmp.l #scr_bytes,d1
     blo .primary
-    sub.l #other_screen,d0
-    add.l #amiga_primary,d0
+    sub.l other_screen_at,d0
+    add.l amiga_primary_at,d0
     bra .done
 .primary:
     move.l d1,d0
-    add.l #other_screen,d0
+    add.l other_screen_at,d0
 .done:
     move.l (sp)+,d1
     ifne shadow_ok
@@ -469,14 +579,16 @@ forget_mirror:
     tst.l shadow_block
     beq.s .kept
     move.l d0,d1
-    sub.l #amiga_primary+y_top*row_stride,d1
+    sub.l amiga_primary_at,d1
+    sub.l #y_top*row_stride,d1
     cmp.l #view_bytes,d1
     bhs.s .not_first
     clr.b mirror_valid
     bra.s .kept
 .not_first:
     move.l d0,d1
-    sub.l #other_screen+y_top*row_stride,d1
+    sub.l other_screen_at,d1
+    sub.l #y_top*row_stride,d1
     cmp.l #view_bytes,d1
     bhs.s .kept
     clr.b mirror_valid+1
@@ -532,6 +644,14 @@ wait_clear:
 amiga_vblank:
     movem.l d0-d7/a0-a6,-(sp)
     addq.l #1,frclock
+    ifne beam_prog
+; graphics.library's VBL server rewrote these: restore the programmed beam
+    move.w #beam_vtotal,$dff1c8
+    move.w #beam_vbstrt,$dff1cc
+    move.w #beam_vbstop,$dff1ce
+    move.w #beam_vsstrt,$dff1e0
+    move.w #beam_vsstop,$dff1ca
+    endc
     tst ready
     beq .same
     move.l display_pending,display_front
@@ -669,6 +789,15 @@ graphics_name: dc.b 'graphics.library',0
 input_name: dc.b 'input.device',0
 empty_name: dc.b 0
 instance_name: dc.b 'Elite.Native.Amiga',0
+    ifne cpu_68020+beam_prog
+unfit_window: dc.b 'CON:0/11/560/40/Elite',0
+    ifne beam_prog
+unfit_text: dc.b 'This Elite needs AGA and a 68020 or better.',10
+    else
+unfit_text: dc.b 'This Elite needs a 68020 or better.',10
+    endc
+unfit_end:
+    endc
     even
 ; Public marker only; no signal allocation and no message-based game API.
 instance_port:
@@ -701,12 +830,27 @@ vblank_server:
 
     section amiga_copper,data
 copper:
-    dc.w $2001,$fffe            ; allow the VBL server to publish pointers first
-    dc.w $100,$0200,$08e,$2c81,$090
+    ifne beam_prog
+; beam values in the Copper list, BEAMCON0 last
+    dc.w $1c0,beam_htotal,$1c2,beam_hsstop,$1c4,beam_hbstrt,$1c6,beam_hbstop
+    dc.w $1c8,beam_vtotal,$1ca,beam_vsstop,$1cc,beam_vbstrt,$1ce,beam_vbstop
+    dc.w $1de,beam_hsstrt,$1e0,beam_vsstrt
+    ifne fmode_on
+    dc.w $1fc,fmode_on
+    endc
+    dc.w $1dc,beamcon0_on
+    endc
+    dc.w $100,$0200,$08e,diwstrt,$090
 copper_diwstop:
     dc.w diwstop_art
+    ifne beam_prog
+    dc.w $1e4
+copper_diwhigh:
+    dc.w diwhigh_art
+    endc
     dc.w $092,ddfstrt,$094,ddfstop
-    dc.w $102,0,$104,0,$108,row_stride*(1+display_lace)-bpr,$10a,row_stride*(1+display_lace)-bpr
+    dc.w $102,bplcon1_on,$104,0,$108,row_stride*(1+display_lace)-bpr,$10a,row_stride*(1+display_lace)-bpr
+    dc.w copper_wait,$fffe      ; only the pointers wait for the VBL server
 copper_planes:
     dc.w $0e0,0,$0e2,0,$0e4,0,$0e6,0,$0e8,0,$0ea,0,$0ec,0,$0ee,0
     dc.w $100,bplcon0_on,$ffff,$fffe
@@ -719,6 +863,8 @@ workbench_directory_changed: ds.w 1
 exec_base: ds.l 1
 bitmap_bank: ds.l 1
 dos_base: ds.l 1
+amiga_primary_at: ds.l 1 ; the two Chip RAM screens
+other_screen_at: ds.l 1
 graphics_base: ds.l 1
 old_view: ds.l 1
 display_front: ds.l 1

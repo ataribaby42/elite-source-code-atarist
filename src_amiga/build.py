@@ -28,14 +28,18 @@ OUTPUT = ROOT.parent / 'output_amiga'
 TOOLS = ROOT.parent / 'tools'
 FLAGS = ['-no-opt', '-align', '-allmp', '-spaces', '-nocase', '-nowarn=40', '-nowarn=41', '-nowarn=62']
 ASSET_NAMES = ('BITMAPS.IMG', 'COCKPIT.PC1', 'TEXTSCR.PC1', 'TEXTURE.PC1', 'LOGO.PC1', 'TITLE.PC1', 'ELITE.info')
-# display option: (ntsc, hires, lace) and the line the build prints.
+# display option: the assembler switches that differ from the defaults below,
+# and the line the build prints.
+DISPLAY_DEFAULTS = {'ntsc': 0, 'hires': 0, 'lace': 0, 'double': 0}
 DISPLAYS = {
-    'pal':            ((0, 0, 0), 'PAL, 320 x 256'),
-    'ntsc':           ((1, 0, 0), 'NTSC, 320 x 200'),
-    'pal-hires':      ((0, 1, 0), 'PAL hires, 640 x 256'),
-    'pal-hireslace':  ((0, 1, 1), 'PAL hires interlaced, 640 x 512'),
-    'ntsc-hires':     ((1, 1, 0), 'NTSC hires, 640 x 200'),
-    'ntsc-hireslace': ((1, 1, 1), 'NTSC hires interlaced, 640 x 400'),
+    'pal':            ({}, 'PAL, 320 x 256'),
+    'ntsc':           ({'ntsc': 1}, 'NTSC, 320 x 200'),
+    'pal-hires':      ({'hires': 1}, 'PAL hires, 640 x 256'),
+    'pal-hireslace':  ({'hires': 1, 'lace': 1}, 'PAL hires interlaced, 640 x 512'),
+    'ntsc-hires':     ({'ntsc': 1, 'hires': 1}, 'NTSC hires, 640 x 200'),
+    'ntsc-hireslace': ({'ntsc': 1, 'hires': 1, 'lace': 1}, 'NTSC hires interlaced, 640 x 400'),
+    'dblpal-hires':   ({'hires': 1, 'double': 1},
+                       'DblPAL, 640 x 512, AGA super-hires'),
 }
 DISPLAYS['hires'] = DISPLAYS['pal-hires']              # PAL spellings
 DISPLAYS['hireslace'] = DISPLAYS['pal-hireslace']
@@ -65,7 +69,11 @@ def validate_outputname(name):
 
 
 def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True, altgfx=False, outputname='ELITE', display='pal', cpu='68000', frame=True, frametime=False, fastdraw=False, shadowcopy='changes'):
-    (ntsc, hires, lace), display_name = DISPLAYS[display]
+    options, display_name = DISPLAYS[display]
+    options = {**DISPLAY_DEFAULTS, **options}
+    ntsc, hires, lace = options['ntsc'], options['hires'], options['lace']
+    double = options['double']
+    tall = lace+double
     game = OUTPUT / validate_outputname(outputname)
     BUILD.mkdir(parents=True, exist_ok=True)
     game.mkdir(parents=True, exist_ok=True)
@@ -74,7 +82,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
             raise ValueError('Missing build tool: ' + str(tool))
     print(f'Assembler: {vasm}')
     print(f'Linker: {vlink}')
-    graphics = compile_assets(ROOT, altgfx=altgfx, zoom_x=1+hires, zoom_y=1+lace, build=BUILD, frame=frame)
+    graphics = compile_assets(ROOT, altgfx=altgfx, zoom_x=1+hires, zoom_y=1+tall, build=BUILD, frame=frame)
     print(f'Compiled editable PNG graphics from {"gfx_alt" if altgfx else "gfx"}/ into assets/.')
     print(f'Cockpit artwork: {"cockpit.png" if frame else "cockpit_noframe.png"}')
     boot, audio = extract_assets(ROOT.parent/'resources/amiga/Elite 2.0.adf', BUILD)
@@ -95,7 +103,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
         run([vasm,'-m'+cpu,*FLAGS,f'-Dnoprotect={int(noprotect)}',f'-Dcpu_68020={int(cpu == "68020")}',
              f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
              f'-Dscannerlogo={int(scannerlogo)}',
-             f'-Ddisplay_ntsc={ntsc}', f'-Ddisplay_hires={hires}', f'-Ddisplay_lace={lace}',
+             *(f'-Ddisplay_{name}={value}' for name, value in options.items()),
              f'-Dframe={int(frame)}', f'-Dframetime={int(frametime)}',
              f'-Dfastdraw={int(fastdraw)}', f'-Dshadow_every={int(shadowcopy == "all")}',
              f'-Dshadow_count={int(shadowcopy == "counter")}',
@@ -108,10 +116,11 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('Player laser style: ' + laser)
     print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
-    rows = (200 if ntsc or frame else 256)*(2 if lace else 1)
+    rows = (200 if ntsc or frame else 256)*(1+tall)
     print('Display: ' + (f'{"NTSC" if ntsc else "PAL"}{" hires" if hires else ""}'
-                         f'{" interlaced" if lace else ""}, {640 if hires else 320} x {rows},'
-                         f' framed {256*(1+hires)} x {112*(1+lace)} view' if frame else display_name))
+                         f'{" interlaced" if lace else ""}{" doubled" if double else ""},'
+                         f' {640 if hires else 320} x {rows},'
+                         f' framed {256*(1+hires)} x {112*(1+tall)} view' if frame else display_name))
     print('CPU: ' + ('MC68020 or better, native 32-bit maths only' if cpu == '68020'
                      else 'MC68000, with the native 32-bit maths patched in where it exists'))
     if frametime:
@@ -158,9 +167,11 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
                              ('ship_planet_image', 'ship_planet_end', 904)):
         if symbols[end]-symbols[start] != size:
             raise ValueError('Invalid generated ship image capacity: ' + start)
-    screen = hunks['amiga_video']['bytes']
-    if screen % 4 or hunks['amiga_video2']['bytes'] != screen:
-        raise ValueError('Expected exactly two equal native Chip RAM screens')
+    # A programmed-beam mode allocates its screens after checking the machine.
+    if 'amiga_video' in hunks:
+        screen = hunks['amiga_video']['bytes']
+        if screen % 4 or hunks['amiga_video2']['bytes'] != screen:
+            raise ValueError('Expected exactly two equal native Chip RAM screens')
     assemble('objects','bin',game/'OBJECTS.IMG')
     assemble('elitechr','bin',game/'ELITECHR.IMG')
     for name in ASSET_NAMES:
@@ -187,7 +198,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
         raise ValueError('Bitmap table must retain 125 IDs and omit only the PNG Cobra')
     columns = sum(width*depth for width, depth in
                   (struct.unpack('>HH', bank[o:o+4]) for o in offsets))
-    zoom = (1 + hires)*(1 + lace)
+    zoom = (1 + hires)*(1 + tall)
     if entries*4 + len(offsets)*4 + columns*10*zoom > symbols['bitmap_bytes']:
         raise ValueError('Expanded BITMAPS.IMG exceeds its bitmap bank')
     files = {'ELITE': data, 's/startup-sequence': b'ELITE\n'}
