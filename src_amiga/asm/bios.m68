@@ -152,12 +152,12 @@ q_bios_m68_1:
 	and.w d4,d3
 	or.w d2,d3 ; combine ink and paper
 	move.w d3,(a3) ; store in VRAM
-	ifne display_lace
+	ifne display_tall
 	move.w d3,row_stride(a3) ; and again on the doubled row
 	endc
 	lea bpr(a3),a3 ; next OCS plane
 	q_next 2,d6
-	ifne display_lace
+	ifne display_tall
 	lea row_stride(a3),a3 ; step over the row just duplicated
 	endc
 	subq.l #4,a1
@@ -174,7 +174,7 @@ glyph_plane macro
 	else
 	or.w d0,\1*bpr(a3)
 	endc
-	ifne display_lace
+	ifne display_tall
 	or.w d0,row_stride+\1*bpr(a3) ; and on the doubled row
 	endc
 	else
@@ -183,7 +183,7 @@ glyph_plane macro
 	else
 	and.w d1,\1*bpr(a3)
 	endc
-	ifne display_lace
+	ifne display_tall
 	and.w d1,row_stride+\1*bpr(a3)
 	endc
 	endc
@@ -207,7 +207,7 @@ glyph_row\@:
 	glyph_plane 1
 	glyph_plane 2
 	glyph_plane 3
-	lea row_stride*(1+display_lace)(a3),a3 ; next pixel row
+	lea row_stride*(1+display_tall)(a3),a3 ; next pixel row
 	dbra d7,glyph_row\@
 	bra.w q_bios_m68_4
 	endm
@@ -1245,7 +1245,7 @@ q_bios_m68_72:
 	ifne display_hires
 	add.w d3,sp_xpos(a4) ; the sprite is physical, its click ranges are not
 	endc
-	ifne display_lace
+	ifne display_tall
 	add.w d4,sp_ypos(a4)
 	endc
 	move.l scr_base(a6),d0 ; use 1/2 way down other screen

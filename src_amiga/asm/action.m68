@@ -599,8 +599,8 @@ q_action_m68_56:
 	move.l d0,a1
 	lea buffer(a6),a0 ; blatt scroll line to window
 	q_loop 1,8 ; loop for each pixel line
-	ifne display_lace
-	moveq #zoom_y-1,d5 ; a line of the scroll covers two rows of an interlaced screen
+	ifne display_tall
+	moveq #zoom_y-1,d5 ; a line of the scroll covers two rows of a tall screen
 .lace_row:
 	endc
 	q_push.l a0
@@ -632,7 +632,7 @@ q_action_m68_56:
 	q_pop.l a1 ; next pixel line
 	q_pop.l a0
 	lea row_stride(a1),a1
-	ifne display_lace
+	ifne display_tall
 	dbra d5,.lace_row
 	endc
 	lea scroll_stride(a0),a0

@@ -324,7 +324,7 @@ See [Amiga development and testing notes](src_amiga/README.md) for the current v
 
 ### What new in the Amiga version
 
-Wide flight view, with six screens to choose from: PAL or NTSC, each in lores, hires and hires interlaced.
+Wide flight view on PAL or NTSC, each in lores, hires and hires interlaced, and on DblPAL, 640 x 512 without interlace on AGA.
 
 The game picks the fastest drawing path for the machine it finds. A 68020 or better with Fast RAM draws the view in Fast RAM and carries it to the screen once a frame. On a 68000 the blitter clears the view while the processor keeps drawing. A 68040 or 68060 clears with MOVE16.
 
@@ -341,6 +341,7 @@ Every wide image prints the frame time in the top left: three numbers in millise
 | `ELITE.WIDE.PAL-HIRES` | 640 x 256 | 640 x 176 |
 | `ELITE.WIDE.NTSC-HIRESLACE` | 640 x 400 | 640 x 240 |
 | `ELITE.WIDE.PAL-HIRESLACE` | 640 x 512 | 640 x 352 |
+| `ELITE.WIDE.DBLPAL-HIRES` | 640 x 512 | 640 x 352 |
 
 ### Recommended configurations
 
@@ -353,6 +354,7 @@ Every wide image prints the frame time in the top left: three numbers in millise
 | 68030 with Fast RAM, 50 MHz | `ELITE.WIDE.PAL-HIRES` |
 | 68040+ with Fast RAM, from 33 MHz | `ELITE.WIDE.NTSC-HIRESLACE` |
 | 68040+ with Fast RAM, from 50 MHz | `ELITE.WIDE.PAL-HIRESLACE` |
+| AGA, 68040+ with Fast RAM, from 33 MHz, 27 kHz monitor | `ELITE.WIDE.DBLPAL-HIRES` |
 ​
 ## Project structure
 

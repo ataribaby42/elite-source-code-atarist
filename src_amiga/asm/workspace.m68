@@ -3,7 +3,10 @@ amiga_workspace_implementation: equ 1
     include "common.def"
     xdef var_size,textscr,hyper_buffer,left_arm,right_arm
     xdef save1_buffer,max1,save2_buffer,max2,texture,obj_data
-    xdef logo,cockpit,vars,ram_end,other_screen,zero_line,load_buffer
+    xdef logo,cockpit,vars,ram_end,zero_line,load_buffer
+    ifeq beam_prog
+    xdef other_screen
+    endc
     section workspace,bss
 textscr: ds.b 4096
 hyper_buffer: ds.b 360*zoom_x*zoom_y ; a wider sprite saves more background
@@ -21,8 +24,10 @@ cockpit: ds.b 13386
 zero_line: ds.b 32 ; MOVE16 reads the aligned line inside these zeros
 vars: ds.b var_size
 ram_end:
+    ifeq beam_prog
     section amiga_video,bss
     xdef amiga_primary
 amiga_primary: ds.b scr_bytes
     section amiga_video2,bss     ; a second hunk: the KS1.x limit is per hunk
 other_screen: ds.b scr_bytes
+    endc

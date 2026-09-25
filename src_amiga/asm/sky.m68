@@ -404,7 +404,7 @@ sky_multiply_sign:
     bgt.s .done
     asl.l #8,d3 ; y*512/depth, doubled again on a taller screen
     add.l d3,d3
-    ifne display_lace
+    ifne display_tall
     add.l d3,d3
     endc
     divs.w d5,d3

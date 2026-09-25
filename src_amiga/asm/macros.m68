@@ -397,7 +397,7 @@ q_display_x macro
 
 q_display_y macro
 
-	ifne display_lace
+	ifne display_tall
 	add.w \1,\1
 	endc
 
@@ -417,7 +417,7 @@ q_logical_x macro
 
 q_logical_y macro
 
-	ifne display_lace
+	ifne display_tall
 	asr.w #1,\1
 	endc
 

@@ -274,13 +274,8 @@ begin_rasterising:
 ; Raster lines since the last frame counter reset, for the frame time readings.
 raster_line:
     move.l $dff004,d0 ; VPOSR and VHPOSR in one access
-    move.l d0,d1
-    swap d1
-    and.w #1,d1 ; the ninth bit of the line number
-    lsl.w #8,d1
-    lsr.w #8,d0
-    and.w #$ff,d0
-    or.w d1,d0
+    lsr.l #8,d0 ; V10-V8 from VPOSR land above V7-V0, as VBEAMPOS reads them
+    and.w #$7ff,d0
     move frame_count(a6),d1
     mulu #field_lines,d1
     add d1,d0
@@ -994,15 +989,15 @@ q_graphics_m68_33:
 
 	q_subr c_plotxy,global
 
-	ifne display_hires+display_lace
-	movem.w d0/d1,-(sp) ; a dot keeps its size, and an interlaced one has to
-	bsr c_plot_dot      ; reach both fields or it flickers at half the rate
+	ifne display_hires+display_tall
+	movem.w d0/d1,-(sp) ; one logical dot: two pixels in hires, two rows when tall
+	bsr c_plot_dot
 	ifne display_hires
 	movem.w (sp),d0/d1
 	addq.w #1,d0
 	bsr c_plot_dot
 	endc
-	ifne display_lace
+	ifne display_tall
 	movem.w (sp),d0/d1
 	subq.w #1,d1 ; one row down the screen
 	bsr c_plot_dot
@@ -1330,7 +1325,7 @@ circle_horiz_done:
 	add.w d0,d0 ; logical units to physical pixels
 	add.w d3,d3
 	endc
-	ifne display_lace
+	ifne display_tall
 	add.w d1,d1
 	add.w d4,d4
 	endc
@@ -1754,10 +1749,10 @@ q_graphics_m68_81:
 
 	q_display_x d0 ; logical units to physical pixels
 	q_display_y d1
-	ifeq display_hires+display_lace
+	ifeq display_hires+display_tall
 	bra plotxy
 	endc
-	ifne display_hires+display_lace
+	ifne display_hires+display_tall
 	movem.w d0/d1,-(sp) ; one logical pixel covers a block of physical ones
 	bsr plotxy
 	ifne display_hires
@@ -1765,7 +1760,7 @@ q_graphics_m68_81:
 	addq.w #1,d0
 	bsr plotxy
 	endc
-	ifne display_lace
+	ifne display_tall
 	movem.w (sp),d0/d1
 	addq.w #1,d1
 	bsr plotxy
@@ -1815,7 +1810,7 @@ q_graphics_m68_81:
 	add.w d0,d0 ; logical units to physical pixels
 	add.w d2,d2
 	endc
-	ifne display_lace
+	ifne display_tall
 	add.w d1,d1
 	add.w d3,d3
 	endc
@@ -1832,9 +1827,9 @@ q_graphics_m68_81:
 	bls q_graphics_m68_85
 	exg d0,d2
 q_graphics_m68_85:
-	ifne display_lace
-; A horizontal line covers one physical row, so it shows in one field only.
-; Draw the other row of the pair as well. Toggling the low bit keeps both
+	ifne display_tall
+; A horizontal line covers one physical row, half a logical one on a tall
+; screen. Draw the other row of the pair as well. Toggling the low bit keeps both
 ; inside the viewport, which starts on an even row and has an even height.
 	movem.l d0/d1/d2,-(sp)
 	jsr dot_to_addr
@@ -2417,8 +2412,8 @@ q_graphics_m68_157:
 	add.l d1,a0
 	bsr horiz_line ; draw horizontal line
 	add.l #row_stride,a4 ; relocatable buffers may cross a 64 KB boundary
-	ifne display_lace
-	btst #0,d7 ; hold the phase for two rows, one per field
+	ifne display_tall
+	btst #0,d7 ; hold the phase for the two rows of a logical one
 	beq.s .keep_phase
 	endc
 	exg a1,a5
@@ -2864,7 +2859,7 @@ q_graphics_m68_177:
 .next:
     cmpa.l a2,a1
     blo .packet
-    ifne display_lace
+    ifne display_tall
     bsr double_rows          ; A4 = decoded asset, widened only
     endc
     movem.l (sp)+,a3/a4
@@ -2889,7 +2884,7 @@ q_graphics_m68_177:
 
 	q_subr double_rows
 
-    ifne display_lace
+    ifne display_tall
     move.l a4,a0
     add.l #art_rows*row_stride,a0      ; past the last source row
     move.l a4,a1

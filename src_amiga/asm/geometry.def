@@ -12,12 +12,19 @@ display_hires: equ 0 ; build option: 1 = 640 pixels across, MC68020 or better
 	ifnd display_lace
 display_lace: equ 0 ; build option: 1 = interlaced, twice the rows
 	endc
+	ifnd display_double
+display_double: equ 0 ; build option: 1 = DblPAL, twice the rows without interlace, AGA
+	endc
 	ifnd frame
 frame: equ 0 ; build option: 1 = keep the cockpit frame and its 256 x 112 window
 	endc
 
 zoom_x: equ 1+display_hires ; physical pixels per logical pixel
-zoom_y: equ 1+display_lace
+; super-hires has twice the pixels per colour clock of hires
+display_shres: equ display_double
+px_per_clock: equ 2<<(display_hires+display_shres)
+display_tall: equ display_lace+display_double ; 1 where a logical row covers two physical rows
+zoom_y: equ 1+display_tall
 art_cols: equ 40 ; logical 8x8 columns in a DEGAS Elite screen asset
 art_rows: equ 200 ; logical rows in a DEGAS Elite screen asset
 degas_bpr: equ art_cols*8/8 ; the asset's own bitplane row, never scaled
@@ -61,11 +68,70 @@ panel_shift: equ y_shift/zoom_y ; the same offset in logical rows
 char_w: equ 8*zoom_x ; physical size of one text cell
 char_shift: equ 3+display_hires ; log2(char_w)
 char_h: equ 8*zoom_y
-bplcon0_on: equ $0200|(scr_planes<<12)|(display_hires<<15)|(display_lace<<2) ; colour, planes, hires, lace
-ddfstrt: equ $0038+display_hires*4 ; data fetch follows the resolution
-ddfstop: equ $00d0+display_hires*4
-diwstop_rows: equ (((44+scr_rows/zoom_y)&255)<<8)|$c1 ; Copper window
-diwstop_art: equ (((44+art_rows)&255)<<8)|$c1 ; Copper window for artwork
+; colour, planes, hires or super-hires, lace
+bplcon0_on: equ $0200|(scr_planes<<12)|((display_hires-display_shres)<<15)|(display_shres<<6)|(display_lace<<2)
+fmode_on: equ display_shres ; FMODE bit 0, BPL32
+; programmed beam: DblPAL.monitor, edges from monitorstuff.h's ECS branch
+beam_prog: equ display_double
+	ifne beam_prog
+beamcon0_on: equ $1b88
+beam_htotal: equ $79+8 ; DblPAL.monitor on AA: Alice pushes the picture 8 clocks
+beam_vtotal: equ $23d
+beam_minrow: equ $17
+beam_hbstrt: equ 1 ; blanking and sync edges
+beam_hbstop: equ 30
+beam_hsstrt: equ 10
+beam_hsstop: equ 19
+beam_vbstrt: equ 0
+beam_vbstop: equ beam_minrow
+beam_vsstrt: equ beam_minrow/3
+beam_vsstop: equ beam_minrow/3*2
+	endc
+; display window and data fetch
+	ifne beam_prog
+; DblPAL.monitor's default view position on AA: VPMINX plus half of VPRANGEX.
+diw_fetch1: equ $28 ; FETCH1 with BUG_ALICE_LHS_PROG
+diw_hstart: equ (diw_fetch1<<1)+1+((((beam_htotal+1)-diw_fetch1)<<3)-scr_width)/8
+diw_skew: equ 1 ; 35 ns pixels the picture shows late, and the window closes late
+	endc
+	ifeq beam_prog
+diw_hstart: equ $81
+diw_skew: equ 0
+	endc
+diw_hstop: equ diw_hstart+scr_width*2/px_per_clock ; the window counts lores pixels
+; fetch the visible clocks, rounded down to the fetch granularity
+ddf_clocks: equ scr_width/px_per_clock
+ddf_grain: equ 8/zoom_x
+ddfstrt: equ ((diw_hstart-17+8*display_hires)/2)/ddf_grain*ddf_grain
+ddfstop: equ ddfstrt+ddf_clocks-8
+; BPLCON1 delays both playfields by the clocks the rounding fetched early.
+ddf_early: equ (diw_hstart-17+8*display_hires)/2-ddfstrt
+ddf_delay: equ ddf_early*8+diw_skew ; in 35 ns pixels
+bplcon1_on: equ (((ddf_delay>>2)&15)*$11)|((ddf_delay&3)*$1100)
+; an interlaced field shows half the rows
+	ifne beam_prog
+diw_vstart: equ beam_minrow+(beam_vtotal-beam_minrow-scr_rows)/2 ; centred below the blank
+	endc
+	ifeq beam_prog
+diw_vstart: equ 44
+	endc
+diw_fields: equ 1+display_lace
+diw_vstop_rows: equ diw_vstart+scr_rows/diw_fields
+diw_vstop_art: equ diw_vstart+art_rows*zoom_y/diw_fields
+diwstrt: equ (diw_vstart<<8)|(diw_hstart&255)
+diwstop_rows: equ ((diw_vstop_rows&255)<<8)|(diw_hstop&255)
+diwstop_art: equ ((diw_vstop_art&255)<<8)|(diw_hstop&255)
+; DIWHIGH: the high bits, of DIWSTRT too once written
+diwhigh_rows: equ ((diw_vstop_rows>>8)<<8)|((diw_hstop>>8)<<13)|(diw_vstart>>8)|((diw_hstart>>8)<<5)|(diw_skew<<11)
+; the Copper waits here for the plane pointers only
+	ifne beam_prog
+copper_wait: equ ((diw_vstart-4)<<8)|1
+	endc
+	ifeq beam_prog
+copper_wait: equ $2001 ; where PAL and NTSC have always waited
+	endc
+diwhigh_art: equ ((diw_vstop_art>>8)<<8)|((diw_hstop>>8)<<13)|(diw_vstart>>8)|((diw_hstart>>8)<<5)|(diw_skew<<11)
+
 
 ; Dimensions of cockpit.
 
@@ -90,8 +156,15 @@ x_max: equ (x_size>>1)-1
 y_min: equ -(y_size>>1)
 y_max: equ (y_size>>1)-1
 x_left: equ (scr_width-x_size)>>1 ; x coordinate of left edge
-field_lines: equ 262+51*(1-display_ntsc) ; raster lines in one field
-line_scale: equ 66-display_ntsc ; a raster line in 1024ths of a millisecond
+; lines per field and a line in 1/1024 ms; a colour clock is 0.2794 us
+	ifne beam_prog
+field_lines: equ beam_vtotal+1
+line_scale: equ ((beam_htotal+1)*2861+5000)/10000
+	endc
+	ifeq beam_prog
+field_lines: equ 262+51*(1-display_ntsc)
+line_scale: equ 66-display_ntsc
+	endc
 view_bytes: equ y_size*row_stride ; the viewport, one flat run when frameless
 clear_bursts: equ view_bytes/16 ; sixteen bytes to a MOVE16
 	ifeq (scr_width-x_size)+(view_bytes&15)
@@ -124,9 +197,9 @@ blit_fits: equ 0
 no_dust: equ 15*(x_size/zoom_x)*(y_size/zoom_y)/(256*112) ; 15 in a 256x112 view
 arm_entries: equ scr_rows+4 ; SOLID_POLYGON indexes its arms by physical screen row
 proj_shift_x: equ 9+display_hires ; projection scale, a wider screen needs more
-proj_shift_y: equ 9+display_lace ; likewise a taller one
+proj_shift_y: equ 9+display_tall ; likewise a taller one
 circle_stretch: equ zoom_x/zoom_y-1 ; 1 where a pixel is half as wide as tall
-dither_bit: equ display_lace ; row bit that picks the dither phase
+dither_bit: equ display_tall ; row bit that picks the dither phase
 view_x_min: equ x_min/zoom_x ; the viewport in logical units
 view_x_max: equ x_max/zoom_x
 view_y_min: equ y_min/zoom_y
