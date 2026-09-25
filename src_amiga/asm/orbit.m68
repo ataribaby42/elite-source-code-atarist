@@ -17,6 +17,7 @@
 
 	include "macros.m68"
 
+	xref init_planet_surface,turn_planet_surface
 	xref rand,create_object,copy_object,fix_unit,magnitude_table
 	xref clear_objects,alloc_object,random,calc_distance,set_planet_colour
 
@@ -112,6 +113,8 @@ q_orbit_m68_2:
 	move #planet_rad,obj_rad(a4)
 	jsr create_object ; create the object
 	jsr set_planet_colour ; cache the current system's texture colour
+	jsr init_planet_surface ; regenerate the same complete globe from its seed
+	jsr turn_planet_surface ; arrival longitude simulates rotation while away
 
 ; Create the space station.
 
@@ -200,6 +203,7 @@ q_orbit_m68_12:
 	move #planet_rad,obj_rad(a4)
 	jsr create_object ; create the object
 	jsr set_planet_colour ; cache the current system's texture colour
+	jsr init_planet_surface ; regenerate the same complete globe from its seed
 
 ; Create the space station.
 

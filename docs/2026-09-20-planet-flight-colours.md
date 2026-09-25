@@ -25,7 +25,7 @@ RGB-black entries are also ignored. Votes from similar hues are combined; the
 most frequent shade within the winning hue is mapped to the closest cockpit RGB
 entry. UI brown at index 14 participates in voting and, when selected, maps
 directly to steady red at index 6. The pulsing cockpit index 14 cannot be a
-destination. Yellow results at index 5 become orange at index 3, reserving
+destination. Yellow results at index 5 become steady red at index 6, reserving
 yellow for the sun. Black, dark grey, and an empty vote all produce light grey.
 Ties use stable palette-index order.
 
@@ -64,7 +64,7 @@ the historical archive are unchanged.
 
 Unit tests cover all 2,048 entries, equality of the saved table to a deliberate
 recalculation, Lave's crop and colour, shade grouping, description side effects,
-excluded source colours, the grey fallback, yellow-to-orange mapping and
+excluded source colours, the grey fallback, yellow-to-red mapping and
 UI-brown-to-steady-red mapping.
 
 The compact implementation passed native checks in Hatari PAL ST / TOS 1.04 and

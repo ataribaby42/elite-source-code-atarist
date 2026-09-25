@@ -410,6 +410,20 @@ code is fatal on hosts that abort on a zero divide.
 Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
 
 
+## Planet surfaces
+
+Flight planets have seeded markings over their whole spherical surface: blue
+or light blue seas on green/light green worlds, green or light green continents
+on blue/light blue worlds, and dark grey craters on light grey worlds. Other
+planet colours have continents in a different seeded colour. Details appear
+from a projected diameter of approximately
+24 pixels. Hyperspace arrivals vary the longitude while preserving geography.
+`Planets: ON / OFF` in Options is saved with the commander. ON also renders
+the selected planet at zero rotation on Planet Data; OFF uses the original
+plain flight globe and textured bitmap. The default is ON.
+See [Procedural planet surfaces](../docs/2026-09-25-procedural-planet-surfaces.md)
+for rendering, performance and verification details.
+
 ## Automated checks
 
 Run `python -B -m unittest discover -s src_atari/tests -v` from the project root.

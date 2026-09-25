@@ -16,6 +16,7 @@
 
 	include "macros.m68"
 
+	xref draw_planet_surface
 	xref set_colour,polygon,circle,c_line,c_plotxy,explode_vectors
 	xref solid_polygon,line
 	xref calc_yvector,transform
@@ -75,6 +76,10 @@ q_special_m68_1:
 .planet_grey:
 	moveq #lgt_grey,d0
 .planet_visible:
+	cmp #yellow,d0
+	bne.s .planet_ready
+	moveq #red,d0
+.planet_ready:
 	bra.s q_special_m68_4
 q_special_m68_3:
 	cmp #sun,d0 ; sun ?
@@ -101,6 +106,10 @@ q_special_m68_2:
 	q_dec d7
 	jsr circle
 	clr sun_flare(a6) ; clear flare flag
+	cmp.w #planet,type(a5)
+	bne.s .no_surface
+	jsr draw_planet_surface
+.no_surface:
 
 	q_ret return
 
@@ -499,6 +508,13 @@ laser_colours:
 .fallback:
     moveq #lgt_grey,d0
 .store:
+    cmp.w #yellow,d0
+    beq.s .red
+    cmp.w #pulse,d0 ; legacy UI brown
+    bne.s .store_colour
+.red:
+    moveq #red,d0
+.store_colour:
     move.w d0,obj_colour(a4)
     movem.l (sp)+,d0-d1/a0
     rts

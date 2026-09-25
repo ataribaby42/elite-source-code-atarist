@@ -377,9 +377,11 @@ q_rotate_m68_11:
 	lea ypos(a5),a1
 	lea zpos(a5),a2
 	bsr rotate
+	cmp.w #planet,type(a5) ; surface markings rotate with the world
+	beq.s .surface_13
 	btst #point,flags(a5) ; point object ?
-; Quelo: 	if <eq> then						no
 	bne q_rotate_m68_13
+.surface_13:
 	bclr #yvector_ok,flags(a5) ; clobber y vector
 	rotate x,j,cos,-,x,k,sin ; rotate vectors
 	q_push d5
@@ -417,9 +419,11 @@ q_rotate_m68_13:
 	lea xpos(a5),a1
 	lea ypos(a5),a2
 	bsr rotate
+	cmp.w #planet,type(a5) ; surface markings rotate with the world
+	beq.s .surface_15
 	btst #point,flags(a5) ; point object ?
-; Quelo: 	if <eq> then						no
 	bne q_rotate_m68_15
+.surface_15:
 	bclr #yvector_ok,flags(a5) ; clobber y vector
 	rotate x,i,cos,-,x,j,sin ; rotate vectors
 	q_push d5

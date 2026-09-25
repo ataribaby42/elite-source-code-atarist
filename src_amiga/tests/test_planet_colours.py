@@ -47,12 +47,12 @@ class PlanetColourTests(unittest.TestCase):
         self.assertEqual(self.vote({14: 100, 10: 99}, self.ui_palette), 6)
         self.assertEqual(self.vote({14: 99, 10: 100}, self.ui_palette), 10)
 
-    def test_yellow_maps_to_orange(self):
-        self.assertEqual(self.vote({5: 100}, self.ui_palette), 3)
+    def test_yellow_maps_to_steady_red(self):
+        self.assertEqual(self.vote({5: 100}, self.ui_palette), 6)
         # A different source index can also map to cockpit yellow.
         palette = self.ui_palette[:]
         palette[7] = self.palette[5]
-        self.assertEqual(self.vote({7: 100}, palette), 3)
+        self.assertEqual(self.vote({7: 100}, palette), 6)
 
     def test_dark_grey_and_black_mapping_fall_back_to_light_grey(self):
         self.assertEqual(self.vote({2: 100}), 1)

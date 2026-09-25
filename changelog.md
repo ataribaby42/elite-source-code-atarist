@@ -6,6 +6,10 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.80
 
+- Moved Planets above Reset Game / Exit Program. Restricted continents to valid planet colours, mapped yellow and UI brown to steady red, and matched rendered Planet Data colours to flight colours while preserving the original bitmap and inhabitant palette when Planets is OFF.
+- Empty Inventory now opens the Cargo Hold Inventory screen with a centred message, both docked and in flight, instead of a cockpit notification or blocking dialog on Atari ST and Amiga.
+- Added the saved Planets ON/OFF option. ON also replaces the Planet Data bitmap with the selected planet rendered at zero rotation; OFF retains the original plain globe and bitmap. Existing commanders default to ON.
+- Added seeded surface details around the entire planet on Atari and Amiga: solid irregular blue/light blue seas on green/light green worlds, green/light green continents on blue/light blue worlds, and dark grey craters on light grey worlds. Each planet's seed selects one detail shade; other planet colours get differently coloured continents. Details appear from a 24-pixel logical diameter. Hyperspace arrivals choose a new longitude while preserving the map; crater rays have varied lengths and directions.
 - Stopped exporting the unused Cobra from panels.png on Atari ST and Amiga, preserving the PNG artwork and bitmap IDs while saving 3,268 disk bytes and 4,084 bytes of bitmap RAM (8,164 in HIRES, 16,324 in HIRES-LACED).
 - Replaced disk-based ship atlases with native model rendering on Atari ST and Amiga: generate all Shipyards tiles at startup and only the current hull's Status and Planet Data views on new game, load or purchase; keep fixed image sizes across display modes and isolated memory buffers. Original PNGs remain archived in resources/gfx_assets; obsolete PNG generation files were removed.
 - Fixed polygon and line clipping overflows causing screen corruption and white flashing, protected vertex buffers, and limited flight message width; verified on Atari and Amiga, including WIDE, HIRES, HIRES-LACED and shadowcopy=changes.

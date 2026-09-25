@@ -24,7 +24,7 @@
 	xref input_number,product_list,find_table,str_copy,str_cat,build_number
 	xref str_len,set_colour,launch,divide_by_1e5,equip_ship,galactic_chart
 	xref local_chart,data,status,disk,find_planet,home_cursor,options
-	xref check_docked,build_name,disp_message
+	xref check_docked,build_name
 	xref alloc_object,create_object,open_jettison_confirm,poll_jettison_confirm,fx
 	xref random,fix_unit,calc_yvector
 
@@ -263,24 +263,7 @@ q_cargo_m68_5:
 	moveq #icon_inventory,d0 ; invert icon
 	jsr invert_icon
 q_cargo_m68_7:
-	lea hold(a6),a0 ; any cargo in hold ?
-	moveq #0,d0
-	q_loop 1,max_products
-	or.l (a0)+,d0
-	q_next 1
-; Quelo: 	if <eq> then.s						no
-	bne.s q_cargo_m68_9
-	tst cockpit_on(a6) ; cockpit displayed ?
-; Quelo: 		if <eq> then.s					no
-	bne.s q_cargo_m68_11
-	lea text20(pc),a0 ; print error message
-	jsr error_box
-	moveq #-1,d0 ; restore icon
-	jmp invert_icon
-q_cargo_m68_11:
-	lea text20(pc),a0 ; display message in cockpit
-	jmp disp_message ; (and return)
-q_cargo_m68_9:
+	; Always open Inventory; draw_cargo also displays the empty-hold message.
 
 	q_subr refresh_inventory
 	jsr prepare_text ; prepare text screen
@@ -1563,7 +1546,6 @@ text16: dc.b ' credits',0
 text17: dc.b c_ink,orange,'CARGO HOLD IS EMPTY!',0
 text18: dc.b 'Sorry - you can''t sell those!',0
 text19: dc.b ' Market Prices',0
-text20: dc.b 'Cargo hold is empty!',0
 text21: dc.b 'Cargo Hold Inventory',0
 
 	even

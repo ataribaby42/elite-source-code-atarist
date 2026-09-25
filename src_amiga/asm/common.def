@@ -102,6 +102,7 @@ orbit_vsize: equ 16
 radar_vsize: equ 16
 combat_vsize: equ 16
 special_vsize: equ 16
+planet_surface_vsize: equ 1600 ; surface workspace, portrait backup and private object
 cargo_vsize: equ 18
 equip_vsize: equ 16
 pdata_vsize: equ 16
@@ -589,6 +590,9 @@ f_sequence: rs.b 1 ; docking sequence on/off
 f_no_stars: rs.b 1 ; saved Stars OFF flag; zero keeps old commanders/defaults ON
 f_no_rcs: rs.b 1 ; saved RCS FX OFF flag; zero defaults to ON
 
+; The first USER byte is full. This flag lives in the saved second byte.
+f_no_planets: equ 0 ; USER+1 bit 0: zero defaults to enhanced planets ON
+
 ; Equipment record.
 
 	rsset 0
@@ -836,6 +840,7 @@ init_vars: rs.w init_vsize
 radar_vars: rs.w radar_vsize
 combat_vars: rs.w combat_vsize
 special_vars: rs.w special_vsize
+planet_surface_vars: rs.w planet_surface_vsize
 vector_vars: rs.w vector_vsize
 except_vars: rs.w except_vsize
 cargo_vars: rs.w cargo_vsize

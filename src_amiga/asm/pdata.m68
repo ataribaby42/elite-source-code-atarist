@@ -1,4 +1,4 @@
-	xref ship_put_bitmap,ship_bitmap
+	xref ship_put_bitmap,ship_bitmap,draw_planet_portrait,cockpit
 	include "common.def"
 ; Ported from src_orig/asm/pdata.m68; edit this copy.
 * @@@@@@  @@@@@ 	 @@    @@@@@@	 @@
@@ -346,10 +346,164 @@ q_pdata_m68_5:
 	lea inhab_type,a0
 	bsr print_word
 q_pdata_m68_6:
+	bsr match_planet_palette
 	lea data_action_table(pc),a0 ; initialise cursor
 	jsr init_cursor
 
 	q_ret
+
+
+; ON uses flight RGB values for the globe. Approximate the inhabitants' shades by
+; mapping their three private shades to the nearest fixed UI colours first.
+; OFF retains the original palette changes and bitmap without this conversion.
+    q_subr match_planet_palette
+    btst #f_no_planets,user+1(a6)
+    bne .done
+    movem.l d0-d7/a0-a5,-(sp)
+    suba.w #12,sp ; original inhabitant RGBs, followed by three destination indices
+    move.l palette+lgt_green*2,(sp)
+    move.w palette+drk_green*2,4(sp)
+    lea cockpit+2+red*2,a0
+    lea palette+red*2,a1
+    moveq #3,d7
+.copy_palette:
+    move.w (a0)+,d0
+    and.w #$0777,d0
+    move.w d0,d1
+    add.w d0,d0
+    lsr.w #2,d1
+    and.w #$0111,d1
+    or.w d1,d0 ; match SET_PALETTE: ST components to native OCS RGB
+    move.w d0,(a1)+
+    dbra d7,.copy_palette
+    tst.b cplanet+seed+5(a6)
+    bpl .restore ; humans use the standard UI colours
+    move.l sp,a1
+    lea 6(sp),a2
+    moveq #2,d7
+.map_shade:
+    bsr nearest_inhabitant_colour
+    addq.l #2,a1
+    addq.l #2,a2
+    dbra d7,.map_shade
+    lea 6(sp),a4
+    move.l scr_base(a6),a0
+    lea head_y*zoom_y*row_stride(a0),a0
+    move.w #104*zoom_y-1,d7 ; 32-pixel head and 72-pixel body
+.row:
+    move.w #5*zoom_x-1,d6 ; include the eight-pixel left margin
+.group:
+    bsr remap_inhabitant_word
+    lea 2(a0),a0
+    dbra d6,.group
+    lea row_stride-10*zoom_x(a0),a0
+    dbra d7,.row
+.restore:
+    adda.w #12,sp
+    movem.l (sp)+,d0-d7/a0-a5
+.done:
+    rts
+
+; A1 = source native RGB, A2 = output index. Palette 14 flashes in the UI.
+    q_subr nearest_inhabitant_colour
+    movem.l d0-d7/a0,-(sp)
+    lea palette,a0
+    move.w #$7fff,d7
+    moveq #1,d5
+.candidate:
+    cmp.w #pulse,d5
+    beq.s .next
+    move.w d5,d0
+    add.w d0,d0
+    move.w (a0,d0.w),d2
+    move.w (a1),d1
+    clr.w d3
+    moveq #2,d4
+.channel:
+    move.w d1,d6
+    and.w #15,d6
+    move.w d2,d0
+    and.w #15,d0
+    sub.w d0,d6
+    muls.w d6,d6
+    add.w d6,d3
+    lsr.w #4,d1
+    lsr.w #4,d2
+    dbra d4,.channel
+    cmp.w d7,d3
+    bhs.s .next
+    move.w d3,d7
+    move.w d5,(a2)
+.next:
+    addq.w #1,d5
+    cmp.w #white,d5
+    bls.s .candidate
+    movem.l (sp)+,d0-d7/a0
+    rts
+
+; Recolour indices 7..9 in one sixteen-pixel group, using original masks so
+; a mapped pixel is never converted a second time. A4 points to three indices.
+    q_subr remap_inhabitant_word
+    movem.l d6-d7/a1-a2,-(sp)
+    move.w (a0),d0
+    move.w bpr(a0),d1
+    move.w bpr*2(a0),d2
+    move.w bpr*3(a0),d3
+    move.w d3,d4
+    not.w d4
+    and.w d0,d4
+    and.w d1,d4
+    and.w d2,d4 ; index 7
+    move.w d0,d5
+    or.w d1,d5
+    or.w d2,d5
+    not.w d5
+    and.w d3,d5 ; index 8
+    move.w d1,d6
+    or.w d2,d6
+    not.w d6
+    and.w d0,d6
+    and.w d3,d6 ; index 9
+    subq.l #6,sp
+    move.w d4,(sp)
+    move.w d5,2(sp)
+    move.w d6,4(sp)
+    move.l sp,a2
+    move.l a4,a1
+    moveq #2,d7
+.shade:
+    move.w (a2)+,d4
+    move.w (a1)+,d5
+    move.w d4,d6
+    not.w d6
+    and.w d6,d0
+    and.w d6,d1
+    and.w d6,d2
+    and.w d6,d3
+    btst #0,d5
+    beq.s .p1
+    or.w d4,d0
+.p1:
+    btst #1,d5
+    beq.s .p2
+    or.w d4,d1
+.p2:
+    btst #2,d5
+    beq.s .p3
+    or.w d4,d2
+.p3:
+    btst #3,d5
+    beq.s .next
+    or.w d4,d3
+.next:
+    dbra d7,.shade
+    addq.l #6,sp
+    move.w d0,(a0)
+    move.w d1,bpr(a0)
+    move.w d2,bpr*2(a0)
+    move.w d3,bpr*3(a0)
+    movem.l (sp)+,d6-d7/a1-a2
+    rts
 
 
 * ********************************************
@@ -367,6 +521,7 @@ q_pdata_m68_6:
 
 * Regs: ?
 * Subr: ?
+
 
 	q_subr print_word
 
@@ -474,6 +629,13 @@ q_pdata_m68_8:
 
 	q_subr draw_planet
 
+    btst #f_no_planets,user+1(a6)
+    bne.s .bitmap
+    move.w #planet_x,d0
+    move.w #planet_y,d1
+    jsr draw_planet_portrait
+    bra q_pdata_m68_10 ; keep the original diameter caption and arrows
+.bitmap:
 	move.l scr_base(a6),d0 ; expand texture screen into the
 	move.l flip_screen(a6),d1 ; invisible screen
 	eor.l d1,d0

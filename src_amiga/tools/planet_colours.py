@@ -111,7 +111,7 @@ def dominant_colour(counts, palette, cockpit):
     target = min(candidates, key=lambda i: sum((a-b)**2 for a, b in zip(palette[winner], cockpit[i])))
     # Reserve yellow for the sun so planets remain visually distinct.
     if target == 5:
-        return 3
+        return 6
     # Black and dark grey must stay visible against the flight background.
     return LIGHT_GREY if target in (2, 13) or not any(cockpit[target]) else target
 

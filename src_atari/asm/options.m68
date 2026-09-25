@@ -37,6 +37,7 @@ i_reset: rs.b 1
 i_quit: rs.b 1
 i_stars: rs.b 2
 i_rcs: rs.b 2
+i_planets: rs.b 2
 
 * ---- LOCAL VARIABLES ----
 
@@ -124,6 +125,8 @@ q_options_m68_6:
 	bsr rcs_icon
 	bsr highlight_icon
 	bsr stars_icon
+	bsr highlight_icon
+	bsr planets_icon
 	bsr highlight_icon
 	lea options_table(pc),a0 ; initialise cursor
 	jsr init_cursor
@@ -320,6 +323,30 @@ q_options_m68_14:
 * Stars use the saved user/f_no_stars flag and the sky renderer's cached state.
 * D0 = 1 for ON, 0 for OFF. Use the same highlight boxes as other options.
 
+; D0 = 1 for ON, 0 for OFF. USER+1 is already saved as part of USER.
+    q_subr change_planets,global
+    q_push d0
+    bsr planets_icon
+    bsr no_highlight
+    q_pop d0
+    tst.w d0
+    beq.s .off
+    bclr #f_no_planets,user+1(a6)
+    bra.s .highlight
+.off:
+    bset #f_no_planets,user+1(a6)
+.highlight:
+    bsr planets_icon
+    bra highlight_icon
+
+    q_subr planets_icon
+    moveq #i_planets,d0
+    btst #f_no_planets,user+1(a6)
+    beq.s .done
+    addq.w #1,d0
+.done:
+    rts
+
 	q_subr change_stars
 
 	q_push d0
@@ -443,12 +470,14 @@ icon_draw_data:
 	dc bit_slow,189,icon_y+80-3
 	dc bit_on,140,icon_y+100-3 ; docking sequence on/off
 	dc bit_off,173,icon_y+100-3
-	dc bit_yes,92,icon_y+120-3 ; reset game
-	dc bit_yes,268,icon_y+120-3 ; quit program
+	dc bit_yes,92,icon_y+136-3 ; reset game
+	dc bit_yes,268,icon_y+136-3 ; quit program
 	dc bit_on,228,icon_y-3 ; distant stars
 	dc bit_off,261,icon_y-3
 	dc bit_on,228,icon_y+40-3 ; RCS sound effects
 	dc bit_off,261,icon_y+40-3
+	dc bit_on,68,icon_y+116-3 ; procedural planets
+	dc bit_off,101,icon_y+116-3
 	dc -1
 
 * Highlight coordinate table.
@@ -470,12 +499,14 @@ highlight_coords:
 	dc 189-2,icon_y-5+80,189+41,icon_y+80+13 ; SLOW
 	dc 140-2,icon_y-5+100,140+25,icon_y+100+13 ; ON
 	dc 173-2,icon_y-5+100,173+33,icon_y+100+13 ; OFF
-	dc 92-2,icon_y-5+120,92+33,icon_y+120+13 ; YES
-	dc 268-2,icon_y-5+120,268+33,icon_y+120+13 ; YES
+	dc 92-2,icon_y-5+136,92+33,icon_y+136+13 ; YES
+	dc 268-2,icon_y-5+136,268+33,icon_y+136+13 ; YES
 	dc 228-2,icon_y-5,228+25,icon_y+13 ; stars ON
 	dc 261-2,icon_y-5,261+33,icon_y+13 ; stars OFF
 	dc 228-2,icon_y-5+40,228+25,icon_y+40+13 ; RCS ON
 	dc 261-2,icon_y-5+40,261+33,icon_y+40+13 ; RCS OFF
+	dc 68-2,icon_y+116-5,68+25,icon_y+116+13 ; Planets ON
+	dc 101-2,icon_y+116-5,101+33,icon_y+116+13 ; Planets OFF
 	dc -1
 
 * Option mouse action table.
@@ -497,12 +528,14 @@ options_table:
 	q_action 189-2,icon_y-5+80,189+41,icon_y+80+13,-5,0,change_flag
 	q_action 140-2,icon_y-5+100,140+25,icon_y+100+13,6,0,change_flag
 	q_action 173-2,icon_y-5+100,173+33,icon_y+100+13,-6,0,change_flag
-	q_action 92-2,icon_y-5+120,92+33,icon_y+120+13,0,0,reset_game
-	q_action 268-2,icon_y-5+120,268+33,icon_y+120+13,0,0,quit
+	q_action 92-2,icon_y-5+136,92+33,icon_y+136+13,0,0,reset_game
+	q_action 268-2,icon_y-5+136,268+33,icon_y+136+13,0,0,quit
 	q_action 228-2,icon_y-5,228+25,icon_y+13,1,0,change_stars
 	q_action 261-2,icon_y-5,261+33,icon_y+13,0,0,change_stars
 	q_action 228-2,icon_y-5+40,228+25,icon_y+40+13,1,0,change_rcs
 	q_action 261-2,icon_y-5+40,261+33,icon_y+40+13,0,0,change_rcs
+	q_action 68-2,icon_y+116-5,68+25,icon_y+116+13,1,0,change_planets
+	q_action 101-2,icon_y+116-5,101+33,icon_y+116+13,0,0,change_planets
 	include "icons.m68"
 	dc.w -1
 	dc.l 0
@@ -531,6 +564,7 @@ text1: dc.b c_cursor,14,title_y,'Game Options'
 	dc.b c_ink,lgt_blue,c_cursor,0,icon_y+60,'Reverse dive/climb:'
 	dc.b c_ink,mid_green,c_cursor,0,icon_y+80,'Docking Computer:'
 	dc.b c_ink,red,c_cursor,0,icon_y+100,'Docking sequence:'
-	dc.b c_ink,yellow,c_cursor,0,icon_y+120,'Reset Game:'
-	dc.b c_ink,red,c_cursor,20,icon_y+120,'Exit Program:'
+	dc.b c_ink,yellow,c_cursor,0,icon_y+136,'Reset Game:'
+	dc.b c_ink,red,c_cursor,20,icon_y+136,'Exit Program:'
+	dc.b c_ink,lgt_blue,c_cursor,0,icon_y+116,'Planets:'
 	dc.b 0
