@@ -28,7 +28,7 @@
 	xref init_dust,rand,monst,checksum,logo
 	xref cockpit,textscr,obj_data,bitmap_bank,load_buffer,amiga_exit
 	xref hyper_buffer,quiet,blank_screen
-	xref set_roll_angles,set_climb_angles
+	xref set_roll_angles,set_climb_angles,instruments
 	xref draw_screen,amiga_start_display,amiga_rows_art,expand_bytes
 
 * ---- LOCAL CONSTANTS ----
@@ -611,7 +611,7 @@ q_init_m68_34:
 	move #max_shield,front_shield(a6) ; shields at full power
 	move #max_shield,aft_shield(a6)
 	move #radar_range,radar_scale+2(a6) ; radar mag x 1
-	clr f_magnify(a6) ; redraw x1 on both screens after resetting the scale
+	jsr instruments ; redraw all reset values on both screens, including speed
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes
 	clr laser_pending(a6)
 	clr laser_beam(a6)

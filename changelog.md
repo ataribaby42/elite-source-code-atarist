@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
+## xx.xx.2029 V1.81
+
+- Refresh cockpit instruments on both screen buffers after a system reset, fixing the stale speed gauge after relaunching from a station without touching the throttle.
+
 ## xx.xx.2029 V1.80
 
 - Moved Planets above Reset Game / Exit Program. Restricted continents to valid planet colours, mapped yellow and UI brown to steady red, and matched rendered Planet Data colours to flight colours while preserving the original bitmap and inhabitant palette when Planets is OFF.

@@ -1,6 +1,7 @@
 # Project rules
 
 - Write all project documentation in English, including README files, technical notes, project instructions, and any new or updated documentation.
+- Do not modify `CHANGELOG.md` unless the user explicitly requests a change to that file. Do not add changelog entries automatically as part of other work.
 - The user handles all Git operations exclusively. Do not run any Git commands or use APIs or other tools to perform Git operations. This includes reading status, diffs, and history, as well as init, add/staging, commit, push, pull, fetch, checkout, branch management, and configuration changes. Do not create, modify, or delete the `.git` directory or its contents.
 - The untouched historical source archive is `resources/elite_atarist_source.zip`. Preserve its bytes. At the user's explicit request, `src_orig` is now an independently buildable conversion of that archive, replacing the former raw extraction. Maintain original gameplay there; do not import gameplay changes from the enhanced versions.
 - Atari source code belongs in `src_atari`; the independent Amiga source code belongs in `src_amiga`. Do not share platform switches or build imports between the two trees.
