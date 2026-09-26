@@ -285,12 +285,19 @@ q_pdata_m68_5:
 	lea palette,a1
 	q_inc d0
 	mulu #6,d0
-	move 0(a0),d1
-	move 0(a0,d0),(a1,d1)
-	move 2(a0),d1
-	move 2(a0,d0),(a1,d1)
-	move 4(a0),d1
-	move 4(a0,d0),(a1,d1)
+	lea (a0,d0.w),a2
+	moveq #2,d3
+.copy_inhab_colours:
+	move.w (a2)+,d0 ; table uses ST RGB, runtime palette uses native OCS RGB
+	and.w #$0777,d0
+	move.w d0,d2
+	add.w d0,d0
+	lsr.w #2,d2
+	and.w #$0111,d2
+	or.w d2,d0 ; expand each component exactly as SET_PALETTE does
+	move.w (a0)+,d1
+	move.w d0,(a1,d1.w)
+	dbra d3,.copy_inhab_colours
 	move.b cplanet+seed+2(a6),d0 ; choose a type of head (e.g. slimey)
 	move.b cplanet+seed+0(a6),d1
 	eor.b d1,d0

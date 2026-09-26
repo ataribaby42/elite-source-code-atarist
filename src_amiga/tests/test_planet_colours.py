@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.planet_colours import (build_table, description_tokens, dominant_colour,
-                                  family, rgb, texture_centre)
+                                  family, inhabitant_rgb, rgb, texture_centre)
 
 
 class PlanetColourTests(unittest.TestCase):
@@ -37,6 +37,13 @@ class PlanetColourTests(unittest.TestCase):
         self.assertEqual(self.records[7][2], (0xad38, 0x149c, 0x151d))
         self.assertEqual(self.records[7][3], (261, 132))
         self.assertEqual(self.table[7], 9)
+
+    def test_inhabitant_shades_use_the_full_amiga_component_range(self):
+        for word, expected in ((0x666, (13, 13, 13)), (0x444, (9, 9, 9)),
+                               (0x222, (4, 4, 4)), (0x470, (9, 15, 0)),
+                               (0x146, (2, 9, 13))):
+            with self.subTest(word=hex(word)):
+                self.assertEqual(inhabitant_rgb(word), expected)
 
     def test_transparency_and_black_cannot_win(self):
         self.assertEqual(self.vote({0: 5000, 13: 4000, 6: 1}), 6)

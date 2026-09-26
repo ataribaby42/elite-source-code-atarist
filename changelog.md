@@ -7,6 +7,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 ## xx.xx.2029 V1.xx
 
 - Amiga: added DblPAL 640 x 512 mode.
+- Fixed Amiga planet inhabitant colours by correctly converting Atari ST palette values to native Amiga RGB.
 
 ## xx.xx.2029 V1.81
 

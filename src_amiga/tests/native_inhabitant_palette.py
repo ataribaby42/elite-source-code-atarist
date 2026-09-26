@@ -1,5 +1,7 @@
 """Native portrait palette fitting across every alien palette and slot conflict."""
 
+import re
+
 
 def make_suite(root, symbols):
     source = (root / 'asm/pdata.m68').read_text()
@@ -33,9 +35,18 @@ def make_suite(root, symbols):
 
     # One actual head/body pair for each class; class 6 is the reported Learorce.
     planets = (50, 14, 12, 5, 39, 22, 61, 28)
+    palette_source = source.split('inhab_palette:', 1)[1]
+    shades = re.findall(r'dc\s+\$([0-9a-f]+),\$([0-9a-f]+),\$([0-9a-f]+)',
+                        palette_source, re.I)
+    assert len(shades) == len(planets)
+    levels = (0, 2, 4, 6, 9, 11, 13, 15)
     for colour_class, planet in enumerate(planets):
         case(f'Class {colour_class}: original character and palette')
         data(planet)
+        for slot, shade in enumerate(shades[colour_class], 7):
+            st = int(shade, 16)
+            expected = sum(levels[(st >> shift) & 7] << shift for shift in (8, 4, 0))
+            body += f' cmp.w #${expected:03x},${symbols["palette"] + slot*2:x}\n bne fail\n'
         snapshot(f'inh_{colour_class}_off')
         for mask in (0, 0x80, 0x100, 0x200, 0x180, 0x280, 0x300):
             case(f'Class {colour_class}: reserve green slots ${mask:03x}')

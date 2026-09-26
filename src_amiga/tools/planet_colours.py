@@ -79,8 +79,8 @@ def rgb(word):
 
 
 def inhabitant_rgb(word):
-    # pdata writes these words directly to the native OCS runtime palette.
-    return tuple((word >> shift) & 15 for shift in (8, 4, 0))
+    # pdata imports the ST table with the same conversion as the UI palette.
+    return rgb(word)
 
 
 def family(colour):
