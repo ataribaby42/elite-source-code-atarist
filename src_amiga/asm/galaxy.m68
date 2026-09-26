@@ -19,7 +19,6 @@
 ; V1.1	30/03/90	'Cursor reset to xxxx' prompt changed to 'Current system: '
 
 	include "macros.m68"
-	include "raster.inc"
 
 	xref getrandx,tokens,product_table,invert_icon,prepare_text,str_copy,block
 	xref build_number,print_centre,set_colour,ui_plot,bit_masks
@@ -77,15 +76,15 @@ this_planet: rs.w 1 ; current planet # (scanning)
 
 ; Plots a pixel in either the local or galactic range circles.
 
-; Syntax: RANGE_PLOT subr,x_sign,x_coord,y_sign,y_coord
+; Syntax: RANGE_PLOT x_sign,x_coord,y_sign,y_coord
 
-; Where:  subr		= plot routine prefix (l or g)
-;		  x_sign	= sign of x coord (+/-1)
+; Where:  x_sign	= sign of x coord (+/-1)
 ;		  x_offset	= coord to use for x offset (x or y)
 ;		  y_sign	= sign of y coord (+/-1)
 ;		  y_offset	= coord to use for y offset (x or y)
 
-; Entry: (D4,D5) = x,y coords (top right quadrant)
+; Entry: (D3,D4) = x,y coords (top right quadrant)
+;		 A2 = ptr: routine that plots one point
 ; Exit:  None
 
 ; Regs: ?
@@ -93,25 +92,25 @@ this_planet: rs.w 1 ; current planet # (scanning)
 
 range_plot macro
 
-	ifc '\3','x' ; setup x coord
+	ifc '\2','x' ; setup x coord
 	move d3,d0
 	endc
-	ifc '\3','y'
+	ifc '\2','y'
 	move d4,d0
 	endc
-	ifc '\5','x' ; setup y coord
+	ifc '\4','x' ; setup y coord
 	move d3,d1
 	endc
-	ifc '\5','y'
+	ifc '\4','y'
 	move d4,d1
 	endc
-	ifc '\2','-' ; negate if required
+	ifc '\1','-' ; negate if required
 	neg d0
 	endc
-	ifc '\4','-'
+	ifc '\3','-'
 	neg d1
 	endc
-	bsr \1_circle_plot ; plot point
+	jsr (a2) ; plot point
 
 	endm
 
@@ -666,43 +665,10 @@ q_galaxy_m68_22:
 	q_loop 1,scr_bytes/4
 	clr.l (a0)+
 	q_next 1
-	clr d3 ; x = 0
-	move equip+fuel(a6),d4 ; y = radius = fuel/4
+	move equip+fuel(a6),d4 ; radius = fuel/4
 	lsr #2,d4
-	move d4,circle_rad(a6)
-	move d4,d5 ; d = 3-2*radius
-	add d5,d5
-	subq #3,d5
-	neg d5
-q_galaxy_m68_23:
-	range_plot g,+,x,+,y ; plot 8 points of the circle using
-	range_plot g,+,y,+,x ; eight way symmetry
-	range_plot g,+,y,-,x
-	range_plot g,+,x,-,y
-	range_plot g,-,x,-,y
-	range_plot g,-,y,-,x
-	range_plot g,-,y,+,x
-	range_plot g,-,x,+,y
-	tst d5 ; d < 0 ?
-; Quelo: 		if <mi> then.s					yes
-	bpl q_galaxy_m68_25
-	move d3,d0 ; d = d + 4*x + 6
-	asl #2,d0
-	add d0,d5
-	addq #6,d5
-	bra q_galaxy_m68_26
-q_galaxy_m68_25:
-	move d3,d0 ; d = d + 4*(x - y) + 10
-	sub d4,d0
-	asl #2,d0
-	add d0,d5
-	add #10,d5
-	q_dec d4 ; --y
-q_galaxy_m68_26:
-	q_inc d3 ; ++x
-	cmp d4,d3
-	ble q_galaxy_m68_23
-q_galaxy_m68_24:
+	lea g_circle_plot(pc),a2
+	bsr range_circle
 	lea range_spr(a6),a4 ; point to range sprite record
 	move circle_rad(a6),d0 ; calculate pixel width (and depth)
 	add d0,d0
@@ -713,30 +679,7 @@ q_galaxy_m68_24:
 	q_dec d1
 	lsr #4,d1
 	q_inc d1
-	move.l scr_base(a6),a0 ; source = screen base
-	move.l a0,a1 ; destn  = halfway down the visible screen
-	add.l #scr_bytes/2,a1 ; 32-bit: the offset outgrows a LEA displacement
-	move.l a1,data_ptr(a4) ; set sprite data pointer
-	move d1,(a1)+ ; store width and depth
-	move d0,(a1)+
-	q_dec d0 ; adjust counts for DBRA
-	q_dec d1
-	q_loop 1 ; loop for each pixel line
-	q_push.l a0 ; save source screen ptr
-	move d1,d7 ; loop for each word
-	q_loop 2
-	move 0(a0),d2 ; build mask
-	or plane1(a0),d2
-	or plane2(a0),d2
-	or plane3(a0),d2
-	not d2
-	move d2,(a1)+ ; store mask
-	native_save a0,a1
-	addq.l #2,a0
-	q_next 2 ; next word
-	q_pop.l a0 ; next pixel line
-	add #row_stride,a0
-	q_next 1,d0
+	jsr build_sprite
 	tst witch_space(a6) ; witch space ?
 ; Quelo: 	if <eq> then.s						no
 	bne q_galaxy_m68_27
@@ -980,46 +923,51 @@ q_galaxy_m68_55:
 
 	moveq #white,d0
 	jsr set_colour
-	clr d3 ; x = 0
 	move equip+fuel(a6),d4 ; calculate radius
 	mulu #text_depth,d4
 	divu #8*y_range,d4
+	lea l_circle_plot(pc),a2
+	bra range_circle
+
+
+; D4 = radius, A2 = ptr: routine that plots one point (D0,D1 from the centre):
+; the midpoint circle, one octant mirrored eight ways.
+
+range_circle:
 	move d4,circle_rad(a6)
+	clr d3 ; x = 0
 	move d4,d5 ; d = 3-2*radius
 	add d5,d5
 	subq #3,d5
 	neg d5
-q_galaxy_m68_57:
-	range_plot l,+,x,+,y ; plot 8 points of the circle using
-	range_plot l,+,y,+,x ; eight way symmetry
-	range_plot l,+,y,-,x
-	range_plot l,+,x,-,y
-	range_plot l,-,x,-,y
-	range_plot l,-,y,-,x
-	range_plot l,-,y,+,x
-	range_plot l,-,x,+,y
+.point:
+	range_plot +,x,+,y ; plot 8 points of the circle using
+	range_plot +,y,+,x ; eight way symmetry
+	range_plot +,y,-,x
+	range_plot +,x,-,y
+	range_plot -,x,-,y
+	range_plot -,y,-,x
+	range_plot -,y,+,x
+	range_plot -,x,+,y
 	tst d5 ; d < 0 ?
-; Quelo: 		if <mi> then.s					yes
-	bpl q_galaxy_m68_59
+	bpl.s .down
 	move d3,d0 ; d = d + 4*x + 6
 	asl #2,d0
 	add d0,d5
 	addq #6,d5
-	bra q_galaxy_m68_60
-q_galaxy_m68_59:
+	bra.s .across
+.down:
 	move d3,d0 ; d = d + 4*(x - y) + 10
 	sub d4,d0
 	asl #2,d0
 	add d0,d5
 	add #10,d5
 	q_dec d4 ; --y
-q_galaxy_m68_60:
+.across:
 	q_inc d3 ; ++x
 	cmp d4,d3
-	ble q_galaxy_m68_57
-q_galaxy_m68_58:
-
-	q_ret
+	ble .point
+	rts
 
 
 ; *********************************************
