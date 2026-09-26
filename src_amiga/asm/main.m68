@@ -92,9 +92,7 @@ fuel_dist: equ max_ctemp*23/24 ; temperature for fuel scooping
 	jsr update_inst ; update instruments (as required)
 	bra q_main_m68_2
 q_main_m68_1:
-	ifne blit_ok
-	jsr wait_clear ; no clear this frame, so nothing may still be filling
-	endc
+	q_wait_clear ; no clear this frame, so nothing may still be filling
 q_main_m68_2:
 	bsr do_countdown ; perform any countdown
 	bsr damping ; automatic damping

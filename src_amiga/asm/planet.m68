@@ -68,9 +68,7 @@ ps_portrait_colours: rs.w 1 ; palette indices needed by the last portrait
     move.l colour_ptr(a6),-(sp)
     move.w sun_flare(a6),-(sp)
     move.l w_view_ptr(a6),-(sp)
-    ifne blit_ok
-    jsr wait_clear
-    endc
+    q_wait_clear
     ifne shadow_ok
     move.w shadow_live,-(sp)
     clr.w shadow_live ; render directly to the scratch Chip RAM screen

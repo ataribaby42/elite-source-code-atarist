@@ -385,6 +385,52 @@ q_action macro
 
 	endm
 
+* ST_TO_OCS <reg>,<tmp> - ST colour to OCS: each component's top bit
+* replicated, 3 bits to 4.
+
+q_st_to_ocs macro
+
+	and.w #$0777,\1
+	move.w \1,\2
+	add.w \1,\1
+	lsr.w #2,\2
+	and.w #$0111,\2
+	or.w \2,\1
+
+	endm
+
+* UI_BOX x1,y1,x2,y2 - outline between four coordinate variables of A6,
+* in logical units: top, right, bottom and left edge.
+
+q_ui_box macro
+
+	q_ui_edge \1,\2,\3,\2
+	q_ui_edge \3,\2,\3,\4
+	q_ui_edge \3,\4,\1,\4
+	q_ui_edge \1,\4,\1,\2
+
+	endm
+
+q_ui_edge macro
+
+	move \1(a6),d0
+	move \2(a6),d1
+	move \3(a6),d2
+	move \4(a6),d3
+	jsr ui_line
+
+	endm
+
+* WAIT_CLEAR - drain a blitter clear before the viewport is written.
+
+q_wait_clear macro
+
+	ifne blit_ok
+	jsr wait_clear
+	endc
+
+	endm
+
 * DISPLAY_X <reg> - logical x coordinate to display pixels.
 
 q_display_x macro

@@ -49,20 +49,6 @@ redraw: rs.w 1 ; flag: redraw the screen
 
 	q_end_vars disk
 
-; ---- LOCAL MACROS ----
-
-; draw_line x1,y1,x2,y2 - draw line between coords
-
-draw_line macro
-
-	move \1(a6),d0
-	move \2(a6),d1
-	move \3(a6),d2
-	move \4(a6),d3
-	jsr ui_line
-
-	endm
-
 	q_module disk
 
 
@@ -868,10 +854,7 @@ q_disk_m68_38:
 	q_loop 1,4
 	move (a0)+,(a1)+
 	q_next 1
-	draw_line xc1,yc1,xc2,yc1 ; top edge
-	draw_line xc2,yc1,xc2,yc2 ; right edge
-	draw_line xc2,yc2,xc1,yc2 ; bottom edge
-	draw_line xc1,yc2,xc1,yc1 ; left edge
+	q_ui_box xc1,yc1,xc2,yc2
 	jmp restore_cursor
 
 

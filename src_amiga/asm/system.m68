@@ -769,12 +769,7 @@ set_palette:
     moveq #15,d1
 .copy:
     move.w (a0)+,d0
-    and.w #$0777,d0
-    move.w d0,d2
-    add.w d0,d0
-    lsr.w #2,d2
-    and.w #$0111,d2             ; replicate each component's top bit, 3 to 4
-    or.w d2,d0
+    q_st_to_ocs d0,d2
     move.w d0,(a1)+
     dbra d1,.copy
     movem.l (sp)+,d0-d2/a0-a1
@@ -850,7 +845,7 @@ copper_diwhigh:
     dc.w diwhigh_art
     endc
     dc.w $092,ddfstrt,$094,ddfstop
-    dc.w $102,bplcon1_on,$104,0,$108,row_stride*(1+display_lace)-bpr,$10a,row_stride*(1+display_lace)-bpr
+    dc.w $102,bplcon1_on,$104,0,$108,bpl_mod,$10a,bpl_mod
     dc.w copper_wait,$fffe      ; only the pointers wait for the VBL server
 copper_planes:
     dc.w $0e0,0,$0e2,0,$0e4,0,$0e6,0,$0e8,0,$0ea,0,$0ec,0,$0ee,0

@@ -23,7 +23,7 @@
 
 	xref getrandx,tokens,product_table,invert_icon,prepare_text,str_copy,block
 	xref build_number,print_centre,set_colour,ui_plot,bit_masks
-	xref draw_sprite,print_string,dot_to_addr,colour_masks,ui_line,build_sprite
+	xref draw_sprite,print_string,dot_to_addr,ui_line,build_sprite
 	xref str_len,text_colour,clear_input,fuel_distance,print_number,fx,rand
 	xref input_line,str_compare,buy_cargo,sell_cargo,wait_key,data,hold_clock
 	xref equip_ship,init_cursor,hide_cursor,status,data,restore_cursor
@@ -160,37 +160,6 @@ l_line macro
 	add d4,d1
 	add d4,d2
 	add d4,d3
-	jsr ui_line ; draw the line
-
-	endm
-
-
-; *********************************************
-; **										 **
-; ** DLINE - DRAW EXPANDING BOX LINE (MACRO) **
-; **										 **
-; *********************************************
-
-; Draws one of the lines of the expanding box (unless done).
-
-; Syntax: DLINE x1,y1,x2,y2
-
-; Where:  bit	  = bit # to test (0..3)
-;		  (x1,y1) = coords of point #1
-;		  (x2,y2) = coords of point #2
-
-; Entry: None
-; Exit:  None
-
-; Regs: ?
-; Subr: LINE
-
-dline macro
-
-	move \1(a6),d0 ; set up coords
-	move \2(a6),d1
-	move \3(a6),d2
-	move \4(a6),d3
 	jsr ui_line ; draw the line
 
 	endm
@@ -1261,10 +1230,8 @@ q_galaxy_m68_62:
 	addq #7,d3
 	cmp #text_bottom,d3
 	bgt try_next ; yes
-	ifne display_hires
-	add d0,d0 ; the scan reads the physical screen
-	add d2,d2
-	endc
+	q_display_x d0 ; the scan reads the physical screen
+	q_display_x d2
 	q_display_y d1
 	jsr dot_to_addr ; calculate screen address (byte)
 	moveq #1,d3
@@ -1878,10 +1845,7 @@ q_galaxy_m68_95:
 	moveline 1,x2,+4,text_right
 	moveline 2,y2,+4,text_bottom
 	moveline 3,x1,-4,text_left
-	dline x1,y1,x2,y1 ; draw white outline
-	dline x2,y1,x2,y2
-	dline x2,y2,x1,y2
-	dline x1,y2,x1,y1
+	q_ui_box x1,y1,x2,y2 ; draw white outline
 	move x1(a6),d0 ; clear top
 	q_inc d0
 	move y1(a6),d1

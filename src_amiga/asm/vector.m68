@@ -305,9 +305,7 @@ inserted:
 	ifne frametime
 	jsr begin_rasterising
 	endc
-	ifne blit_ok
-	jsr wait_clear
-	endc
+	q_wait_clear
 
 	tst.l next_record(a6) ; nothing to draw ?
 	q_ret eq ; yes, return
@@ -341,9 +339,7 @@ q_vector_m68_32:
 	ifne frametime
 	jsr begin_rasterising
 	endc
-	ifne blit_ok
-	jsr wait_clear
-	endc
+	q_wait_clear
 
 	jsr draw_sky ; distant white stars behind every other flight layer
 

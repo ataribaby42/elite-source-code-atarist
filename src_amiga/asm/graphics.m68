@@ -219,7 +219,7 @@ q_graphics_m68_6\@:
 .screen_clear:
     endc
     move.l scr_base(a6),a0
-    lea y_top*row_stride+x_left/8(a0),a0
+    lea view_offset(a0),a0
     ifne blit_ok
     tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
     beq.s .no_blit
@@ -517,7 +517,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l (sp)+,a6
 	st blitter_owned
 	move.l scr_base(a6),a0
-	lea y_top*row_stride+x_left/8(a0),a0
+	lea view_offset(a0),a0
 	lea $dff000,a1
 	move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
 	clr.w $42(a1) ; BLTCON1: ascending, no fill
@@ -547,9 +547,7 @@ frame_text_y: equ 0 ; the top row of the screen
 .untimed:
 	movem.l (sp)+,d0-d1
 	endc
-	ifne blit_ok
-	jsr wait_clear ; nothing is presented while the blitter is still filling it
-	endc
+	q_wait_clear ; nothing is presented while the blitter is still filling it
 	ifne frametime
 	movem.l d0-d7/a0-a6,-(sp) ; the held reading, before the copy carries it out
 	bsr show_frame_time
@@ -1323,17 +1321,11 @@ circle_horiz_done:
 
 	q_subr block,global
 
-	ifne blit_ok
-	jsr wait_clear
-	endc
-	ifne display_hires
-	add.w d0,d0 ; logical units to physical pixels
-	add.w d3,d3
-	endc
-	ifne display_tall
-	add.w d1,d1
-	add.w d4,d4
-	endc
+	q_wait_clear
+	q_display_x d0 ; logical units to physical pixels
+	q_display_x d3
+	q_display_y d1
+	q_display_y d4
 	bsr dot_to_addr ; calculate screen address
 	movem.l d0/d3/d4/a0,-(sp) ; save parameters
 	q_dec d4 ; adjust depth for DBRA
@@ -1812,14 +1804,10 @@ q_graphics_m68_81:
 
 	q_subr ui_line,global
 
-	ifne display_hires
-	add.w d0,d0 ; logical units to physical pixels
-	add.w d2,d2
-	endc
-	ifne display_tall
-	add.w d1,d1
-	add.w d3,d3
-	endc
+	q_display_x d0 ; logical units to physical pixels
+	q_display_x d2
+	q_display_y d1
+	q_display_y d3
 	bra line
 
 	q_subr line,global
@@ -2959,12 +2947,6 @@ expand_v set expand_v+1
 * **** LOCAL DATA ****
 
 * Bit masks for pixel plotting.
-
-	ifne shadow_ok
-; What each Chip buffer is holding, row by row: a byte saying whether the sums
-; that follow describe it, the sum of the whole row, then one for each block of
-; it. A zero sum means a zero row, which is how the buffers start.
-	endc
 
 	q_global bit_masks
 

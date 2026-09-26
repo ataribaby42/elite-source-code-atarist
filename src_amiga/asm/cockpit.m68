@@ -19,7 +19,7 @@
 	xref blank_screen,kill_sprites,print_string,print_centre,block,draw_sprite
 	xref polygon,text_colour
 	xref message,clear_input,clear_image,text_blatt
-	xref set_colour,fx,wait_key,hold_clock,wait,remove_sprite,dot_to_addr
+	xref set_colour,fx,wait_key,hold_clock,wait,remove_sprite
 	xref draw_screen,cockpit,find_bitmap,put_bitmap,cancel_jettison_confirm
 	xref amiga_rows_full
 

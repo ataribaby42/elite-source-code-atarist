@@ -61,20 +61,6 @@ base_y: rs.w 1 ; base y of equipment tree
 
 	q_end_vars equip
 
-; ---- LOCAL MACROS ----
-
-; draw_line x1,y1,x2,y2 - draw line between coords
-
-draw_line macro
-
-	move \1(a6),d0
-	move \2(a6),d1
-	move \3(a6),d2
-	move \4(a6),d3
-	jsr ui_line
-
-	endm
-
 	q_module equip
 
 
@@ -615,10 +601,7 @@ q_equip_m68_35:
 	add #58,d2
 	add #48,d3
 	movem d0-d3,xc1(a6)
-	draw_line xc1,yc1,xc2,yc1 ; top edge
-	draw_line xc2,yc1,xc2,yc2 ; right edge
-	draw_line xc2,yc2,xc1,yc2 ; bottom edge
-	draw_line xc1,yc2,xc1,yc1 ; left edge
+	q_ui_box xc1,yc1,xc2,yc2
 	jmp restore_cursor
 
 

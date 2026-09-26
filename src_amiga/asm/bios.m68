@@ -207,7 +207,7 @@ glyph_row\@:
 	glyph_plane 1
 	glyph_plane 2
 	glyph_plane 3
-	lea row_stride*(1+display_tall)(a3),a3 ; next pixel row
+	lea row_stride*zoom_y(a3),a3 ; next pixel row
 	dbra d7,glyph_row\@
 	bra.w q_bios_m68_4
 	endm
@@ -550,9 +550,7 @@ q_bios_m68_9:
 
 	q_subr print_string,global
 
-	ifne blit_ok
-	jsr wait_clear
-	endc
+	q_wait_clear
 
 q_bios_m68_11:
 	tst capture_ctr(a6) ; capturing control codes ?
