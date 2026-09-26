@@ -36,7 +36,7 @@ last_col: equ 11
 
 csr_state: rs.w 1 ; state (colour) of text cursor
 csr_clock: rs.w 1 ; cursor flash clock
-engine_port: rs.w 1 ; colour of engine port (cycle)
+engine_port: rs.w 1 ; ST red intensity for the engine cycle; converted on output
 engine_dir: rs.w 1 ; direction of colour (0 or !0)
 packet: rs.b 8 ; buffer for special packet data
 packet_idx: rs.w 1 ; index for next byte into above
@@ -495,22 +495,27 @@ q_except_m68_83:
 	tst engine_dir(a6) ; increase/decrease red
 ; Quelo: 		if <pl> then.s
 	bmi.s q_except_m68_89
-	add #$200,d0
-	cmp #$e00,d0
+	add #$100,d0
+	cmp #$700,d0
 ; Quelo: 			if <eq> then.s
 	bne.s q_except_m68_91
 	not engine_dir(a6)
 q_except_m68_91:
 	bra.s q_except_m68_90
 q_except_m68_89:
-	sub #$200,d0
-	cmp #$400,d0
+	sub #$100,d0
+	cmp #$200,d0
 ; Quelo: 			if <eq> then.s
 	bne.s q_except_m68_93
 	not engine_dir(a6)
 q_except_m68_93:
 q_except_m68_90:
 	move d0,engine_port(a6)
+	move.w d0,d1 ; expand the ST component exactly as SET_PALETTE does
+	add.w d0,d0
+	lsr.w #2,d1
+	and.w #$0111,d1
+	or.w d1,d0
 	move d0,palette+pulse*2 ; set cycling colour
 q_except_m68_87:
 
@@ -542,10 +547,10 @@ q_except_m68_87:
 	not csr_state(a6) ; change colour
 ; Quelo: 		if <eq> then.s
 	bne.s q_except_m68_97
-	move #$e00,d0 ; red
+	move #$f00,d0 ; full native OCS red (ST $700)
 	bra.s q_except_m68_98
 q_except_m68_97:
-	move #$eee,d0 ; white
+	move #$fff,d0 ; full native OCS white (ST $777)
 q_except_m68_98:
 	move d0,palette+pulse*2 ; change palette
 q_except_m68_95:

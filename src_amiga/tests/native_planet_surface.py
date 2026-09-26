@@ -204,7 +204,7 @@ def make_suite(root,s):
             body+=f' move.w #{planet_id},req_planet(a6)\n move.w #{planet_id},d0\n'+call('get_planet_info')+call('data')+call('hide_cursor')
             expected=ui[:]
             if enabled:expected[6:10]=flight[6:10]
-            elif seeds[planet_id][2]&128:expected[7:10]=inhabitants[(seeds[planet_id][2]>>13)&7]
+            elif seeds[planet_id][2]&128:expected[7:10]=list(map(native,inhabitants[(seeds[planet_id][2]>>13)&7]))
             for ink in range(6,10):
                 if enabled:
                     body+=f' move.w ps_portrait_colours(a6),d0\n btst #{ink},d0\n beq qa_rgb_skip_{planet_id}_{ink}\n'

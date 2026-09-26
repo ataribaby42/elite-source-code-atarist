@@ -833,6 +833,40 @@ q_logic_m68_49:
 	q_ret return
 
 
+; Return 0..4 death canisters: ceil(total cargo grams / 1,000,000).
+; HOLD contains grams for every commodity, including mission cargo.
+; Equipment is excluded. Saturate before summing to avoid overflow.
+; Only D0 changes.
+	q_subr death_cargo_count
+
+	movem.l d1-d2/a0,-(sp)
+	moveq #0,d0
+	lea hold(a6),a0
+	moveq #max_products-1,d1
+.sum:
+	move.l (a0)+,d2
+	cmp.l #4000000,d2
+	bhs.s .maximum
+	add.l d2,d0
+	cmp.l #4000000,d0
+	bhs.s .maximum
+	dbra d1,.sum
+	move.l d0,d2
+	moveq #0,d0
+	tst.l d2
+	beq.s .done
+.round:
+	addq.w #1,d0
+	sub.l #1000000,d2
+	bgt.s .round
+	bra.s .done
+.maximum:
+	moveq #4,d0
+.done:
+	movem.l (sp)+,d1-d2/a0
+	rts
+
+
 * **********************************************
 * **										  **
 * ** DO_ENDGAME1 - END GAME EXPLOSION PART #1 **
@@ -860,7 +894,12 @@ q_logic_m68_49:
 	clr velocity(a5)
 	move #log_exploding,logic(a5)
 	bset #point,flags(a5) ; not normal 3D object
-	q_loop 1,2 ; release 2 canisters
+	bsr death_cargo_count
+	tst.w d0
+	beq.s .fragments
+	move.w d0,d7
+	subq.w #1,d7
+.canister:
 	jsr alloc_object ; allocate an object
 	q_push d7 ; copy main object
 	jsr copy_object
@@ -871,7 +910,8 @@ q_logic_m68_49:
 	jsr create_object ; create the object
 	move #bspeed,velocity(a4) ; set speed of barrel
 	q_pop d7 ; next barrel
-	q_next 1
+	dbra d7,.canister
+.fragments:
 	q_loop 1,5 ; release 5 platlets
 	jsr alloc_object ; allocate an object
 	q_push d7 ; copy main object
