@@ -44,9 +44,6 @@ shadow_every: equ 0 ; build option: 1 = the shadow carries every piece, for comp
 	ifnd shadow_count
 shadow_count: equ 0 ; build option: 1 = count the pieces the shadow carries, for the frame time line
 	endc
-	ifnd emulated_burst
-emulated_burst: equ 0 ; build option: 1 = same bytes without MOVE16
-	endc
 	ifnd frametime
 frametime: equ 0 ; build option: 1 = show how many fields a game frame takes
 	endc
@@ -65,6 +62,9 @@ load_buffer_bytes: equ 4096 ; read buffer for BITMAPS.IMG
 shadow_ok: equ 1
 	else
 shadow_ok: equ 0
+	endc
+	ifne shadow_ok*(y_top+x_left)
+	fail "the shadow is drawn at the viewport's own offset, which must be 0"
 	endc
 	ifeq (1-fastdraw)+(1-blit_fits)
 blit_ok: equ 1

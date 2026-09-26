@@ -161,7 +161,7 @@ q_graphics_m68_6\@:
     ifne shadow_ok
     tst.w in_shadow
     beq.s .based
-    move.l view_base,a0
+    move.l shadow_base,a0
 .based:
     endc
     adda.l d1,a0
@@ -400,17 +400,11 @@ frame_text_y: equ 0 ; the top row of the screen
 	endc
 .no_blocks:
 	endc
-	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
+	moveq #art_cols-3,d0 ; the flags sit at the right edge, clear of the view name
 	moveq #frame_text_y,d1
 	jsr locate
 	move cpu_level,d0
 	add #'0',d0
-	jsr print_char
-	moveq #'.',d0
-	tst.b clear_burst
-	beq.s .no_burst
-	moveq #'M',d0 ; the MOVE16 clear
-.no_burst:
 	jsr print_char
 	moveq #'.',d0
 	tst.b maths_fast
@@ -740,9 +734,6 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l shadow_base,d0 ; what was drawn is what the buffer now shows
 	move.l (a5),shadow_base ; and the emptied mirror it replaces is drawn into next
 	move.l d0,(a5)
-	move.l shadow_base,d0
-	sub.l #y_top*row_stride,d0
-	move.l d0,view_base
 	movem.l (sp)+,d0-d7/a0-a5
 	bra.s .shadow_done
 .no_shadow: ; a frame drawn straight to Chip RAM: neither mirror knows its buffer
@@ -1395,7 +1386,7 @@ q_graphics_m68_63:
 	beq.s .flip     ; goes to the other one at the same offset, not to a flip
 	move.l d1,-(sp)
 	move.l a0,d1
-	sub.l view_base,d1
+	sub.l shadow_base,d1
 	move.l scr_base(a6),d0
 	jsr amiga_flip_address
 	add.l d1,d0
@@ -2383,7 +2374,7 @@ q_graphics_m68_153:
 	blo.s q_solid_screen
 	cmp.w #y_top+y_size,d7
 	bhs.s q_solid_screen
-	add.l view_base,d0
+	add.l shadow_base,d0
 	bra.s q_solid_based
 q_solid_screen:
 	endc

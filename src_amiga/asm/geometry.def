@@ -164,12 +164,6 @@ field_lines: equ 262+51*(1-display_ntsc)
 line_scale: equ 66-display_ntsc
 	endc
 view_bytes: equ y_size*row_stride ; the viewport, one flat run when frameless
-clear_bursts: equ view_bytes/16 ; sixteen bytes to a MOVE16
-	ifeq (scr_width-x_size)+(view_bytes&15)
-clear_burst_ok: equ 1 ; whole rows, and a whole number of MOVE16 lines
-	else
-clear_burst_ok: equ 0
-	endc
 ; One blitter fill covers the viewport. A frameless viewport is one flat run,
 ; so 64-word rows and no modulo; an inset one is a plane run per blit row and
 ; the plane spacing carries the modulo from plane to plane and row to row.

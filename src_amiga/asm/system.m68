@@ -11,7 +11,7 @@ amiga_implementation: equ 1
     xdef bitmap_bank,bitmap_bytes
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
-    xdef cpu_level,clear_burst,maths_fast
+    xdef cpu_level,maths_fast
     ifne blit_ok
     xdef clear_blit,clear_pending,clear_early,wait_clear
     xdef graphics_base,blitter_owned
@@ -20,7 +20,7 @@ amiga_implementation: equ 1
     xref raster_line
     endc
     ifne shadow_ok
-    xdef shadow_base,view_base,shadow_live,in_shadow,mirror_ptr
+    xdef shadow_base,shadow_live,in_shadow,mirror_ptr
     xdef mirror_valid,mirror_full,mirror_blank,forget_mirror
     endc
     ifeq cpu_68020
@@ -120,9 +120,6 @@ amiga_entry:
     move.l d0,shadow_block
     beq.s .no_shadow
     move.l d0,shadow_base       ; drawn into first
-    move.l d0,d1
-    sub.l #y_top*row_stride,d1  ; the drawing maths adds the row back
-    move.l d1,view_base
     add.l #view_bytes,d0
     move.l d0,mirror_ptr        ; what the first buffer shows
     add.l #view_bytes,d0
@@ -233,7 +230,6 @@ startup_failed:
     jsr -210(a6)                 ; FreeMem
     clr.l shadow_block
     clr.l shadow_base
-    clr.l view_base
     clr.l mirror_blank
 .no_shadow_free:
     endc
@@ -462,8 +458,7 @@ say_and_stop:
     moveq #1,d0
     rts
 
-; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060. The first is
-; what MOVE16 needs; CLEAR_IMAGE checks the screen's alignment itself.
+; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060.
 probe_cpu:
     moveq #0,d0
     move.w 296(a6),d0            ; ExecBase.AttnFlags
@@ -487,13 +482,6 @@ probe_cpu:
     bne.s .blit_done
     st clear_blit
 .blit_done:
-    endc
-    clr.b clear_burst
-    ifne clear_burst_ok
-    cmp.w #4,d1
-    blo.s .burst_done
-    st clear_burst
-.burst_done:
     endc
     st maths_fast
     ifeq cpu_68020
@@ -884,20 +872,18 @@ input_added: ds.w 1
 vblank_added: ds.w 1
 mouse_right: ds.w 1
 cpu_level: ds.w 1
-clear_burst: ds.b 1
 maths_fast: ds.b 1
     ifne blit_ok
 clear_blit: ds.b 1
 clear_pending: ds.b 1
 clear_early: ds.b 1
     endc
-    even
+    cnop 0,4
     ifne shadow_ok
 shadow_block: ds.l 1 ; the allocation, whichever way its viewports have turned
 shadow_base: ds.l 1
 mirror_ptr: ds.l 2 ; per buffer: the viewport holding what it shows
 mirror_blank: ds.l 1 ; per buffer and row: its viewport shows that row empty
-view_base: ds.l 1
 shadow_live: ds.w 1
 mirror_valid: ds.b 2 ; per buffer: its mirror is what it holds
 mirror_full: ds.b 1 ; this transfer sends every block
