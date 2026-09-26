@@ -53,10 +53,7 @@
 	move.w player_ship(a6),d0
 	bsr ship_profile
 	lea hull_speed(a6),a1
-	moveq #13,d1
-.copy:
-	move.w (a0)+,(a1)+
-	dbra d1,.copy
+	q_copy_longs a0,a1,14*2,d1
 	move.w hull_speed(a6),d0
 	mulu #3,d0
 	move.w d0,hull_auto_speed(a6)

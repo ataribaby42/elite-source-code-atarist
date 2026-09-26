@@ -2161,10 +2161,8 @@ q_graphics_m68_122:
 
 	q_subr blank_screen,global
 
-	lea palette,a0 ; point to start of palette
-	q_loop 1,16 ; set all inks to black
-	clr (a0)+
-	q_next 1
+	lea palette,a0 ; set all inks to black
+	q_clear_longs a0,16*2,d7,d6
 
 	q_ret
 

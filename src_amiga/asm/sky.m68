@@ -22,10 +22,7 @@ sky_enabled: rs.w 1           ; rendering cache of the saved user/f_no_stars pre
     bclr #f_no_stars,user(a6) ; startup and a freshly enabled sky default to ON
     move.w #1,sky_enabled(a6)
     lea sky_basis(a6),a0
-    moveq #8,d0
-.clear:
-    clr.l (a0)+
-    dbra d0,.clear
+    q_clear_longs a0,9*4,d0,d1
     move.l #$1000000,sky_basis(a6)
     move.l #$1000000,sky_basis+16(a6)
     move.l #$1000000,sky_basis+32(a6)

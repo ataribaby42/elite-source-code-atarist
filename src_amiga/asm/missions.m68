@@ -277,9 +277,7 @@ q_missions_m68_16:
 
 	q_inc mission(a6) ; mission state #2
 	lea hold(a6),a0 ; empty the hold
-	q_loop 1,max_products
-	clr.l (a0)+
-	q_next 1
+	q_clear_longs a0,max_products*4,d7,d6
 	lea text1(pc),a0 ; display mission screen
 	bsr mission_screen
 	clr slow_print(a6)

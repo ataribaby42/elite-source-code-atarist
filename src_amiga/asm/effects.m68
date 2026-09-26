@@ -155,9 +155,7 @@ create_bay: rs.w 1 ; flag: create cargo bay
 	move.w hull_model(a6),type(a4)
 	lea end_game_data(pc),a0
 	lea xpos(a4),a1
-	q_loop 1,30
-	move.b (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,30,d7
 	move #log_endgame1,logic(a4)
 	jsr create_object ; retain normal object setup and RNG consumption
 	move.w type(a4),d0 ; match the first variant used by SHIPGFX and Shipyards
@@ -383,9 +381,7 @@ q_effects_m68_18:
 	asl #2,d0 ; fetch pointer to data
 	move.l (a5,d0),a0
 	lea xpos(a4),a1 ; position and direction object
-	q_loop 2,d0,(3*2+9)
-	move (a0)+,(a1)+
-	q_next 2,d0
+	q_copy_longs a0,a1,(3*2+9)*2,d0
 	moveq #no_ships,d2 ; choose random ship type
 	jsr rand
 	add d0,d0
@@ -497,9 +493,7 @@ q_effects_m68_15:
 	move.l (a0)+,(a1)+
 	q_next 1,d6
 	lea vector_data(pc),a0 ; copy vector data (straight forwards)
-	q_loop 1,d6,9
-	move (a0)+,(a1)+
-	q_next 1,d6
+	q_copy_longs a0,a1,9*2,d6
 
 	q_ret return
 

@@ -238,9 +238,7 @@ q_galaxy_m68_1\@:
 
 	lea gal_seed(a6),a0 ; copy galactic seed
 	lea rseed1(a6),a1
-	q_loop 1,3
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,3*2,d7
 	clr this_planet(a6) ; reset counter
 
 	q_ret
@@ -296,9 +294,7 @@ q_galaxy_m68_1\@:
 
 	lea rseed1(a6),a0 ; copy seed into planet record
 	lea cplanet+seed(a6),a1
-	q_loop 1,3
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,3*2,d7
 	move.b rseed2(a6),d0 ; generate x coord
 	and #255,d0
 	mulu #gal_width,d0
@@ -517,9 +513,7 @@ q_galaxy_m68_11:
 	bsr get_planet_info
 	lea cplanet(a6),a0 ; copy into system planet record
 	lea splanet(a6),a1
-	q_loop 1,planet_len/2
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,planet_len,d7
 	move rseed1(a6),d1 ; set price of fuel
 	and #31,d1
 	q_inc d1
@@ -662,9 +656,7 @@ q_galaxy_m68_22:
 	eor.l d7,d0
 	move.l d0,scr_base(a6)
 	move.l d0,a0 ; clear VRAM
-	q_loop 1,scr_bytes/4
-	clr.l (a0)+
-	q_next 1
+	q_clear_longs a0,scr_bytes,d7,d6
 	move equip+fuel(a6),d4 ; radius = fuel/4
 	lsr #2,d4
 	lea g_circle_plot(pc),a2

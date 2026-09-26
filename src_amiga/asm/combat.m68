@@ -1022,9 +1022,7 @@ q_combat_m68_53:
 ; Quelo: 			if <ne> then.s				yes
 	beq.s q_combat_m68_59
 	lea hold(a6),a0 ; empty the hold (except special)
-	q_loop 2,max_products-2
-	clr.l (a0)+
-	q_next 2
+	q_clear_longs a0,(max_products-2)*4,d7,d6
 	lea text12(pc),a0
 	jmp disp_message
 q_combat_m68_59:
@@ -1804,9 +1802,7 @@ q_combat_m68_129:
 	move.b #%00100001,flags(a4) ; no bounty, in use
 	lea missile_data(pc),a0 ; set coords and vectors
 	lea xpos(a4),a1
-	q_loop 1,(3*2+3*3)
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,(3*2+3*3)*2,d7
 	move #missile,type(a4) ; it's a missile
 	move #log_locked,logic(a4) ; locked onto target
 	move.l target_ptr(a6),target(a4) ; set pointer to target object

@@ -16,11 +16,7 @@ sg_guard equ $53484950
 ; Called once, after relocation of OBJECTS.IMG, before the first UI is exposed.
     q_subr ship_graphics_init,global
     movem.l d0-d7/a0-a5,-(sp)
-    lea ship_graphics_begin,a0
-    move.w #(ship_graphics_end-ship_graphics_begin)/2-1,d0
-.clear:
-    clr.w (a0)+
-    dbra d0,.clear
+    bsr sg_clear
     move.l #sg_guard,ship_graphics_begin
     move.l #sg_guard,ship_yard_end
     move.l #sg_guard,ship_status_end
@@ -583,3 +579,10 @@ sg_spans: ds.w 51*2
 sg_row: ds.b 4+8*zoom_x*zoom_y*10
     ds.l 1
 ship_graphics_end:
+
+    section text,code
+; After the section, where its size is known.
+sg_clear:
+    lea ship_graphics_begin,a0
+    q_clear_longs a0,ship_graphics_end-ship_graphics_begin,d0,d1
+    rts

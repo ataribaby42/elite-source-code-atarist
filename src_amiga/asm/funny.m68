@@ -78,9 +78,7 @@ line_count: rs.w 1 ; count of # lines to display
 	eor d1,d0
 	move d0,fibs2b(a6)
 	lea build_buffer(a6),a0 ; clear string buffer
-	q_loop 1,256/4
-	clr.l (a0)+
-	q_next 1
+	q_clear_longs a0,256,d7,d6
 	lea base_string(pc),a4 ; expand base token
 	lea build_buffer+1(a6),a5
 	bsr detok

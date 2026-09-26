@@ -216,9 +216,7 @@ q_orbit_m68_12:
 	move.l #-2500,zpos(a4) ; position behind us
 	lea spacestn_vectors(pc),a0 ; setup vectors
 	lea x_vector(a4),a1
-	q_loop 1,3*3
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,3*3*2,d7
 	move #spacestn,type(a4) ; it's a space station
 	move #log_rotating,logic(a4) ; and it's rotating
 	jsr create_object ; create the object

@@ -139,9 +139,7 @@ new_ship:
 	move d0,type(a4)
 	lea attract_data(pc),a0
 	lea xpos(a4),a1
-	q_loop 1,30
-	move.b (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,30,d7
 	clr flags(a4)
 	clr logic(a4)
 	jsr create_object ; create the object
@@ -400,9 +398,7 @@ q_attract_m68_40:
 	move.l d0,xpos(a4)
 	lea normal_data(pc),a1 ; set y,z position and vectors
 	lea ypos(a4),a2
-	q_loop 2,d6,26
-	move.b (a1)+,(a2)+
-	q_next 2,d6
+	q_copy_longs a1,a2,26,d6
 	jsr create_object ; create the object
 	move #p_white,obj_colour(a4) ; tumble in white
 	move.l a4,letter(a6) ; save pointer to current letter
@@ -518,9 +514,7 @@ q_attract_m68_55:
 
 	lea normal_data+8(pc),a0 ; source data
 	lea x_vector(a5),a1 ; destination
-	q_loop 1,9 ; 9 words to copy (3 per vector)
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,9*2,d7
 	move #p_red,obj_colour(a5) ; draw in red
 
 	q_ret

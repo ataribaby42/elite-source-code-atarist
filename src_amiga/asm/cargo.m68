@@ -795,10 +795,7 @@ jettison_notice_error:
 	jsr alloc_object
 	bcc .full
 	move.l a4,a0
-	move #obj_len/2-1,d7
-.clear:
-	clr.w (a0)+
-	dbra d7,.clear
+	q_clear_longs a0,obj_len,d7,d6
 	move.b #(1<<in_use)|(1<<no_bounty),flags(a4)
 	move.l #-400,zpos(a4) ; aft, beyond the canister's 150-unit collision radius
 	move #barrel,type(a4)

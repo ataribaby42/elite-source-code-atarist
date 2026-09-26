@@ -421,6 +421,52 @@ q_ui_edge macro
 
 	endm
 
+* CLEAR_LONGS <areg>,<bytes>,<dreg>,<dzero> - zero <bytes> from <areg>, which
+* advances; <dreg> counts. From 64 bytes <dzero> is saved and holds the zero:
+* clr.l is slower than move.l from a register up to the 68030.
+
+q_clear_longs macro
+
+	ifne ((\2)&1)|((\2)<4)
+	fail "q_clear_longs: an odd length or under a long"
+	endc
+	move.w #(\2)/4-1,\3
+	ifge (\2)-64
+	move.l \4,-(sp)
+	moveq #0,\4
+.q_clear\@:
+	move.l \4,(\1)+
+	dbra \3,.q_clear\@
+	move.l (sp)+,\4
+	else
+.q_clear\@:
+	clr.l (\1)+
+	dbra \3,.q_clear\@
+	endc
+	ifne (\2)&2
+	clr.w (\1)+
+	endc
+
+	endm
+
+* COPY_LONGS <src>,<dst>,<bytes>,<dreg> - copy <bytes> from <src> to <dst>,
+* which both advance; <dreg> counts. A long at a time, then a word.
+
+q_copy_longs macro
+
+	ifne ((\3)&1)|((\3)<4)
+	fail "q_copy_longs: an odd length or under a long"
+	endc
+	move.w #(\3)/4-1,\4
+.q_copy\@:
+	move.l (\1)+,(\2)+
+	dbra \4,.q_copy\@
+	ifne (\3)&2
+	move.w (\1)+,(\2)+
+	endc
+
+	endm
+
 * WAIT_CLEAR - drain a blitter clear before the viewport is written.
 
 q_wait_clear macro
