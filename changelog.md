@@ -9,6 +9,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 - Amiga: added DblPAL 640 x 512 mode.
 - Amiga: the local chart's range circle is solid in hires and interlace
 - Fixed Amiga planet inhabitant colours by correctly converting Atari ST palette values to native Amiga RGB.
+- Fixed Atari and Amiga death animations to use the same player ship colour variants as Shipyards and UI portraits.
 
 ## xx.xx.2029 V1.81
 

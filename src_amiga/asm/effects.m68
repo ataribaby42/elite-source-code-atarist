@@ -28,6 +28,7 @@
 	xref flush_keyboard,rand,flash_message,update_inst,flash_message
 	xref draw_sight,disp_debug,reset_system,block,remove_radar,instruments
 	xref find_nodes,monst,logo,draw_screen,swap_screen
+	xref obj_data
 
 ; ---- LOCAL CONSTANTS ----
 
@@ -133,7 +134,7 @@ create_bay: rs.w 1 ; flag: create cargo bay
 ; **									**
 ; ****************************************
 
-; Draws the explosing Cobra at the end of the game.
+; Draws the exploding player hull at the end of the game.
 
 ; Entry: None
 ; Exit:  None
@@ -149,7 +150,7 @@ create_bay: rs.w 1 ; flag: create cargo bay
 	jsr reset_system ; reset all variables
 	jsr instruments ; force update for all instruments
 	jsr clear_objects ; clear all objects
-	jsr alloc_object ; create Cobra in the distance
+	jsr alloc_object ; create the player hull in the distance
 	move.b #%00100001,flags(a4)
 	move.w hull_model(a6),type(a4)
 	lea end_game_data(pc),a0
@@ -158,7 +159,13 @@ create_bay: rs.w 1 ; flag: create cargo bay
 	move.b (a0)+,(a1)+
 	q_next 1
 	move #log_endgame1,logic(a4)
-	jsr create_object ; create the objects
+	jsr create_object ; retain normal object setup and RNG consumption
+	move.w type(a4),d0 ; match the first variant used by SHIPGFX and Shipyards
+	lsl.w #2,d0
+	lea obj_data,a0
+	move.l (a0,d0.w),a0
+	move.l 4(a0),a0 ; surface variant table, preceded by its count
+	move.l 2(a0),surfaces(a4)
 	clr speed(a6) ; we are not moving
 q_effects_m68_1:
 	jsr clear_image ; clear screen image
