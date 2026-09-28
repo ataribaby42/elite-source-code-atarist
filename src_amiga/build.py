@@ -40,6 +40,8 @@ DISPLAYS = {
     'ntsc-hireslace': ({'ntsc': 1, 'hires': 1, 'lace': 1}, 'NTSC hires interlaced, 640 x 400'),
     'dblpal-hires':   ({'hires': 1, 'double': 1},
                        'DblPAL, 640 x 512, AGA super-hires'),
+    'dblntsc-hires':  ({'ntsc': 1, 'hires': 1, 'double': 1},
+                       'DblNTSC, 640 x 400, AGA super-hires'),
 }
 DISPLAYS['hires'] = DISPLAYS['pal-hires']              # PAL spellings
 DISPLAYS['hireslace'] = DISPLAYS['pal-hireslace']

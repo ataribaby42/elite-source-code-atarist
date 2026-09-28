@@ -13,7 +13,7 @@ display_hires: equ 0 ; build option: 1 = 640 pixels across, MC68020 or better
 display_lace: equ 0 ; build option: 1 = interlaced, twice the rows
 	endc
 	ifnd display_double
-display_double: equ 0 ; build option: 1 = DblPAL, twice the rows without interlace, AGA
+display_double: equ 0 ; build option: 1 = DblPAL or DblNTSC, twice the rows without interlace, AGA
 	endc
 	ifnd frame
 frame: equ 0 ; build option: 1 = keep the cockpit frame and its 256 x 112 window
@@ -70,12 +70,16 @@ char_h: equ 8*zoom_y
 ; colour, planes, hires or super-hires, lace
 bplcon0_on: equ $0200|(scr_planes<<12)|((display_hires-display_shres)<<15)|(display_shres<<6)|(display_lace<<2)
 fmode_on: equ display_shres ; FMODE bit 0, BPL32
-; programmed beam: DblPAL.monitor, edges from monitorstuff.h's ECS branch
+; programmed beam: DblPAL.monitor or DblNTSC.monitor, edges from monitorstuff.h's ECS branch
 beam_prog: equ display_double
 	ifne beam_prog
 beamcon0_on: equ $1b88
-beam_htotal: equ $79+8 ; DblPAL.monitor on AA: Alice pushes the picture 8 clocks
-beam_vtotal: equ $23d
+beam_htotal: equ $79+8 ; on AA Alice pushes the picture 8 clocks
+	ifne display_ntsc
+beam_vtotal: equ $1dd ; DblNTSC.monitor on AA
+	else
+beam_vtotal: equ $23d ; DblPAL.monitor on AA
+	endc
 beam_minrow: equ $17
 beam_hbstrt: equ 1 ; blanking and sync edges
 beam_hbstop: equ 30
@@ -88,7 +92,7 @@ beam_vsstop: equ beam_minrow/3*2
 	endc
 ; display window and data fetch
 	ifne beam_prog
-; DblPAL.monitor's default view position on AA: VPMINX plus half of VPRANGEX.
+; the driver's default view position on AA: VPMINX plus half of VPRANGEX.
 diw_fetch1: equ $28 ; FETCH1 with BUG_ALICE_LHS_PROG
 diw_hstart: equ (diw_fetch1<<1)+1+((((beam_htotal+1)-diw_fetch1)<<3)-scr_width)/8
 diw_skew: equ 1 ; 35 ns pixels the picture shows late, and the window closes late

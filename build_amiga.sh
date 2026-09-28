@@ -25,6 +25,7 @@ common="$common frametime=no $test $*"  # extra options apply to every image, wh
 "$build" $common outputname=ELITE.WIDE.PAL-HIRESLACE      altgfx=no  frame=no  display=pal-hireslace
 "$build" $common outputname=ELITE.WIDE.NTSC-HIRESLACE     altgfx=no  frame=no  display=ntsc-hireslace
 "$build" $common outputname=ELITE.WIDE.DBLPAL-HIRES       altgfx=no  frame=no  display=dblpal-hires cpu=68020
+"$build" $common outputname=ELITE.WIDE.DBLNTSC-HIRES      altgfx=no  frame=no  display=dblntsc-hires cpu=68020
 "$build" $common outputname=ELITE_ALT                     altgfx=yes frame=yes display=pal
 "$build" $common outputname=ELITE_ALT.WIDE.PAL            altgfx=yes frame=no  display=pal
 "$build" $common outputname=ELITE_ALT.WIDE.NTSC           altgfx=yes frame=no  display=ntsc
@@ -33,3 +34,4 @@ common="$common frametime=no $test $*"  # extra options apply to every image, wh
 "$build" $common outputname=ELITE_ALT.WIDE.PAL-HIRESLACE  altgfx=yes frame=no  display=pal-hireslace
 "$build" $common outputname=ELITE_ALT.WIDE.NTSC-HIRESLACE altgfx=yes frame=no  display=ntsc-hireslace
 "$build" $common outputname=ELITE_ALT.WIDE.DBLPAL-HIRES   altgfx=yes frame=no  display=dblpal-hires cpu=68020
+"$build" $common outputname=ELITE_ALT.WIDE.DBLNTSC-HIRES  altgfx=yes frame=no  display=dblntsc-hires cpu=68020
