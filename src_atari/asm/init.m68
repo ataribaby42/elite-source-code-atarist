@@ -805,7 +805,7 @@ reset_table:
 	dc.w police_hunt
 	dc.w count_down,computer_on,jump_trigger,just_docked,docked,laser_pending
 	dc.w missile_state,laser_temp,roll_angle,climb_angle,launch_spin
-	dc.w checkpoint,radar_obj,check_key,retro_count,torus_ctr,-1
+	dc.w checkpoint,radar_obj,check_key,retro_count,torus_ctr,nav_star,-1
 
 * Default game data (1st set is cheat data).
 
@@ -822,8 +822,8 @@ reset_table:
 	dc.l 100000 ; cash
 	endc
 	dc.w 0 ; fluctuation
-	dc.w 70 ; fuel
-	dc.w 3 ; missiles
+	dc.w 60 ; full Adder fuel tank (6.0 LY)
+	dc.w 1 ; missile: Adder capacity
 	dc.w 0 ; extra cargo bay
 	dc.w 0 ; ECM system
 	dc.w $8001 ; pulse lasers (front)
@@ -874,8 +874,8 @@ reset_table:
 	dc.l 1000 ; cash: 100 Cr, stored in tenths
 	endc
 	dc.w 0 ; fluctuation
-	dc.w 70 ; fuel
-	dc.w 3 ; missiles
+	dc.w 60 ; full Adder fuel tank (6.0 LY)
+	dc.w 1 ; missile: Adder capacity
 	dc.w 0 ; extra cargo bay
 	dc.w 0 ; ECM system
 	dc.w $8001 ; pulse lasers (front)
@@ -914,9 +914,9 @@ reset_table:
 	endc
 
 	dc.l $52494431 ; RID1 registration extension (normal and max commander)
-	dc.b "JS",42,0 ; default Cobra registration JS-042
+	dc.b "JS",42,0 ; default Jameson registration JS-042
 	dc.l $53485031 ; SHP1 player hull extension
-	dc.w 0 ; Cobra Mk III
+	dc.w 1 ; Adder
 
 	ds.b 256-(*-new_game) ; pad out to 256 bytes
 

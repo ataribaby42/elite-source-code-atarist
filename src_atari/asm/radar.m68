@@ -25,7 +25,7 @@
 
 	xref sqrt,magnitude_table,draw_sprite,check_cockpit,remove_sprite
 	xref colour_masks,dot_to_addr,save1_buffer,save2_buffer,max1,max2
-	xref find_bitmap
+	xref find_bitmap,check_inflight,disp_message
 
 * ---- LOCAL CONSTANTS ----
 
@@ -137,8 +137,8 @@ q_radar_m68_4:
 * ************************************
 
 * Updates the position of the blip on the small circular radar. This radar
-* tracks the position of either the planet or space station. This position of
-* the blip within the circle is based upon the angles between the player and
+* tracks the planet/station or the star, selected by the transient NavLock mode.
+* The position of the blip within the circle is based on the angles between the player and
 * the object in question. When the object is behind the player, the blip is
 * blue else it's green.
 
@@ -152,8 +152,12 @@ q_radar_m68_4:
 
 	tst witch_space(a6) ; in witch space ?
 	q_ret ne ; yes, return
-	move this_obj(a6),d0 ; tracking this object ?
-	cmp radar_obj(a6),d0
+	move radar_obj(a6),d0 ; normal planet/station selection also tracks station space
+	tst.w nav_star(a6)
+	beq.s .nav_target
+	moveq #2,d0 ; star is always object #2; leave station-space state untouched
+.nav_target:
+	cmp.w this_obj(a6),d0 ; tracking this object ?
 	q_ret ne ; no, return
 	jsr check_cockpit ; check cockpit is displayed
 	move.l zpos(a5),d0 ; calculate y offset
@@ -200,6 +204,24 @@ q_radar_m68_11:
 	jsr find_bitmap ; find blob bitmap
 	move.l a0,data_ptr(a4)
 	jmp draw_sprite ; draw sprite and exit
+
+
+; N changes only the compass target; docking, policing and the S lamp still
+; use RADAR_OBJ. System resets and commander restores clear NAV_STAR.
+	q_subr nav_toggle,global
+
+	jsr check_inflight
+	eori.w #1,nav_star(a6)
+	lea nav_planet_message(pc),a0
+	tst.w nav_star(a6)
+	beq.s .message
+	lea nav_star_message(pc),a0
+.message:
+	jmp disp_message
+
+nav_star_message: dc.b 'NavLock Star',0
+nav_planet_message: dc.b 'NavLock Planet/Station',0
+	q_even
 
 
 * *************************************************

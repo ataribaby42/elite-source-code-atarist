@@ -25,7 +25,7 @@
 	xref jammer_toggle,magnification,text_blatt,disp_message,hide_cursor
 	xref restore_cursor,cancel_angles,hacker,start_galactic,fire_retros
 	xref check_inflight,str_copy,str_cat,build_number,text_colour,str_len
-	xref poll_jettison
+	xref poll_jettison,nav_toggle
 
 * Mouse movement threshold limits.
 
@@ -81,6 +81,7 @@ key_id: equ 'I' ; Id of object
 key_cloaking: equ 'Y' ; Cloaking device on/off
 key_jammer: equ 'L' ; ECM jammer
 key_mag: equ 'Z' ; toggle radar magnification
+key_nav: equ 'N' ; toggle planet/station or star navigation
 
 key_hacker: equ '*' ; game state hacker
 
@@ -778,6 +779,7 @@ key_list:
 	key cloaking,cloaking_toggle ; Cloaking device on/off
 	key jammer,jammer_toggle ; ECM jammer on/off
 	key mag,magnification ; change radar magnification
+	key nav,nav_toggle ; change compass target in flight
 	key pause,pause ; pause game
 	key hacker,hacker ; saved game state hacker
 	key torus,torus ; engage jump drive

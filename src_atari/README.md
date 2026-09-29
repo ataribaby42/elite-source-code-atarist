@@ -113,6 +113,12 @@ Edit files in `src_atari/asm`. `boot.s` and `workspace.m68` are new sources for 
 
 `commander=max` gives the default Jameson commander **1,000,000 Cr** and the **Deadly** rating when starting or resetting a game. His score starts at the Deadly threshold (`$A0000`). `commander=default` keeps the original **100 Cr**, **Harmless** rating and zero score, and is the Python build default. Saved commanders retain their saved balances, scores and ratings.
 
+New games and **Default Jameson** start in an **Adder**, docked at Lave in
+galaxy 1. The ship starts with a full 6.0 LY fuel tank, one missile, the front
+pulse laser and registration JS-042. Other starting data is unchanged.
+Loading a saved commander retains its saved hull; legacy saves without a hull
+extension still use the Cobra Mk III.
+
 `laser=dualbeam` is the default player laser style: two filled beams from the bottom left and right converge on the jittering crosshair tip. `laser=singlebeam` selects one narrow filled beam from the bottom centre. Both styles use the existing palette: Pulse is red, Beam orange, Military white, and Mining the same magenta as the instrument bars. They keep the same cosmetic jitter, fixed-axis targeting, damage and timing. These style options do not affect AI beams or their distance-dependent random miss chance.
 
 ```powershell
@@ -161,6 +167,13 @@ The ship parade, animated ELITE lettering, launch, docking, death and both hyper
 `A`, left `Shift` and right `Shift` fire the player laser on Atari ST, with either mouse or joystick selected. Holding multiple fire keys does not increase the firing rate, and releasing one continues firing while another remains held. The Shift keys provide additional bindings to try with two simultaneous steering keys on the original keyboard.
 
 Alternate retains its original hyperspace shortcut and does not fire the laser.
+
+`N` toggles the in-flight compass between automatic planet/station guidance and
+the star, displaying `NavLock Planet/Station` or `NavLock Star`. Planet/station
+is the default after every station launch, hyperspace or galactic jump, new game,
+and commander load. The mode is not saved. Station-zone detection and the `S`
+indicator keep their normal behaviour in both modes. During a Jettison
+confirmation, `N` still cancels the request without changing the compass.
 
 ## Jettison cargo
 

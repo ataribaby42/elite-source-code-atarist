@@ -137,6 +137,12 @@ Run from the project root:
 
 `commander=max` gives the default Jameson commander **1,000,000 Cr** and the **Deadly** rating when starting or resetting a game. His score starts at the Deadly threshold (`$A0000`). `commander=default` keeps the original **100 Cr**, **Harmless** rating and zero score, and is the Python build default. Saved commanders retain their saved balances, scores and ratings.
 
+New games and **Default Jameson** start in an **Adder**, docked at Lave in
+galaxy 1. The ship starts with a full 6.0 LY fuel tank, one missile, the front
+pulse laser and registration JS-042. Other starting data is unchanged.
+Loading a saved commander retains its saved hull; legacy saves without a hull
+extension still use the Cobra Mk III.
+
 `laser=dualbeam` is the default player laser style: two filled beams from the bottom left and right converge on the jittering crosshair tip. `laser=singlebeam` selects one narrow filled beam from the bottom centre. Both styles use the existing palette: Pulse is red, Beam orange, Military white, and Mining the same magenta as the instrument bars. They keep the same cosmetic jitter, fixed-axis targeting, damage and timing. These style options do not affect AI beams or their distance-dependent random miss chance.
 
 ```powershell
@@ -205,6 +211,13 @@ The build reads `resources/amiga/Elite 2.0.adf` without modifying it. Its checks
 | `src_amiga/build/` | Objects, generated sound tables, logs, link map and verification report |
 
 Target: **PAL OCS, MC68000, Kickstart 1.3, 512 KB Chip RAM plus 512 KB expansion RAM**. The two screens take `2*scr_bytes` of Chip RAM: 80 KB on PAL, 62.5 KB on NTSC. Boot the ADF in DF0:, or copy every file from `output_amiga/ELITE` into one writable directory, change to that directory in AmigaDOS and run `ELITE`. The original novella questions are enabled unless built with `noprotect=yes`. F1 launches, F2-F4 select the other flight views, F5/F6 show the charts, F9 shows status, F10 shows inventory, and minus opens the disk menu while docked. **Ctrl+F10 exits to AmigaDOS.**
+
+`N` toggles the in-flight compass between automatic planet/station guidance and
+the star, displaying `NavLock Planet/Station` or `NavLock Star`. Planet/station
+is the default after every station launch, hyperspace or galactic jump, new game,
+and commander load. The mode is not saved. Station-zone detection and the `S`
+indicator keep their normal behaviour in both modes. During a Jettison
+confirmation, `N` still cancels the request without changing the compass.
 
 When launched from a floppy, commander loading, saving and the catalog use the root of that physical drive (DF0: through DF3:). After the title animation starts, the game disk can be replaced with a commander disk in the same drive, including when answering Y to "Load new commander?". HDD launches keep commander files in the current directory. File errors return to the game instead of opening an AmigaDOS requester behind its custom display; the original requester setting is restored on exit.
 

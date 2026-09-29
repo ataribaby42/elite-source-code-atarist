@@ -68,6 +68,8 @@ redraw: rs.w 1 ; flag: redraw the screen
 
 	q_subr restore_state,global
 
+	clr.w nav_star(a6) ; loading or restoring a commander starts in planet/station mode
+
 	lea var_list(pc),a0 ; start of variable list
 	lea game_state(a6),a1 ; start of game_state arrary
 q_disk_m68_1:
@@ -138,6 +140,8 @@ q_disk_m68_4:
 ; Subr:  ?
 
 	q_subr default_game,global
+
+	clr.w nav_star(a6) ; new game, including restart from the title screen
 
 	lea new_game,a0 ; copy array
 	lea game_state(a6),a1

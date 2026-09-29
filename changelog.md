@@ -6,6 +6,8 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.xx
 
+- Added in-flight compass switching with N between planet/station and star guidance, with NavLock: Planet/Station and NavLock: Star messages. Compass mode resets to Planet/Station after station launch, hyperspace or galactic jumps, starting a new game, and loading a commander.
+- New games and Default Jameson now start in an Adder at Lave, with 100 Cr, Harmless rating, a front pulse laser, 6.0 LY of fuel and one missile.
 - Atari ST/Amiga: Increased missile damage against AI ships from 40 to 60. Incoming missiles retain their 48-point base damage against the player.
 - Atari ST/Amiga: Cougar now follows normal collision rules. Destroying it by ramming ends its mission without bounty or a Cloaking Device canister. Laser and successful missile kills retain the reward drop.
 - Death animation now spawns one cargo canister per started tonne, including kg/g cargo, capped at four; empty holds spawn none (Atari/Amiga).
