@@ -1109,8 +1109,6 @@ q_flight_m68_130:
 	move type(a5),d0 ; missile ?
 	cmp #missile,d0
 	q_ret eq ; yes, return
-	cmp #cougar,d0 ; cougar ?
-	q_ret eq ; yes, return
 	cmp #platlet,d0 ; platlet ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_flight_m68_143
@@ -1175,6 +1173,7 @@ q_flight_m68_147:
 	st collided(a6)
 	jsr explode_object
 	jsr target_lost
+	; Ramming releases no cargo, including the Cougar's cloaking device.
 	move.w (sp)+,d0
 	jmp reduce_shields
 .fatal_collision:

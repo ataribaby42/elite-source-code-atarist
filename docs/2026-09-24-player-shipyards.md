@@ -94,8 +94,10 @@ Cobra recharge intervals remain 24 / 15 / 9 ticks for no unit / extra unit / nav
 unit; Fer-de-Lance uses 15 / 9 / 7. Laser power is independent of hull. Retro rocket
 pricing has no C64 equivalent and retains 8000 Cr in every equipment category.
 
-Player and AI missiles striking AI targets inflict 40 health damage. A standard
-Cobra with 72 health survives the first hit. Stations and invincible objects
+Player and AI missiles striking AI targets inflict 60 health damage. A standard
+Cobra with 72 health survives the first hit with 12 health. Direct missile hits
+on the player retain their 48-point base damage before hull resistance.
+Stations and invincible objects
 remain immune. Surviving ships react to the hit; player hits provoke defenders.
 Destruction still goes through the existing bounty, mission and cargo logic.
 
@@ -106,6 +108,13 @@ larger adds 4; one class smaller halves damage; two or more smaller quarters it.
 The hull's shielding then scales that result. The colliding ship is destroyed
 without a bounty, preventing repeated contacts with the same hull. The existing
 Constrictor ram protection and station docking checks remain in place.
+
+The Cougar follows the normal collision rules. Ramming destroys it without a
+bounty or cargo drop, so the player forfeits its Cloaking Device canister. Its
+removal ends the mission even without collecting the reward. Laser and missile
+kills retain the existing special canister drop. A fully charged Cobra Mk III
+ramming a healthy Cougar takes 40 damage: the struck shield falls from 24 to 0
+and energy falls from 96 to 80.
 
 Speed, fuel, roll and pitch indicators use the current hull's limits. Autopilot,
 fuel purchases, scooping, mission refills and manual controls use the same limits.

@@ -360,7 +360,7 @@
 	beq.s .done
 	btst #invincible,flags(a4)
 	bne.s .done
-	sub.w #40,health(a4)
+	sub.w #60,health(a4)
 	bcs.s .kill
 	tst.w health(a4)
 	bne.s .done
