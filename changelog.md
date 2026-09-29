@@ -12,6 +12,11 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 - Amiga: the local chart's range circle is solid in hires and interlace
 - Fixed Amiga planet inhabitant colours by correctly converting Atari ST palette values to native Amiga RGB.
 - Fixed Atari and Amiga death animations to use the same player ship colour variants as Shipyards and UI portraits.
+- Clearer memory message, in some cases: on a 1 MB machine short of Chip RAM, the game now says so instead of failing to load.
+- Faster copies and clears: fixed-length copy and clear loops move four bytes at a time instead of one or two, and large clears avoid clr, which is slow up to the 68030.
+- Steadier 68020 speed: the busiest drawing code sits where a 68020 reads it fastest.
+- Unused MOVE16 code removed: nothing called it any more, and on a 68040 or 68060 it clears Fast RAM slower than plain moves.
+- Less repeated code: pieces written out several times are now shared.
 
 ## xx.xx.2029 V1.81 Planet tech preview
 
