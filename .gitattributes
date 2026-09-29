@@ -4,7 +4,7 @@
 *.py text eol=lf
 *.sh text eol=lf
 *.json text eol=lf
-*.m68 text eol=lf
+*.m68 text eol=lf linguist-language=Assembly
 *.s text eol=lf
 *.def text eol=lf
 *.inc text eol=lf
