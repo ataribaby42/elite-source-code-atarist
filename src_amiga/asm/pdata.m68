@@ -24,7 +24,7 @@
 	xref print_string,wait,clear_input,print_number,text_colour,locate
 	xref print_table,funny_str,texture,draw_screen,set_colour,plotxy
 	xref launch,disk,find_planet,home_cursor,market_prices
-	xref inventory,ui_line,getrandx,dot_to_addr,monst,bit_masks,wait_key
+	xref inventory,ui_line,getrandx,dot_to_addr,monst,wait_key
 	xref find_bitmap,put_bitmap,find_table,str_len,build_number,options
 
 * ---- LOCAL CONSTANTS ----
@@ -289,12 +289,7 @@ q_pdata_m68_5:
 	moveq #2,d3
 .copy_inhab_colours:
 	move.w (a2)+,d0 ; table uses ST RGB, runtime palette uses native OCS RGB
-	and.w #$0777,d0
-	move.w d0,d2
-	add.w d0,d0
-	lsr.w #2,d2
-	and.w #$0111,d2
-	or.w d2,d0 ; expand each component exactly as SET_PALETTE does
+	q_st_to_ocs d0,d2
 	move.w (a0)+,d1
 	move.w d0,(a1,d1.w)
 	dbra d3,.copy_inhab_colours
@@ -377,12 +372,7 @@ q_pdata_m68_6:
     moveq #red,d7
 .copy_palette:
     move.w (a0)+,d0
-    and.w #$0777,d0
-    move.w d0,d1
-    add.w d0,d0
-    lsr.w #2,d1
-    and.w #$0111,d1
-    or.w d1,d0 ; match SET_PALETTE: ST components to native OCS RGB
+    q_st_to_ocs d0,d1
     btst d7,d6
     beq.s .keep_shade
     move.w d0,(a1)
@@ -449,10 +439,7 @@ ip_size: equ 72
     clr.w ip_counts+4(sp)
     lea palette,a0
     lea ip_palette(sp),a1
-    moveq #15,d7
-.copy:
-    move.w (a0)+,(a1)+
-    dbra d7,.copy
+    q_copy_longs a0,a1,16*2,d7
     lea ip_counts(sp),a2
     lea inhabitant_bit_counts(pc),a3
     move.l scr_base(a6),a0

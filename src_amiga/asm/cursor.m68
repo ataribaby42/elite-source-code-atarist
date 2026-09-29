@@ -12,6 +12,7 @@ cursor_shift_bytes equ cursor_rows*cursor_row_bytes
 cursor_type_bytes equ 16*cursor_shift_bytes
 
     section text,code
+    cnop 0,4
 init_cursor_cache:
     movem.l d0-d7/a0-a3,-(sp)
     clr.w cursor_cache_ready

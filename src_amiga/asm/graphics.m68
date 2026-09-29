@@ -128,6 +128,7 @@ q_graphics_m68_6\@:
 * Regs:  D1 and A0 corrupt.
 * Subr:  None
 
+	cnop 0,4
 	q_subr dot_to_addr,global
 
     move.w d0,-(sp)
@@ -160,7 +161,7 @@ q_graphics_m68_6\@:
     ifne shadow_ok
     tst.w in_shadow
     beq.s .based
-    move.l view_base,a0
+    move.l shadow_base,a0
 .based:
     endc
     adda.l d1,a0
@@ -183,6 +184,7 @@ q_graphics_m68_6\@:
 * Regs:  ?
 * Subr:  ?
 
+	cnop 0,4
 	q_subr clear_image,global
 
 .wait:
@@ -217,7 +219,7 @@ q_graphics_m68_6\@:
 .screen_clear:
     endc
     move.l scr_base(a6),a0
-    lea y_top*row_stride+x_left/8(a0),a0
+    lea view_offset(a0),a0
     ifne blit_ok
     tst.b clear_blit ; a 68000, so the blitter fills while the CPU moves on
     beq.s .no_blit
@@ -398,17 +400,11 @@ frame_text_y: equ 0 ; the top row of the screen
 	endc
 .no_blocks:
 	endc
-	moveq #art_cols-4,d0 ; the flags sit at the right edge, clear of the view name
+	moveq #art_cols-3,d0 ; the flags sit at the right edge, clear of the view name
 	moveq #frame_text_y,d1
 	jsr locate
 	move cpu_level,d0
 	add #'0',d0
-	jsr print_char
-	moveq #'.',d0
-	tst.b clear_burst
-	beq.s .no_burst
-	moveq #'M',d0 ; the MOVE16 clear
-.no_burst:
 	jsr print_char
 	moveq #'.',d0
 	tst.b maths_fast
@@ -515,7 +511,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l (sp)+,a6
 	st blitter_owned
 	move.l scr_base(a6),a0
-	lea y_top*row_stride+x_left/8(a0),a0
+	lea view_offset(a0),a0
 	lea $dff000,a1
 	move.w #$0100,$40(a1) ; BLTCON0: D only, minterm zero
 	clr.w $42(a1) ; BLTCON1: ascending, no fill
@@ -531,6 +527,7 @@ frame_text_y: equ 0 ; the top row of the screen
 	q_ret
 
 
+	cnop 0,4
 	q_subr swap_screen,global
 
 	ifne frametime
@@ -544,9 +541,7 @@ frame_text_y: equ 0 ; the top row of the screen
 .untimed:
 	movem.l (sp)+,d0-d1
 	endc
-	ifne blit_ok
-	jsr wait_clear ; nothing is presented while the blitter is still filling it
-	endc
+	q_wait_clear ; nothing is presented while the blitter is still filling it
 	ifne frametime
 	movem.l d0-d7/a0-a6,-(sp) ; the held reading, before the copy carries it out
 	bsr show_frame_time
@@ -739,9 +734,6 @@ frame_text_y: equ 0 ; the top row of the screen
 	move.l shadow_base,d0 ; what was drawn is what the buffer now shows
 	move.l (a5),shadow_base ; and the emptied mirror it replaces is drawn into next
 	move.l d0,(a5)
-	move.l shadow_base,d0
-	sub.l #y_top*row_stride,d0
-	move.l d0,view_base
 	movem.l (sp)+,d0-d7/a0-a5
 	bra.s .shadow_done
 .no_shadow: ; a frame drawn straight to Chip RAM: neither mirror knows its buffer
@@ -987,6 +979,7 @@ q_graphics_m68_33:
 * Regs: ?
 * Subr: ?
 
+	cnop 0,4
 	q_subr c_plotxy,global
 
 	ifne display_hires+display_tall
@@ -1247,6 +1240,7 @@ q_graphics_m68_47:
 * Regs:  ?
 * Subr:  ?
 
+	cnop 0,4
 	q_subr circle_horiz
 
 	movem d5-d6,-(sp) ; save circle parameters
@@ -1318,17 +1312,11 @@ circle_horiz_done:
 
 	q_subr block,global
 
-	ifne blit_ok
-	jsr wait_clear
-	endc
-	ifne display_hires
-	add.w d0,d0 ; logical units to physical pixels
-	add.w d3,d3
-	endc
-	ifne display_tall
-	add.w d1,d1
-	add.w d4,d4
-	endc
+	q_wait_clear
+	q_display_x d0 ; logical units to physical pixels
+	q_display_x d3
+	q_display_y d1
+	q_display_y d4
 	bsr dot_to_addr ; calculate screen address
 	movem.l d0/d3/d4/a0,-(sp) ; save parameters
 	q_dec d4 ; adjust depth for DBRA
@@ -1398,7 +1386,7 @@ q_graphics_m68_63:
 	beq.s .flip     ; goes to the other one at the same offset, not to a flip
 	move.l d1,-(sp)
 	move.l a0,d1
-	sub.l view_base,d1
+	sub.l shadow_base,d1
 	move.l scr_base(a6),d0
 	jsr amiga_flip_address
 	add.l d1,d0
@@ -1775,6 +1763,7 @@ q_graphics_m68_81:
 	rts
 	endc
 
+	cnop 0,4
 	q_subr plotxy,global
 
     bsr dot_to_addr
@@ -1806,14 +1795,10 @@ q_graphics_m68_81:
 
 	q_subr ui_line,global
 
-	ifne display_hires
-	add.w d0,d0 ; logical units to physical pixels
-	add.w d2,d2
-	endc
-	ifne display_tall
-	add.w d1,d1
-	add.w d3,d3
-	endc
+	q_display_x d0 ; logical units to physical pixels
+	q_display_x d2
+	q_display_y d1
+	q_display_y d3
 	bra line
 
 	q_subr line,global
@@ -1971,6 +1956,7 @@ q_graphics_m68_92:
 * Regs: D0-D6, A0 and A2 corrupt.
 * Subr: DOT_TO_ADDR, MASK_PLOT
 
+	cnop 0,4
 	q_subr horiz_line,global
 
 	sub d0,d2 ; calculate width in pixels
@@ -2115,6 +2101,7 @@ vert_word macro
 * Regs: D0,D5 and A0 corrupt.
 * Subr: ?
 
+	cnop 0,4
 	q_subr mask_plot
 
     native_mask_plot d0,d1,d3,d4,d6,a0,d5
@@ -2174,10 +2161,8 @@ q_graphics_m68_122:
 
 	q_subr blank_screen,global
 
-	lea palette,a0 ; point to start of palette
-	q_loop 1,16 ; set all inks to black
-	clr (a0)+
-	q_next 1
+	lea palette,a0 ; set all inks to black
+	q_clear_longs a0,16*2,d7,d6
 
 	q_ret
 
@@ -2197,6 +2182,7 @@ q_graphics_m68_122:
 * Regs: ?
 * Subr: HORIZ_LINE
 
+	cnop 0,4
 	q_subr solid_polygon,global
 
 	move poly_min_y(a6),d0 ; convert y limits to physical screen
@@ -2386,7 +2372,7 @@ q_graphics_m68_153:
 	blo.s q_solid_screen
 	cmp.w #y_top+y_size,d7
 	bhs.s q_solid_screen
-	add.l view_base,d0
+	add.l shadow_base,d0
 	bra.s q_solid_based
 q_solid_screen:
 	endc
@@ -2950,12 +2936,6 @@ expand_v set expand_v+1
 * **** LOCAL DATA ****
 
 * Bit masks for pixel plotting.
-
-	ifne shadow_ok
-; What each Chip buffer is holding, row by row: a byte saying whether the sums
-; that follow describe it, the sum of the whole row, then one for each block of
-; it. A zero sum means a zero row, which is how the buffers start.
-	endc
 
 	q_global bit_masks
 

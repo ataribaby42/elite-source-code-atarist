@@ -49,20 +49,6 @@ redraw: rs.w 1 ; flag: redraw the screen
 
 	q_end_vars disk
 
-; ---- LOCAL MACROS ----
-
-; draw_line x1,y1,x2,y2 - draw line between coords
-
-draw_line macro
-
-	move \1(a6),d0
-	move \2(a6),d1
-	move \3(a6),d2
-	move \4(a6),d3
-	jsr ui_line
-
-	endm
-
 	q_module disk
 
 
@@ -155,9 +141,7 @@ q_disk_m68_4:
 
 	lea new_game,a0 ; copy array
 	lea game_state(a6),a1
-	q_loop 1,128
-	move (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,256,d7
 	lea jameson,a0 ; set default name and exit
 	lea player_name(a6),a1
 	jmp str_copy
@@ -449,9 +433,7 @@ q_disk_m68_11:
 	jsr print_string
 	lea game_state(a6),a0 ; copy game state into io_buffer
 	lea io_buffer(a6),a1
-	q_loop 1,256
-	move.b (a0)+,(a1)+
-	q_next 1
+	q_copy_longs a0,a1,256,d7
 	bsr scramble ; scramble the buffer
 	movem.l d1-d3/a0,-(sp)
 	lea input(a6),a0
@@ -865,13 +847,8 @@ q_disk_m68_38:
 	lea icon_coords(pc),a0
 	lea (a0,d0),a0
 	lea xc1(a6),a1 ; copy into xc1,yc1,xc2,yc2
-	q_loop 1,4
-	move (a0)+,(a1)+
-	q_next 1
-	draw_line xc1,yc1,xc2,yc1 ; top edge
-	draw_line xc2,yc1,xc2,yc2 ; right edge
-	draw_line xc2,yc2,xc1,yc2 ; bottom edge
-	draw_line xc1,yc2,xc1,yc1 ; left edge
+	q_copy_longs a0,a1,4*2,d7
+	q_ui_box xc1,yc1,xc2,yc2
 	jmp restore_cursor
 
 

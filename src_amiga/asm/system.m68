@@ -4,9 +4,6 @@ amiga_implementation: equ 1
     include "common.def"
     include "macros.m68"
     xref elite,vars,vblank,key_change,quiet
-    ifeq beam_prog
-    xref amiga_primary,other_screen
-    endc
     xdef amiga_primary_at,other_screen_at
     xdef amiga_entry,amiga_exit,amiga_install,amiga_present,amiga_poll
     xdef amiga_start_display,amiga_wait_title,amiga_rows_full,amiga_rows_art
@@ -14,7 +11,7 @@ amiga_implementation: equ 1
     xdef bitmap_bank,bitmap_bytes
     xref active_files,directory_lock,file_init,file_shutdown
     xdef amiga_flip_address
-    xdef cpu_level,clear_burst,maths_fast
+    xdef cpu_level,maths_fast
     ifne blit_ok
     xdef clear_blit,clear_pending,clear_early,wait_clear
     xdef graphics_base,blitter_owned
@@ -23,7 +20,7 @@ amiga_implementation: equ 1
     xref raster_line
     endc
     ifne shadow_ok
-    xdef shadow_base,view_base,shadow_live,in_shadow,mirror_ptr
+    xdef shadow_base,shadow_live,in_shadow,mirror_ptr
     xdef mirror_valid,mirror_full,mirror_blank,forget_mirror
     endc
     ifeq cpu_68020
@@ -31,6 +28,7 @@ amiga_implementation: equ 1
     xref sky_multiply,sky_multiply_020
     endc
     section text,code
+    cnop 0,4
 amiga_entry:
     movem.l d2-d7/a2-a6,-(sp)
     move.l sp,host_stack
@@ -74,23 +72,23 @@ amiga_entry:
     bne startup_failed
     move.l exec_base,a6
     endc
-    ifeq beam_prog
-    move.l #amiga_primary,amiga_primary_at ; the screens came with the program
-    move.l #other_screen,other_screen_at
-    endc
-    ifne beam_prog
-; after the check, so 512 KB of Chip RAM still loads the program
+; both screens, after the machine check
+    lea amiga_primary_at,a2
+    moveq #1,d7
+.screen:
     move.l #scr_bytes,d0
     move.l #$10002,d1            ; MEMF_CLEAR|MEMF_CHIP
     jsr -198(a6)                 ; AllocMem
-    move.l d0,amiga_primary_at
-    beq startup_failed
-    move.l #scr_bytes,d0
-    move.l #$10002,d1
-    jsr -198(a6)
-    move.l d0,other_screen_at
-    beq startup_failed
-    endc
+    move.l d0,(a2)+
+    beq.s .no_chip
+    dbra d7,.screen
+    bra.s .screens_ready
+.no_chip:
+    lea chip_text(pc),a0
+    moveq #chip_end-chip_text,d0
+    bsr say_and_stop
+    bra startup_failed
+.screens_ready:
     move.l workbench_message,d0
     beq .directory_ready
     move.l d0,a0
@@ -122,9 +120,6 @@ amiga_entry:
     move.l d0,shadow_block
     beq.s .no_shadow
     move.l d0,shadow_base       ; drawn into first
-    move.l d0,d1
-    sub.l #y_top*row_stride,d1  ; the drawing maths adds the row back
-    move.l d1,view_base
     add.l #view_bytes,d0
     move.l d0,mirror_ptr        ; what the first buffer shows
     add.l #view_bytes,d0
@@ -235,26 +230,21 @@ startup_failed:
     jsr -210(a6)                 ; FreeMem
     clr.l shadow_block
     clr.l shadow_base
-    clr.l view_base
     clr.l mirror_blank
 .no_shadow_free:
     endc
-    ifne beam_prog
-    move.l amiga_primary_at,d0
-    beq.s .no_primary
+    lea amiga_primary_at,a2
+    moveq #1,d7
+.free_screen:
+    move.l (a2),d0
+    beq.s .screen_freed
+    clr.l (a2)
     move.l d0,a1
     move.l #scr_bytes,d0
     jsr -210(a6)                 ; FreeMem
-    clr.l amiga_primary_at
-.no_primary:
-    move.l other_screen_at,d0
-    beq.s .no_other
-    move.l d0,a1
-    move.l #scr_bytes,d0
-    jsr -210(a6)
-    clr.l other_screen_at
-.no_other:
-    endc
+.screen_freed:
+    addq.l #4,a2
+    dbra d7,.free_screen
     move.l bitmap_bank,d0
     beq .no_bitmaps
     move.l d0,a1
@@ -432,7 +422,16 @@ machine_check:
     moveq #0,d0
     rts
 .unfit:
-    movem.l d2-d5/a6,-(sp)
+    lea unfit_text(pc),a0
+    moveq #unfit_end-unfit_text,d0
+    endc
+; A0 = text, D0 = its length: say it in the shell, or in a window when started
+; from Workbench. Out: Z clear
+say_and_stop:
+    movem.l d2-d5/a2/a6,-(sp)
+    move.l a0,a2
+    moveq #0,d3
+    move.w d0,d3
     move.l dos_base,a6
     moveq #0,d5                  ; our own window, to close again
     jsr -60(a6)                  ; Output: none from Workbench
@@ -446,8 +445,7 @@ machine_check:
     move.l d0,d5
 .write:
     move.l d4,d1
-    move.l #unfit_text,d2
-    moveq #unfit_end-unfit_text,d3
+    move.l a2,d2
     jsr -48(a6)                  ; Write
     tst.l d5
     beq.s .done
@@ -456,13 +454,11 @@ machine_check:
     move.l d5,d1
     jsr -36(a6)                  ; Close
 .done:
-    movem.l (sp)+,d2-d5/a6
+    movem.l (sp)+,d2-d5/a2/a6
     moveq #1,d0
     rts
-    endc
 
-; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060. The first is
-; what MOVE16 needs; CLEAR_IMAGE checks the screen's alignment itself.
+; AttnFlags bit 3 is set from the 68040 up, bit 7 from the 68060.
 probe_cpu:
     moveq #0,d0
     move.w 296(a6),d0            ; ExecBase.AttnFlags
@@ -486,13 +482,6 @@ probe_cpu:
     bne.s .blit_done
     st clear_blit
 .blit_done:
-    endc
-    clr.b clear_burst
-    ifne clear_burst_ok
-    cmp.w #4,d1
-    blo.s .burst_done
-    st clear_burst
-.burst_done:
     endc
     st maths_fast
     ifeq cpu_68020
@@ -768,12 +757,7 @@ set_palette:
     moveq #15,d1
 .copy:
     move.w (a0)+,d0
-    and.w #$0777,d0
-    move.w d0,d2
-    add.w d0,d0
-    lsr.w #2,d2
-    and.w #$0111,d2             ; replicate each component's top bit, 3 to 4
-    or.w d2,d0
+    q_st_to_ocs d0,d2
     move.w d0,(a1)+
     dbra d1,.copy
     movem.l (sp)+,d0-d2/a0-a1
@@ -789,8 +773,10 @@ graphics_name: dc.b 'graphics.library',0
 input_name: dc.b 'input.device',0
 empty_name: dc.b 0
 instance_name: dc.b 'Elite.Native.Amiga',0
-    ifne cpu_68020+beam_prog
 unfit_window: dc.b 'CON:0/11/560/40/Elite',0
+chip_text: dc.b 'This Elite needs more Chip RAM.',10
+chip_end:
+    ifne cpu_68020+beam_prog
     ifne beam_prog
 unfit_text: dc.b 'This Elite needs AGA and a 68020 or better.',10
     else
@@ -849,7 +835,7 @@ copper_diwhigh:
     dc.w diwhigh_art
     endc
     dc.w $092,ddfstrt,$094,ddfstop
-    dc.w $102,bplcon1_on,$104,0,$108,row_stride*(1+display_lace)-bpr,$10a,row_stride*(1+display_lace)-bpr
+    dc.w $102,bplcon1_on,$104,0,$108,bpl_mod,$10a,bpl_mod
     dc.w copper_wait,$fffe      ; only the pointers wait for the VBL server
 copper_planes:
     dc.w $0e0,0,$0e2,0,$0e4,0,$0e6,0,$0e8,0,$0ea,0,$0ec,0,$0ee,0
@@ -886,20 +872,18 @@ input_added: ds.w 1
 vblank_added: ds.w 1
 mouse_right: ds.w 1
 cpu_level: ds.w 1
-clear_burst: ds.b 1
 maths_fast: ds.b 1
     ifne blit_ok
 clear_blit: ds.b 1
 clear_pending: ds.b 1
 clear_early: ds.b 1
     endc
-    even
+    cnop 0,4
     ifne shadow_ok
 shadow_block: ds.l 1 ; the allocation, whichever way its viewports have turned
 shadow_base: ds.l 1
 mirror_ptr: ds.l 2 ; per buffer: the viewport holding what it shows
 mirror_blank: ds.l 1 ; per buffer and row: its viewport shows that row empty
-view_base: ds.l 1
 shadow_live: ds.w 1
 mirror_valid: ds.b 2 ; per buffer: its mirror is what it holds
 mirror_full: ds.b 1 ; this transfer sends every block

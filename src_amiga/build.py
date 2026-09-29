@@ -40,6 +40,8 @@ DISPLAYS = {
     'ntsc-hireslace': ({'ntsc': 1, 'hires': 1, 'lace': 1}, 'NTSC hires interlaced, 640 x 400'),
     'dblpal-hires':   ({'hires': 1, 'double': 1},
                        'DblPAL, 640 x 512, AGA super-hires'),
+    'dblntsc-hires':  ({'ntsc': 1, 'hires': 1, 'double': 1},
+                       'DblNTSC, 640 x 400, AGA super-hires'),
 }
 DISPLAYS['hires'] = DISPLAYS['pal-hires']              # PAL spellings
 DISPLAYS['hireslace'] = DISPLAYS['pal-hireslace']
@@ -140,8 +142,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     combined = BUILD/'linked.hunk'
     run([vlink,'-bamigahunk','-r','-o',combined,
          *(BUILD/(n+'.o') for n in modules)],'object-link.log')
-    linkmap = run([vlink,'-bamigahunk','-kick1','-hunkattr','amiga_video=2',
-                   '-hunkattr','amiga_video2=2',
+    linkmap = run([vlink,'-bamigahunk','-kick1',
                    '-hunkattr','amiga_copper=2','-hunkattr','amiga_audio=2',
                    '-e','amiga_entry','-M','-o',executable,
                    combined],'elite.map')
@@ -167,11 +168,6 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
                              ('ship_planet_image', 'ship_planet_end', 904)):
         if symbols[end]-symbols[start] != size:
             raise ValueError('Invalid generated ship image capacity: ' + start)
-    # A programmed-beam mode allocates its screens after checking the machine.
-    if 'amiga_video' in hunks:
-        screen = hunks['amiga_video']['bytes']
-        if screen % 4 or hunks['amiga_video2']['bytes'] != screen:
-            raise ValueError('Expected exactly two equal native Chip RAM screens')
     assemble('objects','bin',game/'OBJECTS.IMG')
     assemble('elitechr','bin',game/'ELITECHR.IMG')
     for name in ASSET_NAMES:

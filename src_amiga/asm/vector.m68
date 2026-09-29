@@ -305,9 +305,7 @@ inserted:
 	ifne frametime
 	jsr begin_rasterising
 	endc
-	ifne blit_ok
-	jsr wait_clear
-	endc
+	q_wait_clear
 
 	tst.l next_record(a6) ; nothing to draw ?
 	q_ret eq ; yes, return
@@ -341,9 +339,7 @@ q_vector_m68_32:
 	ifne frametime
 	jsr begin_rasterising
 	endc
-	ifne blit_ok
-	jsr wait_clear
-	endc
+	q_wait_clear
 
 	jsr draw_sky ; distant white stars behind every other flight layer
 
@@ -423,9 +419,7 @@ q_vector_m68_33:
 	lea node_len(a0),a0
 	q_next 1
 	lea lines_done(a6),a0 ; clear 'lines done' flags
-	q_loop 1,max_lines/2
-	clr (a0)+
-	q_next 1
+	q_clear_longs a0,max_lines,d7,d6
 	move.l surfaces(a5),a4 ; point to 1st surface
 	move.w no_surfaces(a5),d7 ; loop for each surface
 	q_loop 1

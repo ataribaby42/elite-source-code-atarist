@@ -123,9 +123,8 @@ size macro
 	q_global initialise
 
 	lea vars,a6 ; clear storage
-	q_loop 1,var_size
-	clr.b 0(a6,d7)
-	q_next 1
+	move.l a6,a0
+	q_clear_longs a0,var_size,d7,d6
 	q_pop.l a0 ; fetch return address
 	lea stack_top(a6),sp ; switch to program stack
 	q_push.l a0 ; push return address back

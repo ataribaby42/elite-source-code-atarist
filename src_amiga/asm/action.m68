@@ -500,9 +500,7 @@ q_action_m68_48:
 	lea text10(pc),a1
 	jsr str_cat
 	lea buffer(a6),a0 ; clear buffer
-	q_loop 1,scroll_stride*8/4
-	clr.l (a0)+
-	q_next 1
+	q_clear_longs a0,scroll_stride*8,d7,d6
 	lea scroll_text(a6),a0 ; set next character pointer
 	move.l a0,scroll_ptr(a6)
 	clr scroll_pos(a6) ; force new character

@@ -17,6 +17,7 @@
 	include "macros.m68"
 
 	section text,code
+	cnop 0,4
 
 * This table is used in the generation of prices and quantities of tradable
 * items (e.g. food). Each entry in the table consists of four bytes :

@@ -170,11 +170,13 @@ q_sfx macro
 
 	endm
 
-* MODULE - Define module and RTS.
+* MODULE - Define module and RTS. Its code starts on a longword: a 68020
+* fetches one at a time, so where a loop starts decides its speed.
 
 q_module macro
 
 	section text,code
+	cnop 0,4
 
 return: set *
 
@@ -379,6 +381,98 @@ q_action macro
 	ifne \6
 	dc.l s_\7
 	dc.l d_\7
+	endc
+
+	endm
+
+* ST_TO_OCS <reg>,<tmp> - ST colour to OCS: each component's top bit
+* replicated, 3 bits to 4.
+
+q_st_to_ocs macro
+
+	and.w #$0777,\1
+	move.w \1,\2
+	add.w \1,\1
+	lsr.w #2,\2
+	and.w #$0111,\2
+	or.w \2,\1
+
+	endm
+
+* UI_BOX x1,y1,x2,y2 - outline between four coordinate variables of A6,
+* in logical units: top, right, bottom and left edge.
+
+q_ui_box macro
+
+	q_ui_edge \1,\2,\3,\2
+	q_ui_edge \3,\2,\3,\4
+	q_ui_edge \3,\4,\1,\4
+	q_ui_edge \1,\4,\1,\2
+
+	endm
+
+q_ui_edge macro
+
+	move \1(a6),d0
+	move \2(a6),d1
+	move \3(a6),d2
+	move \4(a6),d3
+	jsr ui_line
+
+	endm
+
+* CLEAR_LONGS <areg>,<bytes>,<dreg>,<dzero> - zero <bytes> from <areg>, which
+* advances; <dreg> counts. From 64 bytes <dzero> is saved and holds the zero:
+* clr.l is slower than move.l from a register up to the 68030.
+
+q_clear_longs macro
+
+	ifne ((\2)&1)|((\2)<4)
+	fail "q_clear_longs: an odd length or under a long"
+	endc
+	move.w #(\2)/4-1,\3
+	ifge (\2)-64
+	move.l \4,-(sp)
+	moveq #0,\4
+.q_clear\@:
+	move.l \4,(\1)+
+	dbra \3,.q_clear\@
+	move.l (sp)+,\4
+	else
+.q_clear\@:
+	clr.l (\1)+
+	dbra \3,.q_clear\@
+	endc
+	ifne (\2)&2
+	clr.w (\1)+
+	endc
+
+	endm
+
+* COPY_LONGS <src>,<dst>,<bytes>,<dreg> - copy <bytes> from <src> to <dst>,
+* which both advance; <dreg> counts. A long at a time, then a word.
+
+q_copy_longs macro
+
+	ifne ((\3)&1)|((\3)<4)
+	fail "q_copy_longs: an odd length or under a long"
+	endc
+	move.w #(\3)/4-1,\4
+.q_copy\@:
+	move.l (\1)+,(\2)+
+	dbra \4,.q_copy\@
+	ifne (\3)&2
+	move.w (\1)+,(\2)+
+	endc
+
+	endm
+
+* WAIT_CLEAR - drain a blitter clear before the viewport is written.
+
+q_wait_clear macro
+
+	ifne blit_ok
+	jsr wait_clear
 	endc
 
 	endm
