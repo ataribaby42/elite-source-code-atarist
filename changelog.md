@@ -6,6 +6,8 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.xx
 
+- Atari ST/Amiga: Increased missile damage against AI ships from 40 to 60. Incoming missiles retain their 48-point base damage against the player.
+- Atari ST/Amiga: Cougar now follows normal collision rules. Destroying it by ramming ends its mission without bounty or a Cloaking Device canister. Laser and successful missile kills retain the reward drop.
 - Death animation now spawns one cargo canister per started tonne, including kg/g cargo, capped at four; empty holds spawn none (Atari/Amiga).
 - Fixed Amiga palette conversion engine glow and cursor flashes.
 - Amiga: added DblPAL 640 x 512 mode.
