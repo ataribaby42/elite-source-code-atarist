@@ -38,8 +38,9 @@ def make_suite(root, symbols):
         eq(-1, "cargo_type(a0)")
         eq(0, "equip+cloaking_device(a6)")
 
-    case("Missile damage: 61 health survives with 1, exactly 60 dies")
-    emit(" lea objects(a6),a4\n move.w #cobra,type(a4)\n move.w #61,health(a4)\n" + call("ship_missile_damage"))
+    case("Unshielded Cobra: 61 energy survives with 1, exactly 60 dies")
+    emit(" lea objects(a6),a4\n move.w #cobra,type(a4)\n" + call("create_object"))
+    emit(" move.l a4,a5\n clr.w ai_front(a4)\n clr.w ai_aft(a4)\n move.w #61,health(a4)\n" + call("ship_missile_damage"))
     eq(0, "d0")
     eq(1, "health(a4)")
     emit(" move.w #60,health(a4)\n" + call("ship_missile_damage"))
@@ -47,9 +48,12 @@ def make_suite(root, symbols):
     eq(0, "health(a4)")
 
     case("Cobra AI requires two missiles; station and invincible targets remain immune")
-    emit(" lea objects(a6),a4\n move.w #cobra,type(a4)\n move.w #72,health(a4)\n" + call("ship_missile_damage"))
+    emit(" lea objects(a6),a4\n move.w #cobra,type(a4)\n" + call("create_object"))
+    emit(" move.l a4,a5\n" + call("ship_missile_damage"))
     eq(0, "d0")
-    eq(12, "health(a4)")
+    eq(60, "health(a4)")
+    eq(0, "ai_front(a4)")
+    eq(24, "ai_aft(a4)")
     emit(call("ship_missile_damage"))
     eq(1, "d0")
     for ship in ("spacestn", "dodec"):
@@ -81,6 +85,9 @@ def make_suite(root, symbols):
     case("Laser finishing hit on Cougar still releases the cloaking-device canister")
     emit(""" bsr qa_cougar
  move.w #1,health(a5)
+ move.w #$ffff,ai_energy_fraction(a5)
+ clr.w ai_front(a5)
+ clr.w ai_aft(a5)
  move.w #2,laser_power(a6)
  move.w #1,hit_check(a6)
  move.w #1,in_sights(a6)
@@ -91,7 +98,10 @@ def make_suite(root, symbols):
 
     case("Successful missile finishing hit on Cougar still releases the reward")
     emit(""" bsr qa_cougar
- move.w #60,health(a5)
+ move.w #1,health(a5)
+ move.w #$ffff,ai_energy_fraction(a5)
+ clr.w ai_front(a5)
+ clr.w ai_aft(a5)
  clr.w ecm_fitted(a5)
  bsr qa_missile
  lea objects+obj_len*3(a6),a4
@@ -108,15 +118,16 @@ def make_suite(root, symbols):
  move.l a4,target(a5)
  move.w #log_locked,logic(a5)
 """ + call("do_locked"))
-    eq(1024, "objects+obj_len*3+health(a6)")
+    eq(96, "objects+obj_len*3+health(a6)")
+    eq(24, "objects+obj_len*3+ai_front(a6)")
     eq(0, "obj_ctr+barrel(a6)", "b")
     emit(" btst #remove,flags(a5)\n bne fail\n")
 
-    case("Incoming AI missile still deals 48 base damage to the player's Cobra")
+    case("Incoming AI missile deals the same 60 base damage as the player's missile")
     emit(" bsr qa_missile\n" + call("do_missile"))
     eq(0, "front_shield(a6)")
     eq(24, "aft_shield(a6)")
-    eq(72, "energy(a6)")
+    eq(60, "energy(a6)")
 
     case("Constrictor retains its fatal collision protection")
     emit(" bsr qa_cougar\n move.w #constr,type(a5)\n" + call("collision"))
@@ -137,6 +148,11 @@ qa_world:
  dbra d7,.counters
  clr.w player_ship(a6)
  move.w #7,hull_strength(a6)
+ move.w #weapon_resistance_base,hull_laser_resistance(a6)
+ move.w #weapon_resistance_base,hull_missile_resistance(a6)
+ clr.w energy_fraction(a6)
+ clr.w front_fraction(a6)
+ clr.w aft_fraction(a6)
  move.w #3,hull_class(a6)
  move.w #24,front_shield(a6)
  move.w #24,aft_shield(a6)

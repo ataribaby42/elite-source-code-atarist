@@ -193,10 +193,10 @@ q_auto_m68_15:
 	bls.s q_auto_m68_17
 	q_push d0 ; calculate angle difference
 	bsr angle_diff
-	cmp turn_rate(a5),d0 ; angle too high ?
+	cmp ai_roll(a5),d0 ; roll angle too high ?
 ; Quelo: 		if <hi> then.s					yes
 	bls.s q_auto_m68_19
-	move turn_rate(a5),d0 ; clamp to maximum
+	move ai_roll(a5),d0 ; clamp to maximum roll
 q_auto_m68_19:
 	tst (sp)+ ; set correct angle
 ; Quelo: 		if <mi> then.s

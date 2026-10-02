@@ -32,6 +32,7 @@
 
 exp_colour: rs.w 1 ; colour of explosion points
 ai_laser_colour: rs.w 1 ; normal AI beam colour cached for the current flight
+ai_laser_damage: rs.w 1 ; matching laser power, fixed for the same flight
 
 	q_end_vars special
 
@@ -100,6 +101,12 @@ q_special_m68_8:
 q_special_m68_6:
 q_special_m68_4:
 q_special_m68_2:
+	tst.w shield_flash(a5)
+	ble.s .point_colour
+	cmp.w #3,scr_radius(a5) ; radius-1: leave the grey dot and cross unchanged
+	blo.s .point_colour
+	moveq #lgt_blue,d0 ; the larger distant sphere can show a shield flash
+.point_colour:
 	jsr set_colour
 	movem centre_x(a5),d5/d6 ; draw a solid circle
 	move scr_radius(a5),d7
@@ -349,16 +356,29 @@ laser_colours:
 	q_subr init_ai_laser_colour,global
 
 	move.l d0,-(sp)
+	move.w #military_damage,ai_laser_damage(a6)
 	moveq #white,d0
 	cmp.w #6,rating(a6) ; Dangerous through Elite
 	bhs.s .store
+	move.w #beam_damage,ai_laser_damage(a6)
 	moveq #orange,d0
 	cmp.w #3,rating(a6) ; Average through Competent
 	bhs.s .store
+	move.w #pulse_damage,ai_laser_damage(a6)
 	moveq #red,d0 ; Harmless through Poor
 .store:
 	move.w d0,ai_laser_colour(a6)
 	move.l (sp)+,d0
+	rts
+
+; A5 shooter -> D0 base power, independent of the victim. Alien beam
+; colours remain blue; Constrictor retains its military (white) class.
+	q_subr ai_laser_power,global
+	moveq #military_damage,d0
+	cmp.w #constr,type(a5)
+	beq.s .done
+	move.w ai_laser_damage(a6),d0
+.done:
 	rts
 
 ; Render an enemy's shot with its ship, so nearer ships can cover it and the

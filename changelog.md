@@ -6,6 +6,17 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.xx
 
+- Atari ST/Amiga: Comlete combat rewrite. Player and AI now uses same front/aft shields, energy banks and energy recharges. Unified player and AI shields, energy banks, recharge, weapon resistance, maximum speed, turning limits and missile capacity for all purchasable hulls. AI ships currently spawn without Energy Units.
+- Unified laser and guided-missile damage for player-versus-AI, AI-versus-player and AI-versus-AI combat. Removed the random AI damage multiplier while preserving existing aiming, hit probabilities and rating-based laser selection. Guided missiles now use 60 base damage.
+- Rebalanced hull durability relative to C64 Elite: Unbound, using Cobra Mk III as the reference. Separate missile resistance reproduces the reference missile hit counts.
+- Cougar and Constrictor now have finite laser resistance derived from their Military laser ratio. All laser classes can damage them during their vulnerable mission phases.
+- Preserved fractional damage so weaker lasers remain effective against heavily protected hulls.
+- Added a one-frame light-blue flash when an active front or rear shield is hit, including AI combat, missiles and surviving collisions. Distant spheres flash; dots and crosses do not. The effect expires off-screen and is suppressed when a collision destroys the ship.
+- Fixed missiles disappearing without an explosion when their target survives the impact.
+- Missile indicators now show zero to four slots according to hull capacity. Larger magazines display at most four loaded indicators while retaining their actual ammunition capacity.
+- Removed shields from the Worm / Escape Capsule while retaining energy recharge. Without recharge between hits, a fully charged capsule is destroyed by the sixth Pulse laser hit.
+- Added a green identification square while an I request is pending, including views without a laser. Successful identification clears it; U cancels identification and unarms the missile. Adjusted the square one logical pixel upward.
+- Remapped Planet Data ship miniature colours to the closest available original shades without changing the planet or inhabitant palette. Supports Planets ON/OFF and scaled Amiga displays.
 - Added in-flight compass switching with N between planet/station and star guidance, with NavLock: Planet/Station and NavLock: Star messages. Compass mode resets to Planet/Station after station launch, hyperspace or galactic jumps, starting a new game, and loading a commander.
 - New games and Default Jameson now start in an Adder at Lave, with 100 Cr, Harmless rating, a front pulse laser, 6.0 LY of fuel and one missile.
 - Atari ST/Amiga: Increased missile damage against AI ships from 40 to 60. Incoming missiles retain their 48-point base damage against the player.

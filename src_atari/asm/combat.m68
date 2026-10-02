@@ -1,4 +1,5 @@
-	xref ship_shield_damage
+	xref ship_weapon_damage,ship_damage_store
+	xref ship_shield_damage,ship_ai_damage,ship_ai_recharge,ship_charge_tick
 	include "common.def"
 ; Ported from src_orig/asm/combat.m68; edit this copy.
 ;	@@@@	@@@   @@   @@ @@@@@@	 @@    @@@@@@
@@ -30,9 +31,6 @@
 
 ; ---- LOCAL CONSTANTS ----
 
-slow_charge: equ 24 ; Charge rates
-medium_charge: equ 15
-fast_charge: equ 9
 rand_range: equ $2000 ; range for orbit's
 rand_limit: equ $4000 ; minimum distance
 launch_range: equ $1800 ; player range before launch
@@ -54,9 +52,9 @@ role_bounty: equ 5
 role_convoy: equ 6 ; peaceful traders sharing a cruise speed until combat
 ; The player's own fire rolls RATING*4+MISSILE_PROB before a ship lets go of a
 ; missile or a group of thargons. His combat rating means nothing in a fight he
-; is not part of, so ship against ship uses the middle rating band, as
-; NPC_DAMAGE is the middle of the DAMAGE table. A thargon release is also
-; smaller there; see THARGONS.
+; is not part of, so NPC missile retaliation uses the middle rating band.
+; Laser classes follow the cached flight rating. NPC-provoked Thargon releases
+; are also smaller; see THARGONS.
 npc_launch_prob: equ 4*4+missile_prob
 
 ; ---- LOCAL VARIABLES ----
@@ -581,8 +579,11 @@ q_combat_m68_69:
 	move.l target(a5),a5 ; A5 = ptr: the ship that was hit
 	bsr hit_reaction ; break off from the shot
 	move (sp)+,d0
-	sub d0,health(a5) ; reduce its health
-	bcs.s .destroyed
+	move.l a5,a4
+	move.l (sp),a0 ; shooter saved before HIT_REACTION
+	jsr ship_ai_damage
+	tst.w d0
+	bne.s .destroyed
 	move health(a5),d0 ; lost over half its energy this attack run ?
 	add d0,d0
 	cmp pre_attack(a5),d0
@@ -835,112 +836,30 @@ q_combat_m68_30:
 ; Exit:   None
 
 ; Regs:   ?
-; Subr:   CHARGE_ENERGY, CHARGE_SHIELDS
+; Subr:   SHIP_AI_RECHARGE, SHIP_CHARGE_TICK
 
 	q_subr recharge,global
-
-	lea recharge_count(a6),a0 ; ready for recharge ?
-	q_dec (a0)
-	q_ret ne ; no
-	move equip+energy_unit(a6),d0 ; hull recharge plus fitted unit
-	add.w hull_recharge(a6),d0
-	subq.w #1,d0
-; Quelo: 	if <eq> then.s						no
-	bne.s q_combat_m68_33
-	move #slow_charge,(a0) ; reload counter
-	bsr charge_energy ; charge energy banks
-	cmp #max_energy,energy(a6) ; at full capacity ?
-; Quelo: 		if <eq> then.s					yes
-	bne.s q_combat_m68_35
-	bsr charge_shields ; charge shields
-q_combat_m68_35:
-	bra.s q_combat_m68_34
-q_combat_m68_33:
-	q_dec d0 ; determine rate of charge
-; Quelo: 		if <eq> then.s
-	bne.s q_combat_m68_37
-	moveq #medium_charge,d0
-	bra.s q_combat_m68_38
-q_combat_m68_37:
-	cmp.w #2,d0
-	blo.s .naval_rate
-	moveq #7,d0
-	bra.s q_combat_m68_38
-.naval_rate:
-	moveq #fast_charge,d0
-q_combat_m68_38:
-	move d0,(a0) ; reload counter
-	bsr charge_energy ; change energy and shields then exit
-	bsr charge_shields
-q_combat_m68_34:
-
-	q_ret
-
-
-; *****************************************
-; **									 **
-; ** CHARGE_ENERGY - CHARGE ENERGY BANKS **
-; **									 **
-; *****************************************
-
-; Increases the charge in the energy banks by 1 unit unless already at
-; full charge. Also reduces temperature of lasers.
-
-; Entry:  None
-; Exit:   None
-
-; Regs:   ?
-; Subr:   None
-
-	q_subr charge_energy
-
-	tst laser_temp(a6) ; lasers cold ?
-; Quelo: 	if <ne> then.s						no
-	beq.s q_combat_m68_39
-	q_dec laser_temp(a6) ; reduce temperature
-	clr f_laser(a6)
-q_combat_m68_39:
-	cmp #max_energy,energy(a6) ; already at max ?
-; Quelo: 	if <ne> then.s						no
-	beq.s q_combat_m68_41
-	q_inc energy(a6) ; increase energy
-	clr f_energy(a6)
-q_combat_m68_41:
-
-	q_ret
-
-
-; *************************************************
-; **											 **
-; ** CHARGE_SHIELDS - CHARGE FRONT & AFT SHIELDS **
-; **											 **
-; *************************************************
-
-; Charges the front and aft shields by one unit unless already at full
-; charge.
-
-; Entry:  None
-; Exit:   None
-
-; Regs:   ?
-; Subr:   ?
-
-	q_subr charge_shields
-
-	cmp #max_shield,front_shield(a6) ; front already at max ?
-; Quelo: 	if <ne> then.s						no
-	beq.s q_combat_m68_43
-	q_inc front_shield(a6) ; increase shield and update display
-	clr f_front(a6)
-q_combat_m68_43:
-	cmp #max_shield,aft_shield(a6) ; aft already at max ?
-; Quelo: 	if <ne> then.s						no
-	beq.s q_combat_m68_45
-	q_inc aft_shield(a6) ; increase shield and update display
-	clr f_aft(a6)
-q_combat_m68_45:
-
-	q_ret
+	jsr ship_ai_recharge
+	tst.w energy(a6) ; a lethal hit cannot be undone by this frame's recharge
+	q_ret eq
+	subq.w #1,recharge_count(a6)
+	q_ret ne
+	move.w hull_recharge(a6),d0
+	add.w equip+energy_unit(a6),d0
+	lea energy(a6),a0
+	lea front_shield(a6),a1
+	lea energy_fraction(a6),a2
+	jsr ship_charge_tick
+	move.w d0,recharge_count(a6)
+	tst.w laser_temp(a6)
+	beq.s .cool
+	subq.w #1,laser_temp(a6)
+	clr.w f_laser(a6)
+.cool:
+	clr.w f_energy(a6)
+	clr.w f_front(a6)
+	clr.w f_aft(a6)
+	rts
 
 
 ; ******************************************
@@ -961,51 +880,55 @@ q_combat_m68_45:
 ; Subr: ?
 
 	q_subr reduce_shields,global
-	jsr ship_shield_damage
+	jsr ship_shield_damage ; retain collision classes and old hull scaling
+	and.l #$ffff,d0
+	swap d0
+	bra.s reduce_shields_fixed
 
-; Original listing option: 	list on
+	q_subr reduce_laser_shields,global
+	move.l d1,-(sp)
+	move.w hull_laser_resistance(a6),d1
+	jsr ship_weapon_damage
+	move.l (sp)+,d1
+	bra.s reduce_shields_fixed
 
-	tst shields_fx(a6) ; effect running ?
-; Quelo: 	if <eq> then.s						no
-	bne.s q_combat_m68_47
-	q_push d0
+	q_subr reduce_missile_shields,global
+	move.l d1,-(sp)
+	move.w hull_missile_resistance(a6),d1
+	jsr ship_weapon_damage
+	move.l (sp)+,d1
+
+	q_subr reduce_shields_fixed
+	tst.l d0
+	q_ret eq
+	tst shields_fx(a6)
+	bne.s .sound_ready
+	move.l d0,-(sp)
 	q_sfx shields
-	q_pop d0
-q_combat_m68_47:
-	lea front_shield(a6),a0 ; assume front shields
-	cmp #photon,type(a5) ; photon bolt ?
-; Quelo: 	if <eq> then.s						yes
-	bne.s q_combat_m68_49
-	tst mother_z(a5) ; test z coord of attacker
-	bra.s q_combat_m68_50
-q_combat_m68_49:
-	tst zpos(a5) ; test z coord of object
-q_combat_m68_50:
-; Quelo: 	if <mi> then.s						behind us
-	bpl.s q_combat_m68_51
-	lea aft_shield(a6),a0 ; use aft shields
-q_combat_m68_51:
-	tst (a0) ; anything left in shields
-; Quelo: 	if <ne> then						yes
-	beq q_combat_m68_53
-	sub d0,(a0) ; reduce shield
-; Quelo: 		if <cs> then.s					shields can't take all the power
-	bcc.s q_combat_m68_55
-	move (a0),d0 ; determine how much left after hit
-	neg d0
-	clr (a0) ; no shield power
-	bra.s q_combat_m68_56
-q_combat_m68_55:
-	clr d0 ; nothing left
-q_combat_m68_56:
-	q_push d0 ; update display
+	move.l (sp)+,d0
+.sound_ready:
+	lea front_shield(a6),a0
+	lea front_fraction(a6),a1
+	cmp #photon,type(a5)
+	bne.s .ordinary_attacker
+	tst mother_z(a5)
+	bra.s .side
+.ordinary_attacker:
+	tst zpos(a5)
+.side:
+	bpl.s .shield
+	lea aft_shield(a6),a0
+	lea aft_fraction(a6),a1
+.shield:
+	jsr ship_damage_store
 	clr f_front(a6)
 	clr f_aft(a6)
-	q_pop d0
-q_combat_m68_53:
-	tst d0 ; any hit power left
-	q_ret eq ; no, return
-	bsr reduce_energy ; reduce energy
+	tst.l d0
+	q_ret eq
+	lea energy(a6),a0
+	lea energy_fraction(a6),a1
+	jsr ship_damage_store
+	clr f_energy(a6)
 	cmp #max_energy/2,energy(a6) ; nearly out of energy ?
 	q_ret hs ; no, return
 	jsr random ; randomly destroy equipment/cargo
@@ -1085,6 +1008,10 @@ q_combat_m68_65:
 	bcc.s q_combat_m68_67
 	clr energy(a6)
 q_combat_m68_67:
+	tst.w energy(a6)
+	bne.s .fraction_alive
+	clr.w energy_fraction(a6)
+.fraction_alive:
 	clr f_energy(a6) ; flag change
 
 	q_ret return
@@ -1178,9 +1105,11 @@ q_combat_m68_81:
 	st no_entry(a6) ; don't allow entry to space station
 	clr d0 ; no laser power at all
 q_combat_m68_79:
-	sub d0,health(a5) ; reduce object's health
-; Quelo: 	if <cs> then.s						dead
-	bcc.s q_combat_m68_83
+	move.l a5,a4
+	suba.l a0,a0 ; player's laser comes from the world origin
+	jsr ship_ai_damage
+	tst.w d0
+	beq.s q_combat_m68_83
 	move.l a5,a4 ; explode object
 	bsr explode_object
 	bsr target_lost ; check for lost target

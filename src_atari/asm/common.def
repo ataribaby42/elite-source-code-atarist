@@ -167,6 +167,7 @@ drk_blue: equ 12
 black: equ 13
 pulse: equ 14
 white: equ 15
+shield_flash_panel: equ 6 ; solid light-blue entry in PANEL_COLOURS
 
 ; Misc. constants.
 
@@ -212,6 +213,12 @@ max_shield: equ 24 ; max front shield value
 max_fuel: equ 70 ; max fuel carried
 max_ltemp: equ 48 ; max laser temperature
 max_energy: equ 96 ; max energy
+missile_damage: equ 60 ; all guided missiles, before hull resistance
+weapon_resistance_base: equ 154 ; lcm(11 Pulse, 7 Military, 2 missiles)
+pulse_damage: equ 5
+mining_damage: equ 7
+beam_damage: equ 9
+military_damage: equ 11
 min_frame: equ 5 ; min frame rate
 pause_time: equ 3 ; pause time to read messages
 flash_rate: equ 25 ; flash rate x 1/50th second
@@ -528,6 +535,19 @@ registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
 cargo_mass: rs.l 1 ; exact jettison payload in grams; 0 = normal random salvage
 patrol_record: rs.w 1 ; -1 = not a patrol, -2 = unchecked, otherwise last police record
 convoy_speed: rs.w 1 ; shared cruise speed until combat; 0 = ordinary speed control
+
+ai_front: rs.w 1 ; front shield, 0..max_shield
+ai_aft: rs.w 1 ; aft shield, 0..max_shield (adjacent to front)
+ai_strength: rs.w 1 ; laser resistance, Cobra=154; zero for non-ships
+ai_missile_strength: rs.w 1 ; missile resistance, Cobra=154
+ai_energy_fraction: rs.w 1 ; fractional damage debt, in 1/65536 energy units
+ai_front_fraction: rs.w 1 ; fractional front-shield damage debt
+ai_aft_fraction: rs.w 1 ; fractional aft-shield damage debt
+ai_recharge: rs.w 1 ; inherent recharge grade
+ai_energy_unit: rs.w 1 ; 0 none, 1 extra, 2 naval; initially none
+ai_charge_count: rs.w 1 ; independent recharge countdown
+ai_roll: rs.w 1 ; roll limit; TURN_RATE is the pitch limit
+shield_flash: rs.w 1 ; light-blue hull frames left; expires even off-screen
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
@@ -968,7 +988,7 @@ hull_speed: rs.w 1
 hull_fuel: rs.w 1
 hull_roll: rs.w 1
 hull_pitch: rs.w 1
-hull_strength: rs.w 1
+hull_strength: rs.w 1 ; legacy collision resistance; weapons use separate ratios
 hull_recharge: rs.w 1
 hull_class: rs.w 1
 hull_missiles: rs.w 1
@@ -983,6 +1003,11 @@ hull_scoop_speed: rs.w 1
 hull_red_speed: rs.w 1
 hull_roll_span: rs.w 1
 hull_pitch_span: rs.w 1
+hull_laser_resistance: rs.w 1 ; Unbound Pulse ratio, Cobra=154
+hull_missile_resistance: rs.w 1 ; Unbound missile ratio, Cobra=154
+energy_fraction: rs.w 1 ; transient fractional damage; never saved
+front_fraction: rs.w 1
+aft_fraction: rs.w 1
 yard_count: rs.w 1
 yard_slot: rs.w 1
 yard_selected: rs.w 1

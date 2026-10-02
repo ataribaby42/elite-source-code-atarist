@@ -93,8 +93,9 @@ existing palette entries: Harmless through Poor is red (6), Average through
 Competent is orange (3), and Dangerous through Elite is white (15). The
 Constrictor always uses white regardless of player rating. Thargoids and
 Thargons (Tharglets) always use light blue (10). The colour applies
-to both hits and misses; it does not assign a player weapon type or change
-damage, firing opportunities, accuracy or sound.
+to both hits and misses. The ordinary rating bands now select matching Pulse,
+Beam and Military damage, cached with the colour for the current flight.
+Firing opportunities, accuracy and sound keep their existing rules.
 
 An enemy's current position and forward orientation determine whether it can
 fire and hit. The firing cone uses the BBC ratio 32/36; the narrower hit cone
@@ -135,23 +136,21 @@ shields/energy or request an impact sound. Player firing sounds, missile alerts
 and other effects keep their existing handling. The option does not change
 accuracy, damage, firing opportunities or random-number consumption.
 
-Base damage retains the original random 1..3, 1..5 or 1..7 according to player
-rating; the Constrictor's base damage remains 6. Each successful hit makes a
-separate random choice of multiplier 2 or 3, with equal selection weights,
-and applies base damage times that multiplier in one shield/energy update.
-One random call supplies a single bit; adding 2 gives either multiplier
-without rejection or retries.
-Misses cause no damage and do not roll a multiplier. Final ordinary damage is
-2..9, 2..15 or 2..21 (only products of the base and multiplier are possible);
-Constrictor hits deal 12 or 18. Against another AI ship, every attacker uses
-a random base of 1..3 with the same multiplier, dealing 2..9 damage regardless
-of player rating.
+Successful AI hits now use the same base damage as the player weapon class:
+Pulse 5 (Harmless through Poor), Beam 9 (Average through Competent), and Military
+11 (Dangerous through Elite). Constrictor always uses Military power. Thargoid
+and Thargon beams retain their blue appearance and use the flight's damage
+tier. Player Mining Lasers retain power 7. There is no additional random base
+or multiplier after an accepted hit, and NPC versus NPC fire uses the same
+power as fire against the player. Misses cause zero damage.
 
-This approximates the repeated damage that one old travelling projectile could
-apply on consecutive frames within collision range. It does not reproduce
-projectile travel, collision duration or exact encounter outcomes. AI shots no
-longer allocate projectile objects. The former photon logic index remains
-reserved and inert, preserving the other logic indices.
+Damage is scaled by the victim's hull resistance, then absorbed by its front
+or aft shield before reaching its energy banks. Both player and AI hulls use
+the same stores and recharge rules. See [shared ship systems](../docs/2026-10-01-ai-ship-systems.md)
+for the exact formulas, missile power and native parity tests.
+
+AI shots do not allocate projectile objects. The former photon logic index
+remains reserved and inert, preserving the other logic indices.
 
 The beam starts at the model's transformed `gun_node`. All 22 ship models have
 a valid muzzle node. Projection uses the same cached view position as the

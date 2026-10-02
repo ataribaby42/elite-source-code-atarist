@@ -1,5 +1,5 @@
 	include "common.def"
-	xref init_ai_laser_colour
+	xref init_ai_laser_colour,ship_ai_init,ship_flash_tick
 ; Ported from src_orig/asm/main.m68; edit this copy.
 * @@   @@	 @@    @@@@@@ @@   @@
 * @@@ @@@	@@@@	 @@   @@@  @@
@@ -210,6 +210,7 @@ q_main_m68_23:
 	blo q_main_m68_23
 q_main_m68_24:
 q_main_m68_20:
+	jsr ship_flash_tick ; expire hit flashes, including ships outside the view
 	jsr remove_objects ; removed any flaged objects
 	jsr object_logic ; perform misc. object logic
 	jsr run_docking ; run docking computer
@@ -274,6 +275,7 @@ q_main_m68_20:
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_main_m68_25
 	move.l #no_target,target(a4) ; a fresh record has no AI target
+	clr.w shield_flash(a4) ; a newly allocated slot has no pending hit flash
 	q_pop d7 ; restore D7
 	q_sec set ; carry flag (alloc ok)
 	rts ; return
@@ -334,6 +336,7 @@ q_main_m68_30:
 	move.l (a0,d0),surfaces(a4)
 q_main_m68_27:
 	move energy_max(a4),health(a4) ; in full health
+	jsr ship_ai_init ; initialize shared hull statistics and defensive stores
 	tst velocity(a4) ; non-zero velocity ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_main_m68_31
@@ -419,6 +422,7 @@ q_main_m68_39:
 
 	q_subr remove_object
 
+	clr.w shield_flash(a5) ; expire the flash as the object leaves the bubble
 	bclr #in_use,flags(a5) ; clear in use flag
 	bclr #remove,flags(a5) ; don't remove again
 	move type(a5),d0 ; planet or sun ?

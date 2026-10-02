@@ -4,6 +4,13 @@
 > suite was removed on 2026-09-19. References below to its dependency, test
 > files, sample harness code and commands are historical, not current setup
 > instructions. Use each source tree's README for current checks.
+>
+> The combat balance was superseded on 2026-10-01/02 by
+> [shared ship systems](2026-10-01-ai-ship-systems.md). In particular, the
+> instant missile kills described below are historical: current missiles use
+> the target's missile resistance and defensive stores, and a nonlethal impact
+> still produces an explosion. The [current balance reference](ship-balance.html)
+> includes the unshielded Worm / Escape Capsule and the revised missile HUD.
 
 Date: 2026-09-17
 Status: implemented, with the amendments recorded in section 12
@@ -351,6 +358,10 @@ now set only when `target == 0`. Without this the cockpit would warn the player
 whenever two pirates fight each other near the station.
 
 ### 6.4 Damage
+
+The rules in this section describe the September implementation. They were
+superseded on 2026-10-01 by [shared player/AI ship systems](2026-10-01-ai-ship-systems.md),
+including equal weapon-class damage, directional shields and recharging banks.
 
 The damage path branches on the target:
 

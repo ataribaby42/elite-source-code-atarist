@@ -5,6 +5,8 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 
 | Document | Purpose |
 | --- | --- |
+| [2026-10-02-identification-indicator.md](2026-10-02-identification-indicator.md) | Pending identification square, combined I/U targeting controls and native pixel checks |
+| [2026-10-01-ai-ship-systems.md](2026-10-01-ai-ship-systems.md) | Shared player/AI hull statistics, shields, energy, recharge, weapon damage and unchanged AI hit decisions |
 | [2026-09-25-procedural-planet-surfaces.md](2026-09-25-procedural-planet-surfaces.md) | Seeded spherical seas, continents and craters, arrival longitude, distance detail threshold and native verification |
 | [2026-09-24-unused-cobra-bitmap.md](2026-09-24-unused-cobra-bitmap.md) | Remove the unused panel Cobra from the generated bitmap bank and RAM while preserving its PNG artwork and all other bitmap IDs |
 | [2026-09-24-runtime-ship-images.md](2026-09-24-runtime-ship-images.md) | Current ship graphics: runtime rendering, fixed image sizes, isolated memory buffers, archived PNGs and measured savings on both platforms |

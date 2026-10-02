@@ -35,6 +35,18 @@ Material zero becomes opaque UI black (13); flashing material 14 becomes steady
 red (6). Empty pixels remain transparent zero. Red PNG editing borders do not
 exist in runtime images.
 
+On Planet Data, the inhabitants and procedural globe can repurpose the three
+green palette entries. After their final palette is established, the ship's
+32 x 45 screen rectangle now remaps indices 7..9 from the original cockpit RGBs
+to the nearest available static colours. Matching minimizes squared RGB error
+using the platform's native palette precision, excludes transparent index 0 and
+flashing index 14, and reuses the inhabitants' colour-matching and word-remapping
+routines. This applies with Planets both ON and OFF. It changes neither the
+palette nor the cached sprite; the character, globe, text, distance line and
+other ship-image consumers retain their existing appearance. If the original
+shade is available, matching preserves its RGB exactly. Otherwise the shared
+16-colour palette requires an approximation.
+
 WIDE changes neither authoring dimensions nor fit. Amiga HIRES and HIRES-LACED
 keep the same UI scale as PNG-derived sprites: 2x horizontally and, when laced,
 2x vertically. The cached images remain unscaled. `ship_put_bitmap` expands one
@@ -138,3 +150,22 @@ QA comparison sheets use cyan to identify transparency. Screen previews must
 instead decode index zero as black and crop to the UI's 200 authoring rows; using
 the PNG editing palette for a raw screen dump produces a misleading cyan
 background without changing the running game's palette.
+
+### Planet Data palette remapping (2 October 2026)
+
+`tests/native_ship_palette.py` covers 42 real Planet Data cases per platform:
+all 13 purchasable hulls on a conflicting inhabitant palette, all eight alien
+palette classes, human worlds, and Planets ON/OFF. Each case captures the
+automatic result and the same screen with the original cached ship redrawn.
+An independent RGB search checks every screen pixel: the miniature uses the
+closest non-flashing, non-transparent colour, all other pixels stay unchanged,
+and the runtime palette stays unchanged apart from its existing cycling entry.
+Native hashes also verify that opening Planet Data preserves the cached sprite.
+
+All 42 cases passed on Atari and framed Amiga, and all 42 passed again on the
+frameless NTSC hires-interlace Amiga build. The existing 15-case native ship
+graphics suite and 34 ordinary tests passed per platform, with one existing
+artwork identity skip. Both Atari and all eighteen Amiga distribution variants
+passed build, disk and layout validation. Pixel captures, RGB comparisons and
+private emulator copies are under each source tree's `build/ship-palette-qa`.
+All emulators ran on verified hidden desktops; the user's session was not used.

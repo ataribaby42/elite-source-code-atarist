@@ -1,4 +1,4 @@
-	xref ship_collision_damage
+	xref ship_collision_damage,ship_collision_flash
 	include "common.def"
 	xref init_ai_laser_colour
 ; Ported from src_orig/asm/flight.m68; edit this copy.
@@ -1171,12 +1171,14 @@ q_flight_m68_147:
 	move.l a5,a4
 	bset #no_bounty,flags(a4)
 	st collided(a6)
+	clr.w shield_flash(a4) ; a ship destroyed by ramming goes straight to explosion
 	jsr explode_object
 	jsr target_lost
 	; Ramming releases no cargo, including the Cougar's cloaking device.
 	move.w (sp)+,d0
 	jmp reduce_shields
 .fatal_collision:
+	jsr ship_collision_flash ; only the surviving AI hull can show shield contact
 	st game_over(a6)
 	move.w #no_energy,reason(a6)
 	rts

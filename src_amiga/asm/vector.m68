@@ -182,6 +182,8 @@ q_vector_m68_9:
 	cmp #log_exploding,logic(a5) ; exploding ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_vector_m68_15
+	tst.w shield_flash(a5) ; lethal shield hits show the hull for this frame
+	bgt.s q_vector_m68_15
 	move exp_rad(a5),hits_rad(a5)
 q_vector_m68_15:
 	bsr check_sights ; check if in the sights
@@ -400,11 +402,17 @@ q_vector_m68_32:
 
 	q_subr draw_it
 
+	tst.w shield_flash(a5)
+	ble.s .normal
+	move.w type(a5),d0
+	bra.s .mesh ; EXPLODE_OBJECT may already have set POINT/LOG_EXPLODING
+.normal:
 	cmp #log_exploding,logic(a5) ; exploding ?
 	beq draw_explosion ; yes, draw explosion and return
 	move type(a5),d0 ; get object type
 	btst #point,flags(a5) ; planet/sun ?
 	bne draw_point ; yes
+.mesh:
 	cmp #platlet,d0 ; platlet ?
 ; Quelo: 	if <ne> then.s						no
 	beq.s q_vector_m68_33
@@ -504,6 +512,10 @@ q_vector_m68_40:
 q_vector_m68_43:
 	addq.l #2,a4 ; skip colour
 q_vector_m68_44:
+	tst.w shield_flash(a5)
+	ble.s .panel_colour
+	moveq #shield_flash_panel,d0 ; uniform flash, including engine panels
+.panel_colour:
 	asl #4,d0 ; index into panel colour table
 	lea panel_colours(pc),a0
 	lea (a0,d0),a0
@@ -648,6 +660,10 @@ q_vector_m68_72:
 	q_subr draw_line
 
 	move (a4)+,d0 ; fetch line colour
+	tst.w shield_flash(a5)
+	ble.s .line_colour
+	moveq #shield_flash_panel,d0 ; lines share the hull flash colour
+.line_colour:
 	asl #4,d0 ; index into panel colour table
 	lea panel_colours(pc),a0
 	lea (a0,d0),a0

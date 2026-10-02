@@ -48,7 +48,7 @@ key_f0: equ 137 ; F10 - Inventory
 key_fire: equ 'A' ; Fire laser
 key_target: equ 'T' ; Target missile
 key_missile: equ 'M' ; Fire missile
-key_unarm: equ 'U' ; Unarm missile
+key_unarm: equ 'U' ; Unarm missile and cancel identification
 key_ecm: equ 'E' ; Electronic counter measure
 key_energy: equ 9 ; Energy bomb (TAB)
 key_escape: equ 'Q' ; Escape capsule
@@ -100,6 +100,18 @@ scrolling: rs.w 1 ; flag: message scrolling
 	q_end_vars action
 
 	q_module action
+
+; U cancels a pending identification even without an armed missile. Keep the
+; original error feedback when neither system is active. Automatic missile
+; resets still call UNARM_MISSILE directly and do not cancel identification.
+	q_subr cancel_targeting,global
+	tst.w id_trigger(a6)
+	beq unarm_missile
+	clr.w id_trigger(a6)
+	tst.w missile_state(a6)
+	bne unarm_missile
+	rts
+
 
 * *****************************************
 * **									 **
@@ -729,7 +741,7 @@ key_list:
 	key find,find_planet ; Find planet on Galactic chart
 	key options,options ; Game options
 	key target,target_missile ; Target a missile
-	key unarm,unarm_missile ; Unarm a missile
+	key unarm,cancel_targeting ; Unarm missile and cancel identification
 	key missile,fire_missile ; Fire a missile
 	key hyper,start_hyperspace ; Hyperspace jump
 	key docking,computer ; Engage docking computer

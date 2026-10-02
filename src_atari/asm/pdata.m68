@@ -348,6 +348,7 @@ q_pdata_m68_5:
 	bsr print_word
 q_pdata_m68_6:
 	bsr match_planet_palette
+	bsr match_ship_palette
 	lea data_action_table(pc),a0 ; initialise cursor
 	jsr init_cursor
 
@@ -400,6 +401,41 @@ q_pdata_m68_6:
     adda.w #12,sp
     movem.l (sp)+,d0-d7/a0-a5
 .done:
+    rts
+
+
+; The miniature was drawn from its immutable ship cache before the inhabitants
+; selected their colours. Match its three affected green shades to the final
+; palette, with Planets either ON or OFF. Only the 32 x 45 ship rectangle changes;
+; the globe, character, palette and cached images keep their existing colours.
+    q_subr match_ship_palette
+    movem.l d0-d7/a0-a5,-(sp)
+    suba.w #12,sp ; source RGBs and three destination indices
+    move.l cockpit+2+lgt_green*2,(sp)
+    move.w cockpit+2+drk_green*2,4(sp)
+    lea palette,a0
+    move.l sp,a1
+    lea 6(sp),a2
+    moveq #2,d7
+.match:
+    bsr nearest_inhabitant_colour
+    addq.l #2,a1
+    addq.l #2,a2
+    dbra d7,.match
+    lea 6(sp),a4
+    move.l scr_base(a6),a0
+    lea (planet_y-22)*160+text_x/16*8(a0),a0
+    moveq #45-1,d7
+.row:
+    moveq #2-1,d6
+.group:
+    bsr remap_inhabitant_word
+    lea 8(a0),a0
+    dbra d6,.group
+    lea 160-16(a0),a0
+    dbra d7,.row
+    adda.w #12,sp
+    movem.l (sp)+,d0-d7/a0-a5
     rts
 
 

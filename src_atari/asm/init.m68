@@ -694,6 +694,9 @@ q_init_m68_34:
 	move #max_energy,energy(a6) ; maximum energy
 	move #max_shield,front_shield(a6) ; shields at full power
 	move #max_shield,aft_shield(a6)
+	clr.w energy_fraction(a6)
+	clr.w front_fraction(a6)
+	clr.w aft_fraction(a6)
 	move #radar_range,radar_scale+2(a6) ; radar mag x 1
 	jsr instruments ; redraw all reset values on both screens, including speed
 	clr firing(a6) ; discard cooldown and all flashes on view/system changes

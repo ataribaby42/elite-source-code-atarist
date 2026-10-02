@@ -1,4 +1,5 @@
-	xref ship_missile_damage,hit_reaction
+	xref reduce_laser_shields,reduce_missile_shields
+	xref ship_missile_damage,hit_reaction,ai_laser_power
 	include "common.def"
 ; Ported from src_orig/asm/logic.m68; edit this copy.
 * @@@@		@@@ 	@@@@   @@@@@@	@@@@
@@ -34,14 +35,9 @@
 launch_dist: equ 3600 ; distance of launch before turn
 land_dist: equ $10000*3/4 ; distance of ship before land
 missile_range: equ 300 ; missile hit range before detonate
-missile_damage: equ 48 ; damage to shields from missile
 dist_peel_off: equ 480 ; distance to peel off (max)
 max_rad: equ 255 ; maximum explosion radius
 fire_range: equ radar_range/2 ; 12288 world units: half the scanner range at x1
-npc_damage: equ 3 ; fixed AI to AI strength, below the DAMAGE table's own
-; range: a hit between two ships is 1..3 times the 2..3 multiplier, so it
-; averages 5 against the 7.5 an average-rated player takes. Their fights are
-; meant to last long enough to be worth flying into.
 run_limit: equ $1200 ; min. run away distance
 run_range: equ $1000 ; range of run away distances
 avoid_range: equ 32 ; range of avoid distances
@@ -605,33 +601,10 @@ q_logic_m68_35:
 	move #1,ai_laser(a5) ; drawn as a miss, no damage
 	bra.s .laser_sound
 .on_target:
-	tst.l target(a5) ; shooting at the player ?
-	bne.s .npc_power ; no, another ship
-	cmp #constr,type(a5)
-	bne.s .ordinary_power
-	moveq #6,d0 ; original Constrictor projectile strength
-	bra.s .damage
-.ordinary_power:
-	move rating(a6),d0
-	add d0,d0
-	lea damage(pc),a0
-	move (a0,d0),d2
-	bra.s .roll
-.npc_power:
-	moveq #npc_damage,d2 ; the player's rating means nothing here
-.roll:
-	jsr rand
-	q_inc d0 ; original per-projectile damage, unchanged
-.damage:
-	move.w d0,-(sp) ; retain the original projectile's base strength
-.damage_multiplier:
-	jsr random
-	and.w #1,d0 ; one random bit: equal chances for 2 or 3
-	addq.w #2,d0
-	mulu.w (sp)+,d0 ; combine the old projectile's repeated hits into one hit
+	jsr ai_laser_power ; same base damage as the player's laser of this class
 	tst.l target(a5) ; the player or another ship ?
 	bne.s .hit_ship
-	jsr reduce_shields ; A5 is the shooter: selects front/aft by its position
+	jsr reduce_laser_shields ; A5 selects front/aft by its position
 	bra.s .laser_sound
 .hit_ship:
 	bsr damage_target
@@ -776,7 +749,7 @@ no_ecm:
 	tst.w d0
 	bne.s .missile_kill
 	btst #invincible,flags(a4)
-	q_ret ne
+	bne missile_impact ; immune hulls still detonate the incoming missile
 	cmp.w #log_locked,logic(a5)
 	bne.s .missile_reaction
 	cmp.w #act_attack,attack_type(a4)
@@ -787,7 +760,7 @@ no_ecm:
 	move.l a4,a5
 	jsr hit_reaction
 	move.l (sp)+,a5
-	rts
+	bra missile_impact ; the target survived, but the missile still explodes
 .missile_kill:
 	cmp #log_locked,logic(a5) ; one of the player's own missiles ?
 	beq.s q_logic_m68_48
@@ -800,6 +773,35 @@ q_logic_m68_48:
 	clr npc_kill(a6) ; EXPLODE_OBJECT already decided whether it was heard
 
 	q_ret
+
+
+; Keep the spent missile's own slot for a visible impact on a surviving hull.
+; Unlike a ship kill, this effect earns no score, emits no cargo/platlets and
+; makes no gameplay RNG calls. NPC-versus-NPC combat keeps its existing silence.
+; A5 missile; preserve A4, which may still be the surviving target.
+	q_subr missile_impact
+	cmp.w #log_ai_missile,logic(a5)
+	beq.s .silent
+	q_sfx explosion
+.silent:
+	move.w #15,force(a5)
+	move.w #rate,force_timer(a5)
+	move.w #exp_dur,exp_timer(a5)
+	clr.w exp_rad(a5)
+	clr.w velocity(a5)
+	clr.w shield_flash(a5)
+	move.w #log_exploding,logic(a5)
+	bset #point,flags(a5)
+	bset #invincible,flags(a5)
+	bset #no_radar,flags(a5)
+	bset #no_bounty,flags(a5)
+	move.l #no_target,target(a5)
+	move.l a4,-(sp)
+	move.l a5,a4
+	jsr target_lost ; invalidate only locks on the detonated missile
+	move.l (sp)+,a4
+	bclr #remove,flags(a5) ; DO_EXPLOSION removes it when the animation finishes
+	rts
 
 
 * ***********************************************
@@ -827,7 +829,7 @@ q_logic_m68_48:
 	move.l a5,a4 ; explode the missile
 	jsr explode_object
 	moveq #missile_damage,d0 ; reduce shields
-	jsr reduce_shields
+	jsr reduce_missile_shields
 q_logic_m68_49:
 
 	q_ret return
@@ -1016,7 +1018,13 @@ q_logic_m68_54:
 	jsr rand
 	add #45,d0
 	mulu #10,d0 ; calculate no. turns required to
-	move turn_rate(a5),d2 ; achieve this angle
+	move turn_rate(a5),d2 ; pitch limit for the x rotation
+	move.l a0,d1
+	sub.l a5,d1
+	cmp.w #peel_z_count,d1
+	bne.s .peel_rate
+	move.w ai_roll(a5),d2
+.peel_rate:
 	divu d2,d0
 	move d0,0(a0)
 	jsr random ; set peel angle (+/- turn_rate)
@@ -1115,12 +1123,6 @@ logic_vectors:
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c
 	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a,do_locked
 	dc.l do_abandoned
-
-* Table of laser damage range for ratings.
-
-damage:
-
-	dc.w 3,3,3,5,5,5,7,7,7
 
 * List of colours for fragments.
 

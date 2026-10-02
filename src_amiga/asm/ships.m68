@@ -70,6 +70,13 @@
 	move.w hull_pitch(a6),d0
 	add.w d0,d0
 	move.w d0,hull_pitch_span(a6)
+	move.w hull_model(a6),d0
+	bsr ship_weapon_profile
+	move.w (a0)+,hull_laser_resistance(a6)
+	move.w (a0),hull_missile_resistance(a6)
+	clr.w energy_fraction(a6)
+	clr.w front_fraction(a6)
+	clr.w aft_fraction(a6)
 	movem.l (sp)+,d0-d1/a0-a1
 	jmp ship_refresh
 
@@ -348,36 +355,392 @@
 	movem.l (sp)+,d1-d7/a0-a5
 	rts
 
- ; A4 target -> D0 = 1 destroyed, 0 survives/immune. Only D0 and health change.
+; A4 new object. Weapon profiles are shared with the player by model ID.
+; Legacy model energy and playable collision resistance remain unchanged.
+; Fractional damage and equipment never survive copying/reusing a slot.
+	q_subr ship_ai_init,global
+	movem.l d0-d2/a0,-(sp)
+	clr.w shield_flash(a4) ; reused/copied slots never inherit a hit flash
+	clr.w ai_strength(a4)
+	clr.w ai_missile_strength(a4)
+	clr.w ai_energy_fraction(a4)
+	clr.w ai_front_fraction(a4)
+	clr.w ai_aft_fraction(a4)
+	clr.w ai_front(a4)
+	clr.w ai_aft(a4)
+	clr.w ai_recharge(a4)
+	clr.w ai_energy_unit(a4) ; future equipment roll belongs here, after reset
+	move.w #1,ai_charge_count(a4)
+	move.w turn_rate(a4),ai_roll(a4)
+	move.w type(a4),d0
+	cmp.w #worm,d0
+	beq.s .ship
+	cmp.w #thargon,d0
+	beq.s .ship
+	cmp.w #viper,d0
+	beq.s .ship
+	cmp.w #cobra,d0
+	blo .done
+	cmp.w #constr,d0
+	bhi .done
+.ship:
+	bsr ship_weapon_profile
+	move.w (a0)+,ai_strength(a4)
+	move.w (a0),ai_missile_strength(a4)
+	move.w #1,ai_recharge(a4)
+	lea ship_profiles(pc),a0
+	moveq #ship_count-1,d2
+.profile:
+	cmp.w sp_model(a0),d0
+	beq.s .playable
+	lea ship_profile_size(a0),a0
+	dbra d2,.profile
+	bra.s .charged
+.playable:
+	move.w sp_recharge(a0),ai_recharge(a4)
+	move.w sp_speed(a0),vel_max(a4)
+	move.w sp_roll(a0),ai_roll(a4)
+	move.w sp_pitch(a0),turn_rate(a4)
+	move.w sp_missiles(a0),no_missiles(a4)
+.charged:
+	move.w #max_energy,health(a4)
+	cmp.w #worm,type(a4) ; escape capsules have energy banks but no shields
+	beq.s .done
+	move.w #max_shield,ai_front(a4)
+	move.w #max_shield,ai_aft(a4)
+.done:
+	move.w health(a4),pre_attack(a4)
+	movem.l (sp)+,d0-d2/a0
+	rts
+
+; Once per completed flight frame, after drawing. Hidden/off-screen ships and
+; flight menus consume the flash too; drawing individual surfaces never does.
+	q_subr ship_flash_tick,global
+	movem.l d0/a0,-(sp)
+	lea objects(a6),a0
+	moveq #max_objects-1,d0
+.loop:
+	tst.w shield_flash(a0)
+	ble.s .next
+	subq.w #1,shield_flash(a0)
+.next:
+	lea obj_len(a0),a0
+	dbra d0,.loop
+	movem.l (sp)+,d0/a0
+	rts
+
+; Shared charge tick. A0 energy, A1 adjacent front/aft shields (zero = none),
+; A2 adjacent energy/front/aft fractional debts, D0 recharge grade + unit.
+; A displayed full store can still have a fractional deficit to replenish.
+	q_subr ship_charge_tick,global
+	cmp.w #max_energy,(a0)
+	bhs.s .energy_full
+	addq.w #1,(a0)
+	bra.s .energy_ready
+.energy_full:
+	clr.w (a2)
+.energy_ready:
+	cmpa.w #0,a1 ; energy-only stores must never grow shields
+	beq.s .rate
+	cmp.w #1,d0
+	bne.s .shields
+	cmp.w #max_energy,(a0)
+	bne.s .slow
+	tst.w (a2)
+	bne.s .slow
+.shields:
+	cmp.w #max_shield,(a1)
+	bhs.s .front_full
+	addq.w #1,(a1)
+	bra.s .aft
+.front_full:
+	clr.w 2(a2)
+.aft:
+	cmp.w #max_shield,2(a1)
+	bhs.s .aft_full
+	addq.w #1,2(a1)
+	bra.s .rate
+.aft_full:
+	clr.w 4(a2)
+.rate:
+	cmp.w #1,d0
+	beq.s .slow
+	cmp.w #2,d0
+	beq.s .medium
+	cmp.w #3,d0
+	beq.s .fast
+	moveq #7,d0
+	rts
+.slow:
+	moveq #24,d0
+	rts
+.medium:
+	moveq #15,d0
+	rts
+.fast:
+	moveq #9,d0
+	rts
+
+; Once per flight frame, at the same point as the player's recharge.
+	q_subr ship_ai_recharge,global
+	movem.l d0/d7/a0-a2/a4,-(sp)
+	lea objects(a6),a4
+	moveq #max_objects-1,d7
+.next:
+	btst #in_use,flags(a4)
+	beq.s .skip
+	btst #remove,flags(a4)
+	bne.s .skip
+	cmp.w #log_exploding,logic(a4)
+	beq.s .skip
+	tst.w ai_strength(a4)
+	beq.s .skip
+	tst.w health(a4)
+	beq.s .skip
+	subq.w #1,ai_charge_count(a4)
+	bne.s .skip
+	move.w ai_recharge(a4),d0
+	add.w ai_energy_unit(a4),d0
+	lea health(a4),a0
+	lea ai_front(a4),a1
+	lea ai_energy_fraction(a4),a2
+	cmp.w #worm,type(a4)
+	bne.s .charge
+	suba.l a1,a1 ; Worm keeps the shared energy rate, without shield recharge
+.charge:
+	bsr ship_charge_tick
+	move.w d0,ai_charge_count(a4)
+.skip:
+	lea obj_len(a4),a4
+	dbra d7,.next
+	movem.l (sp)+,d0/d7/a0-a2/a4
+	rts
+
+; A4 victim, A0 attacker (zero = player), D0 base laser power.
+; D0 = 1 destroyed, 0 survives/immune; all other registers preserved.
+	q_subr ship_ai_damage,global
+	movem.l d1-d5/a0-a2,-(sp)
+	move.w ai_strength(a4),d1
+	bra.s ship_ai_hit
+
+	q_subr ship_ai_missile_damage
+	movem.l d1-d5/a0-a2,-(sp)
+	move.w ai_missile_strength(a4),d1
+
+	q_subr ship_ai_hit
+	btst #invincible,flags(a4)
+	bne .alive
+	tst.w d1
+	beq.s .legacy
+	bsr ship_weapon_damage
+	bsr ship_struck_shield
+; Flash even when this hit removes less than one displayed energy point.
+	tst.l d0
+	beq.s .alive
+	tst.w (a1)
+	ble.s .no_flash
+	move.w #1,shield_flash(a4)
+.no_flash:
+	move.l a1,a0
+	lea ai_front_fraction-ai_front(a1),a1
+	bsr ship_damage_store
+	lea health(a4),a0
+	lea ai_energy_fraction(a4),a1
+	bsr ship_damage_store
+	tst.w health(a4)
+	beq.s .dead
+	bra.s .alive
+.legacy:
+	sub.w d0,health(a4)
+	bcs.s .dead
+	tst.w health(a4)
+	bne.s .alive
+.dead:
+	clr.w health(a4)
+	clr.w ai_energy_fraction(a4)
+	moveq #1,d0
+	bra.s .done
+.alive:
+	moveq #0,d0
+.done:
+	movem.l (sp)+,d1-d5/a0-a2
+	rts
+
+; A4 victim, A0 attacker (zero = player). Return A1 = struck shield.
+; D1-D5 are scratch; D0 is preserved.
+	q_subr ship_struck_shield
+	move.l a0,d1
+	beq.s .player
+	move.l xpos(a0),d1
+	move.l ypos(a0),d2
+	move.l zpos(a0),d3
+	bra.s .relative
+.player:
+	moveq #0,d1
+	moveq #0,d2
+	moveq #0,d3
+.relative:
+	sub.l xpos(a4),d1
+	sub.l ypos(a4),d2
+	sub.l zpos(a4),d3
+; Fit each delta into 12 signed magnitude bits before 16x16 multiplication.
+; Scaling all axes together preserves direction and avoids summed overflow.
+.fit:
+	move.l d1,d4
+	bpl.s .x
+	not.l d4
+.x:
+	move.l d2,d5
+	bpl.s .y
+	not.l d5
+.y:
+	or.l d5,d4
+	move.l d3,d5
+	bpl.s .z
+	not.l d5
+.z:
+	or.l d5,d4
+	cmp.l #4095,d4
+	bls.s .dot
+	asr.l #1,d1
+	asr.l #1,d2
+	asr.l #1,d3
+	bra.s .fit
+.dot:
+	muls z_vector+i(a4),d1
+	muls z_vector+j(a4),d2
+	muls z_vector+k(a4),d3
+	add.l d2,d1
+	add.l d3,d1
+	lea ai_front(a4),a1
+	bpl.s .done
+	lea ai_aft(a4),a1
+.done:
+	rts
+
+; A5 collider. Mark its facing shield without changing collision damage/rules.
+	q_subr ship_collision_flash,global
+	movem.l d0-d5/a0-a1/a4,-(sp)
+	move.l a5,a4
+	tst.w ai_strength(a4)
+	beq.s .done
+	btst #invincible,flags(a4)
+	bne.s .done
+	suba.l a0,a0
+	bsr ship_struck_shield
+	tst.w (a1)
+	ble.s .done
+	move.w #1,shield_flash(a4)
+.done:
+	movem.l (sp)+,d0-d5/a0-a1/a4
+	rts
+
+; A4 target, A5 impacting missile. Preserve station/mission immunities.
 	q_subr ship_missile_damage,global
 	moveq #0,d0
 	cmp.w #spacestn,type(a4)
 	beq.s .done
 	cmp.w #dodec,type(a4)
 	beq.s .done
-	btst #invincible,flags(a4)
-	bne.s .done
-	sub.w #60,health(a4)
-	bcs.s .kill
-	tst.w health(a4)
-	bne.s .done
-.kill:
-	clr.w health(a4)
-	moveq #1,d0
+	move.l a0,-(sp)
+	move.l a5,a0
+	moveq #missile_damage,d0
+	bsr ship_ai_missile_damage
+	move.l (sp)+,a0
 .done:
 	rts
 
-; Match Unbound's relative shielding without changing Cobra's banks/gauges.
+; D0 model -> A0 pair of laser/missile resistances. D0 preserved.
+	q_subr ship_weapon_profile
+	move.l d0,-(sp)
+	lsl.w #2,d0
+	lea ship_weapon_profiles(pc),a0
+	adda.w d0,a0
+	move.l (sp)+,d0
+	rts
+
+; D0.w base damage, D1.w resistance -> D0.l unsigned 16.16 damage.
+; Preserve all other registers. Round upward by less than 1/65536 point;
+; there is no one-point floor and no per-hit loss of fractional damage.
+	q_subr ship_weapon_damage,global
+	movem.l d1-d3,-(sp)
+	and.l #$ffff,d0
+	beq.s .done
+	mulu #weapon_resistance_base,d0
+	divu d1,d0
+	moveq #0,d2
+	move.w d0,d2
+	swap d2
+	clr.w d0 ; remainder becomes the fractional numerator
+	tst.l d0
+	beq.s .integer
+	moveq #0,d3
+	move.w d1,d3
+	subq.w #1,d3
+	add.l d3,d0
+	divu d1,d0
+	and.l #$ffff,d0
+.integer:
+	or.l d2,d0
+.done:
+	movem.l (sp)+,d1-d3
+	rts
+
+; Apply D0.l unsigned 16.16 damage to integer store A0 and fraction debt A1.
+; The visible integer is the ceiling of the actual remaining store.
+; Return overflow damage in D0; preserve all other registers.
+	q_subr ship_damage_store,global
+	movem.l d1-d2,-(sp)
+	moveq #0,d1
+	move.w (a0),d1
+	swap d1
+	moveq #0,d2
+	move.w (a1),d2
+	sub.l d2,d1
+	cmp.l d1,d0
+	bhs.s .empty
+	sub.l d0,d1
+	move.w d1,d2
+	neg.w d2
+	move.w d2,(a1)
+	swap d1
+	tst.w d2
+	beq.s .whole
+	addq.w #1,d1
+.whole:
+	move.w d1,(a0)
+	moveq #0,d0
+	bra.s .done
+.empty:
+	sub.l d1,d0
+	clr.w (a0)
+	clr.w (a1)
+.done:
+	movem.l (sp)+,d1-d2
+	rts
+
+; Legacy collision damage remains rounded with the original hull strength.
 	q_subr ship_shield_damage,global
 	move.l d1,-(sp)
-	mulu #7,d0
-	moveq #0,d1
 	move.w hull_strength(a6),d1
-	lsr.w #1,d1
-	add.l d1,d0
-	divu hull_strength(a6),d0
-	and.l #$ffff,d0
+	bsr ship_scale_damage
 	move.l (sp)+,d1
+	rts
+
+; D0 base collision damage, D1 legacy resistance -> D0 scaled damage.
+	q_subr ship_scale_damage
+	tst.w d0
+	beq.s .done
+	move.l d1,-(sp)
+	mulu #7,d0
+	lsr.w #1,d1
+	add.w d1,d0
+	move.l (sp)+,d1
+	divu d1,d0
+	and.l #$ffff,d0
+	bne.s .done
+	moveq #1,d0 ; even unusually tough mission hulls take a positive hit
+.done:
 	rts
 
 ; A5 collider -> D0 base damage, or -1 for a lethal size mismatch.
@@ -394,6 +757,11 @@
 	cmp.w #2,d1
 	bge.s .fatal
 	move.w health(a5),d0
+	tst.w ai_strength(a5)
+	beq.s .legacy_health
+	mulu energy_max(a5),d0 ; retain the original collision scale and classes
+	divu #max_energy,d0
+.legacy_health:
 	lsr.w #5,d0
 	addq.w #8,d0 ; Cobra health 72 -> the historical 10-point collision
 	tst.w d1
@@ -626,6 +994,46 @@ yard_actions:
 	dc.w -1
 	dc.l yard_none
 
+; Cobra=154. Ordinary laser ratios use Unbound Pulse hits / 11.
+; Mission hulls use 51 Military hits / 7; every laser can damage them.
+; Missile ratios use the requested Unbound impacts / Cobra's two impacts.
+; Wolf uses the agreed Pulse reference 13 and three missile impacts.
+ship_weapon_profiles:
+	dc.w 0,0 ; spacestn
+	dc.w 0,0 ; missile
+	dc.w 0,0 ; barrel
+	dc.w 0,0 ; asteroid
+	dc.w 42,77 ; worm
+	dc.w 28,77 ; thargon
+	dc.w 0,0 ; platlet
+	dc.w 0,0 ; letter_e
+	dc.w 0,0 ; letter_l
+	dc.w 0,0 ; letter_i
+	dc.w 0,0 ; letter_t
+	dc.w 140,154 ; viper
+	dc.w 0,0 ; dodec
+	dc.w 154,154 ; cobra
+	dc.w 238,308 ; python
+	dc.w 154,154 ; ferdelance
+	dc.w 238,308 ; anaconda
+	dc.w 98,154 ; cobra_mk1
+	dc.w 84,77 ; krait
+	dc.w 238,231 ; thargoid
+	dc.w 238,308 ; boa
+	dc.w 70,77 ; gecko
+	dc.w 98,154 ; moray
+	dc.w 84,154 ; adder
+	dc.w 98,77 ; mamba
+	dc.w 154,154 ; asp
+	dc.w 70,77 ; sidewinder
+	dc.w 182,231 ; wolf
+	dc.w 42,77 ; shuttle
+	dc.w 42,77 ; transporter
+	dc.w 1122,308 ; cougar
+	dc.w 1122,308 ; constr
+	dcb.w 11*2,0 ; launch panels
+	even
+
 ship_lasers: dc.w pulse_lasers,beam_lasers,mining_lasers,military_lasers
 ship_offer_counts: dc.b 10,8,6,5,4,4,3,1
 ship_offer_bonus: dc.b 3,3,3,2,2,2,1,0
@@ -647,7 +1055,7 @@ ship_equipment_prices:
 	dc.l 0,250,60000,8000,4000,10000,6500,4500,18750,19000,20000,60000,8000,60000,80000
 	dc.l 0,250,4000,3000,4000,10000,4500,2500,9380,7000,7000,30000,8000,60000,80000
 
-; speed, fuel, roll, pitch, resistance, recharge, size, missiles, mounts,
+; speed, fuel, roll, pitch, collision resistance, recharge, size, missiles, mounts,
 ; base/expanded hold, equipment category, native model, atlas index; price, trade.
 ship_profiles:
 	dc.w 22,70,40,40,7,1,3,4,15,25,35,0,cobra,7

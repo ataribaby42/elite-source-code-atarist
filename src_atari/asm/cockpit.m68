@@ -482,84 +482,53 @@ q_cockpit_m68_11:
 * Subr: ?
 
 	q_subr inst_missiles,global
-	cmp.w #4,hull_missiles(a6)
-	bls.s missile_four_slots
+	; Remove slots left by a hull with a larger missile capacity.
 	move.w #43,d0
-	move.w #186,d1
+	move.w #185,d1
 	moveq #0,d2
 	moveq #48,d3
-	moveq #6,d4
+	moveq #8,d4
 	moveq #0,d5
 	jsr block
+	tst.w hull_missiles(a6)
+	beq.s .done
+
 	lea missile_spr(a6),a4
 	move.w #missile_x,sp_xpos(a4)
 	move.w #missile_y,sp_ypos(a4)
+	moveq #1,d0
+.slot:
+	; Saturate the visible inventory; keep the real magazine unchanged.
+	move.w equip+missiles(a6),d1
+	cmp.w #4,d1
+	bls.s .inventory_ready
+	moveq #4,d1
+.inventory_ready:
 	lea empty_defn(pc),a0
-	tst.w equip+missiles(a6)
-	beq.s .numeric_icon
+	cmp.w d1,d0
+	bhi.s .draw
 	lea installed_defn(pc),a0
+	bne.s .draw
 	cmp.w #1,missile_state(a6)
-	bne.s .numeric_locked
+	bne.s .locked
 	lea active_defn(pc),a0
-	bra.s .numeric_icon
-.numeric_locked:
+	bra.s .draw
+.locked:
 	cmp.w #2,missile_state(a6)
-	bne.s .numeric_icon
+	bne.s .draw
 	lea locked_defn(pc),a0
-.numeric_icon:
+.draw:
 	move.l a0,data_ptr(a4)
+	q_push d0
 	jsr draw_sprite
-	moveq #8,d0
-	move.w #185,d1
-	jsr locate
-	moveq #white,d0
-	moveq #0,d1
-	jsr text_colour
-	moveq #0,d0
-	move.w equip+missiles(a6),d0
-	move.w #$8002,d1
-	jmp print_number
-missile_four_slots:
-
-	lea missile_spr(a6),a4 ; setup pointer to sprite record
-	move #missile_x,sp_xpos(a4) ; coords of 1st sprite
-	move #missile_y,sp_ypos(a4)
-	moveq #1,d0 ; start with 1st sprite
-q_cockpit_m68_13:
-	move missile_state(a6),d1 ; fetch missile state
-	cmp equip+missiles(a6),d0 ; sprite > no. missiles installed ?
-; Quelo: 		if <hi> then.s					yes
-	bls.s q_cockpit_m68_15
-	lea empty_defn(pc),a0 ; use empty definition
-	bra.s q_cockpit_m68_16
-q_cockpit_m68_15:
-	lea installed_defn(pc),a0 ; assume installed definition
-; Quelo: 			if <eq> then.s				last missile in list
-	bne.s q_cockpit_m68_17
-	cmp #1,d1 ; armed ?
-; Quelo: 				if <eq> then.s			yes
-	bne.s q_cockpit_m68_19
-	lea active_defn(pc),a0
-	bra.s q_cockpit_m68_20
-q_cockpit_m68_19:
-	cmp #2,d1 ; locked ?
-; Quelo: 					if <eq> then.s		yes
-	bne.s q_cockpit_m68_21
-	lea locked_defn(pc),a0
-q_cockpit_m68_21:
-q_cockpit_m68_20:
-q_cockpit_m68_17:
-q_cockpit_m68_16:
-	move.l a0,data_ptr(a4) ; setup sprite data pointer
-	q_push d0 ; draw sprite
-	jsr draw_sprite
-	add #12,sp_xpos(a4) ; next sprite
+	add.w #12,sp_xpos(a4)
 	q_pop d0
 	q_inc d0
-	cmp #5,d0
-	bne q_cockpit_m68_13
-q_cockpit_m68_14:
-
+	cmp.w #4,d0
+	bhi.s .done
+	cmp.w hull_missiles(a6),d0
+	bls.s .slot
+.done:
 	q_ret
 
 
@@ -1018,12 +987,46 @@ q_cockpit_m68_44:
 
 	q_subr draw_sight,global
 
-	tst laser_type(a6) ; laser fitted ?
-	q_ret mi ; no, return
-	move.l laser_def(a6),a0 ; draw the sprite
+	tst laser_type(a6) ; identification also works without a fitted laser
+	bmi.s .id_marker
+	move.l laser_def(a6),a0
 	move #160-16,d0
 	move laser_yc(a6),d1
-	jmp put_bitmap
+	jsr put_bitmap
+.id_marker:
+	tst.w id_trigger(a6)
+	q_ret eq
+; Hollow five-pixel square, one logical pixel above the viewport centre.
+; Its transparent centre leaves the target visible.
+	move.w #160-2,d0
+	move.w #y_top+y_size/2-3,d1
+	moveq #0,d2
+	moveq #5,d3
+	moveq #1,d4
+	moveq #lgt_green,d5
+	jsr block
+	move.w #160-2,d0
+	move.w #y_top+y_size/2+1,d1
+	moveq #0,d2
+	moveq #5,d3
+	moveq #1,d4
+	moveq #lgt_green,d5
+	jsr block
+	move.w #160-2,d0
+	move.w #y_top+y_size/2-2,d1
+	moveq #0,d2
+	moveq #1,d3
+	moveq #3,d4
+	moveq #lgt_green,d5
+	jsr block
+	move.w #160+2,d0
+	move.w #y_top+y_size/2-2,d1
+	moveq #0,d2
+	moveq #1,d3
+	moveq #3,d4
+	moveq #lgt_green,d5
+	jsr block
+	q_ret
 
 
 * ---- LOCAL DATA ----
@@ -1059,10 +1062,10 @@ locked_defn:
 
 laser_info:
 
-	dc 10,5,bit_sights+0 ; pulse laser (original game-frame cadence)
-	dc 8,7,bit_sights+3 ; mining laser
-	dc 6,9,bit_sights+2 ; beam laser (continuous visual only)
-	dc 3,11,bit_sights+1 ; military laser (continuous visual only)
+	dc 10,pulse_damage,bit_sights+0 ; pulse laser (original game-frame cadence)
+	dc 8,mining_damage,bit_sights+3 ; mining laser
+	dc 6,beam_damage,bit_sights+2 ; beam laser (continuous visual only)
+	dc 3,military_damage,bit_sights+1 ; military laser (continuous visual only)
 
 * List of lasers in equipment list.
 

@@ -2,6 +2,16 @@
 
 This source tree started as a copy of the corrected Atari sources before the combined Amiga build was introduced. It retains the game logic and starfield fixes, with Amiga-specific rendering, sound, input, startup and file handling developed here. It builds independently of `src_atari`; neither target uses a platform switch or imports the other target's build script.
 
+## Shared ship systems
+
+Player and AI versions of purchasable hulls share resistance, front/aft shields,
+energy banks, recharge, maximum speed, roll/pitch limits and missile capacity.
+AI ships currently carry no Energy Unit. Laser aim and distance accuracy retain
+their existing rules; accepted hits use the player's damage for the same laser
+class, and all guided missiles use 60 base damage. See
+[shared ship systems](../docs/2026-10-01-ai-ship-systems.md) for derived AI-only
+statistics, charging intervals and the exact hit calculation.
+
 ## Editable graphics
 
 The build option `altgfx=yes|no` defaults to `no` (`gfx/`). Run
@@ -83,6 +93,15 @@ hyperspace, and death entry points stop RCS before the first animation frame.
 `tools/rcs_audio.py` generates the 4096-byte loop at build time without using
 the game's random generator. The loop is placed in Chip RAM with the other
 audio.
+
+## Identification controls
+
+`I` requests object identification. A small hollow green square at the centre of
+the sight remains visible until an object is identified or the request is
+cancelled. It also appears in views without a fitted laser. `U` cancels pending
+identification and unarms any armed or locked missile, without using a missile.
+The marker scales with the selected display mode and follows the centre of
+either the framed or frameless flight view.
 
 ## Jettison cargo
 
@@ -252,7 +271,7 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 
 A separate sparse white sky sits behind every flight object and the existing dark grey starfield. Its fixed one-pixel stars remain consistent across all views and move only with rotation. **Game Options / Stars: ON/OFF** controls this white sky (default ON). OFF skips its rendering and rotation updates and restores the moving starfield to yellow. Switching back ON restarts the sky orientation and returns the moving starfield to dark grey. The preference is saved with the commander. Startup and default Jameson use ON; older commanders also load with ON. The 256-byte save format remains compatible between Atari and Amiga. A spatial tree skips unseen regions, and straight flight reuses cached screen positions; see [STARFIELD.md](STARFIELD.md#distant-white-sky) for implementation and validation details.
 
-Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits multiply the original base damage by a random 2 or 3, equally weighted, against both the player and other AI ships. Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. AI beam colours follow player rating: Harmless through Poor is red, Average through Competent orange, and Dangerous through Elite white; Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams are always light blue. Player damage per hit is unchanged; successful AI hits now use the same base damage for the same laser class against both the player and other AI ships (Pulse 5, Beam 9, Military 11). Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
 
 ## Source layout
 

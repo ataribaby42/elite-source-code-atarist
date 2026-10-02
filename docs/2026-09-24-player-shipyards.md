@@ -60,13 +60,13 @@ the original cash, hull and equipment. Cargo expansion cannot be sold while the
 remaining cargo and devices exceed the base hold. Unique mission rewards cannot
 be sold through Equip.
 
-## Initial balance
+## Hull specifications
 
 Speeds and handling scale the existing 68000 Cobra baseline using C64 ratios.
 The speed values below are native game units. Roll and pitch limits are tenths
 of a degree per update. Hold capacities include the space used by equipment.
 
-| Hull | Price (Cr) | Speed | Fuel (LY) | Roll / pitch | Shield strength | Missiles | Hold / expanded (t) | Laser mounts | Equipment category |
+| Hull | Price (Cr) | Speed | Fuel (LY) | Roll / pitch | Collision resistance | Missiles | Hold / expanded (t) | Laser mounts | Equipment category |
 | --- | ---: | ---: | ---: | --- | ---: | ---: | --- | --- | ---: |
 | Cobra Mk III | 100000 | 22 | 7.0 | 40 / 40 | 7 | 4 | 25 / 35 | All four | 0 |
 | Adder | 27000 | 19 | 6.0 | 34 / 34 | 4 | 1 | 8 / 12 | Front, rear | 1 |
@@ -87,25 +87,33 @@ counts for economies 0 through 7 are 10, 8, 6, 5, 4, 4, 3, 1. The Anarchy bonuse
 are 3, 3, 3, 2, 2, 2, 1, 0. Offer ordering follows Unbound, including its reduced
 Anarchy lists for poorer economies.
 
-Shield and energy bank capacities retain the existing Cobra values, with incoming
-damage scaled as `round(damage * 7 / hull strength)`. Full shields therefore always
-fill the original bars. Fer-de-Lance has one extra recharge grade. The existing
-Cobra recharge intervals remain 24 / 15 / 9 ticks for no unit / extra unit / naval
-unit; Fer-de-Lance uses 15 / 9 / 7. Laser power is independent of hull. Retro rocket
+All purchasable hulls have two 24-point shields and four energy banks totalling
+96 points. Full shields fill the original bars. Laser and missile damage use
+separate Unbound-relative weapon resistances and retain fractional damage; see
+[the current balance reference](ship-balance.html). The collision-resistance
+column above is used only for the existing collision calculation,
+`round(damage * 7 / hull collision resistance)`.
+
+Fer-de-Lance has one extra recharge grade. Cobra recharge intervals are
+24 / 15 / 9 completed flight frames for no unit / Extra / Naval Energy Unit;
+Fer-de-Lance uses 15 / 9 / 7. Laser power is independent of hull. Retro rocket
 pricing has no C64 equivalent and retains 8000 Cr in every equipment category.
 
-Player and AI missiles striking AI targets inflict 60 health damage. A standard
-Cobra with 72 health survives the first hit with 12 health. Direct missile hits
-on the player retain their 48-point base damage before hull resistance.
-Stations and invincible objects
-remain immune. Surviving ships react to the hit; player hits provoke defenders.
-Destruction still goes through the existing bounty, mission and cargo logic.
+Player and AI hull statistics and defensive systems are now unified; see
+[shared ship systems](2026-10-01-ai-ship-systems.md). For purchasable hulls, both
+sides have front/aft shields and 96 energy, with resistance and recharge taken
+from the same hull profile. The AI-only Worm / Escape Capsule has no shields;
+it retains 96 energy and energy recharge. All guided missiles inflict 60 base damage before resistance: a full
+Cobra survives one same-side hit with 60 energy and dies on the second without
+recharge. Stations and invincible objects remain immune to missiles. Surviving
+ships react to the hit; player hits provoke defenders. Destruction still goes
+through the existing bounty, mission and cargo logic.
 
 Collisions use the C64 size classes. An object two or more classes larger than
 the player is lethal. For other collisions, native damage starts at
-`8 + floor(target health / 32)`, preserving 10 for an equal-size Cobra. One class
+`8 + floor(target legacy-scale health / 32)`, preserving 10 for an equal-size Cobra. One class
 larger adds 4; one class smaller halves damage; two or more smaller quarters it.
-The hull's shielding then scales that result. The colliding ship is destroyed
+The player's collision resistance then scales that result. The colliding ship is destroyed
 without a bounty, preventing repeated contacts with the same hull. The existing
 Constrictor ram protection and station docking checks remain in place.
 
@@ -121,8 +129,13 @@ fuel purchases, scooping, mission refills and manual controls use the same limit
 Moving starfield translation follows absolute speed with Cobra Mk III's speed
 of 22 as the fixed reference. Full throttle is visibly slower in Anaconda and
 faster in Asp; equal absolute speeds give equal starfield motion across hulls.
-Hulls with more than four missile pylons use one state icon and a numeric count
-in the original HUD strip. The status equipment list also supports two digits.
+The cockpit shows `min(hull missile capacity, 4)` square slots, with
+`min(loaded missiles, 4)` filled slots. Krait has no missile slots. Boa and
+Anaconda keep their full magazines but show four filled indicators until fewer
+than four missiles remain; there is no numeric cockpit counter. The last filled
+indicator shows the armed/locked state. Hull changes clear unused slots in both
+screen buffers. The Status equipment list still shows the actual missile count
+and supports two digits.
 
 ## Assets and saved commanders
 
@@ -160,7 +173,9 @@ Shipyards artwork, screen consumers, purchase, load, new game and subsequent fli
 Runtime checks use private copies of WinUAE and Hatari on separate hidden Windows
 desktops. Native scenario reports and captured screens are under each platform's
 `build/shipyards-qa`. Standard 1 MB boots, Shipyards, selection, Equip buy/sell,
-Anaconda status/planet views and the 16-missile HUD are included.
+Anaconda status/planet views and the four-indicator HUD with a 16-missile
+magazine are included. See the latest verification in
+[shared ship systems](2026-10-01-ai-ship-systems.md#current-regression-verification-2-october-2026).
 
 The original PNG integration passed 93 native gameplay scenarios on Atari ST and
 132 on Amiga, including 39 Amiga decompression checks. These describe that earlier
