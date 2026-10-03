@@ -1,5 +1,7 @@
 # Stable AI laser colours during flight
 
+Historical note: superseded by [per-ship laser loadouts](2026-10-03-ai-laser-loadouts.md) on 3 October 2026. The global flight cache described below has been removed.
+
 Both enhanced versions cache the normal AI laser colour when leaving a station
 or completing a hyperspace jump. Normal and galactic hyperspace share the same
 completion path, including witch-space arrivals.

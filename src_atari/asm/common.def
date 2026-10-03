@@ -529,7 +529,11 @@ peel_z_count: rs.w 1 ; no. times to rotate in z direction
 peel_z: rs.w 1 ; angle to rotate each time
 pre_attack: rs.w 1 ; pre-attack health
 next_logic: rs.w 1 ; next logic to perform
-ai_laser: rs.w 1 ; flag  enemy fired a laser in this game frame
+ai_laser_loadout: rs.w 1 ; persistent per-ship base power: 0/5/9/11
+ai_laser: rs.w 1 ; frame visual: 0 none, 1 no damage, 2 accepted hit
+ai_laser_cooldown: rs.w 1 ; steps remaining until the next firing tick
+ai_laser_burst: rs.w 1 ; visible steps remaining, including the current one
+ai_laser_target: rs.l 1 ; target captured when this burst started
 registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
 
 cargo_mass: rs.l 1 ; exact jettison payload in grams; 0 = normal random salvage

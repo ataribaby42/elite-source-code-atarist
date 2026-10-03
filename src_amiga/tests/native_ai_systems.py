@@ -71,7 +71,7 @@ def make_suite(root, s):
         case(f'{model}: copied object cannot inherit ship shields or energy unit')
         spawn('cobra')
         emit(f' move.w #2,ai_energy_unit(a4)\n move.w #{model},type(a4)\n'+call('create_object'))
-        for f in ('ai_strength','ai_missile_strength','ai_front','ai_aft','ai_energy_unit','ai_energy_fraction','ai_front_fraction','ai_aft_fraction'):eq(0,f'{f}(a4)')
+        for f in ('ai_laser_loadout','ai_strength','ai_missile_strength','ai_front','ai_aft','ai_energy_unit','ai_energy_fraction','ai_front_fraction','ai_aft_fraction'):eq(0,f'{f}(a4)')
     for axis in ('i','j','k'):
         for sign in (-1,1):
             case(f'Victim-oriented {axis} axis {sign}: NPC attacker selects the correct shield')
@@ -80,21 +80,15 @@ def make_suite(root, s):
             emit(' clr.l z_vector(a4)\n clr.w z_vector+k(a4)\n')
             emit(f' move.w #{sign*16384},z_vector+{axis}(a4)\n move.l #$40000000,{dict(i="xpos",j="ypos",k="zpos")[axis]}(a0)\n moveq #5,d0\n'+call('ship_ai_damage'))
             eq(19 if sign==1 else 24,'ai_front(a4)');eq(24 if sign==1 else 19,'ai_aft(a4)')
-    for rating in range(9):
-        case(f'Rating {rating}: cached AI laser class equals player power against either victim')
-        emit(f' move.w #{rating},rating(a6)\n'+call('init_ai_laser_colour'))
-        spawn('cobra');emit(' move.l a4,a5\n'+call('ai_laser_power'));eq(5 if rating<3 else 9 if rating<6 else 11,'d0')
-        emit(' move.w #8,rating(a6)\n'+call('ai_laser_power'));eq(5 if rating<3 else 9 if rating<6 else 11,'d0')
-        emit(' move.w #constr,type(a5)\n'+call('ai_laser_power'));eq(11,'d0')
     for rating,power in ((0,5),(3,9),(6,11)):
         for npc in (False,True):
-            case(f'Actual AI attack at rating {rating}: accepted hits deal {power} to {"NPC" if npc else "player"}, misses deal zero')
+            case(f'Actual AI attack with stored power {power}: accepted hits deal {power} to {"NPC" if npc else "player"}, misses deal zero')
             spawn('cobra');spawn('cobra',4)
-            emit(f' move.w #{rating},rating(a6)\n'+call('init_ai_laser_colour'))
+            emit(f' move.w #{power},ai_laser_loadout(a4)\n')
             label=f'qa_shots_{rating}_{int(npc)}'
             emit(' clr.w cloaking_on(a6)\n move.w #7,hull_strength(a6)\n clr.w qa_accepted\n moveq #23,d6\n'+label+':\n lea objects+obj_len*4(a6),a5\n move.l #1000,zpos(a5)\n move.w #255,mood(a5)\n move.l #1000,obj_range(a5)\n move.w #log_attack,logic(a5)\n clr.l z_vector(a5)\n move.w #-unit,z_vector+k(a5)\n clr.w ai_laser(a5)\n move.w #24,front_shield(a6)\n lea objects+obj_len*3(a6),a4\n move.w #24,ai_front(a4)\n move.w #unit,z_vector+k(a4)\n')
             emit(' move.l a4,target(a5)\n' if npc else ' clr.l target(a5)\n')
-            emit(' move.w d6,-(sp)\n'+call('do_attack')+' move.w (sp)+,d6\n moveq #24,d0\n cmp.w #2,ai_laser(a5)\n'+f' bne.s {label}_check\n addq.w #1,qa_accepted\n sub.w #{power},d0\n{label}_check:\n')
+            emit(' move.w d6,-(sp)\n'+call('ai_laser_tick')+call('do_attack')+' move.w (sp)+,d6\n moveq #24,d0\n cmp.w #2,ai_laser(a5)\n'+f' bne.s {label}_check\n addq.w #1,qa_accepted\n sub.w #{power},d0\n{label}_check:\n')
             field='objects+obj_len*3+ai_front(a6)' if npc else 'front_shield(a6)'
             emit(f' cmp.w {field},d0\n bne fail\n dbra d6,{label}\n tst.w qa_accepted\n beq fail\n')
     for distance, threshold in ((1,20),(1000,20),(2000,30),(3000,40),(4000,50),(5000,60),(6000,80),(7000,100),(12288,100)):

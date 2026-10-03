@@ -6,7 +6,7 @@
 	xref launch,buy_cargo,sell_cargo,equip_ship,galactic_chart,local_chart,data
 	xref market_prices,inventory,status,disk,find_planet,home_cursor,options
 	xref ship_refresh,ship_yard_bitmap,ship_put_bitmap
-	xref obj_data
+	xref obj_data,init_ship_laser
 	q_module ships
 
 ; D0.w persistent hull ID -> A0 profile. D0 and all other registers preserved.
@@ -363,6 +363,10 @@
 ; Fractional damage and equipment never survive copying/reusing a slot.
 	q_subr ship_ai_init,global
 	movem.l d0-d2/a0,-(sp)
+	clr.w ai_laser_cooldown(a4)
+	clr.w ai_laser_burst(a4)
+	clr.l ai_laser_target(a4)
+	clr.w ai_laser_loadout(a4)
 	clr.w shield_flash(a4) ; reused/copied slots never inherit a hit flash
 	clr.w ai_strength(a4)
 	clr.w ai_missile_strength(a4)
@@ -387,6 +391,7 @@
 	cmp.w #constr,d0
 	bhi .done
 .ship:
+	jsr init_ship_laser
 	bsr ship_weapon_profile
 	move.w (a0)+,ai_strength(a4)
 	move.w (a0),ai_missile_strength(a4)

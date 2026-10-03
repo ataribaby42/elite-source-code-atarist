@@ -230,18 +230,23 @@ the probability of taking damage on every frame.
 
 Only the damage after an accepted hit changes. The former random damage and
 2-or-3 multiplier are replaced by the player's base damage for that laser
-class. Ordinary AI retains the existing rating bands and flight-cached class:
+class. Ordinary AI selects a separate persistent loadout for each new ship:
 
-| Player rating at launch / completed jump | Class | Base damage per hit |
-| --- | --- | ---: |
-| Harmless, Mostly Harmless, Poor | Pulse | 5 |
-| Average, Above Average, Competent | Beam | 9 |
-| Dangerous, Deadly, Elite | Military | 11 |
+| Player rating when the ship is created | Pulse (5) | Beam (9) | Military (11) |
+| --- | ---: | ---: | ---: |
+| Harmless, Mostly Harmless, Poor | 90% | 7% | 3% |
+| Average, Above Average, Competent | 70% | 21% | 9% |
+| Dangerous, Deadly, Elite | 50% | 35% | 15% |
 
-The player's Mining Laser remains 7. Constrictor uses Military power. Thargoid
-and Thargon beams remain light blue and use the flight's damage tier. NPC versus
-NPC combat uses the shooter's same power; it no longer has a separate weaker
-damage roll. Firing frequency, aim and distance accuracy are unchanged.
+The player's Mining Laser remains 7. Cougar always uses Beam and Constrictor
+Military. Thargoid and Thargon beams remain light blue with deterministic
+power 5/9/11 for the three rating bands at creation. NPC versus NPC combat
+uses the shooter's same stored power; it has no separate weaker damage roll.
+Aim and distance accuracy are unchanged. Pulse now has a minimum 10-step
+interval; Beam/Military use continuous 6–18-step bursts with checks every
+6/3 steps. See [burst timing and impact audio](2026-10-03-ai-laser-bursts.md). There is no global
+laser cache refreshed on departure or hyperspace. See
+[per-ship loadouts and validation](2026-10-03-ai-laser-loadouts.md).
 
 All guided missiles now use the player's existing base power of 60, scaled by
 the victim's missile resistance and absorbed by the struck shield and then

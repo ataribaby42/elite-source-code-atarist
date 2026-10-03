@@ -33,8 +33,7 @@ The option changes player beam appearance only; AI beam drawing is unchanged.
 
 Mining uses the same magenta as the shield and energy instrument bars. No
 palette entries are changed. Colour selection follows the laser fitted to the
-current view and applies to both beam styles. AI colours follow the player's
-rating bands described below.
+current view and applies to both beam styles. AI colours follow their stored loadouts and the alien exception described below.
 
 The shot cooldown uses the original Atari game-frame counter, decremented in
 the same place in the cockpit renderer as before the laser conversion. It
@@ -88,14 +87,45 @@ does not disable this feedback.
 
 ## AI weapons
 
-AI beam colours follow the same player-rating bands as base damage, using
-existing palette entries: Harmless through Poor is red (6), Average through
-Competent is orange (3), and Dangerous through Elite is white (15). The
-Constrictor always uses white regardless of player rating. Thargoids and
-Thargons (Tharglets) always use light blue (10). The colour applies
-to both hits and misses. The ordinary rating bands now select matching Pulse,
-Beam and Military damage, cached with the colour for the current flight.
-Firing opportunities, accuracy and sound keep their existing rules.
+Each ordinary AI ship independently selects its laser when it is created:
+
+| Player rating when the ship is created | Pulse (5) | Beam (9) | Military (11) |
+| --- | ---: | ---: | ---: |
+| Harmless, Mostly Harmless, Poor | 90% | 7% | 3% |
+| Average, Above Average, Competent | 70% | 21% | 9% |
+| Dangerous, Deadly, Elite | 50% | 35% | 15% |
+
+The upgrade chances are 10%, 30% and 50%; upgrades split into 70% Beam and
+30% Military. The selected loadout remains fixed for that ship in the bubble,
+including after a player rating change. There is no global flight laser cache.
+Copied wingmen select their own loadouts. Removing, allocating or clearing a
+slot resets its loadout, and non-ship objects have no ship laser.
+
+Pulse beams are red (6), Beam orange (3), and Military white (15). Cougar
+always has Beam; Constrictor always has Military. Thargoids and Thargons
+(Tharglets) retain deterministic power 5/9/11 for the three rating bands,
+recorded at creation, and always draw light blue (10). These colours apply
+to both hits and misses. Aim and distance accuracy retain their existing rules. See [per-ship loadouts](../docs/2026-10-03-ai-laser-loadouts.md)
+for selection and validation details.
+
+The original `mood` roll now starts a single Pulse shot or a Beam/Military
+burst. Pulse has a minimum interval of 10 game steps. Each Beam or Military
+burst independently draws a uniform length from 6 through 18 steps inclusive.
+The beam is visible on every step of the burst, including misses and the steps
+between damage checks. Beam checks damage every 6 steps and Military every 3,
+starting on the first step. Thus Beam has 1–3 checks per burst and Military 2–6.
+At full PAL speed a burst lasts 0.36–1.08 seconds; longer rendered frames also
+lengthen real elapsed time. The existing cooldown must expire before another
+shot or burst can start, including after an interrupted burst.
+
+Each damage check uses the existing aim cones and distance miss roll. There
+is no extra damage multiplier and no damage on visual-only frames. A miss
+does not interrupt the beam. Lost aim, invalid/switched targets, leaving the
+attack state, out-of-range targets, or the existing player cloak/control-lock
+guards stop it. Player-only guards do not stop AI-versus-AI fire. Timers run
+off-screen too; copying or reusing a slot clears its firing state. Alien colours
+and special loadouts remain unchanged; cadence follows their stored class.
+See [AI bursts and impact audio](../docs/2026-10-03-ai-laser-bursts.md).
 
 An enemy's current position and forward orientation determine whether it can
 fire and hit. The firing cone uses the BBC ratio 32/36; the narrower hit cone
@@ -114,7 +144,7 @@ This is a project-specific change, not a rule from BBC Elite.
 A 16-byte table stores these four anchors. Each otherwise well-aimed shot
 interpolates between neighbouring anchors, rounding down to 0.5 percentage points;
 for example, 2,000 gives 15%, 4,000 gives 25%, and 6,000 gives 40%.
-There is no additional calculation on frames without an eligible shot. The
+The distance roll runs only on eligible damage checks, not on visual-only frames. The
 distance is the existing world-space range, independent of scanner zoom or view.
 Random bytes 200..255 are retried; accepted values 0..199 are compared with
 twice the miss percentage. The anchor probabilities are therefore exact.
@@ -125,24 +155,25 @@ AI lasers can fire at up to 12,288 world units, exactly half the scanner's
 The accuracy table is unchanged: its existing cap keeps the additional
 miss chance at 50% from 7,000 through 12,288 units. Firing does not require a
 full ship model; point-sized and subpixel ships can also fire.
-The original random firing opportunity, cloaking check and control
+The original random trigger opportunity, cloaking check and control
 lock remain in effect. A hit is applied immediately to the front or aft shield
 according to the shooter's position. Every shot still draws its beam, including
 both kinds of miss. The build option `aifiresound=no` (default) disables only the
 AI laser firing sound. `aifiresound=yes` requests the existing firing sound on
-hits and misses, subject to the game's Effects setting. Impact sounds remain
-active on hits according to their existing rules. Misses do not update
+damage ticks, including misses, subject to the game's Effects setting. Each
+accepted incoming laser hit retriggers the shield impact sound, including
+while the previous impact is still playing. The same voice is reused; music
+and Effects OFF retain their existing suppression. Other impact sounds keep
+their previous handling. Misses do not update
 shields/energy or request an impact sound. Player firing sounds, missile alerts
 and other effects keep their existing handling. The option does not change
 accuracy, damage, firing opportunities or random-number consumption.
 
-Successful AI hits now use the same base damage as the player weapon class:
-Pulse 5 (Harmless through Poor), Beam 9 (Average through Competent), and Military
-11 (Dangerous through Elite). Constrictor always uses Military power. Thargoid
-and Thargon beams retain their blue appearance and use the flight's damage
-tier. Player Mining Lasers retain power 7. There is no additional random base
-or multiplier after an accepted hit, and NPC versus NPC fire uses the same
-power as fire against the player. Misses cause zero damage.
+Successful AI hits use the same base damage as the corresponding player
+weapon: Pulse 5, Beam 9 and Military 11. The stored ship loadout supplies this
+power against both player and NPC targets. Player Mining Lasers retain power 7.
+There is no additional random base or multiplier after an accepted hit.
+Misses cause zero damage.
 
 Damage is scaled by the victim's hull resistance, then absorbed by its front
 or aft shield before reaching its energy banks. Both player and AI hulls use
@@ -185,7 +216,7 @@ additional eight-byte nodes. Original sources remain unchanged.
 
 AI beams are drawn with their ships in the existing depth layers, allowing
 nearer objects to cover them. Player beams are drawn after the world; sights
-and viewport text remain above the beams. AI beams use the rating colours
+and viewport text remain above the beams. AI beams use the loadout colours
 described above; player beams use their weapon colours.
 
 ## Validation

@@ -527,6 +527,131 @@ q_logic_m68_33:
 .distance_miss:
 	dc.w 1000,20,3000,40,5000,60,7000,100 ; 10%, 20%, 30%, 50%
 
+; Called once per active object at the start of every flight step, even
+; off-screen. Counters set on the firing step are first decremented next step.
+	q_subr ai_laser_tick,global
+	clr.w ai_laser(a5)
+	tst.w ai_laser_cooldown(a5)
+	ble.s .burst
+	subq.w #1,ai_laser_cooldown(a5)
+.burst:
+	cmp.w #log_attack,logic(a5)
+	bne.s .cancel
+	tst.w ai_laser_burst(a5)
+	ble.s .done
+	subq.w #1,ai_laser_burst(a5)
+	bne.s .done
+.cancel:
+	clr.w ai_laser_burst(a5)
+	clr.l ai_laser_target(a5)
+.done:
+	rts
+
+; D0.w = uniform burst length 6..18 inclusive; D1 clobbered.
+; Accept 247 bytes: exactly 19 outcomes for each of the 13 lengths.
+	q_subr ai_burst_length,global
+.retry:
+	jsr random
+	cmp.w #247,d0
+	bhs.s .retry
+	and.l #255,d0
+	divu.w #13,d0
+	swap d0
+	addq.w #6,d0
+	rts
+
+; A5 shooter, TARGET_RANGE already computed by DO_ATTACK. A held beam is
+; redrawn each step; AI_LASER=2 only on an accepted damaging hit this step.
+; Mood rolls start a pulse or a burst. They never interrupt a running burst.
+	q_subr ai_fire_laser,global
+	cmp.w #log_attack,logic(a5)
+	bne .cancel
+	bsr validate_target
+	tst.w d0
+	beq .cancel
+	tst.l target_range(a6)
+	ble .cancel
+	cmp.l #fire_range,target_range(a6)
+	bhi .cancel
+	tst.l target(a5)
+	bne.s .eligible
+	tst.w cloaking_on(a6)
+	bne .cancel
+	tst.w controls_locked(a6)
+	bne .cancel
+.eligible:
+	tst.w ai_laser_burst(a5)
+	beq.s .trigger
+	move.l target(a5),d0
+	cmp.l ai_laser_target(a5),d0
+	bne .cancel ; do not carry a burst over to a different target
+	bsr ai_laser_aim
+	tst.w d0
+	beq .cancel
+	move.w d0,ai_laser(a5)
+	tst.w ai_laser_cooldown(a5)
+	beq.s .shot
+	move.w #1,ai_laser(a5) ; visible only, no repeated damage between ticks
+	rts
+.trigger:
+	tst.w ai_laser_cooldown(a5)
+	bne .done
+	jsr random ; original firing chance, now applied at trigger time
+	cmp.w mood(a5),d0
+	bhi .done
+	bsr ai_laser_aim
+	tst.w d0
+	beq .done
+	move.w d0,ai_laser(a5)
+	cmp.w #beam_damage,ai_laser_loadout(a5)
+	beq.s .start_burst
+	cmp.w #military_damage,ai_laser_loadout(a5)
+	bne.s .shot
+.start_burst:
+	bsr ai_burst_length
+	move.w d0,ai_laser_burst(a5)
+	move.l target(a5),ai_laser_target(a5)
+.shot:
+	move.w #10,ai_laser_cooldown(a5) ; Pulse
+	cmp.w #beam_damage,ai_laser_loadout(a5)
+	bne.s .military
+	move.w #6,ai_laser_cooldown(a5)
+.military:
+	cmp.w #military_damage,ai_laser_loadout(a5)
+	bne.s .accuracy
+	move.w #3,ai_laser_cooldown(a5)
+.accuracy:
+	cmp.w #2,ai_laser(a5)
+	bne.s .laser_sound ; geometric miss, still consumes a firing tick
+	bsr ai_laser_miss_threshold
+.accuracy_roll:
+	jsr random
+	cmp.w #200,d0
+	bhs.s .accuracy_roll
+	cmp.w d2,d0
+	bhs.s .on_target
+	move.w #1,ai_laser(a5) ; a miss never interrupts the visible burst
+	bra.s .laser_sound
+.on_target:
+	jsr ai_laser_power ; unchanged base damage, no random multiplier
+	tst.l target(a5)
+	bne.s .hit_ship
+	jsr reduce_laser_shields
+	bra.s .laser_sound
+.hit_ship:
+	bsr damage_target
+.laser_sound:
+	ifne aifiresound
+	q_sfx laser
+	endc
+.done:
+	rts
+.cancel:
+	clr.w ai_laser(a5)
+	clr.w ai_laser_burst(a5)
+	clr.l ai_laser_target(a5)
+	rts
+
 	q_subr do_attack
 
 	bsr validate_target ; is there still something to fight ?
@@ -573,45 +698,7 @@ q_logic_m68_33:
 	move #log_cruise,logic(a5) ; bugger off
 q_logic_m68_37:
 q_logic_m68_35:
-	cmp.l #fire_range,target_range(a6) ; close enough to fire ?
-	bhi no_fire ; no
-	tst.l target(a5) ; shooting at the player ?
-	bne.s .may_fire ; no, and neither of his states hides another ship
-	tst cloaking_on(a6) ; cloaking device on ?
-	bne no_fire ; yes
-	tst controls_locked(a6)
-	bne no_fire
-.may_fire:
-	jsr random ; preserve the original chance of firing
-	cmp mood(a5),d0
-	bhi no_fire
-	bsr ai_laser_aim ; fresh aim: 0 = no shot, 1 = miss, 2 = hit
-	tst.w d0
-	beq no_fire
-	move d0,ai_laser(a5) ; 1 = miss, 2 = hit
-	cmp.w #2,d0
-	bne.s .laser_sound
-	bsr ai_laser_miss_threshold ; distance-dependent chance, D2 survives random
-.accuracy_roll:
-	jsr random
-	cmp.w #200,d0
-	bhs.s .accuracy_roll ; reject 200..255 for 200 equally weighted outcomes
-	cmp.w d2,d0
-	bhs.s .on_target
-	move #1,ai_laser(a5) ; drawn as a miss, no damage
-	bra.s .laser_sound
-.on_target:
-	jsr ai_laser_power ; same base damage as the player's laser of this class
-	tst.l target(a5) ; the player or another ship ?
-	bne.s .hit_ship
-	jsr reduce_laser_shields ; A5 selects front/aft by its position
-	bra.s .laser_sound
-.hit_ship:
-	bsr damage_target
-.laser_sound:
-	ifne aifiresound
-	q_sfx laser ; only the AI firing sound; impacts are handled by reduce_shields
-	endc
+	bsr ai_fire_laser ; pulse trigger or the next step of a held burst
 
 no_fire:
 

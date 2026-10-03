@@ -22,7 +22,7 @@ def make_suite(root, s):
     def restore(name):
         addr=s[name]
         return f' move.l qa_saved_{name},${addr:x}\n move.w qa_saved_{name}+4,${addr+4:x}\n'
-    emit(patch('random','qa_random')+patch('rand','qa_rand'))
+    emit(patch('random','qa_random')+patch('rand','qa_rand')+patch('ai_laser_roll','qa_loadout_roll'))
     emit(patch('pirate_attack','qa_ambush')+patch('random_encounter','qa_encounter'))
     case('Ordinary wave routing: all 256 coin values in all eight governments')
     emit(''' moveq #0,d4
@@ -190,7 +190,7 @@ qa_coin:
     emit(' bsr qa_fill\n clr.b objects+obj_len*19+flags(a6)\n move.w #8,rating(a6)\n move.w #$ffff,qa_fraction\n'+call('pirate_attack'))
     eq(1,'pirate_count(a6)');zero('objects+obj_len*19+convoy_speed(a6)');eq('log_attack','objects+obj_len*19+logic(a6)');eq('$5678','objects+obj_len*20+velocity(a6)')
 
-    emit(restore('random')+restore('rand'))
+    emit(restore('random')+restore('rand')+restore('ai_laser_roll'))
     for state in (0,0x52):
         case(f'System after hyperspace, mission ${state:02X}: planet, station and sun records')
         emit(f' move.w #${state:x},mission(a6)\n'+call('create_system'))
@@ -205,6 +205,9 @@ qa_coin:
     zero('convoy_speed(a4)');eq(-1,'patrol_record(a4)');eq(1,'obj_ctr+viper(a6)','b')
 
     tail='''
+qa_loadout_roll:
+ moveq #0,d0
+ rts
 qa_random:
  addq.w #1,qa_rng_calls
  move.w qa_roll,d0
@@ -382,6 +385,7 @@ qa_count: dc.w 0
 qa_model: dc.w 0
 qa_iterations: dc.w 0
 qa_parent_ptr: dc.l 0
+qa_saved_ai_laser_roll: ds.b 6
 qa_saved_random: ds.b 6
 qa_saved_rand: ds.b 6
 qa_saved_pirate_attack: ds.b 6

@@ -1,3 +1,4 @@
+	xref laser_impact_sound
 	xref ship_weapon_damage,ship_damage_store
 	xref ship_shield_damage,ship_ai_damage,ship_ai_recharge,ship_charge_tick
 	include "common.def"
@@ -53,7 +54,7 @@ role_convoy: equ 6 ; peaceful traders sharing a cruise speed until combat
 ; The player's own fire rolls RATING*4+MISSILE_PROB before a ship lets go of a
 ; missile or a group of thargons. His combat rating means nothing in a fight he
 ; is not part of, so NPC missile retaliation uses the middle rating band.
-; Laser classes follow the cached flight rating. NPC-provoked Thargon releases
+; Laser loadouts are fixed independently when each ship is created. NPC-provoked Thargon releases
 ; are also smaller; see THARGONS.
 npc_launch_prob: equ 4*4+missile_prob
 
@@ -890,7 +891,12 @@ q_combat_m68_30:
 	move.w hull_laser_resistance(a6),d1
 	jsr ship_weapon_damage
 	move.l (sp)+,d1
-	bra.s reduce_shields_fixed
+	tst.l d0
+	q_ret eq
+	move.l d0,-(sp)
+	jsr laser_impact_sound ; each accepted laser hit has a fresh audible attack
+	move.l (sp)+,d0
+	bra reduce_shields_apply
 
 	q_subr reduce_missile_shields,global
 	move.l d1,-(sp)
@@ -907,6 +913,7 @@ q_combat_m68_30:
 	q_sfx shields
 	move.l (sp)+,d0
 .sound_ready:
+reduce_shields_apply:
 	lea front_shield(a6),a0
 	lea front_fraction(a6),a1
 	cmp #photon,type(a5)

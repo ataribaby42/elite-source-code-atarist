@@ -19,6 +19,20 @@ sounds_used: equ 0
 ecm_wave: equ 116
     section text,code
     cnop 0,4
+; Discrete incoming hits retrigger the shield sample; ordinary repeated
+; effects retain their existing duplicate suppression and Effects/music gates.
+    xdef laser_impact_sound
+laser_impact_sound:
+    tst audio_resetting
+    bne.s .done
+    btst #f_fx,user(a6)
+    beq.s .done
+    tst music_playing
+    bne.s .done
+    st laser_impact_pending     ; one atomic publication to the VBL consumer
+.done:
+    rts
+
 fx:
     tst audio_resetting
     bne .return
@@ -61,7 +75,14 @@ play_effect:
     cmp.b (a0)+,d0
     bne .next
     tst.w (a1)
-    bne .done                   ; do not restart a held laser/alert every frame
+    beq.s .next
+    cmp.w #sfx_shields,d0
+    bne .done
+    tst laser_impact_pending
+    beq .done                   ; ordinary held effects still do not restart
+    moveq #3,d6
+    sub.w d7,d6                 ; restart the existing shield voice
+    bra .channel_ready
 .next:
     addq.l #2,a1
     dbra d7,.same
@@ -233,6 +254,7 @@ quiet:
     clr ecm_on(a6)
     clr who_ecm(a6)
     clr.l effect_ticks
+    clr.w laser_impact_pending
     clr.l effect_ticks+4
     lea effect_requests,a0
     moveq #16,d0
@@ -348,6 +370,12 @@ sound:
     lea 16(a3),a3
     add.w d0,d0
     dbra d7,.effects
+    tst.w laser_impact_pending
+    beq.s .ordinary_requests
+    moveq #sfx_shields,d0
+    bsr play_effect
+    clr.w laser_impact_pending
+.ordinary_requests:
     lea effect_requests,a0
     moveq #0,d0
 .request:
@@ -901,6 +929,7 @@ rcs_samples:
 engine_samples:
     incbin "engine-loop.bin"
     section audio_vars,bss
+laser_impact_pending: ds.w 1
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
 effect_requests: ds.b 18

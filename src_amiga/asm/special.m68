@@ -17,6 +17,7 @@
 	include "macros.m68"
 
 	xref draw_planet_surface
+	xref random
 	xref set_colour,polygon,circle,c_line,c_plotxy,explode_vectors
 	xref solid_polygon,line
 	xref calc_yvector,transform
@@ -31,8 +32,6 @@
 	q_vars special
 
 exp_colour: rs.w 1 ; colour of explosion points
-ai_laser_colour: rs.w 1 ; normal AI beam colour cached for the current flight
-ai_laser_damage: rs.w 1 ; matching laser power, fixed for the same flight
 
 	q_end_vars special
 
@@ -351,33 +350,93 @@ laser_colours:
 	lea 3*node_len(sp),sp
 	rts
 
-; Refresh only on station launch or completed hyperspace/galactic jump.
-; Preserve all registers; drawing never recomputes this from a changing rating.
-	q_subr init_ai_laser_colour,global
-
-	move.l d0,-(sp)
-	move.w #military_damage,ai_laser_damage(a6)
-	moveq #white,d0
-	cmp.w #6,rating(a6) ; Dangerous through Elite
-	bhs.s .store
-	move.w #beam_damage,ai_laser_damage(a6)
-	moveq #orange,d0
-	cmp.w #3,rating(a6) ; Average through Competent
-	bhs.s .store
-	move.w #pulse_damage,ai_laser_damage(a6)
-	moveq #red,d0 ; Harmless through Poor
-.store:
-	move.w d0,ai_laser_colour(a6)
-	move.l (sp)+,d0
+; A4 new ship. Store its laser once; copying/reusing a slot rerolls it.
+; The loadout is encoded by base power (0 = none, 5/9/11 = Pulse/Beam/Military).
+; All registers preserved. Rating changes never alter an existing ship.
+	q_subr init_ship_laser,global
+	movem.l d0-d1,-(sp)
+	move.w #military_damage,ai_laser_loadout(a4)
+	cmp.w #constr,type(a4)
+	beq .done
+	move.w #beam_damage,ai_laser_loadout(a4)
+	cmp.w #cougar,type(a4)
+	beq.s .done
+	cmp.w #thargoid,type(a4)
+	beq.s .alien
+	cmp.w #thargon,type(a4)
+	beq.s .alien
+; One unbiased percentile is equivalent to the 10/30/50% upgrade roll
+; followed by 70% Beam / 30% Military: totals 90/7/3, 70/21/9, 50/35/15.
+	bsr ai_laser_roll
+	moveq #50,d1
+	cmp.w #6,rating(a6)
+	bhs.s .pulse_check
+	moveq #70,d1
+	cmp.w #3,rating(a6)
+	bhs.s .pulse_check
+	moveq #90,d1
+.pulse_check:
+	move.w #pulse_damage,ai_laser_loadout(a4)
+	cmp.w d1,d0
+	blo.s .done
+	moveq #85,d1
+	cmp.w #6,rating(a6)
+	bhs.s .beam_check
+	moveq #91,d1
+	cmp.w #3,rating(a6)
+	bhs.s .beam_check
+	moveq #97,d1
+.beam_check:
+	move.w #beam_damage,ai_laser_loadout(a4)
+	cmp.w d1,d0
+	blo.s .done
+	move.w #military_damage,ai_laser_loadout(a4)
+	bra.s .done
+.alien:
+; Preserve the alien 5/9/11 rating bands, with their usual blue beams.
+	move.w #military_damage,ai_laser_loadout(a4)
+	cmp.w #6,rating(a6)
+	bhs.s .done
+	move.w #beam_damage,ai_laser_loadout(a4)
+	cmp.w #3,rating(a6)
+	bhs.s .done
+	move.w #pulse_damage,ai_laser_loadout(a4)
+.done:
+	movem.l (sp)+,d0-d1
 	rts
 
-; A5 shooter -> D0 base power, independent of the victim. Alien beam
-; colours remain blue; Constrictor retains its military (white) class.
+; D0.w uniform 0..99, D1 clobbered. Discard 200..255 instead of biasing
+; the first 56 outcomes with modulo 100. Two byte values per percentile.
+	q_subr ai_laser_roll,global
+.retry:
+	jsr random
+	cmp.w #200,d0
+	bhs.s .retry
+	cmp.w #100,d0
+	blo.s .done
+	sub.w #100,d0
+.done:
+	rts
+
+; A5 shooter -> D0 base power, shared by player and NPC damage paths.
 	q_subr ai_laser_power,global
-	moveq #military_damage,d0
-	cmp.w #constr,type(a5)
+	move.w ai_laser_loadout(a5),d0
+	rts
+
+; A5 shooter -> D0 palette index. Colour and damage use the same loadout.
+	q_subr ai_laser_palette,global
+	moveq #lgt_blue,d0
+	cmp.w #thargoid,type(a5)
 	beq.s .done
-	move.w ai_laser_damage(a6),d0
+	cmp.w #thargon,type(a5)
+	beq.s .done
+	moveq #white,d0
+	cmp.w #military_damage,ai_laser_loadout(a5)
+	beq.s .done
+	moveq #orange,d0
+	cmp.w #beam_damage,ai_laser_loadout(a5)
+	beq.s .done
+	moveq #red,d0
 .done:
 	rts
 
@@ -397,18 +456,7 @@ laser_colours:
 	tst.l this_zpos(a5)
 	ble .done
 	movem.l d0-d7/a0-a5,-(sp)
-; Thargoids and Thargons always use light blue, independent of player rating.
-	moveq #lgt_blue,d0
-	cmp.w #thargoid,type(a5)
-	beq.s .laser_colour
-	cmp.w #thargon,type(a5)
-	beq.s .laser_colour
-; Constrictor stays white; other ships keep the colour selected for this flight.
-	moveq #white,d0
-	cmp.w #constr,type(a5)
-	beq.s .laser_colour
-	move.w ai_laser_colour(a6),d0
-.laser_colour:
+	bsr ai_laser_palette
 	jsr set_colour
 	jsr calc_yvector
 	move.w gun_node(a5),d0
