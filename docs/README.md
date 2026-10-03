@@ -5,6 +5,7 @@ builds. `src_orig` preserves the original game and is never the subject of one.
 
 | Document | Purpose |
 | --- | --- |
+| [2026-10-03-special-cargo.md](2026-10-03-special-cargo.md) | Special Cargo offers, fees, delivery, depreciation, Status, chart targeting and saved commanders |
 | [2026-10-02-identification-indicator.md](2026-10-02-identification-indicator.md) | Pending identification square, combined I/U targeting controls and native pixel checks |
 | [2026-10-01-ai-ship-systems.md](2026-10-01-ai-ship-systems.md) | Shared player/AI hull statistics, shields, energy, recharge, weapon damage and unchanged AI hit decisions |
 | [2026-09-25-procedural-planet-surfaces.md](2026-09-25-procedural-planet-surfaces.md) | Seeded spherical seas, continents and craters, arrival longitude, distance detail threshold and native verification |

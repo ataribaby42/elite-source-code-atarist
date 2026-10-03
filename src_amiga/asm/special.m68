@@ -362,9 +362,9 @@ laser_colours:
 	cmp.w #cougar,type(a4)
 	beq.s .done
 	cmp.w #thargoid,type(a4)
-	beq.s .alien
+	beq.s .done
 	cmp.w #thargon,type(a4)
-	beq.s .alien
+	beq.s .thargon
 ; One unbiased percentile is equivalent to the 10/30/50% upgrade roll
 ; followed by 70% Beam / 30% Military: totals 90/7/3, 70/21/9, 50/35/15.
 	bsr ai_laser_roll
@@ -392,14 +392,8 @@ laser_colours:
 	blo.s .done
 	move.w #military_damage,ai_laser_loadout(a4)
 	bra.s .done
-.alien:
-; Preserve the alien 5/9/11 rating bands, with their usual blue beams.
-	move.w #military_damage,ai_laser_loadout(a4)
-	cmp.w #6,rating(a6)
-	bhs.s .done
-	move.w #beam_damage,ai_laser_loadout(a4)
-	cmp.w #3,rating(a6)
-	bhs.s .done
+.thargon:
+; Aliens ignore rating: Thargoid Beam above, Thargon Pulse; both light blue.
 	move.w #pulse_damage,ai_laser_loadout(a4)
 .done:
 	movem.l (sp)+,d0-d1

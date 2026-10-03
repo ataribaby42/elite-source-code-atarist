@@ -22,8 +22,8 @@ equivalent combined probabilities. `ai_laser_roll` accepts random bytes
 exactly two accepted byte values; modulo bias is avoided.
 
 Cougar always has Beam (power 9, orange). Constrictor retains Military
-(power 11, white). Thargoid and Thargon/Tharglet retain deterministic power
-5, 9 or 11 for the three rating bands above, and always draw light blue.
+(power 11, white). Thargoids always have Beam (power 9), while Thargons/Tharglets
+always have Pulse (power 5), regardless of player rating. Both draw light blue.
 These four types do not consume the ordinary loadout roll. Their invincibility,
 mission logic, ECM and other special behaviour are unchanged.
 
@@ -132,3 +132,16 @@ trees, and its 110 durability counts still match the existing native results.
 Reports, RNG counts, payload listings and build logs are retained under each
 platform's `build/ai-loadout-qa` directory; the combined result is
 `src_atari/build/ai-loadout-qa/final-audit.json`.
+
+## Fixed alien loadouts follow-up
+
+Thargoids now always use Beam and Thargons/Tharglets always use Pulse. Both
+retain light blue at every player rating. The updated native selection tests
+cover all nine ratings, creation without a loadout RNG draw, palette selection,
+and persistence after a rating change.
+
+Both selected Atari and Amiga builds passed 493 native scenarios each: 71
+loadout, 91 burst/cadence, 248 combat systems and 83 spawn-path scenarios.
+This includes player/NPC damage, mission progression, alien brood creation
+and deactivation. Reports and build logs are in each platform's
+`build/alien-laser-qa` directory. The existing build options were preserved.

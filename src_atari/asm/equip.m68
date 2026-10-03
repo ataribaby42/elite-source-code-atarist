@@ -1,3 +1,4 @@
+	xref courier_status
 	xref ship_put_bitmap,ship_bitmap,ship_equipment_price,ship_equip_transaction
 	xref ship_equipment_mass,ship_cargo_spare,divide_by_1e5
 	include "common.def"
@@ -919,6 +920,7 @@ next_position:
 	lea 16(a5),a5 ; next position of laser
 	q_next 1
 	bsr status_hold ; draw over the ship, beside the rear laser label
+	jsr courier_status ; active delivery overlays the equipment row below Cash
 	moveq #white,d0 ; draw clock outline
 	jsr set_colour
 	lea clock_outline(pc),a0

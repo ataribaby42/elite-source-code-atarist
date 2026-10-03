@@ -1,3 +1,4 @@
+	xref courier_chart_key
 	include "common.def"
 ; Ported from src_orig/asm/action.m68; edit this copy.
 *	 @@ 	@@@@   @@@@@@  @@@@@@	@@@   @@   @@
@@ -749,7 +750,7 @@ key_list:
 	key energy,launch_bomb ; Launch energy bomb
 	key inter,inter_galactic ; Inter-galactic jump
 	key escape,escape ; Launch escape capsule
-	key info,game_info ; Show game info
+	key info,courier_chart_key ; W: delivery target on charts, game info elsewhere
 	key id,id_object ; Id of object
 	key cloaking,cloaking_toggle ; Cloaking device on/off
 	key jammer,jammer_toggle ; ECM jammer on/off

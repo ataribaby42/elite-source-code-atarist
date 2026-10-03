@@ -1,3 +1,4 @@
+	xref courier_open
 	xref ship_cargo_spare
 	include "common.def"
 ; Ported from src_orig/asm/cargo.m68; edit this copy.
@@ -71,6 +72,8 @@ cargo_items: rs.b max_products ; commodity behind each displayed icon
 * Subr: ?
 
 	q_subr buy_cargo,global
+
+	clr.w courier_mode(a6) ; menu entry always opens ordinary Buy
 
 	jsr check_docked ; check we're docked
 	moveq #icon_buy,d0 ; invert icon
@@ -1394,6 +1397,7 @@ cargo_coords:
 * Buy cargo mouse action table.
 
 buy_cargo_action:
+	q_action 120,title_y,143,title_y+7,0,0,courier_open
 
 	q_action 59,175,79,181,0,0,buy_icon
 	q_action cargo_x,cargo_y,cargo_x+39,cargo_y+39,0,-1,buy
@@ -1515,7 +1519,7 @@ text5: dc.b 'Amount to buy (upto ',0
 text6: dc.b 'Sorry - we don''t have that much in stock.',0
 text7: dc.b 'Sorry - you don''t have enough credits.',0
 text8: dc.b 'Sorry - you don''t have enough room in your hold.',0
-text9: dc.b 'Buy Cargo',0
+text9: dc.b c_ink,lgt_blue,'Buy',c_ink,white,' Cargo',0
 text10: dc.b c_ink,magenta,'Cash: ',c_ink,lgt_green,0
 text11: dc.b c_ink,magenta,' Cr, Hold: ',c_ink,lgt_green,0
 text12: dc.b 't',c_ink,magenta,' spare',0

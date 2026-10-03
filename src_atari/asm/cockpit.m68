@@ -987,15 +987,21 @@ q_cockpit_m68_44:
 
 	q_subr draw_sight,global
 
-	tst laser_type(a6) ; identification also works without a fitted laser
-	bmi.s .id_marker
+	tst laser_type(a6) ; targeting indicators also work without a fitted laser
+	bmi.s .target_marker
 	move.l laser_def(a6),a0
 	move #160-16,d0
 	move laser_yc(a6),d1
 	jsr put_bitmap
-.id_marker:
-	tst.w id_trigger(a6)
-	q_ret eq
+.target_marker:
+	moveq #lgt_green,d5
+	tst.w id_trigger(a6) ; explicit identification has visual priority
+	bne.s .marker
+	cmp.w #1,missile_state(a6) ; armed, but no target locked yet
+	q_ret ne
+	moveq #lgt_grey,d5
+.marker:
+	move.w d5,-(sp) ; BLOCK clobbers the colour register
 ; Hollow five-pixel square, one logical pixel above the viewport centre.
 ; Its transparent centre leaves the target visible.
 	move.w #160-2,d0
@@ -1003,29 +1009,30 @@ q_cockpit_m68_44:
 	moveq #0,d2
 	moveq #5,d3
 	moveq #1,d4
-	moveq #lgt_green,d5
+	move.w (sp),d5
 	jsr block
 	move.w #160-2,d0
 	move.w #y_top+y_size/2+1,d1
 	moveq #0,d2
 	moveq #5,d3
 	moveq #1,d4
-	moveq #lgt_green,d5
+	move.w (sp),d5
 	jsr block
 	move.w #160-2,d0
 	move.w #y_top+y_size/2-2,d1
 	moveq #0,d2
 	moveq #1,d3
 	moveq #3,d4
-	moveq #lgt_green,d5
+	move.w (sp),d5
 	jsr block
 	move.w #160+2,d0
 	move.w #y_top+y_size/2-2,d1
 	moveq #0,d2
 	moveq #1,d3
 	moveq #3,d4
-	moveq #lgt_green,d5
+	move.w (sp),d5
 	jsr block
+	addq.l #2,sp
 	q_ret
 
 

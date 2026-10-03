@@ -39,9 +39,10 @@ The remaining cooldown is retained after cancellation. A ship outside the
 screen still advances both timers.
 
 Laser classes and colours follow the [per-ship loadout rules](2026-10-03-ai-laser-loadouts.md).
-Cougar always uses Beam, Constrictor uses Military, and Thargoid/Thargon retain
-their rating-selected base power and blue colour. Their cadence follows that
-stored power. Mission immunity, rewards, child creation and deactivation are
+Cougar and Thargoid always use Beam, Constrictor uses Military, and Thargon
+(Tharglet) always uses Pulse, regardless of player rating. Both alien types
+retain their light-blue colour. Thargoids use 6–18-step bursts with damage
+checks every 6 steps; Thargons use single shots at least 10 steps apart. Mission immunity, rewards, child creation and deactivation are
 not changed by the burst code.
 
 ## Object state and random selection

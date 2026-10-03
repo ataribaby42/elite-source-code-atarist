@@ -34,7 +34,7 @@ def make_suite(root, s):
         eq(1,'qa_draws')
         emit(f' addq.w #1,d5\n cmp.w #100,d5\n blo qa_percent_{rating}\n dbra d6,qa_models_{rating}\n')
         for model in ('constr','cougar','thargoid','thargon'):
-            power=11 if model=='constr' else 9 if model=='cougar' else (5,9,11)[band]
+            power={'constr':11,'cougar':9,'thargoid':9,'thargon':5}[model]
             colour=15 if model=='constr' else 3 if model=='cougar' else 10
             case(f'{model}, rating {rating}: fixed power {power}, colour {colour}, no loadout RNG')
             emit(f' move.w #{rating},rating(a6)\n clr.w qa_draws\n')

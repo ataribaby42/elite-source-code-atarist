@@ -1,4 +1,5 @@
 	include "common.def"
+	xref courier_dock,courier_continue
 	xref ship_ai_init,ship_flash_tick,ai_laser_tick
 ; Ported from src_orig/asm/main.m68; edit this copy.
 * @@   @@	 @@    @@@@@@ @@   @@
@@ -780,7 +781,9 @@ q_main_m68_60:
 q_main_m68_61:
 	jsr start_fade ; start music fade
 	st docked(a6) ; we are docked
-	jmp dock_check ; check for mission messages
+	jsr courier_dock ; settle only on real docking, before story missions
+	jsr dock_check ; check for mission messages
+	jmp courier_continue ; honour navigation that dismissed the delivery receipt
 
 
 * **********************************

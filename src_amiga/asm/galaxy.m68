@@ -1,3 +1,4 @@
+	xref courier_find_target,game_info
 	include "common.def"
 ; Ported from src_orig/asm/galaxy.m68; edit this copy.
 ;	@@@@	 @@   @@@@		 @@   @@   @@  @@  @@
@@ -1735,6 +1736,34 @@ q_galaxy_m68_93:
 
 ; Regs: ?
 ; Subr: ?
+
+; W selects the delivery destination on either chart, including a distant
+; target outside the local view. Do not snap it back to a visible neighbour.
+    q_subr courier_chart_key,global
+    move.w disp_type(a6),d0
+    cmp.w #disp_galactic,d0
+    beq.s .chart
+    cmp.w #disp_local,d0
+    beq.s .chart
+    jmp game_info
+.chart:
+    tst.w count_down(a6)
+    bne.s .done
+    tst.w courier_reward(a6)
+    beq.s .done
+    jsr courier_find_target
+    tst.w d0
+    bmi.s .done
+    move.w d0,req_planet(a6)
+    cmp.w #disp_local,disp_type(a6)
+    beq.s .local
+    bsr g_centre_cursor
+    bra q_galaxy_m68_90
+.local:
+    bsr l_centre_cursor
+    bra q_galaxy_m68_90
+.done:
+    rts
 
 	q_subr disp_distance,global
 

@@ -1,4 +1,4 @@
-"""Native I/U dispatch and pixel checks for the pending-identification sight."""
+"""Native targeting controls and pixel checks for missile/identification sights."""
 from native_missile_collision import make_suite as base_suite
 
 
@@ -31,23 +31,32 @@ def make_suite(root, s):
     for view,func in enumerate(('front_view','rear_view','left_view','right_view')):
         for laser in range(-1,4):
             for screen in (1,2):
-                case(f'View {view}, laser {laser}, buffer {screen}: only a centred green outline appears; U removes it')
+                case(f'View {view}, laser {laser}, buffer {screen}: grey pending lock, green ID priority, locked/cleared markers')
                 emit(call('ship_apply')+call('prepare_cockpit'))
                 for field in ('pulse_lasers','mining_lasers','beam_lasers','military_lasers'):emit(f' clr.w equip+{field}(a6)\n')
                 if laser>=0:emit(f' move.w #{1<<view},equip+{("pulse_lasers","mining_lasers","beam_lasers","military_lasers")[laser]}(a6)\n')
                 # DRAW_SPACE normally drains the asynchronous viewport clear
                 # before DRAW_SIGHT. This focused test skips the space renderer.
                 emit(call(func)+f' move.l screen{screen}_ptr(a6),scr_base(a6)\n'+call('clear_image')+call('wait_clear')+call('draw_sight')+' bsr qa_capture_pixels\n')
-                key('I');emit(' move.w #1,qa_expect_active\n'+call('clear_image')+call('wait_clear')+call('draw_sight')+' bsr qa_compare_pixels\n')
-                key('U');emit(' clr.w qa_expect_active\n'+call('clear_image')+call('wait_clear')+call('draw_sight')+' bsr qa_compare_pixels\n')
+                def marker(colour):
+                    emit(f' move.w #{colour},qa_expect_colour\n'+call('clear_image')+call('wait_clear')+call('draw_sight')+' bsr qa_compare_pixels\n')
+                key('I');marker('lgt_green')
+                key('U');marker(0)
+                emit(' move.w #4,equip+missiles(a6)\n')
+                key('T');eq(1,'missile_state(a6)');marker('lgt_grey')
+                key('I');marker('lgt_green')
+                emit(' clr.w id_trigger(a6)\n');marker('lgt_grey')
+                emit(' move.w #2,missile_state(a6)\n');marker(0)
+                key('I');marker('lgt_green')
+                key('U');marker(0);eq(0,'missile_state(a6)');eq(4,'equip+missiles(a6)')
     # Use only this platform's own geometry and screen layout.
     g=s["_geometry"];zx=g["row_stride"]//160;zy=(g["y_max"]-g["y_min"]+1)//(g["no_rows"]*8);cx=g["x_left"]+(g["x_max"]-g["x_min"]+1)//2;cy=g["y_top"]+(g["y_max"]-g["y_min"]+1)//2-zy
     points=[(cx+lx*zx+dx,cy+ly*zy+dy,int(-2<=lx<=2 and -2<=ly<=2 and (abs(lx)==2 or abs(ly)==2)))
             for ly in range(-4,5) for dy in range(zy) for lx in range(-4,5) for dx in range(zx)]
-    tail+='qa_expect_active: dc.w 0\nqa_baseline: ds.b '+str(len(points))+'\n even\nqa_points:\n'
+    tail+='qa_expect_colour: dc.w 0\nqa_baseline: ds.b '+str(len(points))+'\n even\nqa_points:\n'
     tail+=''.join(f' dc.w {x},{y},{edge}\n' for x,y,edge in points)
     tail+='qa_capture_pixels:\n'+call('wait_clear')+' lea qa_points,a2\n lea qa_baseline,a3\n move.w #'+str(len(points)-1)+',d7\n.loop:\n move.w (a2)+,d0\n move.w (a2)+,d1\n addq.l #2,a2\n bsr qa_pixel\n move.b d0,(a3)+\n dbra d7,.loop\n rts\n'
-    tail+='qa_compare_pixels:\n'+call('wait_clear')+' lea qa_points,a2\n lea qa_baseline,a3\n move.w #'+str(len(points)-1)+',d7\n.loop:\n move.w (a2)+,d0\n move.w (a2)+,d1\n bsr qa_pixel\n move.w (a2)+,d3\n and.w qa_expect_active,d3\n beq.s .baseline\n cmp.w #lgt_green,d0\n bne fail\n bra.s .next\n.baseline:\n cmp.b (a3),d0\n bne fail\n.next:\n addq.l #1,a3\n dbra d7,.loop\n rts\n'
+    tail+='qa_compare_pixels:\n'+call('wait_clear')+' lea qa_points,a2\n lea qa_baseline,a3\n move.w #'+str(len(points)-1)+',d7\n.loop:\n move.w (a2)+,d0\n move.w (a2)+,d1\n bsr qa_pixel\n move.w (a2)+,d3\n tst.w qa_expect_colour\n beq.s .baseline\n tst.w d3\n beq.s .baseline\n cmp.w qa_expect_colour,d0\n bne fail\n bra.s .next\n.baseline:\n cmp.b (a3),d0\n bne fail\n.next:\n addq.l #1,a3\n dbra d7,.loop\n rts\n'
     tail+='''qa_pixel:
  moveq #0,d2
  move.w d0,d2

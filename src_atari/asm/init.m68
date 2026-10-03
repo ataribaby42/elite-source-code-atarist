@@ -921,6 +921,9 @@ reset_table:
 	dc.l $53485031 ; SHP1 player hull extension
 	dc.w 1 ; Adder
 
+	dc.l $53434731 ; SCG1 Special Cargo extension
+	dc.w 0,0 ; no reward or previous destination
+
 	ds.b 256-(*-new_game) ; pad out to 256 bytes
 
 * Table of local variable data.

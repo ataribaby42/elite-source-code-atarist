@@ -102,9 +102,9 @@ Copied wingmen select their own loadouts. Removing, allocating or clearing a
 slot resets its loadout, and non-ship objects have no ship laser.
 
 Pulse beams are red (6), Beam orange (3), and Military white (15). Cougar
-always has Beam; Constrictor always has Military. Thargoids and Thargons
-(Tharglets) retain deterministic power 5/9/11 for the three rating bands,
-recorded at creation, and always draw light blue (10). These colours apply
+always has Beam; Constrictor always has Military. Thargoids always have Beam
+(power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless
+of player rating. Both always draw light blue (10). These colours apply
 to both hits and misses. Aim and distance accuracy retain their existing rules. See [per-ship loadouts](../docs/2026-10-03-ai-laser-loadouts.md)
 for selection and validation details.
 

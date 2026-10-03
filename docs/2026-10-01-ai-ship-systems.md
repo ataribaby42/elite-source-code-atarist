@@ -239,8 +239,8 @@ class. Ordinary AI selects a separate persistent loadout for each new ship:
 | Dangerous, Deadly, Elite | 50% | 35% | 15% |
 
 The player's Mining Laser remains 7. Cougar always uses Beam and Constrictor
-Military. Thargoid and Thargon beams remain light blue with deterministic
-power 5/9/11 for the three rating bands at creation. NPC versus NPC combat
+Military. Thargoids always use Beam (9) and Thargons/Tharglets always use
+Pulse (5), regardless of player rating; both remain light blue. NPC versus NPC combat
 uses the shooter's same stored power; it has no separate weaker damage roll.
 Aim and distance accuracy are unchanged. Pulse now has a minimum 10-step
 interval; Beam/Military use continuous 6–18-step bursts with checks every

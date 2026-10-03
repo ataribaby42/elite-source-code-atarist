@@ -6,6 +6,18 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam a
 
 ## xx.xx.2029 V1.xx
 
+- Thargoids always use Beam; Tharglets always use Pulse. Both retain light-blue lasers.
+- Added a light-grey square while missile targeting awaits a lock; green identification takes priority.
+- Added Special Cargo contracts with Buy/Special tabs, mouse selection and contract details.
+- Added Special Cargo status display, delivery confirmation and rewards.
+- Reworked AI firing to match player laser behaviour: Pulse fires individual shots; Beam and Military produce continuous beams.
+- AI Pulse shots have a minimum 10-step interval.
+- AI Beam and Military fire bursts lasting 6–18 steps, with damage checks every 6/3 steps.
+- Added per-ship AI laser selection based on player rating: Pulse / Beam / Military probabilities of 90/7/3%, 70/21/9%, 50/35/15%.
+- Cougar always uses Beam; Constrictor uses Military; Thargoid and Tharglet retain their existing selection rules.
+- Target validity and aim are checked throughout each burst, including AI-versus-AI combat.
+- Every successful incoming laser hit retriggers the player’s impact sound.
+- Firing timers advance off-screen and reset when ships are created or removed.
 - Atari ST/Amiga: Comlete combat rewrite. Player and AI now uses same front/aft shields, energy banks and energy recharges. Unified player and AI shields, energy banks, recharge, weapon resistance, maximum speed, turning limits and missile capacity for all purchasable hulls. AI ships currently spawn without Energy Units.
 - Unified laser and guided-missile damage for player-versus-AI, AI-versus-player and AI-versus-AI combat. Removed the random AI damage multiplier while preserving existing aiming, hit probabilities and rating-based laser selection. Guided missiles now use 60 base damage.
 - Rebalanced hull durability relative to C64 Elite: Unbound, using Cobra Mk III as the reference. Separate missile resistance reproduces the reference missile hit counts.

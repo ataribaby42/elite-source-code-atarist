@@ -1004,6 +1004,24 @@ sky_vars: rs.w sky_vsize ; distant-star matrix and pixel cache
 
 nav_star: rs.w 1 ; transient compass mode: 0=planet/station, 1=star; never saved
 
+; SCG1 save extension: reward in tenths plus the previous delivery coordinates.
+courier_tag: rs.l 1
+courier_reward: rs.w 1
+courier_x: rs.b 1
+courier_y: rs.b 1
+; Transient Special Cargo menu state, separate from the commodity hold.
+courier_mode: rs.w 1
+courier_count: rs.w 1
+courier_offers: rs.b 15*10
+courier_seed: rs.w 3
+courier_skip: rs.w 1
+courier_stride: rs.w 1
+courier_limit: rs.w 1
+courier_row: rs.w 1
+courier_paid: rs.w 1
+courier_next_action: rs.l 1 ; navigation requested during the delivery receipt
+courier_next_function: rs.w 1
+
 var_size: equ __RS ; size of variables
 
 ; Pointers to common objects.

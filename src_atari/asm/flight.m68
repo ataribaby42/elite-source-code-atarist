@@ -763,6 +763,7 @@ q_flight_m68_92:
 	tst jump_type(a6) ; galaxy jump ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_flight_m68_95
+	clr.w courier_reward(a6) ; contracts cannot cross galaxies; retain coordinates
 	clr equip+hyperdrive(a6) ; use only once
 	q_inc galaxy_no(a6) ; increment galaxy
 	and #7,galaxy_no(a6)
