@@ -27,7 +27,7 @@
 	ifne blit_ok
 	xref wait_clear
 	endc
-	xref registration_assign,registration_new_player
+	xref registration_assign,registration_new_player,scramble_pirate,scramble_station
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
@@ -281,6 +281,7 @@ q_main_m68_20:
 	clr.l ai_laser_target(a4)
 	clr.w ai_laser_loadout(a4)
 	clr.w shield_flash(a4) ; a newly allocated slot has no pending hit flash
+	clr.w pirate_truce(a4)
 	q_pop d7 ; restore D7
 	q_sec set ; carry flag (alloc ok)
 	rts ; return
@@ -369,6 +370,7 @@ q_main_m68_37:
 q_main_m68_36:
 q_main_m68_33:
 	jsr registration_assign ; fresh identity, including copied objects
+	jsr scramble_pirate ; decide hostility only after installing this model
 	st obj_range(a4) ; object range not yet set up
 	movem.l (sp)+,d0-d2/d7/a0-a1 ; restore registers
 
@@ -432,6 +434,7 @@ q_main_m68_39:
 	clr.l ai_laser_target(a5)
 	clr.w ai_laser_loadout(a5)
 	clr.w shield_flash(a5) ; expire the flash as the object leaves the bubble
+	clr.w pirate_truce(a5)
 	bclr #in_use,flags(a5) ; clear in use flag
 	bclr #remove,flags(a5) ; don't remove again
 	move type(a5),d0 ; planet or sun ?
@@ -821,6 +824,7 @@ q_main_m68_63:
 	st checkpoint+1(a6)
 	jsr check_cargo ; update record before the existing police response
 cargo_already_checked:
+	jsr scramble_station ; hidden ID raises the record before the police check
 	tst radar_obj(a6) ; just entered space station space ?
 ; Quelo: 		if <eq> then.s					no
 	bne.s q_main_m68_67

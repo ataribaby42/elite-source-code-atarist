@@ -105,6 +105,12 @@ q_special_m68_2:
 	cmp.w #3,scr_radius(a5) ; radius-1: leave the grey dot and cross unchanged
 	blo.s .point_colour
 	moveq #lgt_blue,d0 ; the larger distant sphere can show a shield flash
+	cmp.w #thargoid,type(a5)
+	beq.s .alien_point
+	cmp.w #thargon,type(a5)
+	bne.s .point_colour
+.alien_point:
+	moveq #orange,d0
 .point_colour:
 	jsr set_colour
 	movem centre_x(a5),d5/d6 ; draw a solid circle

@@ -74,7 +74,8 @@ key_find: equ 'F' ; Find planet
 key_disk: equ '-' ; Disk i/o
 key_options: equ '=' ; Game options
 key_pause: equ 'P' ; Pause game
-key_info: equ 'W' ; Game information
+key_cargo: equ 'W' ; Cargo destination on charts
+key_info: equ 'V' ; Game information in 3D
 key_retro: equ 'R' ; Retro-rockets
 
 key_torus: equ 'J' ; torus jump drive
@@ -483,6 +484,16 @@ q_action_m68_48:
 * Regs:   ?
 * Subr:   ?
 
+; V must not open the blocking scroll over a UI page.
+	q_subr game_info_key
+	tst.w cockpit_on(a6)
+	beq.s .unavailable
+	tst.w docked(a6)
+	beq.s game_info
+.unavailable:
+	q_sfx error
+	rts
+
 	q_subr game_info,global
 
 	jsr check_inflight ; check we're flying
@@ -750,7 +761,8 @@ key_list:
 	key energy,launch_bomb ; Launch energy bomb
 	key inter,inter_galactic ; Inter-galactic jump
 	key escape,escape ; Launch escape capsule
-	key info,courier_chart_key ; W: delivery target on charts, game info elsewhere
+	key cargo,courier_chart_key ; W: delivery target on charts
+	key info,game_info_key ; V: game info only in 3D
 	key id,id_object ; Id of object
 	key cloaking,cloaking_toggle ; Cloaking device on/off
 	key jammer,jammer_toggle ; ECM jammer on/off

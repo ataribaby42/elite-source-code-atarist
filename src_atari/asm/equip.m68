@@ -21,7 +21,7 @@
 ; V1.1	30/03/90	'E-L-I-T-E' message flashes on status screen.
 
 	include "macros.m68"
-	xref registration_status
+	xref registration_status,scramble_offer
 	include "bitlist.m68"
 
 	xref invert_icon,prepare_text,print_centre,text_colour,find_bitmap,locate
@@ -96,6 +96,7 @@ draw_line macro
 	q_subr equip_ship,global
 
 	jsr check_docked ; check we are docked
+	jsr scramble_offer ; Anarchy service, before the ordinary Equip screen
 	clr.w equip_sell_mode(a6) ; every menu entry starts in Buy mode
 
 	q_subr equip_redraw

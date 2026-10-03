@@ -277,7 +277,7 @@ Debris and missiles retain their original type-only identification.
 Each AI ship keeps its ID for its lifetime. Coriolis stations use their galaxy
 and system number: Lave's station is `Space Station C1-007`. Alien Dodecahedron
 stations conceal their registration as `Alien Space Station ??-???`.
-The player's registration appears below Cash on the
+The player's registration appears above the bottom menu on the
 Status screen and is saved with the commander. New and legacy commanders
 start with `JS-042`; a successful escape capsule launch assigns the replacement
 ship a new registration. The commander file remains 256 bytes, and existing
@@ -398,3 +398,14 @@ Project contributor: **Jaroslav Pulchart**.
 This repository maintains a buildable version of the Atari ST sources with fixes and modern build tooling. It does not claim ownership of the original game, code, graphics, or other assets. Their copyrights remain with their respective rights holders; inclusion in this repository does not place them in the public domain or grant additional rights to use or redistribute them.
 
 The build uses the bundled **vasm 2.0f assembler** and **vlink 0.18a linker**. These tools have separate license terms: [vasm license](tools/vasm-LICENSE.txt) and [vlink license](tools/vlink-LICENSE.txt).
+
+## Scramble ID
+
+Entering Equip in an Anarchy station offers **Scramble ID** for **5,000 CR**
+through the standard Yes/No dialog (mouse or Y/N/Escape). Status then shows
+`??-???`. The service persists in saved commanders until a new hull is acquired.
+With a Fugitive record (at least 50), each new human pirate has a 50% chance to
+ignore the player until attacked. Mission ships and escorts, Thargoids and
+Tharglets keep their existing hostility. Approaching a station raises the
+record to at least 100 except in Anarchy, Feudal and Dictatorship systems.
+See [Scramble ID rules and validation](docs/2026-10-03-scramble-id.md).

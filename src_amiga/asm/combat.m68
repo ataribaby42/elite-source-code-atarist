@@ -361,8 +361,12 @@ faction_mask:
 	move.l #$7fffffff,d3 ; best distance so far
 	btst #angry,flags(a5) ; player already provoked this ship ?
 	bne.s .player
-	cmp #typ_pirate,ship_type(a5) ; pirates and aliens always hunt him
-	beq.s .player
+	cmp #typ_pirate,ship_type(a5) ; a neutral pirate leaves the player alone
+	bne.s .alien
+	tst.w pirate_truce(a5)
+	bne.s .ships
+	bra.s .player
+.alien:
 	cmp #typ_alien,ship_type(a5)
 	bne.s .ships
 .player:
@@ -1094,6 +1098,7 @@ q_combat_m68_67:
 ; a canister or a Thargon left dormant by its mother's death.
 	cmp #act_attack,attack_type(a5) ; can it fight back ?
 	bne.s .no_quarrel
+	clr.w pirate_truce(a5) ; a player hit permanently revokes this truce
 	bset #angry,flags(a5) ; provoked by the player
 .no_quarrel:
 	bsr hit_reaction ; break off from the shot
@@ -2114,8 +2119,6 @@ q_combat_m68_141:
 
 	jsr alloc_object ; allocate 1st object
 	q_ret cc ; none left
-	lea text2(pc),a0 ; print "Condition RED!"
-	jsr disp_message
 	move mission(a6),d0 ; decide on 1st object type
 ; Quelo: 	if d0 <eq> #$21 or d0 <eq> #$52 then.s
 	cmp #$21,d0
@@ -2791,7 +2794,6 @@ missile_data:
 ; Text strings.
 
 text1: dc.b 'Target lost',0
-text2: dc.b 'Condition RED!',0
 text5: dc.b 'Right on Commander',0
 text6: dc.b 'Missile Jammed!',0
 text7: dc.b 'Incoming missile',0

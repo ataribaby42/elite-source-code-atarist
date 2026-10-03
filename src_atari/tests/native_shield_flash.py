@@ -90,19 +90,24 @@ def make_suite(root, s):
               'anaconda','asp','sidewinder','krait','mamba','thargon','viper',
               'wolf','shuttle','transporter','thargoid','cougar','constr')
     for model in models:
-        case(f'{model}: every hull/line pixel flashes blue, normal materials return next frame')
+        alien = model in ('thargoid', 'thargon')
+        colour = 'orange' if alien else 'blue'
+        case(f'{model}: every hull/line pixel flashes {colour}, normal materials return next frame')
         spawn(model)
         emit(' clr.w csr_on(a6)\n clr.w display_clock(a6)\n clr.b loop_ctr(a6)\n'+call('prepare_cockpit')+call('front_view'))
         emit(' bsr qa_render\n moveq #0,d6\n bsr qa_pixels\n move.l d5,qa_normal_hash\n')
-        victim(); emit(' move.w #1,shield_flash(a4)\n bsr qa_render\n moveq #1,d6\n bsr qa_pixels\n')
+        victim(); emit(f' move.w #1,shield_flash(a4)\n bsr qa_render\n moveq #{3 if alien else 1},d6\n bsr qa_pixels\n')
         emit(' tst.w d4\n beq fail\n'+call('ship_flash_tick')+' bsr qa_render\n moveq #0,d6\n bsr qa_pixels\n cmp.l qa_normal_hash,d5\n bne fail\n')
-    for radius in (1, 2, 3):
-        case(f'Distant radius {radius}: dot/cross stay grey, sphere flashes blue')
-        spawn()
-        emit(call('prepare_cockpit')+call('front_view')+call('clear_image'))
-        victim(); emit(f' move.l a4,a5\n move.w #{radius},scr_radius(a5)\n clr.w centre_x(a5)\n clr.w centre_y(a5)\n move.w #1,shield_flash(a5)\n moveq #cobra,d0\n'+call('draw_point'))
-        emit(f' moveq #{1 if radius == 3 else 2},d6\n bsr qa_pixels\n tst.w d4\n beq fail\n'+call('ship_flash_tick'))
-        victim(); eq(0, 'shield_flash(a4)')
+    for model in ('cobra', 'thargoid', 'thargon'):
+        for radius in (1, 2, 3):
+            colour = 'blue' if model == 'cobra' else 'orange'
+            case(f'{model}, distant radius {radius}: dot/cross stay grey, sphere flashes {colour}')
+            spawn(model)
+            emit(call('prepare_cockpit')+call('front_view')+call('clear_image'))
+            victim(); emit(f' move.l a4,a5\n move.w #{radius},scr_radius(a5)\n clr.w centre_x(a5)\n clr.w centre_y(a5)\n move.w #1,shield_flash(a5)\n moveq #{model},d0\n'+call('draw_point'))
+            pixel_mode = (1 if model == 'cobra' else 3) if radius == 3 else 2
+            emit(f' moveq #{pixel_mode},d6\n bsr qa_pixels\n tst.w d4\n beq fail\n'+call('ship_flash_tick'))
+            victim(); eq(0, 'shield_flash(a4)')
     for menu in (False, True):
         case(f'Actual flight frame, off-screen ship, menu={menu}: flash expires')
         emit(call('ship_apply')+call('reset_system')+call('launch_system')+call('front_view'))
@@ -118,7 +123,7 @@ def make_suite(root, s):
     emit(call('explode_object')+' bsr qa_render\n moveq #1,d6\n bsr qa_pixels\n tst.w d4\n beq fail\n'+call('ship_flash_tick'))
     victim(); eq('log_exploding','logic(a4)'); eq(0,'shield_flash(a4)')
     tail += 'qa_normal_hash: dc.l 0\nqa_render:\n'+call('clear_image')+' lea objects+obj_len*3(a6),a5\n'+call('get_range')+call('draw_object')+call('draw_all')+' rts\n'
-    # ST interleaved planes. D6=0 hash, 1 blue/empty only, 2 grey/empty only.
+    # ST interleaved planes. D6=0 hash, 1 blue, 2 grey, 3 orange (or empty).
     tail += '''qa_pixels:
  moveq #0,d5
  moveq #0,d4
@@ -144,6 +149,8 @@ def make_suite(root, s):
  beq.s .next
  cmp.w #2,d6
  beq.s .grey
+ cmp.w #3,d6
+ beq.s .orange
  tst.w d0
  bne fail
  cmp.w d1,d2
@@ -151,6 +158,15 @@ def make_suite(root, s):
  tst.w 4(a0)
  bne fail
  or.w d1,d4
+ bra.s .next
+.orange:
+ cmp.w d0,d1
+ bne fail
+ tst.w d2
+ bne fail
+ tst.w 4(a0)
+ bne fail
+ or.w d0,d4
  bra.s .next
 .grey:
  tst.w d1

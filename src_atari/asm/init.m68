@@ -924,6 +924,9 @@ reset_table:
 	dc.l $53434731 ; SCG1 Special Cargo extension
 	dc.w 0,0 ; no reward or previous destination
 
+	dc.l $53494431 ; SID1 Scramble ID extension
+	dc.w 0 ; visible registration
+
 	ds.b 256-(*-new_game) ; pad out to 256 bytes
 
 * Table of local variable data.

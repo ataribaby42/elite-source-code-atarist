@@ -12,7 +12,7 @@ After acceptance, the screen shows the destination and current delivery value. R
 
 The entry fee shown in the offer list is not the delivery reward. Both are calculated using Elite Unbound's original rules. For example, an entry fee of 636.0 Cr can produce a delivery value of 5090.4 Cr.
 
-On the local or galactic chart, **W** selects the active contract's destination and displays its name and distance. It does not select a new destination during a hyperspace countdown. Outside the charts, W retains its existing game-information action.
+On the local or galactic chart, docked or in flight, **W** selects the active contract's destination and displays its name and distance. It does not act during a hyperspace countdown. With no contract, it displays **Docked!** at a station or plays the normal error beep in flight; neither path waits or pauses the game. Outside the charts W only beeps. **V** opens the existing version/credits scroll only in an in-flight 3D cockpit view; on all UI pages, including charts, V only beeps.
 
 ## Delivery rules
 
@@ -42,6 +42,7 @@ The native regression suites run the assembled 68000 code in Hatari and WinUAE, 
 - `native_special_cargo_ui.py`: 11 scenarios covering the actual mouse dispatcher, Buy/Special switching, all 15 visible rows, the final row's price, details, Status, empty offers, maximum value, delivery receipt and chart targeting. Captured screens are also inspected visually.
 - `native_special_cargo_lifecycle.py`: 10 scenarios exercising real docking, launch and hyperspace entry points, including existing story states. Expensive transitions and unrelated world initialization are substituted where needed; settlement and story dispatch remain native.
 - `native_special_cargo_input.py`: 48 scenarios covering 25 navigation keys, all 15 bottom icons through native hit testing, ignored flight keys, timer expiry, early keyboard/mouse dismissal, actual docking and ordering with a simultaneous Thargoid mission. Timed-input cases substitute the clock wait to inject events at a precise tick; the mission-order case substitutes the interactive offer after checking the real dispatcher reaches it.
+- `native_w_context.py`: 32 W/V keyboard-dispatch scenarios covering docked/in-flight UI pages, both charts with and without contracts, hyperspace countdowns, and all four 3D views. Prompt pixels are compared for the immediate **Docked!** response and unchanged UI. Blocking credits, timed waits and sound playback are intercepted to verify which actions are requested without hanging a failing test.
 
 Additional regression and build results are recorded under each tree's `build/special-cargo-qa` directory.
 

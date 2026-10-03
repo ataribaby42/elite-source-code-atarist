@@ -148,6 +148,7 @@ black: equ 13
 pulse: equ 14
 white: equ 15
 shield_flash_panel: equ 6 ; solid light-blue entry in PANEL_COLOURS
+shield_flash_alien_panel: equ 58 ; solid orange entry for Thargoids/Thargons
 
 ; Misc. constants.
 
@@ -502,6 +503,7 @@ registration_id: rs.l 1 ; packed letters, numeric byte, zero (0 = no ID)
 cargo_mass: rs.l 1 ; exact jettison payload in grams; 0 = normal random salvage
 patrol_record: rs.w 1 ; -1 = not a patrol, -2 = unchecked, otherwise last police record
 convoy_speed: rs.w 1 ; shared cruise speed until combat; 0 = ordinary speed control
+pirate_truce: rs.w 1 ; Scramble ID: neutral cruising speed 16..31; 0 = hostile
 
 ai_front: rs.w 1 ; front shield, 0..max_shield
 ai_aft: rs.w 1 ; aft shield, 0..max_shield (adjacent to front)
@@ -514,7 +516,7 @@ ai_recharge: rs.w 1 ; inherent recharge grade
 ai_energy_unit: rs.w 1 ; 0 none, 1 extra, 2 naval; initially none
 ai_charge_count: rs.w 1 ; independent recharge countdown
 ai_roll: rs.w 1 ; roll limit; TURN_RATE is the pitch limit
-shield_flash: rs.w 1 ; light-blue hull frames left; expires even off-screen
+shield_flash: rs.w 1 ; shield-hit hull frames left; expires even off-screen
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
@@ -1021,6 +1023,10 @@ courier_row: rs.w 1
 courier_paid: rs.w 1
 courier_next_action: rs.l 1 ; navigation requested during the delivery receipt
 courier_next_function: rs.w 1
+
+; SID1 save extension: visible (0) or scrambled ($00ff) player identity.
+scramble_tag: rs.l 1
+scrambled_id: rs.w 1
 
 var_size: equ __RS ; size of variables
 

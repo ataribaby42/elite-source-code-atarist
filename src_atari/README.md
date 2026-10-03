@@ -197,7 +197,7 @@ confirmation, `N` still cancels the request without changing the compass.
 
 Click the blue **Buy** heading to switch between ordinary commodities and **Special Cargo**. Click a destination to pay its entry fee and accept one delivery contract; reopening Special shows its destination and current reward. Status also displays the active delivery below Cash. Special Cargo takes no hold space.
 
-Docking at the destination pays the reward once and briefly displays **Cargo Delivered** before the normal Status or mission screen. Docking elsewhere halves the value; a completed galactic jump cancels it. Contracts persist in saved commanders. Press **W** on either navigation chart to select the delivery destination. See [Special Cargo rules and validation](../docs/2026-10-03-special-cargo.md).
+Docking at the destination pays the reward once and briefly displays **Cargo Delivered** before the normal Status or mission screen. Docking elsewhere halves the value; a completed galactic jump cancels it. Contracts persist in saved commanders. Press **W** on either navigation chart, docked or in flight, to select the delivery destination. Without a contract, W displays **Docked!** at a station or beeps in flight, without waiting. Outside the charts W only beeps. Press **V** for the version/credits scroll in the 3D cockpit; on UI pages V only beeps. See [Special Cargo rules and validation](../docs/2026-10-03-special-cargo.md).
 
 ## Jettison cargo
 
@@ -248,8 +248,8 @@ The pirates are rolled from Krait, Gecko, Moray Star Boat, Adder, Mamba, Asp
 MkII and Sidewinder, and the traders from Cobra MkIII, Python, Anaconda and
 Cobra MK1. Neither table holds the Thargoid, which a group names where it wants
 one, and the pirates leave out the Boa and the Wolf: these are the small and
-medium raiders. The original "Condition RED!" ambush is untouched and keeps its
-own wider table, Thargoid included.
+medium raiders. Ordinary ambushes keep their own wider table, Thargoid included,
+and spawn without an introductory flight message.
 
 A group's leader uses a nominal radius of 16384 to 22527 units, in the half
 of space the player is facing. A 2048-unit reserve below the scanner boundary
@@ -468,3 +468,14 @@ Run `python -B -m unittest discover -s src_atari/tests -v` from the project root
 The retained tests cover binary formats, asset conversion and build tooling;
 they do not emulate the game CPU. Gameplay and audio checks require Hatari
 or original hardware. Enhanced builds and PNG tests require Pillow.
+
+## Scramble ID
+
+Entering Equip in an Anarchy station offers **Scramble ID** for **5,000 CR**
+through the standard Yes/No dialog (mouse or Y/N/Escape). Status then shows
+`??-???`. The service persists in saved commanders until a new hull is acquired.
+With a Fugitive record (at least 50), each new human pirate has a 50% chance to
+ignore the player until attacked. Mission ships and escorts, Thargoids and
+Tharglets keep their existing hostility. Approaching a station raises the
+record to at least 100 except in Anarchy, Feudal and Dictatorship systems.
+See [Scramble ID rules and validation](../docs/2026-10-03-scramble-id.md).

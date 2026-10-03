@@ -189,8 +189,9 @@ player fire and AI-versus-AI combat, including damage below one energy point.
 Hull-only damage, zero-power hits and
 immune targets do not start a flash.
 
-While the counter is positive, all mesh panels and lines use solid light blue,
-including engine details. A distant grey sphere also flashes, but its smaller
+While the counter is positive, all mesh panels and lines use solid orange for
+Thargoids and Thargons/Tharglets, and solid light blue for other ships,
+including engine details. A distant grey sphere uses the same flash colour, but its smaller
 single-pixel and cross representations retain their normal grey. Materials and
 object colour overrides are never modified. The counter decreases once at the
 end of every flight frame, after drawing, including off-screen/cloaked ships
@@ -199,7 +200,7 @@ and flight menus. It cannot wait for a ship to re-enter the view.
 Collision classes, damage and destruction rules remain unchanged. A surviving
 AI ship can flash at the contact side. An AI ship destroyed by ramming has its
 pending flash cleared and goes directly to the normal explosion. A lethal
-laser or missile hit against an active shield can show one blue hull frame
+laser or missile hit against an active shield can show one coloured hull frame
 before its already-started explosion becomes visible.
 
 ## AI laser hit calculation

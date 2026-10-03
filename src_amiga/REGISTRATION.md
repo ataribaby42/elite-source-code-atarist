@@ -45,14 +45,16 @@ nonzero fallback. Letters also mix these fields. A candidate number already
 used by a live ship or the player is skipped. With 30 object slots, the search
 always terminates. Retired IDs may eventually be reused; this is a local ship
 identity, not a galaxy-wide registry. Displaying an ID never advances the
-generator, and registration code never reads or advances the gameplay RNG.
+generator, and identity allocation never reads or advances the gameplay RNG. Scramble ID
+uses the gameplay generator for eligible pirate reactions and station warnings.
 
 Message formatting reserves at most 25 name characters and seven suffix
 characters in a 34-byte buffer. It then uses the existing message snapshot
 and centring routine. Actual ship/station names fit without truncation.
-Status uses columns 0 and 14 at y=74, between Cash and the forward-laser label.
-There are no writes to executable code; public registration helpers preserve
-all data/address registers (condition codes are scratch).
+Status uses columns 0 and 14 at y=164, above the bottom menu.
+There are no writes to executable code. Allocation and display entry points
+preserve their documented registers; Scramble ID helpers document their own
+result and scratch registers in the source.
 
 ## Commander compatibility
 
@@ -65,7 +67,10 @@ appends one four-word entry after the original 178-byte payload:
 | 182..183 | Two uppercase ASCII letters |
 | 184 | Binary registration number, 1..255 |
 | 185 | Zero padding |
-| 186..255 | Remaining unused tail |
+| 186..191 | SHP1 player hull extension |
+| 192..199 | SCG1 Special Cargo extension |
+| 200..205 | SID1 Scramble ID tag and flag |
+| 206..255 | Remaining unused tail |
 
 The normal XOR scrambling still processes all 256 bytes. Restore validates
 the tag, letters, number and padding. Missing/invalid extensions become
@@ -80,3 +85,10 @@ Gameplay validation requires WinUAE or original hardware.
 
 Check IFF labels, missile-lock priority, new and restored commanders, legacy saves and escape handling.
 
+
+## Scramble ID
+
+The player can buy identity concealment on entering Equip in an Anarchy station.
+Status displays `??-???` while the original RID1 bytes remain unchanged. A new
+hull clears concealment. See [Scramble ID](../docs/2026-10-03-scramble-id.md) for
+pricing, police and pirate rules, SID1 save compatibility and native tests.

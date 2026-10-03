@@ -1,4 +1,4 @@
-	xref courier_find_target,game_info
+	xref courier_find_target
 	include "common.def"
 ; Ported from src_orig/asm/galaxy.m68; edit this copy.
 ;	@@@@	 @@   @@@@		 @@   @@   @@  @@  @@
@@ -1739,18 +1739,19 @@ q_galaxy_m68_93:
 
 ; W selects the delivery destination on either chart, including a distant
 ; target outside the local view. Do not snap it back to a visible neighbour.
+; Outside the charts W only beeps; V owns the 3D version/credits scroll.
     q_subr courier_chart_key,global
     move.w disp_type(a6),d0
     cmp.w #disp_galactic,d0
     beq.s .chart
     cmp.w #disp_local,d0
     beq.s .chart
-    jmp game_info
+    bra beep
 .chart:
     tst.w count_down(a6)
     bne.s .done
     tst.w courier_reward(a6)
-    beq.s .done
+    beq.s .no_contract
     jsr courier_find_target
     tst.w d0
     bmi.s .done
@@ -1762,6 +1763,12 @@ q_galaxy_m68_93:
 .local:
     bsr l_centre_cursor
     bra q_galaxy_m68_90
+.no_contract:
+    tst.w docked(a6)
+    beq beep
+    jsr clear_input
+    lea courier_docked_text(pc),a0
+    jmp print_string ; immediate feedback: no modal message or clock wait
 .done:
     rts
 
@@ -2043,3 +2050,4 @@ text5: dc.b 'Planet name ? ',0
 text6: dc.b 'Unable to find planet ',0
 text7: dc.b ' in this galaxy',0
 text8: dc.b 'Current system: ',0
+courier_docked_text: dc.b 'Docked!',0

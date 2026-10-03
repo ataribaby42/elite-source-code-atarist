@@ -5,7 +5,11 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
 ## xx.xx.2029 V1.xx
-
+- Added Scramble ID with persistent hidden registration, pirate truces and station penalties.
+- Removed the “Condition RED!” ambush message.
+- Changed Thargoid and Tharglet shield-hit flashes to orange.
+- Made W select cargo destinations on charts, with nonblocking “Docked!” feedback or a beep when unavailable.
+- Moved the 3D version/credits display to V; both keys only beep on unrelated UI screens.
 - Thargoids always use Beam; Tharglets always use Pulse. Both retain light-blue lasers.
 - Added a light-grey square while missile targeting awaits a lock; green identification takes priority.
 - Added Special Cargo contracts with Buy/Special tabs, mouse selection and contract details.

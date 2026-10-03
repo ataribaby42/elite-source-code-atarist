@@ -515,6 +515,12 @@ q_vector_m68_44:
 	tst.w shield_flash(a5)
 	ble.s .panel_colour
 	moveq #shield_flash_panel,d0 ; uniform flash, including engine panels
+	cmp.w #thargoid,type(a5)
+	beq.s .alien_panel
+	cmp.w #thargon,type(a5)
+	bne.s .panel_colour
+.alien_panel:
+	moveq #shield_flash_alien_panel,d0
 .panel_colour:
 	asl #4,d0 ; index into panel colour table
 	lea panel_colours(pc),a0
@@ -663,6 +669,12 @@ q_vector_m68_72:
 	tst.w shield_flash(a5)
 	ble.s .line_colour
 	moveq #shield_flash_panel,d0 ; lines share the hull flash colour
+	cmp.w #thargoid,type(a5)
+	beq.s .alien_line
+	cmp.w #thargon,type(a5)
+	bne.s .line_colour
+.alien_line:
+	moveq #shield_flash_alien_panel,d0
 .line_colour:
 	asl #4,d0 ; index into panel colour table
 	lea panel_colours(pc),a0

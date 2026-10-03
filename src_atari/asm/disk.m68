@@ -16,7 +16,7 @@
 ; Designed and coded by Rob Nicholson. Adpated from the MSX version.
 
 	include "macros.m68"
-	xref registration_validate,restore_sky
+	xref registration_validate,restore_sky,scramble_validate
 	include "bitlist.m68"
 
 ; Modification history:
@@ -100,6 +100,7 @@ q_disk_m68_1:
 q_disk_m68_2:
 	jsr ship_validate
 	jsr courier_validate
+	jsr scramble_validate
 	jsr registration_validate ; accept the extension or migrate an old save
 	jsr restore_sky ; apply the saved Stars preference, including default Jameson
 	move current(a6),req_planet(a6) ; generate system planet and prices
@@ -1002,6 +1003,7 @@ var_list:
 	dc.w registration_tag,4 ; eight bytes in the formerly unused save tail
 	dc.w player_ship_tag,3 ; SHP1 tag and persistent hull ID
 	dc.w courier_tag,4 ; SCG1 tag, reward and destination coordinates
+	dc.w scramble_tag,3 ; SID1 tag and hidden-identity flag
 	dc.w -1
 
 ; Disk icon draw data table.
