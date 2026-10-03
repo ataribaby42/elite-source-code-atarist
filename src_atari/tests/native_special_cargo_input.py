@@ -60,9 +60,9 @@ def make_suite(root, s):
     emit(f' move.l ${wait:x},qa_wait_original\n move.w ${wait+4:x},qa_wait_original+4\n'
          f' move.w #$4ef9,${wait:x}\n move.l #qa_wait,${wait+2:x}\n')
     for mode, label in ((0, 'timeout'), (1, 'keyboard'), (2, 'mouse')):
-        case(f'Receipt timer: {label} takes {96 if mode == 0 else 3} ticks')
+        case(f'Receipt timer: {label} takes {300 if mode == 0 else 3} ticks')
         emit(f' move.w #{mode},qa_inject\n' + call('courier_wait_receipt'))
-        eq(96 if mode == 0 else 3, 'qa_waits')
+        eq(300 if mode == 0 else 3, 'qa_waits')
         eq(0 if mode == 0 else f'${s["buy_cargo"]:x}', 'courier_next_action(a6)', 'l')
 
     # Real docking + native dock_check + native Status + selected Buy screen.

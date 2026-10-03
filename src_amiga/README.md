@@ -110,7 +110,7 @@ either the framed or frameless flight view.
 
 Click the blue **Buy** heading to switch between ordinary commodities and **Special Cargo**. Click a destination to pay its entry fee and accept one delivery contract; reopening Special shows its destination and current reward. Status also displays the active delivery below Cash. Special Cargo takes no hold space.
 
-Docking at the destination pays the reward once and briefly displays **Cargo Delivered** before the normal Status or mission screen. Docking elsewhere halves the value; a completed galactic jump cancels it. Contracts persist in saved commanders. Press **W** on either navigation chart, docked or in flight, to select the delivery destination. Without a contract, W displays **Docked!** at a station or beeps in flight, without waiting. Outside the charts W only beeps. Press **V** for the version/credits scroll in the 3D cockpit; on UI pages V only beeps. See [Special Cargo rules and validation](../docs/2026-10-03-special-cargo.md).
+Docking at the destination pays the reward once and displays **Cargo Delivered** for approximately 6 seconds at 50 Hz or 5 seconds at 60 Hz before the normal Status or mission screen. A navigation key or bottom-menu click can dismiss it earlier. Docking elsewhere halves the value; a completed galactic jump cancels it. Contracts persist in saved commanders. Press **W** on either navigation chart, docked or in flight, to select the delivery destination. Without a contract, W displays **Docked!** at a station or beeps in flight, without waiting. Outside the charts W only beeps. Press **V** for the version/credits scroll in the 3D cockpit; on UI pages V only beeps. See [Special Cargo rules and validation](../docs/2026-10-03-special-cargo.md).
 
 ## Jettison cargo
 

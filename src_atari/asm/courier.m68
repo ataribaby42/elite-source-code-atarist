@@ -299,7 +299,7 @@ courier_sbc:
 ; Poll between VBLs so either a navigation key or a bottom icon dismisses
 ; the receipt immediately. Dispatch after dock_check, preserving story events.
     q_subr courier_wait_receipt,global
-    moveq #95,d7
+    move.w #299,d7 ; 300 VBLs: 6 seconds at 50 Hz, 5 at 60 Hz
 .wait:
     bsr courier_poll_receipt
     tst.w d0

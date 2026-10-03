@@ -16,7 +16,7 @@ On the local or galactic chart, docked or in flight, **W** selects the active co
 
 ## Delivery rules
 
-- Docking at the destination pays the current value once and completes the contract. **Cargo Delivered** then shows the destination and amount paid for up to 96 vertical blanks: approximately 1.92 seconds at 50 Hz or 1.60 seconds at 60 Hz. Normal Status or the original story-mission screen follows.
+- Docking at the destination pays the current value once and completes the contract. **Cargo Delivered** then shows the destination and amount paid for 300 vertical blanks unless dismissed early: approximately 6 seconds at 50 Hz or 5 seconds at 60 Hz. Normal Status or the original story-mission screen follows.
 - A navigation key or bottom-menu click dismisses the receipt immediately. The selected screen opens after the original docking mission dispatcher has run, so the normal Status fallback cannot overwrite it. If a story message or mission decision is due, it is handled first. With no navigation input, the receipt closes automatically.
 - Every docking at another system halves the remaining value, rounding down to tenths of a credit. A value reduced to zero expires.
 - Launching, ordinary hyperspace jumps without docking, reopening menus and loading a commander do not reduce the value or pay it out.
