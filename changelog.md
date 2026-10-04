@@ -4,7 +4,11 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
-## xx.xx.2029 V1.xx
+## 4.10.2029 V1.90 First Feature Complete Release
+
+- Added situational AI radio messages for traders, pirates, police and Thargoids.
+- Set hyperspace and galactic jump timers to 3 seconds on Atari and 2 seconds on Amiga.
+- Fixed opposing steering inputs not fully cancelling roll or pitch.
 - Added a three-message comm queue with seven-second expiry and paused timers in UI.
 - Added station departure greetings, docking messages and illegal cargo-dumping warnings.
 - Added blinking player IDs in comm messages.
