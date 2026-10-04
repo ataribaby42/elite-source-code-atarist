@@ -39,6 +39,7 @@ options
 effects
 registration
 comm
+ai_comm
 courier
 ships
 shipgfx

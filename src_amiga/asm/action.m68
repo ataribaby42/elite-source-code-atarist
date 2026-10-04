@@ -17,6 +17,7 @@
 	include "macros.m68"
 
 	xref increase_speed,decrease_speed,torus,roll_left,roll_right,climb,dive
+	xref centre_roll,centre_climb
 	xref fire,read_key,fx,launch,front_view,buy_cargo,rear_view,sell_cargo
 	xref left_view,equip_ship,right_view,joystick,print_string
 	xref clear_input,print_centre,wait_key,market_prices,disk,data,inventory
@@ -151,14 +152,29 @@ scrolling: rs.w 1 ; flag: message scrolling
 	clr from_mouse(a6) ; movement from keyboard
 	bsr get_joystick ; get joystick state
 	move.b d0,control(a6)
+	and.b #(1<<left)|(1<<right),d0
+	cmp.b #(1<<left)|(1<<right),d0
+	bne.s steer_roll_input
+	jsr centre_roll ; opposing directions cancel this axis in one operation
+	bra.s steer_pitch_input
+steer_roll_input:
 	btst #left,control(a6) ; roll left?
 	q_call ne,roll_left ; yes
 	btst #right,control(a6) ; roll right ?
 	q_call ne,roll_right ; yes
+steer_pitch_input:
+	move.b control(a6),d0
+	and.b #(1<<up)|(1<<down),d0
+	cmp.b #(1<<up)|(1<<down),d0
+	bne.s steer_climb_input
+	jsr centre_climb
+	bra.s steer_fire_input
+steer_climb_input:
 	btst #down,control(a6) ; climb ?
 	q_call ne,climb ; yes
 	btst #up,control(a6) ; dive ?
 	q_call ne,dive ; yes
+steer_fire_input:
 	btst #trigger,control(a6) ; fire ?
 	q_call ne,fire ; yes
 	bsr check_mouse ; check for mouse movement
@@ -839,7 +855,7 @@ text2: dc.b c_ink,pulse,'** PAUSED **',0
 text3: dc.b $00,$00
 text4: dc.b 'Press ''H'' to confirm',0
 text5: dc.b 'Inter-Galaxy Jump Aborted',0
-text6: dc.b 'Amiga Elite Version 1.82       '
+text6: dc.b 'Amiga Elite Version 1.90       '
 	dc.b 'You have scored ',0
 text7: dc.b ' points and have been playing for ',0
 text8: dc.b ' days, ',0

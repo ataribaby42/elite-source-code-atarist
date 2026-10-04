@@ -390,6 +390,28 @@ q_flight_m68_30:
 	jmp (a3) ; exit via set trig values
 
 
+; Opposing held directions explicitly centre only their own axis. Treat them
+; as keyboard/joystick input even when the previous change came from a mouse.
+	q_subr centre_roll,global
+
+	clr no_damping(a6)
+	st inhibit_roll(a6)
+	tst roll_angle(a6)
+	q_ret eq
+	clr roll_angle(a6)
+	clr f_roll(a6)
+	jmp set_roll_angles
+
+	q_subr centre_climb,global
+
+	clr no_damping(a6)
+	st inhibit_climb(a6)
+	tst climb_angle(a6)
+	q_ret eq
+	clr climb_angle(a6)
+	clr f_climb(a6)
+	jmp set_climb_angles
+
 ; *******************************************
 ; **									   **
 ; ** CANCEL_ANGLES - CANCEL ROLL AND CLIMB **

@@ -1,3 +1,4 @@
+	xref ai_comm_missile_ai,ai_comm_missile_player
 	xref laser_impact_sound
 	xref comm_departure_ship,comm_station_hit
 	xref ship_weapon_damage,ship_damage_store
@@ -1337,6 +1338,7 @@ q_combat_m68_107:
 	bgt.s .track_the_ship
 	move #log_missile,logic(a4) ; fly towards player
 	jsr create_object ; create object
+	jsr ai_comm_missile_ai ; retain shooter identity after its slot disappears
 	q_dec no_missiles(a5) ; reduce missile count
 	q_sfx alert ; trigger single alert
 	lea text7(pc),a0 ; print message and exit
@@ -1345,6 +1347,7 @@ q_combat_m68_107:
 	move #log_ai_missile,logic(a4) ; DO_LOCKED, marked as not the player's
 	move.l target(a5),target(a4)
 	jsr create_object ; create object
+	jsr ai_comm_missile_ai ; retain shooter identity after its slot disappears
 	q_dec no_missiles(a5) ; reduce missile count
 
 	q_ret ; no alert, no message: he is not the one being shot at
@@ -1751,6 +1754,7 @@ q_combat_m68_129:
 	move.l target_ptr(a6),target(a4) ; set pointer to target object
 	st velocity(a4) ; launch at full speed
 	jsr create_object ; create object
+	jsr ai_comm_missile_player
 	q_sfx missile ; launch sound effect
 	q_dec equip+missiles(a6) ; missile used
 	clr f_missiles(a6)

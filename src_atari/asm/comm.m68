@@ -15,6 +15,8 @@
     move.l d0,-(sp)
     bsr comm_now
     move.l d0,comm_last_tick(a6)
+    eor.w #$7c35,d0
+    move.w d0,ai_comm_seed(a6) ; never consumes the station/gameplay RNG
     move.l (sp)+,d0
     rts
 
@@ -545,6 +547,76 @@ comm_texts:
     dc.w comm_text37-comm_texts
     dc.w comm_text38-comm_texts
     dc.w comm_text39-comm_texts
+    dc.w comm_text40-comm_texts
+    dc.w comm_text41-comm_texts
+    dc.w comm_text42-comm_texts
+    dc.w comm_text43-comm_texts
+    dc.w comm_text44-comm_texts
+    dc.w comm_text45-comm_texts
+    dc.w comm_text46-comm_texts
+    dc.w comm_text47-comm_texts
+    dc.w comm_text48-comm_texts
+    dc.w comm_text49-comm_texts
+    dc.w comm_text50-comm_texts
+    dc.w comm_text51-comm_texts
+    dc.w comm_text52-comm_texts
+    dc.w comm_text53-comm_texts
+    dc.w comm_text54-comm_texts
+    dc.w comm_text55-comm_texts
+    dc.w comm_text56-comm_texts
+    dc.w comm_text57-comm_texts
+    dc.w comm_text58-comm_texts
+    dc.w comm_text59-comm_texts
+    dc.w comm_text60-comm_texts
+    dc.w comm_text61-comm_texts
+    dc.w comm_text62-comm_texts
+    dc.w comm_text63-comm_texts
+    dc.w comm_text64-comm_texts
+    dc.w comm_text65-comm_texts
+    dc.w comm_text66-comm_texts
+    dc.w comm_text67-comm_texts
+    dc.w comm_text68-comm_texts
+    dc.w comm_text69-comm_texts
+    dc.w comm_text70-comm_texts
+    dc.w comm_text71-comm_texts
+    dc.w comm_text72-comm_texts
+    dc.w comm_text73-comm_texts
+    dc.w comm_text74-comm_texts
+    dc.w comm_text75-comm_texts
+    dc.w comm_text76-comm_texts
+    dc.w comm_text77-comm_texts
+    dc.w comm_text78-comm_texts
+    dc.w comm_text79-comm_texts
+    dc.w comm_text80-comm_texts
+    dc.w comm_text81-comm_texts
+    dc.w comm_text82-comm_texts
+    dc.w comm_text83-comm_texts
+    dc.w comm_text84-comm_texts
+    dc.w comm_text85-comm_texts
+    dc.w comm_text86-comm_texts
+    dc.w comm_text87-comm_texts
+    dc.w comm_text88-comm_texts
+    dc.w comm_text89-comm_texts
+    dc.w comm_text90-comm_texts
+    dc.w comm_text91-comm_texts
+    dc.w comm_text92-comm_texts
+    dc.w comm_text93-comm_texts
+    dc.w comm_text94-comm_texts
+    dc.w comm_text95-comm_texts
+    dc.w comm_text96-comm_texts
+    dc.w comm_text97-comm_texts
+    dc.w comm_text98-comm_texts
+    dc.w comm_text99-comm_texts
+    dc.w comm_text100-comm_texts
+    dc.w comm_text101-comm_texts
+    dc.w comm_text102-comm_texts
+    dc.w comm_text103-comm_texts
+    dc.w comm_text104-comm_texts
+    dc.w comm_text105-comm_texts
+    dc.w comm_text106-comm_texts
+    dc.w comm_text107-comm_texts
+    dc.w comm_text108-comm_texts
+    dc.w comm_text109-comm_texts
 comm_text0: dc.b 'Dumping cargo near this station is illegal.',0
 comm_text1: dc.b 'Cargo dumping is prohibited in the station zone.',0
 comm_text2: dc.b 'Illegal cargo disposal detected. This offence has been recorded.',0
@@ -585,4 +657,75 @@ comm_text36: dc.b 'Docking granted. Your record is a concern.',0
 comm_text37: dc.b 'Clearance granted. We know your reputation.',0
 comm_text38: dc.b 'Docking approved. Stay out of trouble.',0
 comm_text39: dc.b 'You may dock. We will be watching you.',0
+    even
+comm_text40: dc.b "Safe travels, pilot.",0
+comm_text41: dc.b "Good to see a friendly ship.",0
+comm_text42: dc.b "May your next trade be profitable.",0
+comm_text43: dc.b "Clear skies and a safe journey.",0
+comm_text44: dc.b "Good luck on your route.",0
+comm_text45: dc.b "Safe passage to your next port.",0
+comm_text46: dc.b "Fly safe out there.",0
+comm_text47: dc.b "Hope the markets treat you well.",0
+comm_text48: dc.b "Quiet space. Let's keep it that way.",0
+comm_text49: dc.b "All the best for the journey.",0
+comm_text50: dc.b "I hope you're not looking for trouble.",0
+comm_text51: dc.b "We're just traders. Let us pass.",0
+comm_text52: dc.b "Keep your distance and we'll get along.",0
+comm_text53: dc.b "No trouble from us.",0
+comm_text54: dc.b "Let's both reach port in one piece.",0
+comm_text55: dc.b "I hope you're not a pirate.",0
+comm_text56: dc.b "We'd prefer a quiet journey.",0
+comm_text57: dc.b "Passing through. No hostile intent.",0
+comm_text58: dc.b "There's no need for trouble.",0
+comm_text59: dc.b "Give us some room, pilot.",0
+comm_text60: dc.b "You're dead!",0
+comm_text61: dc.b "This is your end!",0
+comm_text62: dc.b "You picked the wrong route.",0
+comm_text63: dc.b "Your cargo is ours!",0
+comm_text64: dc.b "Nowhere to hide!",0
+comm_text65: dc.b "Your luck just ran out.",0
+comm_text66: dc.b "Say goodbye to your ship!",0
+comm_text67: dc.b "We've found our next victim.",0
+comm_text68: dc.b "You won't leave here alive!",0
+comm_text69: dc.b "Time to collect our prize!",0
+comm_text70: dc.b "Good hunting, friend.",0
+comm_text71: dc.b "One of us. Fly safe.",0
+comm_text72: dc.b "Plenty of prey out here.",0
+comm_text73: dc.b "May your next haul be rich.",0
+comm_text74: dc.b "No trouble between friends.",0
+comm_text75: dc.b "Always room for another hunter.",0
+comm_text76: dc.b "Stay clear of the Vipers.",0
+comm_text77: dc.b "See you on the trade lanes.",0
+comm_text78: dc.b "Here's to a profitable raid.",0
+comm_text79: dc.b "Good to see a fellow free spirit.",0
+comm_text80: dc.b "X7!% KQ//9Z #R",0
+comm_text81: dc.b "##V2 /XZ! 8%Q",0
+comm_text82: dc.b "Q!9// R%X-7 KK",0
+comm_text83: dc.b "7Z# X//%4 !RQ",0
+comm_text84: dc.b "%K8! QQ/3Z ##X",0
+comm_text85: dc.b "RX//9 !%K-2 V",0
+comm_text86: dc.b "!!Z4 %QX// 7R",0
+comm_text87: dc.b "K#7/ VV!% 0XZ",0
+comm_text88: dc.b "9Q% !RX-4 //K",0
+comm_text89: dc.b "ZZ/8# K!2% XR",0
+comm_text90: dc.b "Justice has caught up with you.",0
+comm_text91: dc.b "Your crime spree ends here.",0
+comm_text92: dc.b "You won't escape this time.",0
+comm_text93: dc.b "The chase is over.",0
+comm_text94: dc.b "You've run out of chances.",0
+comm_text95: dc.b "Your luck ends here.",0
+comm_text96: dc.b "We have you in our sights.",0
+comm_text97: dc.b "You should have stayed away.",0
+comm_text98: dc.b "This is the end of the line.",0
+comm_text99: dc.b "We're bringing you down.",0
+comm_text100: dc.b "Hold your fire!",0
+comm_text101: dc.b "Stop shooting at us!",0
+comm_text102: dc.b "We're traders, not target practice!",0
+comm_text103: dc.b "Watch your fire!",0
+comm_text104: dc.b "Break off your attack!",0
+comm_text105: dc.b "Leave our ship alone!",0
+comm_text106: dc.b "Cease fire! This is a civilian ship.",0
+comm_text107: dc.b "Back off and let us pass!",0
+comm_text108: dc.b "Our cargo isn't worth this!",0
+comm_text109: dc.b "Stop firing before someone dies!",0
     even

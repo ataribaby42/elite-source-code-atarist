@@ -170,9 +170,14 @@ The link map is in `src_atari/build/elite.map`; verification results and output 
 
 ## Animation timing
 
-The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. Both hyperspace types use a five-second PAL timer (250 VBLs), followed by the final circle passing through the view. The timer is independent of the Effects setting on both platforms.
+The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. On Atari ST, both hyperspace types use a three-second timer (150 VBLs at PAL 50 Hz or 180 VBLs at NTSC 60 Hz) to suit the longer PSG hyperspace sound, followed by the final circle passing through the view. Amiga retains its two-second timer. The timer is independent of the Effects setting on both platforms.
 
 ## Flight controls
+
+Holding both opposing roll directions (`<` and `>`) or pitch directions
+(`S` and `X`) centres that axis immediately, regardless of press order or the
+auto-centre setting. Arrow keys and combined keyboard/joystick input behave the
+same way. Releasing one direction resumes steering with the remaining input.
 
 `I` requests object identification. A small hollow green square at the centre of
 the sight remains visible until an object is identified or the request is
@@ -507,3 +512,11 @@ Stations greet departing civilian AI ships and the player with one of ten equall
 Within S and at most 2,000 units from a human station, the player receives a docking clearance or leave-area warning according to the existing permission rules. Every clearance and denial uses this distance limit, including revocation after an earlier clearance. A station hit sets the ban and adds the existing 10 legal-record points immediately (capped at 255); its warning arrives immediately only within 2,000 units, otherwise on the next close approach. Sending a denial sets the same visit flag, so repeated hits cannot repeat it. Leaving S rearms notifications without clearing the ban.
 Death, new/load game, hyperspace and docking clear the queue. See
 [Communications](../docs/2026-10-04-comm-messages.md) for IDs, geometry and tests.
+
+AI ships use the same queue for trader greetings and first-hit protests, pirate
+threats and friendly truce greetings, police Viper threats and unreadable Thargoid
+transmissions. Each real event has one 50% chance to send one of ten variants;
+Offender and Fugitive players receive cautious trader greetings. Tharglets,
+Cougars and Constrictors remain silent. Radio observes existing decisions without
+changing combat, spawns, missions or gameplay randomness. See
+[AI radio rules and validation](../docs/2026-10-04-ai-radio.md).

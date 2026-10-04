@@ -1,3 +1,4 @@
+	xref ai_comm_hit
 	include "common.def"
 	include "macros.m68"
 	xref check_docked,invert_icon,prepare_text,print_centre,text_colour
@@ -554,12 +555,18 @@
 	bsr ship_damage_store
 	tst.w health(a4)
 	beq.s .dead
-	bra.s .alive
+	bra.s .report
 .legacy:
 	sub.w d0,health(a4)
 	bcs.s .dead
 	tst.w health(a4)
-	bne.s .alive
+	beq.s .dead
+	tst.w d0
+	beq.s .alive
+.report:
+	moveq #0,d0
+	movem.l (sp)+,d1-d5/a0-a2
+	jmp ai_comm_hit ; survived real damage; original attacker restored
 .dead:
 	clr.w health(a4)
 	clr.w ai_energy_fraction(a4)

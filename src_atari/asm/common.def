@@ -556,6 +556,13 @@ ai_charge_count: rs.w 1 ; independent recharge countdown
 ai_roll: rs.w 1 ; roll limit; TURN_RATE is the pitch limit
 shield_flash: rs.w 1 ; shield-hit hull frames left; expires even off-screen
 
+; Cosmetic radio state; excluded from model headers and commander saves.
+radio_instance: rs.l 1 ; unique lifetime serial, never copied from a parent
+radio_target: rs.l 1 ; last announced/attempted target serial (0 player, -1 none)
+radio_flags: rs.w 1 ; bits 0 greeting attempted, 1 survived-hit protest attempted
+radio_owner: rs.l 1 ; missile launch-time shooter ID snapshot, 0 unknown
+radio_owner_player: rs.w 1 ; missile shooter was the player, even if anonymous
+
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
 text: rs.l 1 ; ptr  text data
@@ -1065,11 +1072,20 @@ comm_denied_text: equ comm_arrival_text+comm_arrival_count
 comm_denied_count: equ comm_jettison_count
 comm_unwelcome_text: equ comm_denied_text+comm_denied_count
 comm_unwelcome_count: equ comm_greeting_count
-comm_text_count: equ comm_unwelcome_text+comm_unwelcome_count
+comm_trader_text: equ comm_unwelcome_text+comm_unwelcome_count
+comm_cautious_text: equ comm_trader_text+10
+comm_pirate_text: equ comm_cautious_text+10
+comm_friend_text: equ comm_pirate_text+10
+comm_alien_text: equ comm_friend_text+10
+comm_police_text: equ comm_alien_text+10
+comm_protest_text: equ comm_police_text+10
+comm_text_count: equ comm_protest_text+10
 station_traffic_range: equ 2000 ; trader launch exclusion and arrival greeting
 comm_hidden: equ $3f3f0000
 comm_count: rs.w 1
 comm_seed: rs.w 1
+ai_comm_seed: rs.w 1 ; independent cosmetic RNG, including a valid zero state
+ai_comm_serial: rs.l 1 ; unique object lifetimes; never used by gameplay
 comm_arrival_sent: rs.w 1 ; S-zone visit: 0 no message, 1 clearance, 2 denial
 comm_clock: rs.l 1 ; elapsed flybacks spent in 3D, frozen on UI pages
 comm_deadline: rs.l 1 ; one shared deadline for removing the oldest entry

@@ -346,7 +346,11 @@ q_sounds_m68_1:
 
 	cmp.w #sfx_hyperspace,d0
 	bne.s .not_warp
-	move.w #250,warp_ticks(a6) ; five seconds at PAL, even with Effects OFF
+	move.w #150,warp_ticks(a6) ; three seconds, even with Effects OFF
+	btst #1,$ffff820a ; ST video frequency: 50 or 60 Hz
+	bne.s .warp_ready
+	move.w #180,warp_ticks(a6)
+.warp_ready:
 	st end_hyperspace(a6)
 .not_warp:
 ; ECM is a gameplay state, not a sound: ECM_ON is what makes ECM (COMBAT)
@@ -2125,7 +2129,7 @@ do_missile:
 
 	set_fx envelope,8,ramp_size ; Intialise effect
 	set_fx tone,170
-; Match the first sound phase to 250 VBLs: 70 + (26 + 24 + ... + 4).
+; Original first sound phase: 250 VBLs, 70 + (26 + 24 + ... + 4).
 	set_fx duration,70
 	set_fx cycle,26
 ; SOUND owns the tunnel timer; pre-empting this channel cannot finish it.

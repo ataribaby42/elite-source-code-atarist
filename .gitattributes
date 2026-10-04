@@ -4,6 +4,11 @@
 *.py text eol=lf
 *.sh text eol=lf
 *.json text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.svg text eol=lf
+.nojekyll text eol=lf
 *.m68 text eol=lf linguist-language=Assembly
 *.s text eol=lf
 *.def text eol=lf
@@ -13,17 +18,26 @@
 *.cmd text eol=crlf
 *.ps1 text eol=crlf
 
+# Documentation and the project website are not game implementation languages.
+docs/** linguist-documentation
+web/** linguist-documentation
+
 # Original-version converted sources use the text rules above.
 src_orig/asm/** text eol=lf linguist-vendored
 src_orig/assets/** binary
 # Preserve historical archives and binary assets byte for byte.
 *.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
 src_atari/assets/** binary
 src_amiga/assets/** binary
 src_atari/vendor/** binary linguist-vendored
 tools/*.exe binary
 *.adf binary
 *.ADF binary
+*.st binary
+*.ST binary
 
 tools/vasmm68k_mot binary
 tools/vlink binary

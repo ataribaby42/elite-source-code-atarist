@@ -94,7 +94,12 @@ hyperspace, and death entry points stop RCS before the first animation frame.
 the game's random generator. The loop is placed in Chip RAM with the other
 audio.
 
-## Identification controls
+## Flight controls
+
+Holding both opposing roll directions (`<` and `>`) or pitch directions
+(`S` and `X`) centres that axis immediately, regardless of press order or the
+auto-centre setting. Arrow keys and combined keyboard/joystick input behave the
+same way. Releasing one direction resumes steering with the remaining input.
 
 `I` requests object identification. A small hollow green square at the centre of
 the sight remains visible until an object is identified or the request is
@@ -259,7 +264,7 @@ Startup displays [the final Coriolis-and-planet artwork](../resources/loading_sc
 
 Screen swapping waits for the VBL handler to accept the rendered screen before reusing the previous display buffer. It preserves that VBL acknowledgement, so the next viewport clear does not wait for an extra refresh. The existing three-VBL gameplay frame limiter remains in effect.
 
-The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. Both hyperspace types use a five-second PAL timer (250 VBLs), followed by the final circle passing through the view. The timer is independent of the Effects setting on both platforms.
+The ship parade, animated ELITE lettering, launch, docking, death and both hyperspace animations use the same three-VBL frame limit as the main game (at most 16.67 updates/s at PAL 50 Hz). The wait counts time already spent drawing; a frame that has taken three or more VBLs receives no additional limiter delay. Both hyperspace types use a two-second timer (100 VBLs at PAL 50 Hz or 120 VBLs at NTSC 60 Hz), followed by the final circle passing through the view. The timer is independent of the Effects setting on both platforms.
 
 - **Display:** 320 x 256 on PAL, 320 x 200 with `display=ntsc`. Four planes, 16 colours. Each pixel row holds `scr_planes` consecutive `bpr`-byte plane rows. Pixel word addresses are `screen + y*row_stride + (x>>4)*2`, with plane offsets 0, `plane1`, `plane2` and `plane3`; the bitplane modulo is `row_stride-bpr`. Two `scr_bytes` Chip RAM buffers provide double buffering; a VERTB handler publishes the completed screen. The Copper window shows every row in flight and `art_rows` for the 200-row artwork screens, so charts, market and status keep their original framing. Geometry lives in `asm/common.def`; no module holds a literal row stride or plane offset.
 - **Drawing:** lines, polygons, text, sprites and their saved backgrounds, radar, scrolling text, chart circles and planet shading use the native plane addresses. DEGAS RLE artwork decodes directly into this row-interleaved layout. The asset palette is imported once into native 12-bit OCS colours. Game artwork and compact sprite assets remain derived from the Atari release.
@@ -572,3 +577,11 @@ Stations greet departing civilian AI ships and the player with one of ten equall
 Within S and at most 2,000 units from a human station, the player receives a docking clearance or leave-area warning according to the existing permission rules. Every clearance and denial uses this distance limit, including revocation after an earlier clearance. A station hit sets the ban and adds the existing 10 legal-record points immediately (capped at 255); its warning arrives immediately only within 2,000 units, otherwise on the next close approach. Sending a denial sets the same visit flag, so repeated hits cannot repeat it. Leaving S rearms notifications without clearing the ban.
 Death, new/load game, hyperspace and docking clear the queue. See
 [Communications](../docs/2026-10-04-comm-messages.md) for IDs, geometry and tests.
+
+AI ships use the same queue for trader greetings and first-hit protests, pirate
+threats and friendly truce greetings, police Viper threats and unreadable Thargoid
+transmissions. Each real event has one 50% chance to send one of ten variants;
+Offender and Fugitive players receive cautious trader greetings. Tharglets,
+Cougars and Constrictors remain silent. Radio observes existing decisions without
+changing combat, spawns, missions or gameplay randomness. See
+[AI radio rules and validation](../docs/2026-10-04-ai-radio.md).

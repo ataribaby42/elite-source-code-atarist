@@ -1,6 +1,11 @@
 # Cockpit communications
 
 Both enhanced platforms have independent implementations in `asm/comm.m68`.
+AI ship messages use this same framework; their triggers, 50% event lottery and
+seventy text variants are documented in [AI ship radio](2026-10-04-ai-radio.md).
+Station messages keep their existing IDs and rules. AI and station messages have
+equal queue priority, so an AI arrival can evict the oldest station message when
+the queue is full.
 The queue holds three messages, oldest first. A fourth arrival replaces the
 oldest entry immediately, including in UI. Each record contains snapshots of
 the sender and recipient registrations, a text ID, and an explicit player-recipient

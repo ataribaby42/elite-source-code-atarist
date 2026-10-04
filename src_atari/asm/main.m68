@@ -1,3 +1,4 @@
+	xref ai_comm_observe,ai_comm_clear,ai_comm_created
 	include "common.def"
 	xref comm_draw,comm_reset,comm_departure_player
 	xref comm_arrival_check
@@ -135,6 +136,7 @@ q_main_m68_9:
 	jsr mini_radar
 	jsr retarget ; refresh this ship's faction target
 	jsr do_logic ; perform logic
+	jsr ai_comm_observe ; radio observes the settled AI decision
 	jsr queue_ai_laser ; an off-screen ship may have fired this frame
 	jsr check_hit ; check for laser hit
 	tst roll_angle(a6) ; player rolling ?
@@ -280,6 +282,7 @@ q_main_m68_20:
 	clr.w ai_laser_loadout(a4)
 	clr.w shield_flash(a4) ; a newly allocated slot has no pending hit flash
 	clr.w pirate_truce(a4)
+	jsr ai_comm_clear
 	q_pop d7 ; restore D7
 	q_sec set ; carry flag (alloc ok)
 	rts ; return
@@ -369,6 +372,7 @@ q_main_m68_35:
 q_main_m68_37:
 q_main_m68_36:
 q_main_m68_33:
+	jsr ai_comm_created ; discard copied radio state and assign a new lifetime
 	jsr registration_assign ; fresh identity, including copied objects
 	jsr scramble_pirate ; decide hostility only after installing this model
 	st obj_range(a4) ; object range not yet set up
@@ -435,6 +439,10 @@ q_main_m68_39:
 	clr.w ai_laser_loadout(a5)
 	clr.w shield_flash(a5) ; expire the flash as the object leaves the bubble
 	clr.w pirate_truce(a5)
+	move.l a4,-(sp)
+	move.l a5,a4
+	jsr ai_comm_clear
+	move.l (sp)+,a4
 	bclr #in_use,flags(a5) ; clear in use flag
 	bclr #remove,flags(a5) ; don't remove again
 	move type(a5),d0 ; planet or sun ?
