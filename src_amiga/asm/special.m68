@@ -383,6 +383,10 @@ laser_colours:
 	moveq #90,d1
 .pulse_check:
 	move.w #pulse_damage,ai_laser_loadout(a4)
+	cmp.w #viper,type(a4) ; police replace Pulse with Beam, without another roll
+	bne.s .pulse_ready
+	move.w #beam_damage,ai_laser_loadout(a4)
+.pulse_ready:
 	cmp.w d1,d0
 	blo.s .done
 	moveq #85,d1

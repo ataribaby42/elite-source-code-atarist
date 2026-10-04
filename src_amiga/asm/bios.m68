@@ -1,4 +1,5 @@
 	include "common.def"
+	xref comm_update
 ; Ported from src_orig/asm/bios.m68; edit this copy.
 * @@@@@@   @@@@@@	@@@ 	@@@@
 *  @@  @@	 @@    @@ @@   @@  @@
@@ -1846,6 +1847,7 @@ d_0:
 	jsr blank_screen ; blank out the screen
 q_bios_m68_103:
 	clr csr_on(a6) ; cursor not active
+	jsr comm_update ; settle 3D time before changing the screen state
 	clr cockpit_on(a6) ; cockpit not displayed
 	jsr amiga_rows_art ; 200-row artwork keeps its original framing
 	clr disp_type(a6) ; no display type

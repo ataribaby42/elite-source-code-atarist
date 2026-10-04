@@ -1,4 +1,7 @@
 	include "common.def"
+	xref comm_draw,comm_reset,comm_departure_player
+	xref comm_arrival_check
+	xdef spcstn_space
 	xref courier_dock,courier_continue
 	xref ship_ai_init,ship_flash_tick,ai_laser_tick
 ; Ported from src_orig/asm/main.m68; edit this copy.
@@ -24,7 +27,7 @@
 
 	include "macros.m68"
 	xref advance_sky,queue_ai_laser
-	xref registration_assign,registration_new_player,scramble_pirate,scramble_station
+	xref registration_assign,registration_new_player,scramble_pirate
 
 	xref calc_distance,fx,build_number,check_docked,reset_system,start_fade
 	xref front_view,set_roll_angles,random,status,wait,gen_prices,message
@@ -194,6 +197,7 @@ q_main_m68_19:
 	jsr draw_sight ; draw laser sight
 	moveq #lgt_blue,d0 ; display any messages
 	jsr text_blatt
+	jsr comm_draw ; yellow communications are the final cockpit overlay
 *			jsr disp_debug
 	jsr swap_screen ; swap screens
 q_main_m68_21:
@@ -632,6 +636,7 @@ q_main_m68_49:
 	move.w d0,roll_angle(a6)
 	jsr set_roll_angles
 	jsr front_view ; display front view
+	jsr comm_departure_player ; greeting survives the launch reset and animation
 	move mission(a6),d0 ; mission #1 state #6 ?
 ; Quelo: 	if d0 <eq> #$16 then.s				yes
 	cmp #$16,d0
@@ -770,6 +775,8 @@ q_main_m68_60:
 
 	q_subr docking
 
+	jsr comm_reset ; arrival ends all in-flight communications
+
 	clr count_down(a6) ; clear any count down
 	clr jump_trigger(a6)
 	clr just_docked(a6) ; clear 'just docked' flag
@@ -822,7 +829,6 @@ q_main_m68_63:
 	st checkpoint+1(a6)
 	jsr check_cargo ; update record before the existing police response
 cargo_already_checked:
-	jsr scramble_station ; hidden ID raises the record before the police check
 	tst radar_obj(a6) ; just entered space station space ?
 ; Quelo: 		if <eq> then.s					no
 	bne.s q_main_m68_67
@@ -848,6 +854,7 @@ cargo_still_near_zone:
 	clr f_schar(a6) ; flag instrument change
 q_main_m68_71:
 q_main_m68_66:
+	jsr comm_arrival_check ; once per close approach, rearmed on physical S exit
 
 	q_ret
 

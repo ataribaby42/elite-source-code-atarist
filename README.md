@@ -9,7 +9,7 @@ Buy / Sell controls for preparing a hull exchange. See the
 Status shows **Equipment** mass and **Spare** cargo capacity in tonnes, including
 the space used by mounted lasers and installed devices.
 
-During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
+During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy or at the Thargoid-controlled mission station. An illegal ejection also produces a station comm warning. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
 Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
 
@@ -98,14 +98,15 @@ from the lower left and right on the jittering crosshair tip. Use
 cosmetic jitter, fixed crosshair targeting, shot timing and damage. They change
 player laser graphics only. Player colours come from the existing palette:
 Pulse red, Beam orange, Military white, and Mining the same magenta as the
-instrument bars. Normal AI beam colours use the player's rating recorded on
-station launch or completion of a hyperspace or galactic jump: Harmless through
-Poor is red, Average through Competent orange, and Dangerous through Elite white.
-That colour stays fixed throughout the flight, even if the player's rating rises;
-it is refreshed on the next launch or jump, including entry into witch space.
-Constrictor beams are always white; Thargoid and Thargon (Tharglet) beams
-are always light blue. AI damage and the distance-dependent random miss chance
-remain unchanged.
+instrument bars. Each ordinary AI ship rolls its own Pulse/Beam/Military loadout
+at creation: 90/7/3% at Harmless through Poor, 70/21/9% at Average through
+Competent, and 50/35/15% at Dangerous through Elite. Police Vipers replace Pulse
+with Beam without another roll; Military is retained. Colours follow the stored
+weapon: red, orange or white. Cougar always uses Beam and Constrictor Military.
+Thargoids use Beam and Thargons (Tharglets) Pulse; both remain light blue.
+Accepted AI hits use the same base damage as player lasers of the same class.
+Existing ships retain their loadout after rating changes. See
+[per-ship AI loadouts](docs/2026-10-03-ai-laser-loadouts.md).
 
 Player Beam and Military lasers have distinct continuous sounds while firing,
 with short attack and release ramps. Amiga uses new synthesized sample loops;
@@ -406,6 +407,27 @@ through the standard Yes/No dialog (mouse or Y/N/Escape). Status then shows
 `??-???`. The service persists in saved commanders until a new hull is acquired.
 With a Fugitive record (at least 50), each new human pirate has a 50% chance to
 ignore the player until attacked. Mission ships and escorts, Thargoids and
-Tharglets keep their existing hostility. Approaching a station raises the
-record to at least 100 except in Anarchy, Feudal and Dictatorship systems.
+Tharglets keep their existing hostility. Scramble ID does not change the legal
+record. In Multi-Government, Communist, Confederacy, Democracy and Corporate
+State systems, a hidden ID causes a docking ban on approach within 2,000 units
+inside S. The station sends one of the five existing denial messages. Without
+a ban, Offender/Fugitive players instead receive one of ten unwelcoming
+clearances. Anarchy, Feudal and Dictatorship exempt both policies. A banned
+manual docking attempt is rejected even at perfect alignment. Contact causes
+normal station-impact damage; repeated contact drains shields and then energy.
 See [Scramble ID rules and validation](docs/2026-10-03-scramble-id.md).
+
+## Cockpit communications
+
+Messages addressed to the player pulse only the recipient ID in the engine colour, including a scrambled `??-???`; NPC recipients and the rest of the text stay yellow.
+
+Both enhanced versions show up to three yellow comm messages at the top left of
+the 3D view. Each arrival beeps. Every five seconds in 3D, the shared queue timer
+removes only the oldest message and starts a new five-second interval.
+The timer pauses in menus and resumes on return; new UI arrivals still shift a full
+queue. Pirate and scrambled identities appear as `??-???`. The first message
+type warns about illegal cargo dumping in the station S zone,
+with five equally likely texts. Stations greet departing civilian AI ships and the player with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+On a close approach within 2,000 units, a human station sends one of ten docking clearances or five leave-area warnings according to the existing docking permission. The notification rearms on leaving S; losing permission after clearance sends one extra warning. A station hit within S sends that warning immediately, including after launch and beyond 2,000 units without prior clearance. It uses the same sent flag, so further hits cannot repeat it until the visit resets.
+Death, new/load game, hyperspace and docking
+clear the queue. See [Communications](docs/2026-10-04-comm-messages.md).

@@ -100,6 +100,11 @@ including after a player rating change. There is no global flight laser cache.
 Copied wingmen select their own loadouts. Removing, allocating or clearing a
 slot resets its loadout, and non-ship objects have no ship laser.
 
+Police Vipers use the same roll but replace Pulse with Beam, keeping Military
+unchanged. Their Beam/Military probabilities are 97/3%, 91/9% and 85/15% across
+the three rating bands. This applies to station launches, encounter patrols and
+copied wingmen, without an additional random draw.
+
 Pulse beams are red (6), Beam orange (3), and Military white (15). Cougar
 always has Beam; Constrictor always has Military. Thargoids always have Beam
 (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless

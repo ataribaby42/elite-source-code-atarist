@@ -1,4 +1,5 @@
 	xref laser_impact_sound
+	xref comm_departure_ship,comm_station_hit
 	xref ship_weapon_damage,ship_damage_store
 	xref ship_shield_damage,ship_ai_damage,ship_ai_recharge,ship_charge_tick
 	include "common.def"
@@ -1113,6 +1114,7 @@ q_combat_m68_67:
 	move #255,police_record(a6)
 q_combat_m68_81:
 	st no_entry(a6) ; don't allow entry to space station
+	jsr comm_station_hit ; one warning per S visit, deferred until within 2000
 	clr d0 ; no laser power at all
 q_combat_m68_79:
 	move.l a5,a4
@@ -1815,6 +1817,7 @@ q_combat_m68_129:
 	move #1,on_course(a4) ; object on course
 	move.b #1,flags(a4) ; record in use
 	jsr create_object ; create the object
+	jsr comm_departure_ship ; station greets the newly registered departing ship
 q_combat_m68_131:
 
 	q_ret
@@ -2001,7 +2004,7 @@ q_combat_m68_136:
 	jsr random_position ; create at random position
 	bra.s q_combat_m68_138
 q_combat_m68_137:
-	cmp.l #2000,station_range(a6) ; too close ?
+	cmp.l #station_traffic_range,station_range(a6) ; too close ?
 ; Quelo: 		if <hi> then.s					no
 	bls.s q_combat_m68_139
 	move #log_launch,logic(a4) ; launch

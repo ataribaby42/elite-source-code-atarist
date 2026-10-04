@@ -130,6 +130,7 @@ qa_coin:
         case(f'Station launch: mission ${state:02X}, police hunt {hunt}')
         emit(f' move.w #${state:x},mission(a6)\n move.w #{hunt},police_hunt(a6)\n move.w #2,launch_count(a6)\n move.w #1,launch_rate(a6)\n'+call('launch_vipers'))
         check(1);eq('thargoid' if state else 'viper','objects+obj_len*3+type(a6)');eq('log_police','objects+obj_len*3+logic(a6)');zero('objects+obj_len*3+velocity(a6)');eq(-1,'objects+obj_len*3+patrol_record(a6)');eq(1,'launch_count(a6)')
+        eq(9,'objects+obj_len*3+ai_laser_loadout(a6)') # Pulse roll becomes Beam for police; alien replacement stays Beam
         emit(' btst #angry,objects+obj_len*3+flags(a6)\n'+(' beq fail\n' if hunt else ' bne fail\n'))
     for bit in (0,1):
         case(f'Station shuttle selection {bit} retains type, launch and normal acceleration')

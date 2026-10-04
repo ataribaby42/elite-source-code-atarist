@@ -1182,6 +1182,10 @@ q_flight_m68_147:
 	move.w #no_energy,reason(a6)
 	rts
 q_flight_m68_151:
+	; A denied station uses normal impact damage, even at perfect alignment.
+	; Repeated contact drains shields/energy; it can never accept the ship.
+	tst no_entry(a6)
+	bne hit_station
 	move z_vector+k(a5),d3 ; get z vector k component
 	tst.l d2 ; behind us ?
 ; Quelo: 	if <mi> then.s						yes

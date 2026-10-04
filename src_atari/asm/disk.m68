@@ -1,3 +1,4 @@
+	xref comm_reset
 	xref courier_validate
 	xref ship_validate
 	include "common.def"
@@ -82,6 +83,8 @@ draw_line macro
 ; Subr:  ?
 
 	q_subr restore_state,global
+
+	jsr comm_reset ; default/new commander and saved commander load
 
 	clr.w nav_star(a6) ; loading or restoring a commander starts in planet/station mode
 

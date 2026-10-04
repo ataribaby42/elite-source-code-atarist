@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.amiga_assets import extract_assets
 from tools.bomb_audio import generate_bomb_audio, PAL_CLOCK, NTSC_CLOCK, PERIOD
+from tools import comm_audio
 from tools.amiga_hunk import verify_hunk
 from tools.make_adf import make_adf, verify_adf
 
@@ -106,6 +107,33 @@ class AmigaTests(unittest.TestCase):
             self.assertGreater(stop, 0)
             self.assertTrue(any(data[:stop]))
             self.assertEqual(data[stop-100:], bytes(len(data)-stop+100))
+
+
+    def test_comm_beep_is_one_short_tone_without_dma_repeat(self):
+        report = comm_audio.generate_comm_audio(self.temp)
+        data = (self.temp/'comm-sample.bin').read_bytes()
+        samples = [v if v < 128 else v-256 for v in data]
+        rate = comm_audio.PAL_CLOCK / comm_audio.PERIOD
+        audible = [n for n, value in enumerate(samples) if value]
+        self.assertEqual(len(data) % 2, 0)
+        self.assertLessEqual(max(map(abs, samples)), 127)
+        self.assertEqual(samples[0], 0)
+        self.assertGreater(audible[-1] / rate, .095)
+        self.assertLess(audible[-1] / rate, .105)
+        # No gaps or a second pulse inside the audible interval.
+        for start in range(int(.010*rate), int(.085*rate), int(.008*rate)):
+            self.assertGreater(sum(v*v for v in samples[start:start+int(.008*rate)]), 10000)
+        steady = samples[int(.01*rate):int(.085*rate)]
+        crossings = sum(a <= 0 < b for a, b in zip(steady, steady[1:]))
+        frequency = crossings * rate / len(steady)
+        self.assertGreater(frequency, 700)
+        self.assertLess(frequency, 780)
+        for clock, hz, ticks in ((comm_audio.PAL_CLOCK, 50, report['pal_ticks']),
+                                 (comm_audio.NTSC_CLOCK, 60, report['ntsc_ticks'])):
+            stop = int(ticks / hz * clock / comm_audio.PERIOD)
+            self.assertGreater(stop, audible[-1])
+            self.assertLess(stop, len(data))
+            self.assertEqual(data[stop:], bytes(len(data)-stop))
 
 
 if __name__ == '__main__':

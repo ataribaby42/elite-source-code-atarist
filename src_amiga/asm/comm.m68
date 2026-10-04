@@ -1,0 +1,588 @@
+; Transient cockpit communications. IDs are snapshots, never object pointers.
+    include "common.def"
+    include "macros.m68"
+    xref registration_format,locate,text_colour,display_char,comm_arrival_sound
+    xref spcstn_space
+    xref frclock
+    q_module comm
+
+; New/restored commanders do not inherit messages from the previous session.
+    q_subr comm_reset,global
+    clr.w comm_count(a6)
+    clr.w comm_seed(a6)
+    clr.w comm_arrival_sent(a6)
+    clr.l comm_clock(a6)
+    clr.l comm_deadline(a6)
+    move.l d0,-(sp)
+    bsr comm_now
+    move.l d0,comm_last_tick(a6)
+    move.l (sp)+,d0
+    rts
+
+; Hardware flyback time continues in menus and modal dialogs. D0.L output.
+    q_subr comm_now,global
+    move.l frclock,d0
+    rts
+
+; Seven seconds at the selected PAL/NTSC field frequency. D0.L output.
+    q_subr comm_lifetime,global
+    move.l #350,d0
+    ifne display_ntsc
+    move.l #420,d0
+    endc
+    rts
+
+; Drop the oldest entry; called only with a nonempty queue. D0/A0/A1 scratch.
+    q_subr comm_drop
+    subq.w #1,comm_count(a6)
+    lea comm_queue(a6),a0
+    lea comm_size(a0),a1
+    moveq #(comm_capacity-1)*comm_size/2-1,d0
+.copy:
+    move.w (a1)+,(a0)+
+    dbra d0,.copy
+    rts
+
+; Count only time in 3D. Screen transitions call this before changing
+; COCKPIT_ON, so a long UI visit cannot be charged on the first flight frame.
+; One shared interval removes at most one entry per update. A delayed frame
+; cannot discard several messages together; the next head gets a full interval.
+; Signed deadline subtraction handles the 32-bit clock wrapping.
+    q_subr comm_update,global
+    movem.l d0-d1/a0-a1,-(sp)
+    bsr comm_now
+    move.l d0,d1
+    sub.l comm_last_tick(a6),d0
+    move.l d1,comm_last_tick(a6)
+    tst.w cockpit_on(a6)
+    beq.s .paused
+    add.l d0,comm_clock(a6)
+.paused:
+    move.l comm_clock(a6),d1
+    tst.w comm_count(a6)
+    beq.s .done
+    move.l d1,d0
+    sub.l comm_deadline(a6),d0
+    bmi.s .done
+    bsr comm_drop
+    bsr comm_arm_timer
+.done:
+    movem.l (sp)+,d0-d1/a0-a1
+    rts
+
+; Start a fresh seven-second interval for the new oldest entry. D0 scratch.
+    q_subr comm_arm_timer
+    clr.l comm_deadline(a6)
+    tst.w comm_count(a6)
+    beq.s .done
+    bsr comm_lifetime
+    add.l comm_clock(a6),d0
+    move.l d0,comm_deadline(a6)
+.done:
+    rts
+
+; D0.W = message ID, D1.L/D2.L = packed sender/recipient identity.
+; All registers preserved. A fourth arrival replaces the oldest message.
+    q_subr comm_enqueue,global
+    movem.l d0-d7/a0-a5,-(sp)
+    moveq #0,d7 ; NPC recipient; never infer this from anonymous text
+    bra.s comm_enqueue_common
+
+; Same inputs and preservation, but explicitly addressed to the player.
+    q_subr comm_enqueue_player,global
+    movem.l d0-d7/a0-a5,-(sp)
+    moveq #1,d7
+
+    q_subr comm_enqueue_common
+    cmp.w #comm_text_count,d0
+    bhs.s .done
+    move.w d0,d3
+    bsr comm_update
+    cmp.w #comm_capacity,comm_count(a6)
+    blo.s .room
+    bsr comm_drop
+    bsr comm_arm_timer ; overflow promotes a new head, including on UI screens
+.room:
+    move.w comm_count(a6),d0
+    mulu #comm_size,d0
+    lea comm_queue(a6),a0
+    adda.w d0,a0
+    move.l d1,comm_sender(a0)
+    move.l d2,comm_recipient(a0)
+    move.w d3,comm_message(a0)
+    move.w d7,comm_to_player(a0)
+    addq.w #1,comm_count(a6)
+    cmp.w #1,comm_count(a6)
+    bne.s .sound ; appending behind the head must not postpone its removal
+    bsr comm_arm_timer
+.sound:
+    jsr comm_arrival_sound ; receipt beep, independent of the displayed screen
+.done:
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; Identity helpers return D0.L and preserve all other registers.
+    q_subr comm_id_player,global
+    move.l player_registration(a6),d0
+    cmp.w #$ff,scrambled_id(a6)
+    bne.s .done
+    move.l #comm_hidden,d0
+.done:
+    rts
+
+    q_subr comm_id_station,global
+    move.l #$00004300,d0
+    move.b galaxy_no+1(a6),d0
+    and.b #7,d0
+    add.b #'1',d0
+    swap d0
+    move.b current+1(a6),d0
+    lsl.w #8,d0
+    rts
+
+; A4 = calling/called object. Pirates and alien identities remain anonymous.
+    q_subr comm_id_object,global
+    cmp.w #spacestn,type(a4)
+    beq comm_id_station
+    move.l #comm_hidden,d0
+    cmp.w #typ_pirate,ship_type(a4)
+    beq.s .done
+    cmp.w #thargoid,type(a4)
+    beq.s .done
+    cmp.w #thargon,type(a4)
+    beq.s .done
+    cmp.w #dodec,type(a4)
+    beq.s .done
+    move.l registration_id(a4),d0
+.done:
+    rts
+
+; Cosmetic 255-state LFSR: each of the five variants occurs 51 times/cycle.
+; It never consumes combat, spawning, market or registration randomness.
+    q_subr comm_random,global
+    bsr comm_random_byte
+    divu #comm_jettison_count,d0
+    swap d0
+    and.l #$ffff,d0
+    rts
+
+    q_subr comm_random_departure,global
+    bsr comm_random_ten
+    add.w #comm_departure_text,d0
+    rts
+
+    q_subr comm_random_arrival,global
+    bsr comm_random_ten
+    add.w #comm_arrival_text,d0
+    rts
+
+    q_subr comm_random_unwelcome,global
+    bsr comm_random_ten
+    add.w #comm_unwelcome_text,d0
+    rts
+
+    q_subr comm_random_denied,global
+    bsr comm_random ; five-way warning lottery, independent of gameplay RNG
+    add.w #comm_denied_text,d0
+    rts
+
+; Ten greeting variants: accept 1..250 so every result has 25 states.
+; Reject 251..255 before reduction; preserve the sender/recipient in D1/D2.
+    q_subr comm_random_ten
+.retry:
+    bsr comm_random_byte
+    cmp.w #250,d0
+    bhi.s .retry
+    divu #comm_greeting_count,d0
+    swap d0
+    and.l #$ffff,d0
+    rts
+
+; D0.L = next nonzero cosmetic byte (1..255); all other registers preserved.
+    q_subr comm_random_byte
+    moveq #0,d0
+    move.w comm_seed(a6),d0
+    bne.s .step
+    bsr comm_now
+    and.l #255,d0
+    bne.s .step
+    moveq #$5b,d0
+.step:
+    lsr.b #1,d0
+    bcc.s .store
+    eor.b #$b8,d0
+.store:
+    move.w d0,comm_seed(a6)
+    rts
+
+    q_subr comm_jettison,global
+    movem.l d0-d2,-(sp)
+    bsr comm_id_station
+    move.l d0,d1
+    bsr comm_id_player
+    move.l d0,d2
+    bsr comm_random
+    bsr comm_enqueue_player
+    movem.l (sp)+,d0-d2
+    rts
+
+; Successful station departures only; CREATE_OBJECT has assigned the ship ID.
+; All registers preserved. Police Vipers do not receive this greeting.
+    q_subr comm_departure_ship,global
+    cmp.w #viper,type(a4)
+    beq.s .done
+    movem.l d0-d3,-(sp)
+    bsr comm_id_object
+    moveq #0,d3
+    bsr comm_departure_send
+    movem.l (sp)+,d0-d3
+.done:
+    rts
+
+; Called after the player's launch reset and return to the cockpit.
+    q_subr comm_departure_player,global
+    movem.l d0-d3,-(sp)
+    bsr comm_id_player
+    moveq #1,d3
+    bsr comm_departure_send
+    movem.l (sp)+,d0-d3
+    rts
+
+; D0.L recipient snapshot, D3.W player flag. Excluded stations stay silent.
+    q_subr comm_departure_send
+    tst.w witch_space(a6)
+    bne.s .done
+    tst.w station_destroyed(a6)
+    bne.s .done
+    cmp.w #$52,mission(a6)
+    beq.s .done
+    cmp.w #spacestn,station_rec+type(a6)
+    bne.s .done
+    btst #in_use,station_rec+flags(a6)
+    beq.s .done
+    move.l d0,d2
+    bsr comm_id_station
+    move.l d0,d1
+    bsr comm_random_departure
+    tst.w d3
+    bne comm_enqueue_player
+    bra comm_enqueue
+.done:
+    rts
+
+; Called after the physical station-zone update, also during flight UI pages.
+; Reuse GET_RANGE's cached distance, exactly as the trader launch gate does.
+; Leaving the close approach radius alone does not rearm; leaving S does.
+    q_subr comm_arrival_check,global
+    move.l d0,-(sp)
+    moveq #0,d0 ; ordinary approach still uses the close-range gate
+    bsr comm_station_check
+    move.l (sp)+,d0
+    rts
+
+; A confirmed player hit denies entry even without an earlier clearance.
+; Use the same S-visit latch and exclusions as approach messages.
+    q_subr comm_station_hit,global
+    move.l d0,-(sp)
+    moveq #1,d0 ; hits can only deny; the approach distance gate still applies
+    bsr comm_station_check
+    move.l (sp)+,d0
+    rts
+
+; D0.W = 1 for Offender/Fugitive in government 2 or 4..7.
+; Text selection never changes the legal record or docking permission.
+    q_subr comm_unwelcome
+    tst.w police_record(a6)
+    beq.s .no
+    bra comm_restricted_government
+.no:
+    moveq #0,d0
+    rts
+
+; Both station policies exempt Anarchy, Feudal and Dictatorship.
+; D0.W boolean result; all other registers preserved.
+    q_subr comm_restricted_government
+    move.w splanet+govern(a6),d0
+    cmp.w #2,d0
+    blo.s .no
+    cmp.w #3,d0
+    beq.s .no
+    cmp.w #7,d0
+    bhi.s .no
+    moveq #1,d0
+    rts
+.no:
+    moveq #0,d0
+    rts
+
+    q_subr comm_station_check
+    cmp.l #spcstn_space,planet_range(a6)
+    blo.s .inside
+    clr.w comm_arrival_sent(a6)
+    rts
+.inside:
+    tst.w docked(a6)
+    bne .done
+    tst.w just_docked(a6)
+    bne .done
+    tst.w witch_space(a6)
+    bne .done
+    tst.w station_destroyed(a6)
+    bne .done
+    cmp.w #$52,mission(a6) ; alien-controlled mission station stays silent
+    beq .done
+    cmp.w #spacestn,station_rec+type(a6)
+    bne .done
+    btst #in_use,station_rec+flags(a6)
+    beq .done
+    ; Every clearance/revocation waits for close approach, including fresh hits.
+    ; Do not consume the sent latch or cosmetic RNG while a warning is deferred.
+    cmp.l #station_traffic_range,station_range(a6)
+    bhi .done
+    ; Evaluate permission even after an earlier clearance. A hidden ID is
+    ; rejected only on close approach; neither S entry nor text expiry bans it.
+    move.l d0,-(sp)
+    cmp.w #$ff,scrambled_id(a6)
+    bne.s .permission_done
+    bsr comm_restricted_government
+    tst.w d0
+    beq.s .permission_done
+    st no_entry(a6) ; same persistent station ban as a confirmed player hit
+.permission_done:
+    move.l (sp)+,d0
+    tst.w no_entry(a6) ; docking bans take priority over either clearance set
+    bne.s .denied
+    tst.w d0
+    bne.s .done ; a hit notification must never issue a clearance
+    tst.w comm_arrival_sent(a6)
+    bne.s .done
+    bra.s .send
+.denied:
+    cmp.w #2,comm_arrival_sent(a6)
+    beq.s .done
+.send:
+    movem.l d0-d2,-(sp)
+    bsr comm_id_station
+    move.l d0,d1
+    bsr comm_id_player
+    move.l d0,d2
+    tst.w no_entry(a6)
+    bne.s .warning
+    bsr comm_unwelcome
+    tst.w d0
+    bne.s .unwelcome
+    bsr comm_random_arrival
+    bra.s .cleared
+.unwelcome:
+    bsr comm_random_unwelcome
+.cleared:
+    move.w #1,comm_arrival_sent(a6)
+    bra.s .enqueue
+.warning:
+    bsr comm_random_denied
+    move.w #2,comm_arrival_sent(a6)
+.enqueue:
+    bsr comm_enqueue_player
+    movem.l (sp)+,d0-d2
+.done:
+    rts
+
+; A0 packed identity, A1 output. Hidden identities contain no numeric suffix.
+    q_subr comm_format_id
+    cmp.l #comm_hidden,(a0)
+    bne registration_format
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    move.b #'-',(a1)+
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    move.b #'?',(a1)+
+    rts
+
+; A5 queue entry. Construct the prefix and text in a bounded scratch buffer.
+    q_subr comm_format,global
+    lea comm_buffer(a6),a1
+    lea comm_sender(a5),a0
+    bsr comm_format_id
+    move.b #':',(a1)+
+    lea comm_recipient(a5),a0
+    bsr comm_format_id
+    move.b #',',(a1)+
+    move.b #' ',(a1)+
+    move.w comm_message(a5),d0
+    add.w d0,d0
+    lea comm_texts(pc),a0
+    adda.w (a0,d0.w),a0
+.copy:
+    move.b (a0)+,(a1)+
+    bne.s .copy
+    rts
+
+; Display only in the 3D viewport, after scene rendering and before swapping.
+; Preserve the shared text cursor and colours for the rest of the game.
+    q_subr comm_draw,global
+    bsr comm_update
+    tst.w cockpit_on(a6)
+    beq .done
+    tst.w comm_count(a6)
+    beq .done
+    movem.l d0-d7/a0-a5,-(sp)
+    move.l text_addr(a6),-(sp)
+    move.l column(a6),-(sp)
+    move.l text_ink(a6),-(sp)
+    moveq #yellow,d0
+    moveq #trans,d1
+    jsr text_colour
+    moveq #8,d4 ; one logical row below the frameless view title
+    lea comm_queue(a6),a5
+    move.w comm_count(a6),d5
+.message:
+    bsr comm_format
+    bsr comm_draw_buffer
+    lea comm_size(a5),a5
+    subq.w #1,d5
+    bne.s .message
+    move.l (sp)+,text_ink(a6)
+    move.w text_ink(a6),d0
+    move.w text_paper(a6),d1
+    jsr text_colour
+    move.l (sp)+,column(a6)
+    move.l (sp)+,text_addr(a6)
+    movem.l (sp)+,d0-d7/a0-a5
+.done:
+    rts
+
+; Word-wrap to the logical viewport width, not the physical hires pixel width.
+; D4.W = logical pixel row, advanced after each line. Preserve D5/A5.
+    q_subr comm_draw_buffer
+    movem.l d5/a5,-(sp)
+    move.w comm_to_player(a5),-(sp) ; consumed after the six recipient glyphs
+    lea comm_buffer(a6),a4
+.line:
+    moveq #0,d5
+    moveq #0,d2 ; last space within this line
+.scan:
+    move.b (a4,d5.w),d0
+    beq.s .draw
+    cmp.b #' ',d0
+    bne.s .word
+    move.w d5,d2
+.word:
+    addq.w #1,d5
+    cmp.w #no_cols,d5
+    blo.s .scan
+    tst.b (a4,d5.w)
+    beq.s .draw
+    cmp.b #' ',(a4,d5.w)
+    beq.s .draw ; a word ending exactly at the right edge still fits
+    tst.w d2
+    beq.s .draw ; a long word still advances by one whole row
+    move.w d2,d5
+.draw:
+    lea (a4,d5.w),a5
+    move.w #x_left/char_w,d0
+    move.w d4,d1
+    jsr locate
+    subq.w #1,d5
+    bmi.s .advance
+.char:
+    tst.w (sp)
+    beq.s .plain
+    lea comm_buffer+7(a6),a0 ; sender and colon keep their yellow ink
+    cmpa.l a0,a4
+    bne.s .recipient_end
+    moveq #pulse,d0 ; palette entry shared with the animated engines
+    bra.s .ink
+.recipient_end:
+    lea comm_buffer+13(a6),a0 ; comma and remaining text are yellow again
+    cmpa.l a0,a4
+    bne.s .plain
+    clr.w (sp)
+    moveq #yellow,d0
+.ink:
+    moveq #trans,d1
+    jsr text_colour
+.plain:
+    moveq #0,d0
+    move.b (a4)+,d0
+    jsr display_char
+    dbra d5,.char
+.advance:
+    addq.w #8,d4
+    move.l a5,a4
+.spaces:
+    cmp.b #' ',(a4)
+    bne.s .next
+    addq.l #1,a4
+    bra.s .spaces
+.next:
+    tst.b (a4)
+    bne .line
+    addq.l #2,sp
+    movem.l (sp)+,d5/a5
+    rts
+
+comm_texts:
+    dc.w comm_text0-comm_texts,comm_text1-comm_texts,comm_text2-comm_texts
+    dc.w comm_text3-comm_texts,comm_text4-comm_texts
+    dc.w comm_text5-comm_texts
+    dc.w comm_text6-comm_texts,comm_text7-comm_texts,comm_text8-comm_texts
+    dc.w comm_text9-comm_texts,comm_text10-comm_texts,comm_text11-comm_texts
+    dc.w comm_text12-comm_texts,comm_text13-comm_texts,comm_text14-comm_texts
+    dc.w comm_text15-comm_texts,comm_text16-comm_texts,comm_text17-comm_texts
+    dc.w comm_text18-comm_texts,comm_text19-comm_texts,comm_text20-comm_texts
+    dc.w comm_text21-comm_texts,comm_text22-comm_texts,comm_text23-comm_texts
+    dc.w comm_text24-comm_texts
+    dc.w comm_text25-comm_texts,comm_text26-comm_texts,comm_text27-comm_texts
+    dc.w comm_text28-comm_texts,comm_text29-comm_texts
+    dc.w comm_text30-comm_texts
+    dc.w comm_text31-comm_texts
+    dc.w comm_text32-comm_texts
+    dc.w comm_text33-comm_texts
+    dc.w comm_text34-comm_texts
+    dc.w comm_text35-comm_texts
+    dc.w comm_text36-comm_texts
+    dc.w comm_text37-comm_texts
+    dc.w comm_text38-comm_texts
+    dc.w comm_text39-comm_texts
+comm_text0: dc.b 'Dumping cargo near this station is illegal.',0
+comm_text1: dc.b 'Cargo dumping is prohibited in the station zone.',0
+comm_text2: dc.b 'Illegal cargo disposal detected. This offence has been recorded.',0
+comm_text3: dc.b 'Keep the station zone clear. Do not dump cargo here.',0
+comm_text4: dc.b 'Unauthorized cargo dumping. Your legal record has been updated.',0
+comm_text5: dc.b 'Have a good flight.',0
+comm_text6: dc.b 'Fly safe.',0
+comm_text7: dc.b 'Safe travels.',0
+comm_text8: dc.b 'Good luck out there.',0
+comm_text9: dc.b 'Until next time.',0
+comm_text10: dc.b 'Have a safe journey.',0
+comm_text11: dc.b 'Watch your six.',0
+comm_text12: dc.b 'See you again soon.',0
+comm_text13: dc.b 'Departure confirmed. Fly safe.',0
+comm_text14: dc.b 'Have a profitable trip.',0
+comm_text15: dc.b 'Permission to dock granted.',0
+comm_text16: dc.b 'Cleared to dock.',0
+comm_text17: dc.b 'Docking clearance granted.',0
+comm_text18: dc.b 'Welcome. You may dock.',0
+comm_text19: dc.b 'Docking permission approved.',0
+comm_text20: dc.b 'Approach approved. Proceed to dock.',0
+comm_text21: dc.b 'Dock when ready.',0
+comm_text22: dc.b 'You may begin your docking approach.',0
+comm_text23: dc.b 'Clearance confirmed. Approach safely.',0
+comm_text24: dc.b 'Welcome to the station. Docking approved.',0
+comm_text25: dc.b 'Vacate the area immediately.',0
+comm_text26: dc.b 'Docking denied. Leave the station area.',0
+comm_text27: dc.b 'You are not cleared to dock. Move away.',0
+comm_text28: dc.b 'Keep clear of the station. Docking denied.',0
+comm_text29: dc.b 'Docking access revoked. Leave immediately.',0
+comm_text30: dc.b 'Docking granted, but you are not welcome here.',0
+comm_text31: dc.b 'You may dock, despite your criminal record.',0
+comm_text32: dc.b 'Docking approved. We have checked your record.',0
+comm_text33: dc.b 'Cleared to dock. Keep your visit brief.',0
+comm_text34: dc.b 'Docking permitted. You are being watched.',0
+comm_text35: dc.b 'You may dock, but do not cause trouble.',0
+comm_text36: dc.b 'Docking granted. Your record is a concern.',0
+comm_text37: dc.b 'Clearance granted. We know your reputation.',0
+comm_text38: dc.b 'Docking approved. Stay out of trouble.',0
+comm_text39: dc.b 'You may dock. We will be watching you.',0
+    even

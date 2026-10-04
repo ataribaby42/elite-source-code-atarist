@@ -5,7 +5,7 @@
     xref disp_message,locate,text_colour,print_string,print_char
     xref ship_profile,ship_name
     xref prepare_text,print_centre,confirm_yn,error_box,fx
-    xref random,find_table,str_copy
+    xref random
     q_module registration
 
 ; Assign a fresh identity after CREATE_OBJECT has installed the model header.
@@ -196,7 +196,7 @@
 
 ; Append six visible characters to A1 from the packed identity at A0.
 ; D0-D1/A0-A1 scratch; A1 finishes immediately after the last digit.
-    q_subr registration_format
+    q_subr registration_format,global
     move.b (a0)+,(a1)+
     move.b (a0)+,(a1)+
     move.b #'-',(a1)+
@@ -344,52 +344,6 @@ registration_heading:
     dbra d1,.copy
     rts
 
-; Called inside the physical station boundary, before the police response.
-; Checking every step also handles a legal record reduced while in the zone.
-; All registers preserved; the ID remains scrambled until the hull changes.
-    q_subr scramble_station,global
-    movem.l d0-d7/a0-a5,-(sp)
-    tst.w docked(a6)
-    bne .done
-    cmp.w #$ff,scrambled_id(a6)
-    bne .done
-    move.w splanet+govern(a6),d0
-    cmp.w #2,d0
-    blo .done
-    cmp.w #3,d0
-    beq .done
-    cmp.w #100,police_record(a6)
-    bhs .done
-    move.w #100,police_record(a6)
-    lea registration_buffer(a6),a1
-    move.b #'C',(a1)+
-    move.w galaxy_no(a6),d0
-    and.w #7,d0
-    add.b #'1',d0
-    move.b d0,(a1)+
-    move.b #'-',(a1)+
-    moveq #0,d0
-    move.b current+1(a6),d0
-    bsr registration_digits
-    move.b #'>',(a1)+
-    bsr registration_player_format
-    move.b #':',(a1)+
-    move.b #' ',(a1)+
-.roll:
-    jsr random
-    and.w #3,d0
-    cmp.w #3,d0
-    beq.s .roll
-    lea scramble_warnings(pc),a0
-    jsr find_table
-    jsr str_copy
-    lea registration_buffer(a6),a0
-    jsr disp_message
-    q_sfx keyclick
-.done:
-    movem.l (sp)+,d0-d7/a0-a5
-    rts
-
 ; A4 = a freshly created object. Each human pirate has a 128/256 chance
 ; when the player has both a hidden ID and a Fugitive record (>= 50).
 ; Named mission waves (including escorts) and aliens keep their old behaviour.
@@ -451,6 +405,4 @@ scramble_prompt2: dc.b 'Do you want to scramble your ship ID',0
 scramble_prompt3: dc.b 'for 5000.0 CR?',0
 scramble_no_cash: dc.b 'Not enough cash',0
 scramble_hidden: dc.b '??-???',0
-scramble_warnings:
-    dc.b 'SCRAM PIRATE!',0,'RUN PIRATE!',0,'DIE PIRATE!',0
     even

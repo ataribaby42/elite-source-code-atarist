@@ -2,7 +2,7 @@
 import importlib.util
 
 ORDINARY = ['cobra','adder','gecko','moray','cobra_mk1','ferdelance','python',
-            'boa','anaconda','asp','sidewinder','krait','mamba','worm','viper',
+            'boa','anaconda','asp','sidewinder','krait','mamba','worm',
             'wolf','shuttle','transporter']
 
 
@@ -26,13 +26,21 @@ def make_suite(root, s):
     patch('ai_laser_roll','qa_percentile')
     for rating in range(9):
         band=rating//3
-        case(f'Rating {rating}: all 100 percentiles for all 18 ordinary hulls; power, colour, persistence and preserved registers')
-        emit(f' lea objects+obj_len*3(a6),a4\n move.l a4,a5\n moveq #17,d6\nqa_models_{rating}:\n lea qa_models(pc),a0\n move.w d6,d0\n add.w d0,d0\n move.w (a0,d0.w),type(a4)\n moveq #0,d5\nqa_percent_{rating}:\n move.w #{rating},rating(a6)\n move.w d5,qa_percent\n clr.w qa_draws\n move.w #$dead,ai_laser_loadout(a4)\n move.l #$12345678,d0\n move.l #$34567890,d1\n'+call('init_ship_laser'))
+        case(f'Rating {rating}: all 100 percentiles for all 17 ordinary hulls; power, colour, persistence and preserved registers')
+        emit(f' lea objects+obj_len*3(a6),a4\n move.l a4,a5\n moveq #16,d6\nqa_models_{rating}:\n lea qa_models(pc),a0\n move.w d6,d0\n add.w d0,d0\n move.w (a0,d0.w),type(a4)\n moveq #0,d5\nqa_percent_{rating}:\n move.w #{rating},rating(a6)\n move.w d5,qa_percent\n clr.w qa_draws\n move.w #$dead,ai_laser_loadout(a4)\n move.l #$12345678,d0\n move.l #$34567890,d1\n'+call('init_ship_laser'))
         eq('$12345678','d0','l');eq('$34567890','d1','l');eq(1,'qa_draws')
         emit(f' lea qa_expected_{band}(pc),a0\n move.w d5,d0\n add.w d0,d0\n move.w (a0,d0.w),d4\n cmp.w ai_laser_loadout(a4),d4\n bne fail\n move.w #{8-rating},rating(a6)\n'+call('ai_laser_power')+' cmp.w d4,d0\n bne fail\n'+call('ai_laser_palette'))
         emit(f' lea qa_colours_{band}(pc),a0\n cmp.b (a0,d5.w),d0\n bne fail\n')
         eq(1,'qa_draws')
         emit(f' addq.w #1,d5\n cmp.w #100,d5\n blo qa_percent_{rating}\n dbra d6,qa_models_{rating}\n')
+        case(f'Police Viper, rating {rating}: all 100 percentiles promote Pulse to Beam and preserve Military, colour and loadout RNG count')
+        emit(f' moveq #0,d5\nqa_viper_percent_{rating}:\n move.w #{rating},rating(a6)\n move.w d5,qa_percent\n clr.w qa_draws\n')
+        spawn('viper')
+        eq('typ_police','ship_type(a4)');eq(1,'qa_draws')
+        emit(f' lea qa_viper_expected_{band}(pc),a0\n move.w d5,d0\n add.w d0,d0\n move.w (a0,d0.w),d4\n cmp.w ai_laser_loadout(a4),d4\n bne fail\n move.l a4,a5\n move.w #{8-rating},rating(a6)\n'+call('ai_laser_power')+' cmp.w d4,d0\n bne fail\n'+call('ai_laser_palette'))
+        emit(f' lea qa_viper_colours_{band}(pc),a0\n cmp.b (a0,d5.w),d0\n bne fail\n')
+        eq(1,'qa_draws')
+        emit(f' addq.w #1,d5\n cmp.w #100,d5\n blo qa_viper_percent_{rating}\n')
         for model in ('constr','cougar','thargoid','thargon'):
             power={'constr':11,'cougar':9,'thargoid':9,'thargon':5}[model]
             colour=15 if model=='constr' else 3 if model=='cougar' else 10
@@ -50,6 +58,11 @@ def make_suite(root, s):
         for model in ORDINARY:
             spawn(model,slot);eq(power,'ai_laser_loadout(a4)')
             eq('$1234','objects+obj_len*2+ai_laser_loadout(a6)')
+    for percent,power in ((0,9),(99,11)):
+        case(f'Copied Viper independently selects power {power}; parent Military is unchanged')
+        emit(' move.w #6,rating(a6)\n move.w #99,qa_percent\n');spawn('viper')
+        emit(' move.l a4,a5\n lea objects+obj_len*4(a6),a4\n'+call('copy_object')+f' move.w #{percent},qa_percent\n clr.w qa_draws\n'+call('create_object'))
+        eq(power,'ai_laser_loadout(a4)');eq(11,'ai_laser_loadout(a5)');eq(1,'qa_draws')
     case('Copied wingman rerolls without changing the parent; existing loadouts consume no RNG')
     emit(' move.w #6,rating(a6)\n move.w #99,qa_percent\n');spawn('cobra')
     emit(' move.l a4,a5\n lea objects+obj_len*4(a6),a4\n'+call('copy_object')+' clr.w qa_percent\n'+call('create_object'))
@@ -135,4 +148,7 @@ qa_models: dc.w '''+','.join(ORDINARY)+'\n'
         powers=[5]*probs[0]+[9]*probs[1]+[11]*probs[2]
         tail+=f'qa_expected_{band}: dc.w '+','.join(map(str,powers))+'\n'
         tail+=f'qa_colours_{band}: dc.b '+','.join(str({5:6,9:3,11:15}[p]) for p in powers)+'\n even\n'
+        viper_powers=[9]*(probs[0]+probs[1])+[11]*probs[2]
+        tail+=f'qa_viper_expected_{band}: dc.w '+','.join(map(str,viper_powers))+'\n'
+        tail+=f'qa_viper_colours_{band}: dc.b '+','.join(str({9:3,11:15}[p]) for p in viper_powers)+'\n even\n'
     return prefix,''.join(parts),tail,names

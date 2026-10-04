@@ -25,19 +25,36 @@ visible registration. Rejected purchases and failed escapes retain the old ID.
 
 ## Stations and police
 
-Inside the existing physical station-space boundary, a scrambled ID raises the
-legal record to **at least 100** in government types 2 and 4 through 7:
+Scramble ID no longer raises the legal record on entering station space. The
+old `SCRAM PIRATE!`, `RUN PIRATE!` and `DIE PIRATE!` penalty notifications have
+been removed with that penalty. Existing records are not reduced, and other
+cargo, combat and police rules remain unchanged.
+
+On close approach within **2,000 units inside the physical S zone**, an intact
+human station rejects a scrambled ID in government types 2 and 4 through 7:
 Multi-Government, Communist, Confederacy, Democracy and Corporate State.
-**Anarchy, Feudal and Dictatorship ignore it.**
+**Anarchy, Feudal and Dictatorship exempt this rule.** Entering S alone is not
+enough. Docked, docking-frame, witch-space, absent/destroyed and Thargoid-controlled
+stations remain excluded.
 
-The check runs before the normal station police response and does not reduce
-a record already above 100. A destroyed station does not trigger it. Returning
-from an in-flight menu does not produce repeated warnings once the record is
-already at least 100. The existing police spawning probabilities still apply.
+The check sets the existing `no_entry` ban and sends one of the five existing
+docking-denial messages. It applies regardless of the legal record and also
+revokes an earlier clearance when a hidden ID qualifies on close approach.
+Neither the ban nor its message raises the legal record. The existing message
+latch suppresses repeats; leaving S rearms the notification but does not remove
+the ban. The ban resets with the normal system reset, including death, launch
+and normal/galactic hyperspace. Docking-computer activation is refused, and an
+attempt to enter the banned station manually causes normal station-impact damage,
+even with perfect alignment. Repeated contact drains the struck shield and then
+energy. Moving away stops contact damage; there is no immediate forced death.
 
-When the record rises, the station sends one of Unbound's three warnings:
-`SCRAM PIRATE!`, `RUN PIRATE!` or `DIE PIRATE!`, prefixed by its registration
-and the player's concealed registration. The service remains active afterwards.
+If docking is permitted, **Offender (1..49)** and **Fugitive (50..255)** records
+select the ten alternative, unwelcoming clearance texts in the same five types
+of government. A Clean record, or Anarchy/Feudal/Dictatorship, selects the normal
+clearances. Those texts no longer mention hidden IDs; the recipient prefix still
+shows `??-???` whenever the player's identity is scrambled. Text selection alone
+does not ban an Offender or Fugitive. See
+[Cockpit communications](2026-10-04-comm-messages.md) for the messages and tests.
 
 ## Pirate reactions
 
@@ -82,8 +99,8 @@ Unbound samples the existing random byte. This port takes a fresh byte only for
 eligible pirates: the immediately preceding AI laser selection uses rejection
 sampling and would bias a reused byte towards neutrality. The decision uses
 `byte < 128`; ordinary spawns without the service and mission waves consume no
-additional randomness. Warning text uses rejection sampling to choose uniformly
-among three messages.
+additional randomness. The alternative clearance texts use the separate cosmetic
+comm generator and its unbiased ten-way draw, without consuming gameplay randomness.
 
 Commander files remain **256 bytes**. Existing fields keep their offsets:
 
@@ -107,7 +124,10 @@ The primary reference is the local sibling C64 project
 `ScrambleRegistrationListEnd`, `ScrambleRegistrationPurchase`,
 `ScrambleRegistrationSafeZone`, `MaybeSpawnNeutralPirate`,
 `PlayerRegistrationGenerate` and `PlayerRegistrationScrambleValidate`.
-The warning text is in `elite-hangar.asm`.
+The original warning text is in `elite-hangar.asm`. The ports deliberately
+differ from that reference: the station no longer raises the legal record for
+a hidden ID, but denies docking on close approach in the specified governments.
+The alternative clearance texts depend on Offender/Fugitive status instead.
 
 ## Validation
 
@@ -123,7 +143,7 @@ each of three rating bands. The observed Atari neutral counts are 2,026, 2,024 a
 2,024 (49.46%, 49.41%, 49.41%). Exhaustive injected byte tests verify the exact
 128-of-256 decision separately from this distribution check.
 
-The final checks cover **1,134 native scenarios per platform** across 16 suites,
+The initial implementation checks covered **1,134 native scenarios per platform** across 16 suites,
 including 164 Scramble ID scenarios. They also cover existing mission spawns,
 AI combat/loadouts/bursts, player hulls, Special Cargo, missile impacts and
 collisions, shield flashes and identification. The affected Scramble ID and
@@ -136,3 +156,27 @@ The Equip question, mouse and keyboard answers, cursor restoration and hidden
 Status registration were also checked visually in both private emulators.
 Artifacts and diagnostic logs are under each tree's `build/scramble-id-qa`;
 the Amiga visual captures are under `build/scramble-visual`.
+
+The earlier removal of the station penalty and substitution of clearance
+texts passed all 129 updated Scramble ID scenarios on each platform, as part of
+737 native regression scenarios per platform. Tests check that station entry
+preserves every tested legal-record threshold in all governments and passes the
+unchanged record to the existing police response. The clearance trigger remains
+at 2,000 units; only the ten-text selection differs for eligible hidden IDs.
+Pirate neutrality, mission exclusions, retaliation, save/restore and ship
+replacement continue to pass. Reports are in `build/comm-scrambled-arrival-qa`.
+
+The later station-policy revision passed **1,076 native scenarios per platform**.
+A 12,288-combination policy matrix covers all records, both identity states,
+every government and the close-approach boundary. Existing Scramble ID purchase,
+pirate behaviour, saves and mission exclusions still pass. The enhanced manual
+collision handler now enforces the station ban even for a perfectly aligned
+approach; allowed docking and other collision paths remain covered. Full reports
+are under `build/comm-docking-policy-qa`, with current rules documented above.
+
+The subsequent contact-damage refinement routes banned station contact through
+normal impact damage instead of forcing immediate death. All 223 targeted
+native scenarios pass on each platform, including 40 docking-access cases with
+real repeated shield/energy damage, withdrawal from contact, two hulls and both
+shield sides. Reports and rebuilt-distribution hashes are under
+`build/station-ban-impact-qa`.

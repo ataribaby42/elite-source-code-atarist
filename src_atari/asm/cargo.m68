@@ -926,14 +926,26 @@ jettison_notice_error:
 	rts
 
 ; Same 0..255 legal scale and 50-point Fugitive threshold as C64 Unbound.
+	xref comm_jettison
+	xref spcstn_space
 	q_subr jettison_penalty
-	tst radar_obj(a6)
+	tst witch_space(a6) ; there is no station protection zone in witch space
+	bne .done
+	tst station_destroyed(a6)
+	bne .done
+	cmp.l #spcstn_space,planet_range(a6) ; physical S zone, also while in menus
+	bhs .done
+	cmp.w #$52,mission(a6) ; Thargoid-controlled station does not police cargo
 	beq .done
+	cmp.w #spacestn,station_rec+type(a6)
+	bne .done
 	tst splanet+govern(a6) ; Anarchy does not police dumping
 	beq .done
 	add.b #15,police_record+1(a6)
-	bcc .done
+	bcc .message
 	move #255,police_record(a6)
+.message:
+	jsr comm_jettison
 .done:
 	rts
 

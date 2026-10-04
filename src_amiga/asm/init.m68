@@ -579,7 +579,10 @@ q_init_m68_29:
 * Regs: ?
 * Subr: ?
 
+	xref comm_reset
 	q_subr reset_system,global
+
+	jsr comm_reset ; new flight, death and both kinds of hyperspace transition
 
 	lea reset_table(pc),a0 ; reset variables to zero
 q_init_m68_33:

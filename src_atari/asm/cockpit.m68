@@ -1,5 +1,6 @@
 	xref locate,print_number,text_colour
 	include "common.def"
+	xref comm_update
 ; Ported from src_orig/asm/cockpit.m68; edit this copy.
 *	@@@@	@@@ 	@@@@  @@@  @@ @@@@@@   @@@@@@  @@@@@@
 *  @@  @@  @@ @@   @@  @@  @@  @@  @@  @@	 @@    @ @@ @
@@ -145,6 +146,8 @@ set_view macro
 	bne.s q_cockpit_m68_1
 	movem.l d0/a0,-(sp) ; draw cockpit
 	bsr prepare_cockpit
+	move.l flip_screen(a6),d0 ; UI leaves SCR_BASE visible; draw the first flight
+	eor.l d0,scr_base(a6) ; frame in the other buffer, then present it normally
 	st view(a6) ; force view change
 	movem.l (sp)+,d0/a0
 q_cockpit_m68_1:
@@ -198,6 +201,7 @@ q_cockpit_m68_3:
 	clr.l last2_ptr(a6)
 	clr radar_obj(a6) ; outside space station space
 	clr cycle_type(a6) ; pulse engines
+	jsr comm_update ; settle 3D time before changing the screen state
 	st cockpit_on(a6) ; cockpit displayed
 	jsr kill_sprites ; kill all sprites
 	lea cockpit,a0 ; draw cockpit screen on the invisble

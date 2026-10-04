@@ -376,6 +376,7 @@ sfx_bomb: rs.b 1 ; energy bomb
 sfx_doors: rs.b 1 ; opening doors
 sfx_teletype: rs.b 1 ; teletype print effect
 sfx_launch: rs.b 1 ; engine spool-up when leaving the hangar
+sfx_comm: rs.b 1 ; short communications receipt tone
 
 ; Logic bytes.
 
@@ -1046,6 +1047,35 @@ courier_next_function: rs.w 1
 ; SID1 save extension: visible (0) or scrambled ($00ff) player identity.
 scramble_tag: rs.l 1
 scrambled_id: rs.w 1
+
+; Transient comm queue; packed identity snapshots survive object slot reuse.
+comm_capacity: equ 3
+comm_sender: equ 0
+comm_recipient: equ 4
+comm_message: equ 8
+comm_to_player: equ 10 ; explicit recipient snapshot, even for anonymous IDs
+comm_size: equ 12
+comm_jettison_count: equ 5
+comm_greeting_count: equ 10
+comm_departure_text: equ comm_jettison_count
+comm_departure_count: equ comm_greeting_count
+comm_arrival_text: equ comm_departure_text+comm_departure_count
+comm_arrival_count: equ comm_greeting_count
+comm_denied_text: equ comm_arrival_text+comm_arrival_count
+comm_denied_count: equ comm_jettison_count
+comm_unwelcome_text: equ comm_denied_text+comm_denied_count
+comm_unwelcome_count: equ comm_greeting_count
+comm_text_count: equ comm_unwelcome_text+comm_unwelcome_count
+station_traffic_range: equ 2000 ; trader launch exclusion and arrival greeting
+comm_hidden: equ $3f3f0000
+comm_count: rs.w 1
+comm_seed: rs.w 1
+comm_arrival_sent: rs.w 1 ; S-zone visit: 0 no message, 1 clearance, 2 denial
+comm_clock: rs.l 1 ; elapsed flybacks spent in 3D, frozen on UI pages
+comm_deadline: rs.l 1 ; one shared deadline for removing the oldest entry
+comm_last_tick: rs.l 1 ; real flyback clock at the last update
+comm_queue: rs.b comm_capacity*comm_size
+comm_buffer: rs.b 96 ; 15-character prefix, at most 63 text characters, NUL
 
 var_size: equ __RS ; size of variables
 

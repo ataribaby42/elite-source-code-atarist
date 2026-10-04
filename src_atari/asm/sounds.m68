@@ -27,6 +27,8 @@ teletype_tone: equ 50 ; teletype tone period
 teletype_dur: equ 100 ; "    envelope duration
 locked_tone: equ 50 ; Missile locked tone period
 locked_dur: equ 10 ; "      "    duration
+comm_tone: equ 56 ; slightly lower than identification, one short tone
+comm_dur: equ 5 ; 100 ms at PAL; FX_COMM selects six ticks at 60 Hz
 exp_period: equ 20 ; Explosion period
 exp_tone: equ 31 ; "     noise tone
 laser_start: equ 300 ; Laser start tone
@@ -311,6 +313,33 @@ q_sounds_m68_1:
 	clr.w hold_sound(a6)
 	q_restore_all restore
 	moveq #sfx_shields,d0
+	bra fx
+
+	q_subr comm_arrival_sound,global
+	btst #f_fx,user(a6)
+	q_ret eq
+	cmp.w #1,sound_type(a6)
+	q_ret eq
+	tst.w hold_sound(a6)
+	q_ret ne
+	q_save_all save
+	st hold_sound(a6)
+	lea chan_1(a6),a5
+	moveq #2,d7
+.find:
+	tst.w chn_active(a5)
+	beq.s .next
+	cmp.l #comm_time,service(a5) ; receipts share one voice, not the ID tone
+	bne.s .next
+	bsr silence_effect
+	bra.s .ready
+.next:
+	lea fx_len(a5),a5
+	dbra d7,.find
+.ready:
+	clr.w hold_sound(a6)
+	q_restore_all restore
+	moveq #sfx_comm,d0
 	bra fx
 
 	q_subr fx,global
@@ -1709,6 +1738,22 @@ init_done:
 
 	q_ret
 
+; One short notification, with no alternating pitch or repeat envelope.
+	q_subr fx_comm
+	set_fx volume,11
+	set_fx tone,comm_tone
+	set_fx duration,comm_dur
+	set_fx service,comm_time
+	set_fx done
+	btst #1,$ffff820a ; active video frequency: PAL 50 Hz / NTSC 60 Hz
+	bne.s .ready
+	move.w #6,duration(a5)
+.ready:
+	rts
+
+comm_time:
+	bra mark_time
+
 
 * **************************************
 * **								  **
@@ -2412,3 +2457,4 @@ fx_vectors:
 	dc.l fx_doors ; P
 	dc.l fx_teletype
 	dc.l fx_launch
+	dc.l fx_comm

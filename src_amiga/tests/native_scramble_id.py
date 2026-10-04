@@ -83,31 +83,36 @@ def make_suite(root, s):
     case('Replacement hull generator clears the hidden ID')
     emit(call('scramble_purchase') + call('registration_new_player')); eq(0,'scrambled_id(a6)')
     for gov in range(8):
-        case(f'Station government {gov}: record thresholds, no repeated warning, hidden ID retained')
-        emit(f' move.w #{gov},splanet+govern(a6)\n clr.w docked(a6)\n move.w #255,scrambled_id(a6)\n')
+        case(f'Station government {gov}: Scramble ID never changes the record or gameplay RNG')
+        emit(f' move.w #{gov},splanet+govern(a6)\n clr.w docked(a6)\n move.w #255,scrambled_id(a6)\n'
+             ' clr.w station_destroyed(a6)\n move.l #$224ff,planet_range(a6)\n'
+             ' move.w #-1,checkpoint(a6)\n move.w #1,radar_obj(a6)\n')
         for record in (0,49,50,99,100,101,255):
-            emit(f' move.w #{record},police_record(a6)\n clr.w qa_calls\n' + call('scramble_station'))
-            penalty = gov not in (0,1,3) and record < 100
-            eq(100 if penalty else record,'police_record(a6)');eq(int(penalty),'qa_calls');eq(255,'scrambled_id(a6)')
-            emit(call('scramble_station'));eq(int(penalty),'qa_calls')
+            emit(f' move.w #{record},police_record(a6)\n clr.w qa_calls\n' + call('radar_lock'))
+            eq(record,'police_record(a6)');eq(0,'qa_calls');eq(255,'scrambled_id(a6)')
+            emit(call('radar_lock'));eq(record,'police_record(a6)');eq(0,'qa_calls')
     for hidden,docked in ((0,0),(255,1)):
         case(f'No station penalty with visible ID or while docked: {hidden}/{docked}')
-        emit(f' move.w #{hidden},scrambled_id(a6)\n move.w #{docked},docked(a6)\n move.w #7,splanet+govern(a6)\n' + call('scramble_station'))
+        emit(f' move.w #{hidden},scrambled_id(a6)\n move.w #{docked},docked(a6)\n move.w #7,splanet+govern(a6)\n'
+             ' clr.w station_destroyed(a6)\n move.l #$224ff,planet_range(a6)\n'
+             ' move.w #-1,checkpoint(a6)\n move.w #1,radar_obj(a6)\n'+call('radar_lock'))
         eq(0,'police_record(a6)');eq(0,'qa_calls')
-    case('Warning uses station ID, concealed player ID and Unbound text')
+    case('No legacy Scramble ID penalty warning is formatted on entering station space')
     emit(' clr.w docked(a6)\n move.w #7,splanet+govern(a6)\n move.w #255,scrambled_id(a6)\n'
-         ' clr.w galaxy_no(a6)\n move.w #7,current(a6)\n' + call('scramble_station'))
-    emit(' lea registration_buffer(a6),a0\n lea qa_warning,a1\n bsr qa_string\n')
+         ' move.l #$11223344,registration_buffer(a6)\n clr.w station_destroyed(a6)\n'
+         ' move.l #$224ff,planet_range(a6)\n move.w #-1,checkpoint(a6)\n'
+         ' move.w #1,radar_obj(a6)\n'+call('radar_lock'))
+    eq('$11223344','registration_buffer(a6)','l');eq(0,'police_record(a6)');eq(0,'qa_calls')
     patch('check_police','qa_police')
     patch('check_cargo','qa_return')
     for distance in (0x22500,0x224ff):
         for destroyed in (0,1):
-            case(f'Real station boundary: distance {distance}, destroyed {destroyed}, police sees new record')
+            case(f'Real station boundary: distance {distance}, destroyed {destroyed}, police sees unchanged record')
             emit(' clr.w docked(a6)\n move.w #255,scrambled_id(a6)\n move.w #7,splanet+govern(a6)\n'
                  ' clr.w checkpoint(a6)\n clr.w radar_obj(a6)\n move.w #-1,qa_police_record\n'
                  f' move.l #{distance},planet_range(a6)\n move.w #{destroyed},station_destroyed(a6)\n' + call('radar_lock'))
             inside = distance < 0x22500 and not destroyed
-            eq(100 if inside else 0,'police_record(a6)');eq(100 if inside else -1,'qa_police_record')
+            eq(0,'police_record(a6)');eq(0 if inside else -1,'qa_police_record')
     restore('check_police');restore('check_cargo')
     humans=('krait','boa','gecko','moray','adder','mamba','asp','sidewinder','wolf')
     for model in humans:
@@ -209,19 +214,11 @@ qa_police:
  move.w police_record(a6),qa_police_record
  rts
 qa_return: rts
-qa_string:
- move.b (a0)+,d0
- cmp.b (a1)+,d0
- bne fail
- tst.b d0
- bne.s qa_string
- rts
 qa_roll: dc.w 0
 qa_calls: dc.w 0
 qa_police_record: dc.w 0
 qa_histogram: ds.w 3
 qa_buffer: ds.b 8
-qa_warning: dc.b 'C1-007>??-???: SCRAM PIRATE!',0
  even
 ''' + ''.join(f'qa_save_{n}: ds.b 6\n' for n in saved)
     return prefix, ''.join(out), tail, names

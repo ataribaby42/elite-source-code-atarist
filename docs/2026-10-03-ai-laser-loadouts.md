@@ -21,6 +21,11 @@ equivalent combined probabilities. `ai_laser_roll` accepts random bytes
 0–199, maps them to 0–99, and retries bytes 200–255. Each percentile has
 exactly two accepted byte values; modulo bias is avoided.
 
+Police Vipers use the same roll but replace Pulse with Beam, keeping Military
+unchanged. Their Beam/Military probabilities are 97/3%, 91/9% and 85/15% across
+the three rating bands. This applies to station launches, encounter patrols and
+copied wingmen, without an additional random draw.
+
 Cougar always has Beam (power 9, orange). Constrictor retains Military
 (power 11, white). Thargoids always have Beam (power 9), while Thargons/Tharglets
 always have Pulse (power 5), regardless of player rating. Both draw light blue.
@@ -145,3 +150,27 @@ loadout, 91 burst/cadence, 248 combat systems and 83 spawn-path scenarios.
 This includes player/NPC damage, mission progression, alien brood creation
 and deactivation. Reports and build logs are in each platform's
 `build/alien-laser-qa` directory. The existing build options were preserved.
+
+## Police Viper minimum laser follow-up (4 October 2026)
+
+Police Vipers retain the ordinary rating-based percentile draw, but a Pulse
+result becomes Beam. Military results are unchanged. No extra random draw is
+made, and other hulls retain their previous selection rules. Initialization
+applies this to station launches, encounter patrols and copied Vipers alike.
+
+| Player rating | Pulse | Beam | Military |
+| --- | ---: | ---: | ---: |
+| Harmless, Mostly Harmless, Poor | 0% | 97% | 3% |
+| Average, Above Average, Competent | 0% | 91% | 9% |
+| Dangerous, Deadly, Elite | 0% | 85% | 15% |
+
+Both platforms passed 504 native scenarios: 82 loadout, 83 spawn-path, 91 burst
+and 248 combat-system cases. The loadout suite exhausts all 100 percentiles at
+all nine ratings for Vipers and the other 17 ordinary hulls, checks fixed alien
+and mission loadouts, colours, persistence and RNG consumption, and verifies
+independent Beam/Military selection for copied Vipers. Station-launch checks
+include police launches and the mission's Thargoid replacement.
+
+Tests used private emulators on verified hidden desktops. Standard and selected
+ALT distributions were rebuilt; build options were preserved. Reports and logs
+are under each platform's `build/police-laser-qa` directory.

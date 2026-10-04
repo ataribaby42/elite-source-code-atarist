@@ -203,7 +203,13 @@ Docking at the destination pays the reward once and displays **Cargo Delivered**
 
 In flight, double-click an Inventory item and confirm with `Y` or the YES button to eject up to 1 t, or the entire remainder when less is held. `N`, NO or `Esc` cancels. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. A full object bubble rejects the request without losing cargo. Ejected canisters retain their original commodity and exact mass in grams when scooped. Success and failure use existing sounds. Dumping in the station protection zone adds 15 legal-status points except under Anarchy. See [JETTISON.md](JETTISON.md) for restrictions and validation.
 
-## Missile range
+## Missile guidance and range
+
+Player and NPC guided missiles maintain their model's maximum speed (42 world
+units per flight update) while turning. They no longer use ship-style braking
+down to speed 6 when off course. Steering limits and course checks retain their
+existing behaviour. This applies to player-to-AI, AI-to-player and AI-to-AI
+missiles. See [the guidance checks](../docs/2026-10-04-missile-guidance.md).
 
 Player and NPC missiles disappear beyond 24,576 world units from the player,
 regardless of scanner zoom. At exactly that distance they remain active.
@@ -394,7 +400,7 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 
 A separate sparse white sky sits behind every flight object and the existing dark grey starfield. Its fixed one-pixel stars remain consistent across all views and move only with rotation. **Game Options / Stars: ON/OFF** controls this white sky (default ON). OFF skips its rendering and rotation updates and restores the moving starfield to yellow. Switching back ON restarts the sky orientation and returns the moving starfield to dark grey. The preference is saved with the commander. Startup and default Jameson use ON; older commanders also load with ON. The 256-byte save format remains compatible between Atari and Amiga. A spatial tree skips unseen regions, and straight flight reuses cached screen positions; see [STARFIELD.md](STARFIELD.md#distant-white-sky) for implementation and validation details.
 
-Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. Each ordinary AI ship selects a persistent Pulse / Beam / Military loadout at creation: chances are 90/7/3% at Harmless through Poor, 70/21/9% at Average through Competent, and 50/35/15% at Dangerous through Elite. Colours follow that ship's weapon: red / orange / white. Cougar always has Beam and Constrictor Military. Thargoids always have Beam (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless of player rating; both remain light blue. Player damage per hit is unchanged; successful AI hits now use the same base damage for the same laser class against both the player and other AI ships (Pulse 5, Beam 9, Military 11). AI Pulse shots have a minimum 10-step interval; Beam and Military use uninterrupted 6–18-step bursts with damage checks every 6 and 3 steps, respectively. Each incoming damaging laser hit retriggers its impact sound. See [AI bursts](../docs/2026-10-03-ai-laser-bursts.md). Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. Each ordinary AI ship selects a persistent Pulse / Beam / Military loadout at creation: chances are 90/7/3% at Harmless through Poor, 70/21/9% at Average through Competent, and 50/35/15% at Dangerous through Elite. Police Vipers replace any Pulse result with Beam, giving Beam/Military chances of 97/3%, 91/9% and 85/15% across those bands without another roll. Colours follow that ship's weapon: red / orange / white. Cougar always has Beam and Constrictor Military. Thargoids always have Beam (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless of player rating; both remain light blue. Player damage per hit is unchanged; successful AI hits now use the same base damage for the same laser class against both the player and other AI ships (Pulse 5, Beam 9, Military 11). AI Pulse shots have a minimum 10-step interval; Beam and Military use uninterrupted 6–18-step bursts with damage checks every 6 and 3 steps, respectively. Each incoming damaging laser hit retriggers its impact sound. See [AI bursts](../docs/2026-10-03-ai-laser-bursts.md). Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
 
@@ -476,6 +482,28 @@ through the standard Yes/No dialog (mouse or Y/N/Escape). Status then shows
 `??-???`. The service persists in saved commanders until a new hull is acquired.
 With a Fugitive record (at least 50), each new human pirate has a 50% chance to
 ignore the player until attacked. Mission ships and escorts, Thargoids and
-Tharglets keep their existing hostility. Approaching a station raises the
-record to at least 100 except in Anarchy, Feudal and Dictatorship systems.
+Tharglets keep their existing hostility. Scramble ID does not change the legal
+record. In Multi-Government, Communist, Confederacy, Democracy and Corporate
+State systems, a hidden ID causes a docking ban on approach within 2,000 units
+inside S. The station sends one of the five existing denial messages. Without
+a ban, Offender/Fugitive players instead receive one of ten unwelcoming
+clearances. Anarchy, Feudal and Dictatorship exempt both policies. A banned
+manual docking attempt is rejected even at perfect alignment. Contact causes
+normal station-impact damage; repeated contact drains shields and then energy.
 See [Scramble ID rules and validation](../docs/2026-10-03-scramble-id.md).
+
+## Cockpit communications
+
+Messages addressed to the player pulse only the recipient ID in the engine colour, including a scrambled `??-???`; NPC recipients and the rest of the text stay yellow.
+
+Up to three yellow messages appear at the top left of the flight viewport,
+oldest first. Arrivals use a dedicated short single beep similar to identification, including
+on UI screens. One shared timer removes the
+oldest message every seven seconds in 3D and pauses in UI. New UI arrivals
+immediately replace the oldest entry when full. Text
+is drawn only in 3D. Illegal station-zone jettison selects one of five warnings.
+Anarchy and the Thargoid-controlled station do not warn or penalize dumping.
+Stations greet departing civilian AI ships and the player with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+Within S and at most 2,000 units from a human station, the player receives a docking clearance or leave-area warning according to the existing permission rules. Every clearance and denial uses this distance limit, including revocation after an earlier clearance. A station hit sets the ban and adds the existing 10 legal-record points immediately (capped at 255); its warning arrives immediately only within 2,000 units, otherwise on the next close approach. Sending a denial sets the same visit flag, so repeated hits cannot repeat it. Leaving S rearms notifications without clearing the ban.
+Death, new/load game, hyperspace and docking clear the queue. See
+[Communications](../docs/2026-10-04-comm-messages.md) for IDs, geometry and tests.

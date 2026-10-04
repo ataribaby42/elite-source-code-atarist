@@ -10,6 +10,7 @@
     include "rcs-loop.inc"
     include "engine-loop.inc"
     include "bomb-sample.inc"
+    include "comm-sample.inc"
     xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
 ; Length of the ECM wave in VBL ticks, 2.32 seconds at PAL 50 Hz. The Atari
@@ -30,6 +31,18 @@ laser_impact_sound:
     tst music_playing
     bne.s .done
     st laser_impact_pending     ; one atomic publication to the VBL consumer
+.done:
+    rts
+
+    xdef comm_arrival_sound
+comm_arrival_sound:
+    tst audio_resetting
+    bne.s .done
+    btst #f_fx,user(a6)
+    beq.s .done
+    tst music_playing
+    bne.s .done
+    st comm_audio_pending ; short receipt tone, retriggered at the next VBL
 .done:
     rts
 
@@ -76,12 +89,19 @@ play_effect:
     bne .next
     tst.w (a1)
     beq.s .next
+    cmp.w #sfx_comm,d0
+    bne.s .shield_repeat
+    tst comm_audio_pending
+    beq .done
+    bra.s .restart
+.shield_repeat:
     cmp.w #sfx_shields,d0
     bne .done
     tst laser_impact_pending
     beq .done                   ; ordinary held effects still do not restart
+.restart:
     moveq #3,d6
-    sub.w d7,d6                 ; restart the existing shield voice
+    sub.w d7,d6                 ; restart the existing impact or receipt voice
     bra .channel_ready
 .next:
     addq.l #2,a1
@@ -134,6 +154,15 @@ play_effect:
     and.w #3,next_channel
     lea effect_ids,a0
     move.b d0,(a0,d6.w)
+    cmp.w #sfx_comm,d0
+    bne.s .not_comm
+    lea comm_sample,a0
+    move.w #comm_sample_bytes,d2
+    move.w #comm_audio_period,d7
+    move.w #comm_audio_ticks,d3
+    lea comm_descriptor(pc),a2
+    bra .finite
+.not_comm:
     cmp.w #sfx_bomb,d0
     bne .original_sample
     lea bomb_sample,a0
@@ -255,6 +284,7 @@ quiet:
     clr who_ecm(a6)
     clr.l effect_ticks
     clr.w laser_impact_pending
+    clr.w comm_audio_pending
     clr.l effect_ticks+4
     lea effect_requests,a0
     moveq #16,d0
@@ -370,6 +400,12 @@ sound:
     lea 16(a3),a3
     add.w d0,d0
     dbra d7,.effects
+    tst.w comm_audio_pending
+    beq.s .no_comm
+    moveq #sfx_comm,d0 ; independent single receipt beep
+    bsr play_effect
+    clr.w comm_audio_pending
+.no_comm:
     tst.w laser_impact_pending
     beq.s .ordinary_requests
     moveq #sfx_shields,d0
@@ -906,14 +942,20 @@ play_music:
 
     include "amiga-samples.inc"
 ; Shared ST events -> corresponding effects in the supplied Amiga player.
-; SFX_BOMB bypasses this table and uses BOMB_SAMPLE above.
+; SFX_BOMB and SFX_COMM bypass this table and use their own samples.
 effect_map:
     dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
     even
 ; The bomb's attack, noise sweep and fade are baked into its own PCM sample.
 bomb_descriptor:
     dc.b 0,0,0,64,0,0,0,0
+; The notification's single attack/release is baked into its PCM sample.
+comm_descriptor:
+    dc.b 0,1,1,64,0,0,0,0
     section amiga_audio,data
+comm_sample:
+    incbin "comm-sample.bin"
+    even
 bomb_sample:
     incbin "bomb-sample.bin"
     even
@@ -930,6 +972,7 @@ engine_samples:
     incbin "engine-loop.bin"
     section audio_vars,bss
 laser_impact_pending: ds.w 1
+comm_audio_pending: ds.w 1
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
 effect_requests: ds.b 18

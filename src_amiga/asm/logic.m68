@@ -794,8 +794,7 @@ q_logic_m68_43:
 	move.l target(a5),a4 ; get target's coords
 	movem.l xpos(a4),d0-d2
 	jsr auto_pilot ; execute auto-pilot
-	moveq #6,d0 ; more/less gas
-	bsr speed_control
+	move.w vel_max(a5),velocity(a5) ; missiles keep thrust while turning
 	jsr get_dist ; calculate distance to target
 	tst ecm_fitted(a4) ; ECM fitted to target ?
 	beq.s no_ecm ; no
@@ -914,8 +913,7 @@ q_logic_m68_48:
 	moveq #1,d1
 	moveq #2,d2
 	jsr auto_pilot
-	moveq #6,d0 ; more/less gas
-	bsr speed_control
+	move.w vel_max(a5),velocity(a5) ; same thrust for missiles aimed at player
 	cmp.l #missile_range,obj_range(a5) ; within range ?
 ; Quelo: 	if <lo> then.s						yes
 	bhs.s q_logic_m68_49

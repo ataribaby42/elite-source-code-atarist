@@ -37,6 +37,7 @@ equip
 options
 effects
 registration
+comm
 courier
 ships
 shipgfx
