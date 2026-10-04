@@ -5,6 +5,16 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
 
 ## xx.xx.2029 V1.xx
+- Added a three-message comm queue with seven-second expiry and paused timers in UI.
+- Added station departure greetings, docking messages and illegal cargo-dumping warnings.
+- Added blinking player IDs in comm messages.
+- Updated Offender/Fugitive messages and Scramble ID docking restrictions; removed the Scramble ID legal penalty.
+- Limited docking clearance and denial messages to 2,000 units.
+- Fixed manual docking bypassing station refusal.
+- Police Vipers now carry at least Beam lasers.
+- Fixed guided missiles slowing down during turns.
+- Fixed visible planet redraw when returning from UI to 3D.
+- Added a dedicated short notification beep.
 - Added Scramble ID with persistent hidden registration, pirate truces and station penalties.
 - Removed the “Condition RED!” ambush message.
 - Changed Thargoid and Tharglet shield-hit flashes to orange.
