@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>Elite: Unbound - Asp Mk II</title>
+  <!-- Projected from the original C64 Asp Mk II ship blueprint. -->
+  <!-- Laser barrel emphasized for readability at favicon sizes. -->
+  <rect width="32" height="32" fill="#000"/>
+  <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M20.796 4.378L29.250 7.491 M29.250 7.491L26.535 21.857 M26.535 21.857L16.549 27.622 M2.750 22.791L16.549 27.622 M4.281 13.912L2.750 22.791 M20.796 4.378L11.774 7.821 M4.281 13.912L11.774 7.821 M21.542 24.740L23.342 27.858" stroke-width="1.35"/>
+  <path d="M24.809 11.329L11.774 7.821 M8.294 20.863L11.774 7.821 M24.809 11.329L8.294 20.863 M2.750 22.791L8.294 20.863 M16.549 27.622L8.294 20.863 M29.250 7.491L24.809 11.329 M26.535 21.857L24.809 11.329" stroke-width="0.95"/>
+  </g>
+</svg>

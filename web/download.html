@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Get Amiga ADF and Atari ST images, choose an artwork set and find the appropriate Amiga display mode.">
+  <meta name="theme-color" content="#000000">
+  <title>Download — Elite — Amiga &amp; Atari ST</title>
+  <link rel="icon" href="./assets/favicon-asp.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/menu.js" defer></script>
+  <script src="./js/site.js" defer></script>
+</head><body id="top">
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-toolbar" aria-label="Site controls">
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="site-menu" aria-expanded="false">
+      <span class="burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+
+    <a class="home-link" href="./index.html" aria-label="Home" title="Home">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 11.5 12 4l9 7.5"></path>
+        <path d="M5.5 10.5V21h13V10.5"></path>
+      </svg>
+    </a>
+
+    <span class="toolbar-title">Elite — Amiga &amp; Atari ST</span>
+  </header>
+
+  <aside class="site-menu" id="site-menu" aria-label="Site menu" aria-hidden="true">
+    <nav>
+      <a href="./index.html">Elite — Amiga &amp; Atari ST</a>
+      <a href="./instruction-manual.html">Instruction Manual</a>
+      <a href="./technical-info.html">Technical Info</a>
+      <a href="./download.html" aria-current="page">Download</a>
+      <a href="./credits.html">Credits &amp; Foundations</a>
+      <a href="./galnet.html">GalNet</a>
+    </nav>
+  </aside>
+  <button class="menu-backdrop" type="button" aria-label="Close menu" hidden></button>
+
+
+  <noscript><nav class="fallback-nav" aria-label="Site navigation"><a href="./index.html">Elite — Amiga &amp; Atari ST</a><a href="./instruction-manual.html">Instruction Manual</a><a href="./technical-info.html">Technical Info</a><a href="./download.html">Download</a><a href="./credits.html">Credits &amp; Foundations</a><a href="./galnet.html">GalNet</a></nav>
+</noscript>
+  <div class="page-frame">
+    <header class="site-header"><div class="title-strip"><h1>Download</h1>
+<p>Native game images for real machines and emulators</p>
+</div>
+</header>
+    <nav class="page-toc" aria-label="On this page"><a href="#amiga">Amiga</a><a href="#atari">Atari ST</a><a href="#display-modes">Amiga display modes</a></nav>
+    <main id="content"><article class="article-shell page-content"><p class="lead">Choose your platform and artwork, then download an image from the project’s release page.</p>
+<div class="page-actions"><a class="action-link primary-action" href="https://github.com/ataribaby42/elite-source-code-atarist/releases">Open GitHub releases</a><a class="action-link" href="https://github.com/ataribaby42/elite-source-code-atarist">Browse the source</a></div>
+<p>Release assets include the packaged game images. This website is a guide; it does not run an emulator or bundle a Kickstart or TOS ROM.</p>
+<section id="amiga"><div class="section-heading"><h2>Amiga</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<div class="technical-table-scroll" role="region" aria-label="Standard Amiga images" tabindex="0"><table class="technical-table reference-table "><thead><tr><th scope="col">Image</th><th scope="col">Artwork</th></tr>
+</thead>
+<tbody><tr><th scope="row">ELITE.ADF</th><td>Original cockpit and UI</td></tr>
+<tr><th scope="row">ELITE_ALT.ADF</th><td>Grey alternate cockpit and UI</td></tr>
+</tbody>
+</table>
+</div>
+<p>The framed 68000 version targets <strong>1 MB RAM</strong>, including 512 KB Chip RAM plus 512 KB expansion RAM, and works with Kickstart 1.3. Start with this version on an A500-class machine.</p>
+<ol><li>Download and unpack the release.</li>
+<li>In an Amiga emulator, select a suitable machine and attach the ADF as its boot floppy. Use your own system ROM.</li>
+<li>Boot the disk. On real hardware, use compatible floppy emulation or transfer it to a disk.</li>
+<li>For hard-drive use, retain the complete game directory and start <code>ELITE</code>.</li>
+</ol>
+<p>Accelerated or high-resolution versions need a suitably faster machine and display. Select an image for your actual setup rather than the largest resolution by default.</p>
+</section>
+<section id="atari"><div class="section-heading"><h2>Atari ST</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<div class="technical-table-scroll" role="region" aria-label="Atari ST images" tabindex="0"><table class="technical-table reference-table "><thead><tr><th scope="col">Image</th><th scope="col">Artwork</th></tr>
+</thead>
+<tbody><tr><th scope="row">ELITE.ST</th><td>Original cockpit and UI</td></tr>
+<tr><th scope="row">ELITE_ALT.ST</th><td>Grey alternate cockpit and UI</td></tr>
+</tbody>
+</table>
+</div>
+<p>The enhanced Atari ST version targets a <strong>68000 machine with 1 MB RAM</strong>. Use the low-resolution colour display.</p>
+<ol><li>Download and unpack the release.</li>
+<li>Attach the ST image to a compatible emulator, using your own TOS ROM, or transfer the files to suitable media for a real ST.</li>
+<li>Run <code>ELITE.TOS</code>. Keep the supporting game files alongside the executable.</li>
+</ol>
+<p>The separately preserved original version retains historical gameplay. It is distinct from the enhanced game documented on this website.</p>
+</section>
+<section id="display-modes"><div class="section-heading"><h2>Amiga wide and high-resolution modes</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>Wide builds use the full screen width for flight. The following recommendations come from the project’s distribution guide. Performance also depends on scene complexity and the machine’s memory configuration.</p>
+<div class="technical-table-scroll" role="region" aria-label="Amiga display modes" tabindex="0"><table class="technical-table reference-table "><thead><tr><th scope="col">Mode</th><th scope="col">Screen</th><th scope="col">3D view</th><th scope="col">Recommended setup</th></tr>
+</thead>
+<tbody><tr><th scope="row">WIDE NTSC</th><td>320 × 200</td><td>320 × 120</td><td>68020, 14 MHz (A1200)</td></tr>
+<tr><th scope="row">WIDE NTSC-HIRES</th><td>640 × 200</td><td>640 × 120</td><td>68030, Fast RAM, from 33 MHz</td></tr>
+<tr><th scope="row">WIDE NTSC-HIRESLACE</th><td>640 × 400</td><td>640 × 240</td><td>68040+, Fast RAM, from 33 MHz</td></tr>
+<tr><th scope="row">WIDE DBLNTSC-HIRES</th><td>640 × 400</td><td>640 × 240</td><td>AGA, 68040+, Fast RAM, from 25 MHz; 27 kHz monitor</td></tr>
+<tr><th scope="row">WIDE PAL</th><td>320 × 256</td><td>320 × 176</td><td>68020, 14 MHz, Fast RAM (A1200)</td></tr>
+<tr><th scope="row">WIDE PAL-HIRES</th><td>640 × 256</td><td>640 × 176</td><td>68030, Fast RAM, 50 MHz</td></tr>
+<tr><th scope="row">WIDE PAL-HIRESLACE</th><td>640 × 512</td><td>640 × 352</td><td>68040+, Fast RAM, from 50 MHz</td></tr>
+<tr><th scope="row">WIDE DBLPAL-HIRES</th><td>640 × 512</td><td>640 × 352</td><td>AGA, 68040+, Fast RAM, from 33 MHz; 27 kHz monitor</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>HIRESLACE</strong> is interlaced. <strong>DBL</strong> variants need AGA and a compatible 27 kHz display. Framed images retain the compact cockpit window; check the release asset name and accompanying notes before choosing.</p>
+</section>
+</article>
+</main>
+    <footer class="site-footer"><p>Elite — Amiga &amp; Atari ST · Ataribaby 2026</p>
+<nav aria-label="Footer"><a href="./download.html">Download</a> · <a href="./credits.html">Credits</a> · <a href="#top">Return to top △</a></nav>
+</footer>
+  </div>
+</body></html>

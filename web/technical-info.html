@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Hull specifications, AI weapons, native platform differences and build information.">
+  <meta name="theme-color" content="#000000">
+  <title>Technical Info — Elite — Amiga &amp; Atari ST</title>
+  <link rel="icon" href="./assets/favicon-asp.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/menu.js" defer></script>
+  <script src="./js/site.js" defer></script>
+</head><body id="top">
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-toolbar" aria-label="Site controls">
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="site-menu" aria-expanded="false">
+      <span class="burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+
+    <a class="home-link" href="./index.html" aria-label="Home" title="Home">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 11.5 12 4l9 7.5"></path>
+        <path d="M5.5 10.5V21h13V10.5"></path>
+      </svg>
+    </a>
+
+    <span class="toolbar-title">Elite — Amiga &amp; Atari ST</span>
+  </header>
+
+  <aside class="site-menu" id="site-menu" aria-label="Site menu" aria-hidden="true">
+    <nav>
+      <a href="./index.html">Elite — Amiga &amp; Atari ST</a>
+      <a href="./instruction-manual.html">Instruction Manual</a>
+      <a href="./technical-info.html" aria-current="page">Technical Info</a>
+      <a href="./download.html">Download</a>
+      <a href="./credits.html">Credits &amp; Foundations</a>
+      <a href="./galnet.html">GalNet</a>
+    </nav>
+  </aside>
+  <button class="menu-backdrop" type="button" aria-label="Close menu" hidden></button>
+
+
+  <noscript><nav class="fallback-nav" aria-label="Site navigation"><a href="./index.html">Elite — Amiga &amp; Atari ST</a><a href="./instruction-manual.html">Instruction Manual</a><a href="./technical-info.html">Technical Info</a><a href="./download.html">Download</a><a href="./credits.html">Credits &amp; Foundations</a><a href="./galnet.html">GalNet</a></nav>
+</noscript>
+  <div class="page-frame">
+    <header class="site-header"><div class="title-strip"><h1>Technical Info</h1>
+<p>The systems behind the cockpit</p>
+</div>
+</header>
+    <nav class="page-toc" aria-label="On this page"><a href="#foundation">Foundations</a><a href="#hulls">Hulls</a><a href="#lasers">AI lasers</a><a href="#world">World & sound</a><a href="#communications">Radio</a><a href="#build">Build & sources</a></nav>
+    <main id="content"><article class="article-shell page-content"><section id="foundation"><div class="section-heading"><h2>Two independent native versions</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>The enhanced Atari ST and Amiga games are maintained in independent 68000 assembly source trees. The preserved original Atari version has its own build. The historical source archive remains untouched.</p>
+<p>Amiga supplies its own screen handling, blitter and Fast RAM paths, raw keyboard and mouse input, disk access, Paula effects and native music replay. It is a port of the enhanced Atari-based game, not a reconstruction of the complete original Amiga executable.</p>
+<p>The sources build with the bundled vasm assembler and vlink linker. Python and Pillow generate the editable PNG assets. See <a href="https://github.com/ataribaby42/elite-source-code-atarist">the repository</a> for current build instructions.</p>
+</section>
+<section id="hulls"><div class="section-heading"><h2>Hull reference</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<div class="technical-table-scroll" role="region" aria-label="Purchasable hull specifications" tabindex="0"><table class="technical-table reference-table ship-market-table"><thead><tr><th scope="col">Hull</th><th scope="col">Price (Cr)</th><th scope="col">Speed</th><th scope="col">Fuel (LY)</th><th scope="col">Missiles</th><th scope="col">Hold / expanded (t)</th><th scope="col">Laser mounts</th></tr>
+</thead>
+<tbody><tr><th scope="row">Cobra Mk III</th><td>100,000</td><td>22</td><td>7.0</td><td>4</td><td>25 / 35</td><td>All four</td></tr>
+<tr><th scope="row">Adder</th><td>27,000</td><td>19</td><td>6.0</td><td>1</td><td>8 / 12</td><td>Front, rear</td></tr>
+<tr><th scope="row">Gecko</th><td>32,500</td><td>24</td><td>7.0</td><td>2</td><td>9 / 11</td><td>All four</td></tr>
+<tr><th scope="row">Moray</th><td>36,000</td><td>20</td><td>8.0</td><td>2</td><td>11 / 15</td><td>All four</td></tr>
+<tr><th scope="row">Cobra Mk I</th><td>39,500</td><td>20</td><td>6.0</td><td>3</td><td>14 / 20</td><td>All four</td></tr>
+<tr><th scope="row">Fer-de-Lance</th><td>143,500</td><td>24</td><td>8.5</td><td>3</td><td>9 / 11</td><td>All four</td></tr>
+<tr><th scope="row">Python</th><td>205,000</td><td>16</td><td>8.0</td><td>4</td><td>106 / 125</td><td>All four</td></tr>
+<tr><th scope="row">Boa</th><td>240,000</td><td>19</td><td>9.0</td><td>6</td><td>132 / 155</td><td>Front, rear</td></tr>
+<tr><th scope="row">Anaconda</th><td>400,000</td><td>11</td><td>10.0</td><td>16</td><td>215 / 253</td><td>All four</td></tr>
+<tr><th scope="row">Asp Mk II</th><td>895,000</td><td>31</td><td>12.5</td><td>1</td><td>6 / 9</td><td>Front</td></tr>
+<tr><th scope="row">Sidewinder</th><td>20,500</td><td>29</td><td>5.0</td><td>1</td><td>4 / 5</td><td>Front</td></tr>
+<tr><th scope="row">Krait</th><td>30,500</td><td>24</td><td>6.0</td><td>0</td><td>10 / 12</td><td>Front</td></tr>
+<tr><th scope="row">Mamba</th><td>37,500</td><td>25</td><td>6.0</td><td>2</td><td>10 / 12</td><td>Front</td></tr>
+</tbody>
+</table>
+</div>
+<p>Speed uses native game units; hold capacity includes equipment. Prices are the full purchase prices. Trade-in is 60%; ordinary equipment resale is 50%. Offer lists depend on economy and government.</p>
+<p>All purchasable hulls have two 24-point shields and 96 energy in four banks. Different weapon resistances produce different effective durability. Those defences, recharge, speed, turn limits and missile capacity are shared by player and AI versions of the same hull. AI currently spawns without an Energy Unit. Worm escape capsules have no shields.</p>
+<p>Laser and missile resistance are separate; the existing ship-class collision rules remain separate again. A heavier hull is not made equivalent to a lighter one merely because their displayed energy bars have the same length.</p>
+</section>
+<figure class="content-image game-image"><img src="./assets/atari-status.png" width="320" height="200" alt="The same commander and ship systems on Atari ST · alternate artwork" loading="lazy"><figcaption>The same commander and ship systems on Atari ST · alternate artwork</figcaption></figure>
+<section id="lasers"><div class="section-heading"><h2>AI lasers and damage</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<div class="technical-table-scroll" role="region" aria-label="AI laser selection chances" tabindex="0"><table class="technical-table reference-table "><thead><tr><th scope="col">Player rating</th><th scope="col">Pulse</th><th scope="col">Beam</th><th scope="col">Military</th></tr>
+</thead>
+<tbody><tr><th scope="row">Harmless · Mostly Harmless · Poor</th><td>90%</td><td>7%</td><td>3%</td></tr>
+<tr><th scope="row">Average · Above Average · Competent</th><td>70%</td><td>21%</td><td>9%</td></tr>
+<tr><th scope="row">Dangerous · Deadly · Elite</th><td>50%</td><td>35%</td><td>15%</td></tr>
+</tbody>
+</table>
+</div>
+<p>Each ordinary AI ship draws a laser when created and keeps it. Police Vipers upgrade a Pulse result to Beam without another roll. Cougar always uses Beam, Constrictor Military, Thargoids Beam and Tharglets Pulse. Both alien weapons remain light blue.</p>
+<p>Successful hits use the same base damage for the same weapon class, without an extra random ×1/×2 multiplier. AI accuracy retains its existing distance-dependent miss chance. Pulse has at least ten AI steps between shots; Beam and Military bursts last 6–18 steps, with damage opportunities every six and three steps respectively. Aim is checked throughout a burst.</p>
+<p>All guided missiles use 60 base damage before resistance. A fully charged Cobra Mk III is destroyed by the second same-side missile impact without recharge. The missile keeps its forward speed while turning, so a nearby target can require a wider intercept arc.</p>
+</section>
+<section id="world"><div class="section-heading"><h2>World, surfaces and sound</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>Seeded planet surfaces cover the whole sphere: flying around a world reveals the other hemisphere rather than regenerating its geography. Land, sea and crater markings are optional through <strong>Planets</strong>. <strong>Stars</strong> controls the distant sky separately from the moving flight starfield.</p>
+<p>The common frame limit is three vertical blanks: at most about 16.67 updates per second at 50 Hz, or 20 at 60 Hz. Rendering that already took this long receives no extra delay. Both hyperspace types use a three-second tunnel timer on Atari ST to suit its longer hyperspace sound; Amiga retains a two-second timer. The final ring then travels out of view, so these timers do not represent the total animation length.</p>
+<p>Atari uses its PSG. Amiga uses Paula, with the original Amiga music and sampled effects plus the new beam, RCS, throttle and radio voices. The radio notification is one short beep. Identification keeps its own sound.</p>
+</section>
+<section id="communications"><div class="section-heading"><h2>Radio without changing the simulation</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>The radio observes completed AI decisions. A separate cosmetic random stream decides whether and which message is sent, so chatter does not consume the random values used for encounters or combat. Each AI category has ten texts and a 50% event chance.</p>
+<p>A queued message stores its sender and recipient IDs. Removing a ship or reusing a slot cannot change an old message. The queue holds three entries and uses one seven-second timer, paused in UI. Stations retain their own event rules and message sets.</p>
+</section>
+<section id="build"><div class="section-heading"><h2>Building and further reading</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>On Windows, install Python 3.10+ and Pillow, then run the corresponding build script from the repository root. The assembler and linker are bundled.</p>
+<pre><code>python -m pip install Pillow
+.&#92;build_atari.bat
+.&#92;build_amiga.bat</code></pre><p><code>altgfx=yes</code> selects the grey artwork. <code>altgfx=no</code> selects the original artwork. On Amiga, <code>frame=no</code> removes the cockpit frame and <code>display=</code> selects a screen mode. These are build-time choices; gameplay preferences are described under <a href="./instruction-manual.html#options">Game Options</a>.</p>
+<ul><li><a href="https://github.com/ataribaby42/elite-source-code-atarist/blob/main/src_atari/README.md">Atari source and platform notes</a></li>
+<li><a href="https://github.com/ataribaby42/elite-source-code-atarist/blob/main/src_amiga/README.md">Amiga source and display modes</a></li>
+<li><a href="https://github.com/ataribaby42/elite-source-code-atarist/blob/main/docs/2026-10-01-ai-ship-systems.md">Shared ship systems and recharge</a></li>
+<li><a href="https://github.com/ataribaby42/elite-source-code-atarist/blob/main/docs/ship-balance.html">Detailed balance report source</a></li>
+</ul>
+</section>
+</article>
+</main>
+    <footer class="site-footer"><p>Elite — Amiga &amp; Atari ST · Ataribaby 2026</p>
+<nav aria-label="Footer"><a href="./download.html">Download</a> · <a href="./credits.html">Credits</a> · <a href="#top">Return to top △</a></nav>
+</footer>
+  </div>
+</body></html>

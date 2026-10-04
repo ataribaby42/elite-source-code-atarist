@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Expanded classic Elite for Amiga and Atari ST: 13 flyable ships, Special Cargo, AI radio and native 68000 gameplay.">
+  <meta name="theme-color" content="#000000">
+  <title>Elite — Amiga &amp; Atari ST</title>
+  <link rel="icon" href="./assets/favicon-asp.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/style.css">
+  <script src="./js/menu.js" defer></script>
+  <script src="./js/site.js" defer></script>
+</head><body id="top">
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="site-toolbar" aria-label="Site controls">
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open menu" aria-controls="site-menu" aria-expanded="false">
+      <span class="burger-lines" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+
+    <a class="home-link" href="./index.html" aria-label="Home" title="Home">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 11.5 12 4l9 7.5"></path>
+        <path d="M5.5 10.5V21h13V10.5"></path>
+      </svg>
+    </a>
+
+    <span class="toolbar-title">Elite — Amiga &amp; Atari ST</span>
+  </header>
+
+  <aside class="site-menu" id="site-menu" aria-label="Site menu" aria-hidden="true">
+    <nav>
+      <a href="./index.html" aria-current="page">Elite — Amiga &amp; Atari ST</a>
+      <a href="./instruction-manual.html">Instruction Manual</a>
+      <a href="./technical-info.html">Technical Info</a>
+      <a href="./download.html">Download</a>
+      <a href="./credits.html">Credits &amp; Foundations</a>
+      <a href="./galnet.html">GalNet</a>
+    </nav>
+  </aside>
+  <button class="menu-backdrop" type="button" aria-label="Close menu" hidden></button>
+
+
+  <noscript><nav class="fallback-nav" aria-label="Site navigation"><a href="./index.html">Elite — Amiga &amp; Atari ST</a><a href="./instruction-manual.html">Instruction Manual</a><a href="./technical-info.html">Technical Info</a><a href="./download.html">Download</a><a href="./credits.html">Credits &amp; Foundations</a><a href="./galnet.html">GalNet</a></nav>
+</noscript>
+  <div class="page-frame">
+    <header class="site-header"><div class="title-strip"><h1>Elite — Amiga &amp; Atari ST</h1>
+<p>Classic Elite, expanded for the Motorola 68000</p>
+</div>
+</header>
+    <nav class="page-toc" aria-label="On this page"><a href="#about">About the game</a><a href="#features">Features</a><a href="#how-to-play">How to play</a><a href="#the-beginning">Project roots</a></nav>
+    <main id="content"><article class="article-shell page-content"><header class="hero"><figure class="title-screen">
+<button class="artwork-toggle" type="button" aria-pressed="false" aria-label="Show 16-bit Leaving Lave artwork" aria-describedby="artwork-help">
+<img class="artwork-primary" src="./assets/leaving-lave.jpg" width="640" height="449" alt="Leaving Lave: a Coriolis station above a planet, with a Viper in the distance" fetchpriority="high">
+<img class="artwork-alternative" src="./assets/leaving-lave-16bit.png" width="640" height="449" alt="" aria-hidden="true">
+</button><figcaption><a href="https://www.deviantart.com/ataribaby42/art/Leaving-Lave-971816512">Leaving Lave</a> · Ataribaby / Ham, 2023 &amp; 2026.<br><span id="artwork-help">Hover to see the 16-bit version. Click, tap or press Enter to keep either image.</span></figcaption>
+</figure>
+<p class="lead">Trade your way to a better ship. Take a delivery across the galaxy. Hear the traffic around you. Find your own way to ELITE.</p>
+<div class="page-actions"><a class="action-link primary-action" href="./download.html">Download the game</a><a class="action-link" href="./instruction-manual.html">Read the manual</a></div>
+</header>
+<section id="about"><div class="section-heading"><h2>A familiar universe. More ways to fly.</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p><em>Elite — Amiga &amp; Atari ST</em> brings an expanded version of classic Elite to the Motorola 68000. The enhanced Atari ST game and the independent native Amiga port share the same gameplay features: 13 flyable hulls, equipment trading, Special Cargo deliveries, ship registrations and a living radio channel.</p>
+<p>The project builds on the original Atari ST source. The Amiga version has its own graphics, input, disk handling and Paula sound, including music from the original Amiga release. Ideas from <a href="https://ataribaby42.github.io/elite-source-code-commodore-64/">Elite: Unbound</a> are adapted to these two versions.</p>
+<p>The current default commander starts in an <strong>Adder</strong>, with <strong>100 Cr</strong>, a front Pulse Laser, one missile and a full 6.0-light-year fuel tank. There is no prescribed career: trade, explore, hunt bounties, salvage cargo or take your chances on the wrong side of the law.</p>
+<figure class="content-image game-image"><img src="./assets/amiga-status.png" width="320" height="200" alt="Commander Jameson in an Adder · Amiga, alternate artwork" loading="lazy"><figcaption>Commander Jameson in an Adder · Amiga, alternate artwork</figcaption></figure>
+<p>Ship choice matters. Speed, handling, fuel range, hold space, missile capacity and available laser mounts differ by hull. A ship flown by the player and the same hull flown by AI share their defensive statistics and flight limits.</p>
+</section>
+<section id="features"><div class="section-heading"><h2>What changes in this edition?</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<ul class="feature-list">
+<li><strong>13 purchasable ships.</strong> Fly anything from a Sidewinder or Adder to a Python, Boa or Anaconda. Availability depends on the system.</li>
+<li><strong>Buy and sell equipment.</strong> Each device and mounted laser occupies cargo space. Prepare your loadout before exchanging hulls.</li>
+<li><strong>Shared ship systems.</strong> Front and rear shields, energy banks, recharge and hull resistances apply to both player and AI ships. Missiles deal damage rather than guaranteeing a kill.</li>
+<li><strong>More varied encounters.</strong> Traders, convoys, pirates and police select targets within the existing faction rules, including fights between AI ships.</li>
+<li><strong>Individual AI weapons.</strong> Each ship keeps its own laser. Pulse shots are separated; Beam and Military lasers fire continuous bursts.</li>
+<li><strong>Radio traffic.</strong> Station clearances, departure greetings and cargo warnings join trader hails, pirate threats, police challenges and alien transmissions.</li>
+<li><strong>Special Cargo.</strong> Accept a paid delivery on Buy / Special, follow its destination on the charts and collect the reward when you dock.</li>
+<li><strong>Ship identity.</strong> Identify contacts with I. A hidden registration can help with pirates, but some stations refuse scrambled IDs.</li>
+<li><strong>Cargo jettison.</strong> Eject unwanted goods from Inventory and scoop cargo with its original contents. Dumping near most stations is illegal.</li>
+<li><strong>Visual choices.</strong> Original or grey alternate artwork, optional distant stars and procedural planet surfaces. Amiga builds also offer wide and high-resolution views.</li>
+<li><strong>Native sound.</strong> Atari PSG or Amiga Paula effects, continuous beam sounds, a short radio beep and optional RCS/throttle audio.</li>
+<li><strong>The original missions remain.</strong> New trading and communication systems accompany the existing story progression.</li>
+</ul>
+<figure class="content-image game-image"><img src="./assets/amiga-shipyards.png" width="320" height="200" alt="Choose a hull in Shipyards · Amiga" loading="lazy"><figcaption>Choose a hull in Shipyards · Amiga</figcaption></figure>
+</section>
+<section id="how-to-play"><div class="section-heading"><h2>Choose your machine</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<div class="platform-grid"><div><h3>Amiga</h3>
+<p>Start with the framed <code>ELITE.ADF</code> or grey <code>ELITE_ALT.ADF</code>. The standard target is a 68000 Amiga with 1 MB RAM; 512 KB Chip RAM plus 512 KB expansion RAM is supported. Accelerated machines can use larger display modes.</p>
+<a href="./download.html#amiga">Amiga setup and images →</a></div>
+<div><h3>Atari ST</h3>
+<p>Use <code>ELITE.ST</code> or grey <code>ELITE_ALT.ST</code> on an ST with 1 MB RAM, or in an emulator. The unpacked game also starts through <code>ELITE.TOS</code> with its data files alongside it.</p>
+<a href="./download.html#atari">Atari ST setup and images →</a></div>
+</div>
+</section>
+<section id="the-beginning"><div class="section-heading"><h2>From Elite: Unbound to the 68000</h2>
+<a class="section-top-link" href="#top">Return to top △</a></div>
+<p>This site carries forward the black-and-yellow layout of the companion Elite: Unbound website. The same enthusiasm for the original game now extends to the Atari ST and Amiga: a more varied fleet, more choices at the station and more life between the stars.</p>
+<p>The original game, art, music and source contributions remain credited to their creators. Read the <a href="./credits.html">credits and project foundations</a>, or explore the <a href="https://github.com/ataribaby42/elite-source-code-atarist">source repository</a>.</p>
+<p class="commander-signoff">Right on, Commanders!</p>
+</section>
+</article>
+</main>
+    <footer class="site-footer"><p>Elite — Amiga &amp; Atari ST · Ataribaby 2026</p>
+<nav aria-label="Footer"><a href="./download.html">Download</a> · <a href="./credits.html">Credits</a> · <a href="#top">Return to top △</a></nav>
+</footer>
+  </div>
+</body></html>
