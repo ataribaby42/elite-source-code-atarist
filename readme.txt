@@ -3,6 +3,11 @@ ELITE_ALT.ADF - Gray alternate cockpit and UI Amiga version
 ELITE.ST - Ordinary Atari ST version
 ELITE_ALT.ST - Gray alternate cockpit and UI Atari ST version
 
+Alternate game starts
+
+ELITE_ALT_SAVES.ADF - Alternate Amiga JAMESON and FLINT game start save games
+ELITE_ALT_SAVES.ST - Alternate Atari ST JAMESON and FLINT game start save games
+
 Special Amiga versions (screen res | viewport res | recommended machine):
 
 ELITE.WIDE.NTSC.ADF - 320 x 200 | 320 x 120 | 68020 at 14 MHz, no Fast RAM (A1200)
