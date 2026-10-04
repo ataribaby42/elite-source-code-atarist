@@ -109,7 +109,7 @@ Pulse beams are red (6), Beam orange (3), and Military white (15). Cougar
 always has Beam; Constrictor always has Military. Thargoids always have Beam
 (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless
 of player rating. Both always draw light blue (10). These colours apply
-to both hits and misses. Aim and distance accuracy retain their existing rules. See [per-ship loadouts](../docs/2026-10-03-ai-laser-loadouts.md)
+to both hits and misses. Aim and distance accuracy retain their existing rules. See [per-ship loadouts](../game-docs/2026-10-03-ai-laser-loadouts.md)
 for selection and validation details.
 
 The original `mood` roll now starts a single Pulse shot or a Beam/Military
@@ -129,7 +129,7 @@ attack state, out-of-range targets, or the existing player cloak/control-lock
 guards stop it. Player-only guards do not stop AI-versus-AI fire. Timers run
 off-screen too; copying or reusing a slot clears its firing state. Alien colours
 and special loadouts remain unchanged; cadence follows their stored class.
-See [AI bursts and impact audio](../docs/2026-10-03-ai-laser-bursts.md).
+See [AI bursts and impact audio](../game-docs/2026-10-03-ai-laser-bursts.md).
 
 An enemy's current position and forward orientation determine whether it can
 fire and hit. The firing cone uses the BBC ratio 32/36; the narrower hit cone
@@ -181,7 +181,7 @@ Misses cause zero damage.
 
 Damage is scaled by the victim's hull resistance, then absorbed by its front
 or aft shield before reaching its energy banks. Both player and AI hulls use
-the same stores and recharge rules. See [shared ship systems](../docs/2026-10-01-ai-ship-systems.md)
+the same stores and recharge rules. See [shared ship systems](../game-docs/2026-10-01-ai-ship-systems.md)
 for the exact formulas, missile power and native parity tests.
 
 AI shots do not allocate projectile objects. The former photon logic index

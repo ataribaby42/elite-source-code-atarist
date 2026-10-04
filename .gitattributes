@@ -20,7 +20,7 @@
 
 # Documentation and the project website are not game implementation languages.
 docs/** linguist-documentation
-web/** linguist-documentation
+game-docs/** linguist-documentation
 
 # Original-version converted sources use the text rules above.
 src_orig/asm/** text eol=lf linguist-vendored

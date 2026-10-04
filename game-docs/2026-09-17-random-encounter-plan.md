@@ -23,7 +23,7 @@ each other and `retarget` starts the fight.
 **Tech Stack:** Motorola 68000 assembler (vasm `-m68000`, Quelo-derived macros
 in `asm/macros.m68`), Python 3 + `unicorn==2.1.4` for unit tests.
 
-**Spec:** `docs/2026-09-17-random-encounter-design.md`
+**Spec:** `game-docs/2026-09-17-random-encounter-design.md`
 
 ## Global Constraints
 
@@ -32,7 +32,7 @@ in `asm/macros.m68`), Python 3 + `unicorn==2.1.4` for unit tests.
   stages, branches or inspects git. Each task ends by reporting the changed
   files so the user can commit.
 - **Documentation is English.** Per `AGENTS.md`.
-- **Documentation lives flat in `docs/`.** Per `AGENTS.md`: no subdirectories,
+- **Documentation lives flat in `game-docs/`.** Per `AGENTS.md`: no subdirectories,
   and the documents do not reference authoring skills.
 - **Two trees, no sharing.** Gameplay changes go into `src_atari` and
   `src_amiga` separately. No platform switches, no cross-tree imports.
@@ -64,7 +64,7 @@ in `asm/macros.m68`), Python 3 + `unicorn==2.1.4` for unit tests.
 | `src_atari/tests/test_faction_ai.py` | The whole suite for this feature; it already assembles `combat.m68` and has the object-pool and random stubs the encounter needs |
 | `src_amiga/asm/combat.m68`, `src_amiga/tests/test_faction_ai.py` | The identical port |
 | `src_atari/README.md`, `src_amiga/README.md` | A section describing the feature |
-| `docs/2026-09-17-random-encounter-design.md` | The spec; updated only if implementation contradicts it |
+| `game-docs/2026-09-17-random-encounter-design.md` | The spec; updated only if implementation contradicts it |
 
 ---
 

@@ -39,7 +39,7 @@ among police, a bounty hunter chasing raiders. Nothing announces it and nothing
 is aimed at the player. He flies into somebody else's fight and decides whether
 to join it, pick off the survivor, or collect what falls out.
 
-The faction rules of `docs/2026-09-17-faction-ai-targeting-design.md` do all the
+The faction rules of `game-docs/2026-09-17-faction-ai-targeting-design.md` do all the
 work: every group listed here is internally hostile under the existing
 `faction_mask`, so the members find each other through the ordinary
 `retarget`/`pick_target` path. No new hostility rule is added.

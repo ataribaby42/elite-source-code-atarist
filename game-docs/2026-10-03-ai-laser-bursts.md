@@ -139,6 +139,6 @@ in both trees, the 194-byte object stride and current HTML source fingerprints.
 Build logs, native payloads and regression reports are retained in each
 platform's `build/ai-burst-qa` directory. Emulator runs use private executable,
 configuration and disk copies on verified separate hidden Windows desktops.
-The user's emulator session is not used. `docs/ship-balance.html` includes
+The user's emulator session is not used. `game-docs/ship-balance.html` includes
 the cadence table and incoming-hit sound behaviour; this change does not
 alter its 110 hull durability counts.

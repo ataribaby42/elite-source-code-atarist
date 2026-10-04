@@ -11,7 +11,7 @@
 
 **Tech Stack:** Motorola 68000 assembler (vasm `-m68000`, Quelo-derived macros in `asm/macros.m68`), Python 3 + `unicorn==2.1.4` for unit tests.
 
-**Spec:** `docs/2026-09-17-faction-ai-targeting-design.md`
+**Spec:** `game-docs/2026-09-17-faction-ai-targeting-design.md`
 
 **Status:** executed. This file is the record of the plan as it was carried
 out, and its code listings are that snapshot, not the current source. Several

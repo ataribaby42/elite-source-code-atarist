@@ -1,11 +1,13 @@
 # Elite Atari ST
 
+The project website lives in [docs](docs/README.md). Game design and implementation notes live in [game-docs](game-docs/README.md).
+
 Buildable Elite sources for the **MC68000**: the enhanced Atari ST version in `src_atari`, a separate native Amiga port in `src_amiga`, and the preserved original Atari ST version in `src_orig`. All three use **vasm 2.0f and vlink 0.18a** with independent source trees and build scripts. The untouched historical sources remain in `resources/elite_atarist_source.zip`; no build uses the old `.LTX` object files.
 
 Both enhanced versions offer 13 player hulls through **Ships / Shipyards**, with
 ship-specific flight limits, cargo capacity and equipment prices. **Equip** has
 Buy / Sell controls for preparing a hull exchange. See the
-[shipyards rules and balance table](docs/2026-09-24-player-shipyards.md).
+[shipyards rules and balance table](game-docs/2026-09-24-player-shipyards.md).
 Status shows **Equipment** mass and **Spare** cargo capacity in tonnes, including
 the space used by mounted lasers and installed devices.
 
@@ -19,7 +21,7 @@ Random Viper patrols check the player's legal record on first contact and when
 it changes, using the existing police-response probability. A successful check
 makes an Offender or Fugitive a possible target; nearer pirates and aliens
 still take priority. Station-launched police retain their existing behaviour.
-See [patrol police-record checks](docs/2026-09-20-patrol-police-record-checks.md).
+See [patrol police-record checks](game-docs/2026-09-20-patrol-police-record-checks.md).
 
 With **Reverse dive/climb** off (the default), moving the mouse up dives and
 moving it down climbs in both enhanced versions. Turn this option on to restore
@@ -106,7 +108,7 @@ weapon: red, orange or white. Cougar always uses Beam and Constrictor Military.
 Thargoids use Beam and Thargons (Tharglets) Pulse; both remain light blue.
 Accepted AI hits use the same base damage as player lasers of the same class.
 Existing ships retain their loadout after rating changes. See
-[per-ship AI loadouts](docs/2026-10-03-ai-laser-loadouts.md).
+[per-ship AI loadouts](game-docs/2026-10-03-ai-laser-loadouts.md).
 
 Player Beam and Military lasers have distinct continuous sounds while firing,
 with short attack and release ramps. Amiga uses new synthesized sample loops;
@@ -223,7 +225,7 @@ to the nearest match. The font uses only index 0 and white index 15.
 PNG palette migration preserved the original pixel indices. The general bitmap
 bank now omits the unused Cobra from `panels.png`, retaining all other IDs and
 artwork. Edited PNGs are not required to match default hashes. See the
-[PNG editing guide](docs/2026-09-19-editable-png-graphics.md) for
+[PNG editing guide](game-docs/2026-09-19-editable-png-graphics.md) for
 the complete 16-colour palette, sheet layouts and verification commands.
 
 ## Ship images
@@ -242,7 +244,7 @@ atlases. The image buffers are separate from screens and drawing workspaces.
 The former `ships.png`, `shipsplanetinfo.png`, `shipyards.png` and extraction
 metadata are archived in [`resources/gfx_assets`](resources/gfx_assets).
 They are no longer build inputs or distributed ship assets; editing them does
-not change the game. See [runtime ship images](docs/2026-09-24-runtime-ship-images.md)
+not change the game. See [runtime ship images](game-docs/2026-09-24-runtime-ship-images.md)
 for buffer sizes, rendering details, measured savings and validation.
 
 The original Cobra in `panels.png` is not used by either enhanced game. It remains
@@ -415,7 +417,7 @@ a ban, Offender/Fugitive players instead receive one of ten unwelcoming
 clearances. Anarchy, Feudal and Dictatorship exempt both policies. A banned
 manual docking attempt is rejected even at perfect alignment. Contact causes
 normal station-impact damage; repeated contact drains shields and then energy.
-See [Scramble ID rules and validation](docs/2026-10-03-scramble-id.md).
+See [Scramble ID rules and validation](game-docs/2026-10-03-scramble-id.md).
 
 ## Cockpit communications
 
@@ -430,4 +432,4 @@ type warns about illegal cargo dumping in the station S zone,
 with five equally likely texts. Stations greet departing civilian AI ships and the player with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
 On a close approach within 2,000 units, a human station sends one of ten docking clearances or five leave-area warnings according to the existing docking permission. The notification rearms on leaving S; losing permission after clearance sends one extra warning. A station hit within S sends that warning immediately, including after launch and beyond 2,000 units without prior clearance. It uses the same sent flag, so further hits cannot repeat it until the visit resets.
 Death, new/load game, hyperspace and docking
-clear the queue. See [Communications](docs/2026-10-04-comm-messages.md).
+clear the queue. See [Communications](game-docs/2026-10-04-comm-messages.md).

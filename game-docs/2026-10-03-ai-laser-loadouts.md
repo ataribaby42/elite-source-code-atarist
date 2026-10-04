@@ -131,7 +131,7 @@ Native gameplay tests ran on the framed PAL 68000 builds; the other Amiga
 display variants received build validation. The selected pre-test build
 options were restored afterward.
 
-`docs/ship-balance.html` now contains the probability table and current fixed
+`game-docs/ship-balance.html` now contains the probability table and current fixed
 exceptions. Its embedded source fingerprints were checked against both source
 trees, and its 110 durability counts still match the existing native results.
 Reports, RNG counts, payload listings and build logs are retained under each
