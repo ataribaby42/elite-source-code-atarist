@@ -4,7 +4,7 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## x.xx.2029 V1.xx
+## 5.10.2029 V1.92
 
 - Fixed player and AI missiles disappearing when their target is destroyed; they now explode in place without extra damage or rewards.
 
