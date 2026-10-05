@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## x.xx.2029 V1.xx
+
+- Fixed player and AI missiles disappearing when their target is destroyed; they now explode in place without extra damage or rewards.
+
 ## 5.10.2029 V1.91
 
 - Fixed incorrect Yellow status during safe flight on Amiga and Atari ST; energy checks now use the ship’s actual energy level.

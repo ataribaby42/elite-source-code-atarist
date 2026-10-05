@@ -157,6 +157,14 @@ are released. Player missile impacts play the explosion sound; NPC-versus-NPC
 impacts retain their existing silence. A lethal hit retains the target's normal
 destruction path, including mission rewards and Thargon dormancy.
 
+If a target is destroyed or leaves the bubble before impact, each incoming
+player or NPC missile now detonates at its current position using the same
+cosmetic effect. It causes no additional damage or rewards. A bounded queue
+also clears chains of missiles targeting other missiles without recursive
+calls or extra object allocation. Unrelated missiles keep their targets, and
+missiles already marked for removal are not revived. The existing player
+"Target lost" notification and lock cancellation are retained.
+
 Zero remaining energy is lethal, including an exact-zero hit. Recharge cannot
 revive a ship after a lethal hit. Existing destruction, cargo, score, bounty and
 mission routines still process the death.

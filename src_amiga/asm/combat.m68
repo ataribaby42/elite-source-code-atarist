@@ -1,5 +1,6 @@
 	xref ai_comm_missile_ai,ai_comm_missile_player
 	xref laser_impact_sound
+	xref missile_detonate
 	xref comm_departure_ship,comm_station_hit
 	xref ship_weapon_damage,ship_damage_store
 	xref ship_shield_damage,ship_ai_damage,ship_ai_recharge,ship_charge_tick
@@ -1519,8 +1520,8 @@ q_combat_m68_107:
 ; **											**
 ; ************************************************
 
-; Checks if tan object (which has just been destroyed) was the target of a
-; missile. If so, the missile is removed from the 3D world.
+; Checks if an object leaving the world was a missile target. Its incoming
+; missiles lose guidance and detonate in place without causing further damage.
 
 ; Entry: A4 = ptr: object record
 ; Exit:  None
@@ -1534,11 +1535,12 @@ q_combat_m68_107:
 ; **												**
 ; ****************************************************
 
-; Removes every missile flying at an object that is about to leave the world.
+; Detonates every missile flying at an object that is about to leave the world.
 ; DO_LOCKED reads TARGET without checking it, so a missile left behind would
 ; steer at a freed record. Ships fire missiles at each other, so most of them
 ; are nothing to do with the player; the one case he is told about is reported
-; back to TARGET_LOST.
+; back to TARGET_LOST. A bounded work queue also invalidates missiles aimed at
+; the detonating missiles, without recursive calls or new object allocations.
 
 ; Entry: A4 = ptr: object record
 ; Exit:  D0 = 1 when one of them was the player's, 0 otherwise
@@ -1547,8 +1549,16 @@ q_combat_m68_107:
 
 	q_subr drop_missiles
 
-	q_push d7 ; save the loop counter
+	movem.l d7/a1-a5,-(sp)
+	lea -(max_objects+1)*4(sp),sp ; original target plus at most one entry per slot
+	move.l sp,a2 ; next invalidated target to process
+	move.l sp,a3 ; end of the work queue
+	move.l a4,(a3)+
 	moveq #0,d1 ; none of his so far
+.target:
+	cmpa.l a3,a2
+	beq .done
+	move.l (a2)+,a4
 	lea objects(a6),a0 ; scan every object record
 	q_loop 1,max_objects
 	btst #in_use,flags(a0)
@@ -1560,15 +1570,29 @@ q_combat_m68_107:
 	move.l target(a0),d0 ; flying at this record ?
 	cmp.l a4,d0
 	bne.s .next
-	bset #remove,flags(a0) ; yes, it has nothing left to chase
 	cmp #log_locked,logic(a0) ; one of the player's ?
-	bne.s .next
+	bne.s .lock
 	moveq #1,d1
+.lock:
+	cmp #2,missile_state(a6) ; player locked onto this missile itself ?
+	blo.s .detonate
+	move.l target_ptr(a6),d0
+	cmp.l a0,d0
+	bne.s .detonate
+	bsr unarm_missile
+	moveq #1,d1 ; report the lost lock once, through the outer TARGET_LOST
+.detonate:
+	move.l a0,(a3)+
+	move.l a0,a5
+	jsr missile_detonate ; clears TARGET, so this slot can enter the queue only once
 .next:
 	lea obj_len(a0),a0 ; next object
 	q_next 1
+	bra .target
+.done:
 	move d1,d0
-	q_pop d7 ; restore the loop counter
+	lea (max_objects+1)*4(sp),sp
+	movem.l (sp)+,d7/a1-a5
 	rts
 
 

@@ -868,6 +868,17 @@ q_logic_m68_48:
 ; makes no gameplay RNG calls. NPC-versus-NPC combat keeps its existing silence.
 ; A5 missile; preserve A4, which may still be the surviving target.
 	q_subr missile_impact
+	bsr missile_detonate
+	move.l a4,-(sp)
+	move.l a5,a4
+	jsr target_lost ; invalidate only locks on the detonated missile
+	move.l (sp)+,a4
+	rts
+
+; Cosmetic detonation only: no damage, rewards, allocation or target callbacks.
+; A5 missile; only D0 is scratch. DROP_MISSILES handles dependent targets itself
+; so chains of missiles never recurse through TARGET_LOST on the game stack.
+	q_subr missile_detonate,global
 	cmp.w #log_ai_missile,logic(a5)
 	beq.s .silent
 	q_sfx explosion
@@ -884,10 +895,6 @@ q_logic_m68_48:
 	bset #no_radar,flags(a5)
 	bset #no_bounty,flags(a5)
 	move.l #no_target,target(a5)
-	move.l a4,-(sp)
-	move.l a5,a4
-	jsr target_lost ; invalidate only locks on the detonated missile
-	move.l (sp)+,a4
 	bclr #remove,flags(a5) ; DO_EXPLOSION removes it when the animation finishes
 	rts
 
