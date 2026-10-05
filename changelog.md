@@ -4,8 +4,9 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## x.xx.2029 V1.xx
+## 5.10.2029 V1.91
 
+- Fixed incorrect Yellow status during safe flight on Amiga and Atari ST; energy checks now use the ship’s actual energy level.
 - Fixed Amiga hyperspace countdown sound; incoming radio messages now use the same beep.
 - Removed the custom radio sound and the aifiresound option; AI firing remains silent.
 - Restored original Amiga identification sound, effect durations, repetitions and fades.

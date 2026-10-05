@@ -950,7 +950,8 @@ q_main_m68_79:
 	q_subr warnings
 
 	clr condition(a6) ; condition green
-	cmp #max_energy*3/4,d0 ; energy below 3/4 ?
+	; CALC_ALTITUDE leaves cabin heat in D0, not the ship's energy.
+	cmp #max_energy*3/4,energy(a6) ; energy below 3/4 ?
 ; Quelo: 	if <lo> then.s						yes
 	bhs.s q_main_m68_81
 	move #1,condition(a6) ; condition yellow
