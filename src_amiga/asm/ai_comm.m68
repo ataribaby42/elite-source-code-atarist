@@ -13,6 +13,7 @@
     clr.w radio_flags(a4)
     clr.l radio_owner(a4)
     clr.w radio_owner_player(a4)
+    clr.w radio_cooldown(a4)
     rts
 
 ; Every created object gets a fresh serial, independent of registrations/RNG.
@@ -68,17 +69,44 @@
 .done:
     rts
 
-; D0 text-set base, D1 sender, D2 recipient, D7 explicit player recipient.
-; Called only after consuming the corresponding event, even on a silent roll.
+; A5 current ship. Once per game frame, even off-screen or on in-flight UI.
+; Preserve registers and stop at zero; no hardware-clock or render dependency.
+    q_subr ai_comm_tick,global
+    tst.w radio_cooldown(a5)
+    beq.s .done
+    subq.w #1,radio_cooldown(a5)
+.done:
+    rts
+
+; A4 sending ship; D0 text-set base, D1 sender, D2 recipient, D7 player flag.
+; Events are already consumed, so cooldown suppression never queues a retry.
+; Only a real receipt arms the cooldown; a silent 50% roll leaves it at zero.
     q_subr ai_comm_send
+    tst.w cloaking_on(a6)
+    bne.s .done
+    tst.w radio_cooldown(a4)
+    bne.s .done
     move.w d0,d6
     bsr ai_comm_roll
     tst.w d0
     bmi.s .done
     add.w d6,d0
+    bra ai_comm_deliver
+.done:
+    rts
+
+; Inputs as AI_COMM_SEND, with a complete text ID and no further chance roll.
+    q_subr ai_comm_deliver
+    tst.w cloaking_on(a6)
+    bne.s .done
     tst.w d7
-    bne comm_enqueue_player
-    jmp comm_enqueue
+    bne.s .player
+    jsr comm_enqueue
+    bra.s .sent
+.player:
+    jsr comm_enqueue_player
+.sent:
+    move.w #ai_comm_cooldown_frames,radio_cooldown(a4)
 .done:
     rts
 
@@ -100,10 +128,151 @@
     moveq #0,d0
     rts
 
+; Uniform index 0..D0.W-1 from the cosmetic RNG; other registers preserved.
+; Divide the 16-bit range into equal contiguous buckets and reject its tail.
+; Using high-order buckets avoids alternating low-bit choices for two ships.
+    q_subr ai_comm_pick,global
+    cmp.w #1,d0
+    bhi.s .multiple
+    moveq #0,d0
+    rts
+.multiple:
+    movem.l d1-d2,-(sp)
+    moveq #0,d2
+    move.w d0,d2
+    move.l #$10000,d1
+    divu d0,d1
+    and.l #$ffff,d1 ; bucket size
+    mulu d1,d2 ; exclusive accepted limit, possibly 65536
+.again:
+    moveq #0,d0
+    move.w ai_comm_seed(a6),d0
+    mulu #25173,d0
+    add.w #13849,d0
+    move.w d0,ai_comm_seed(a6)
+    and.l #$ffff,d0
+    cmp.l d2,d0
+    bhs.s .again
+    divu d1,d0
+    and.l #$ffff,d0 ; quotient is the bucket index
+    movem.l (sp)+,d1-d2
+    rts
+
+; A4 candidate, A5 sender, D6 required faction. D0 = 1/0; others preserved.
+; The whole bubble is eligible, not only the player's scanner range. Exclude
+; the sender, dead/abandoned ships, aliens, mission hulls and non-ship objects.
+    q_subr ai_comm_candidate
+    cmpa.l a5,a4
+    beq.s .no
+    btst #in_use,flags(a4)
+    beq.s .no
+    btst #remove,flags(a4)
+    bne.s .no
+    cmp.w ship_type(a4),d6
+    bne.s .no
+    bsr ai_comm_human
+    tst.w d0
+    beq.s .no
+    tst.w health(a4)
+    ble.s .no
+    cmp.w #log_exploding,logic(a4)
+    beq.s .no
+    cmp.w #act_nothing,attack_type(a4)
+    beq.s .no
+    moveq #1,d0
+    rts
+.no:
+    moveq #0,d0
+    rts
+
+; Count eligible NPCs of faction D6. D3 output; D0/D5/A4 scratch.
+    q_subr ai_comm_count
+    moveq #0,d3
+    lea objects(a6),a4
+    moveq #max_objects-1,d5
+.slot:
+    bsr ai_comm_candidate
+    tst.w d0
+    beq.s .next
+    addq.w #1,d3
+.next:
+    lea obj_len(a4),a4
+    dbra d5,.slot
+    rts
+
+; A5 peaceful trader. Observe only: selecting a radio recipient never changes
+; its combat target. First prefer pirates plus a wanted player, then pirates
+; alone for a Clean player, then other traders plus a Clean player.
+    q_subr ai_comm_trader_greeting
+    btst #0,radio_flags(a5)
+    bne .done
+    moveq #1,d7 ; the observer has already excluded active player cloaking
+    move.w #typ_pirate,d6
+    move.w #comm_cautious_text,d4
+    bsr ai_comm_count
+    tst.w police_record(a6)
+    bne.s .pool
+    tst.w d3
+    bne.s .pirates
+    move.w #typ_trader,d6
+    move.w #comm_trader_text,d4
+    bsr ai_comm_count
+    bra.s .pool
+.pirates:
+    moveq #0,d7 ; Clean players never join the pirate pool
+.pool:
+    add.w d7,d3
+    beq .done ; no recipient yet; leave the greeting opportunity available
+    bset #0,radio_flags(a5)
+    tst.w radio_cooldown(a5)
+    bne .done ; consume the event without random draws or a deferred retry
+    bsr ai_comm_roll
+    tst.w d0
+    bmi .done
+    add.w d0,d4 ; complete text ID; the original 50% roll happens only once
+    move.w d3,d0
+    bsr ai_comm_pick
+    move.w d0,d2
+    tst.w d7
+    beq.s .npcs
+    subq.w #1,d2
+    bmi.s .player
+.npcs:
+    lea objects(a6),a4
+    moveq #max_objects-1,d5
+.slot:
+    bsr ai_comm_candidate
+    tst.w d0
+    beq.s .next
+    subq.w #1,d2
+    bmi.s .npc
+.next:
+    lea obj_len(a4),a4
+    dbra d5,.slot
+    bra.s .done
+.npc:
+    jsr comm_id_object
+    moveq #0,d7
+    bra.s .addressed
+.player:
+    jsr comm_id_player
+    moveq #1,d7
+.addressed:
+    move.l d0,d2
+    move.l a5,a4
+    jsr comm_id_object
+    move.l d0,d1
+    move.w d4,d0
+    bra ai_comm_deliver
+.done:
+    rts
+
 ; A5 current ship, called after its existing AI logic settles for this frame.
 ; This only writes radio fields. Every register is preserved.
     q_subr ai_comm_observe,global
     movem.l d0-d7/a0-a5,-(sp)
+    tst.w cloaking_on(a6) ; active cloaking suppresses all new radio, even AI-to-AI
+    bne .done
     tst.w docked(a6)
     bne .done
     tst.w game_over(a6)
@@ -131,11 +300,10 @@
     bne .done ; no launch/docking/escape greetings
     btst #angry,flags(a5)
     bne .done
-    tst.w cloaking_on(a6)
-    bne .done
-    move.w #comm_trader_text,d4
     cmp.w #typ_trader,ship_type(a5)
     beq.s .trader
+    tst.w cloaking_on(a6)
+    bne .done
     cmp.w #typ_pirate,ship_type(a5)
     bne .done
     tst.w pirate_truce(a5)
@@ -143,9 +311,8 @@
     move.w #comm_friend_text,d4 ; trust the existing truce; never reroll it
     bra.s .greeting
 .trader:
-    tst.w police_record(a6)
-    beq.s .greeting
-    move.w #comm_cautious_text,d4
+    bsr ai_comm_trader_greeting
+    bra .done
 .greeting:
     bset #0,radio_flags(a5)
     bne .done
@@ -241,6 +408,9 @@
 ; All registers preserved, including the damage routine's D0 return value.
     q_subr ai_comm_hit,global
     movem.l d0-d7/a0-a5,-(sp)
+    tst.w cloaking_on(a6)
+    bne .done ; keep the protest opportunity; damage/hostility still apply
+    move.l a4,a3 ; retain the victim while resolving an AI shooter's identity
     cmp.w #typ_trader,ship_type(a4)
     bne .done
     bsr ai_comm_human
@@ -280,6 +450,7 @@
 .recipient:
     move.l d0,d2
 .send:
+    move.l a3,a4 ; the cooldown belongs to the protesting ship, not the attacker
     move.w #comm_protest_text,d0
     bsr ai_comm_send
 .done:

@@ -525,6 +525,7 @@ radio_target: rs.l 1 ; last announced/attempted target serial (0 player, -1 none
 radio_flags: rs.w 1 ; bits 0 greeting attempted, 1 threat/hit protest attempted
 radio_owner: rs.l 1 ; missile launch-time shooter ID snapshot, 0 unknown
 radio_owner_player: rs.w 1 ; missile shooter was the player, even if anonymous
+radio_cooldown: rs.w 1 ; game frames before this ship may transmit again
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data
@@ -1037,6 +1038,7 @@ scramble_tag: rs.l 1
 scrambled_id: rs.w 1
 
 ; Transient comm queue; packed identity snapshots survive object slot reuse.
+ai_comm_cooldown_frames: equ 50 ; approximately three seconds at normal speed
 comm_capacity: equ 3
 comm_sender: equ 0
 comm_recipient: equ 4

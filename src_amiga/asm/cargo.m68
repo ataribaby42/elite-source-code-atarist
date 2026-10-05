@@ -912,6 +912,8 @@ jettison_notice_error:
 	xref comm_jettison
 	xref spcstn_space
 	q_subr jettison_penalty
+	tst cloaking_on(a6) ; an unseen ejection cannot be recorded or radioed
+	bne .done
 	tst witch_space(a6) ; there is no station protection zone in witch space
 	bne .done
 	tst station_destroyed(a6)

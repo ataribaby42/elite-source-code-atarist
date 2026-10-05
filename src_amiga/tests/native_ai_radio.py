@@ -17,6 +17,11 @@ def make_suite(root, s):
     def roll(i=0):emit(f' move.w #{((10+i-13849)*pow(25173,-1,65536))%65536},ai_comm_seed(a6)\n')
     def observe():sender();emit(call('ai_comm_observe'))
     def count(n):eq(n,'comm_count(a6)');eq(n,'qa_beeps')
+    def expire_cooldown():
+        sender()
+        emit(' move.w #ai_comm_cooldown_frames-1,d5\n')
+        label=f'qa_cooldown_{len(names)}'
+        emit(label+':\n'+call('ai_comm_tick')+f' dbra d5,{label}\n')
     def message(i,player=1,who='$41420300',recipient='$4a532a00'):
         count(1);eq(i,'comm_queue+comm_message(a6)')
         eq(player,'comm_queue+comm_to_player(a6)')
@@ -85,10 +90,10 @@ qa_rng_next:
     case('Recycled target slot with identical printable ID is a new target')
     spawn(role='typ_pirate');attack();spawn(slot=4)
     emit(' move.l a4,objects+obj_len*3+target(a6)\n');roll();observe();count(1)
-    spawn(slot=4);roll();observe();count(2)
+    expire_cooldown();spawn(slot=4);roll();observe();count(2)
     case('Actual target loss followed by reacquisition creates one new event')
     spawn(role='typ_pirate');attack();roll();observe();count(1)
-    emit(' move.l #no_target,target(a5)\n');observe();roll();emit(' clr.l target(a5)\n');observe();count(2)
+    emit(' move.l #no_target,target(a5)\n');observe();expire_cooldown();roll();emit(' clr.l target(a5)\n');observe();count(2)
     for state in ('unused','removed','exploding','out of scanner'):
         case('No threat to an AI target that is '+state)
         spawn(role='typ_pirate');attack();spawn(slot=4)

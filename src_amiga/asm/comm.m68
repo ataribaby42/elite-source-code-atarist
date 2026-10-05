@@ -96,6 +96,8 @@
     moveq #1,d7
 
     q_subr comm_enqueue_common
+    tst.w cloaking_on(a6) ; no receipt, beep or queue mutation while cloaked
+    bne.s .done
     cmp.w #comm_text_count,d0
     bhs.s .done
     move.w d0,d3
@@ -218,6 +220,8 @@
     rts
 
     q_subr comm_jettison,global
+    tst.w cloaking_on(a6)
+    bne.s .done
     movem.l d0-d2,-(sp)
     bsr comm_id_station
     move.l d0,d1
@@ -226,6 +230,7 @@
     bsr comm_random
     bsr comm_enqueue_player
     movem.l (sp)+,d0-d2
+.done:
     rts
 
 ; Successful station departures only; CREATE_OBJECT has assigned the ship ID.
@@ -252,6 +257,8 @@
 
 ; D0.L recipient snapshot, D3.W player flag. Excluded stations stay silent.
     q_subr comm_departure_send
+    tst.w cloaking_on(a6)
+    bne.s .done
     tst.w witch_space(a6)
     bne.s .done
     tst.w station_destroyed(a6)
@@ -363,6 +370,8 @@
     cmp.w #2,comm_arrival_sent(a6)
     beq.s .done
 .send:
+    tst.w cloaking_on(a6) ; permission still applies; do not consume a radio latch
+    bne.s .done
     movem.l d0-d2,-(sp)
     bsr comm_id_station
     move.l d0,d1

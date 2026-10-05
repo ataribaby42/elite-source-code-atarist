@@ -99,7 +99,7 @@ qa_step:
 .next:
  btst #in_use,flags(a5)
  beq.s .skip
-'''+call('ai_laser_tick')+call('get_range')+call('retarget')+call('do_logic')+call('ai_comm_observe')+call('orthogonal')+call('move')+'''
+'''+call('ai_comm_tick')+call('ai_laser_tick')+call('get_range')+call('retarget')+call('do_logic')+call('ai_comm_observe')+call('orthogonal')+call('move')+'''
 .skip:
  lea obj_len(a5),a5
  addq.w #1,this_obj(a6)

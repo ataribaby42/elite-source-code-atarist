@@ -1,4 +1,4 @@
-	xref ai_comm_observe,ai_comm_clear,ai_comm_created
+	xref ai_comm_observe,ai_comm_clear,ai_comm_created,ai_comm_tick
 	include "common.def"
 	xref comm_draw,comm_reset,comm_departure_player
 	xref comm_arrival_check
@@ -128,6 +128,7 @@ q_main_m68_9:
 	btst #in_use,flags(a5) ; object in use ?
 ; Quelo: 		if <ne> then					yes
 	beq q_main_m68_11
+	jsr ai_comm_tick ; one radio cooldown step, also off-screen and on UI
 	jsr ai_laser_tick ; advance pulse/burst state, also for off-screen ships
 	jsr get_range ; compute range
 	jsr collision ; check for collision/docking

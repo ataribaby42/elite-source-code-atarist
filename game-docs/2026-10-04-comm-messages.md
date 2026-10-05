@@ -59,6 +59,22 @@ does not clear it. The common system reset also clears it when launching.
 No communication state is written to commander saves.
 The same resets clear the station-approach notification state.
 
+## Active Cloaking Device
+
+An active player Cloaking Device suppresses every new radio receipt: station
+messages, AI-to-player messages and AI-to-AI messages. The shared queue rejects
+both enqueue entry points without changing queued records or requesting a beep.
+Event producers also skip their cosmetic random draws while cloaked. Existing
+received messages still display and expire normally; they are not cleared by
+toggling cloaking.
+
+AI greeting/protest opportunities and station arrival-notification latches are
+not consumed while cloaked. After uncloaking, current eligible conditions can
+produce messages normally; past departure/ejection events are not replayed.
+Station docking permissions, bans and S-zone latch resets still follow their
+existing rules. Cloaking does not bypass the Scramble ID docking restriction.
+Cargo ejection is the explicit legal-status exception described below.
+
 ## Registrations and callers
 
 The visible format is `C1-107:JS-042, Message text.`. Stations use their galaxy
@@ -79,8 +95,10 @@ these helpers without retaining object pointers.
 A successfully created player cargo canister triggers one station message and
 the existing +15 legal-status penalty only inside the physical S-zone boundary
 (`planet_range < $22500`), with an intact human station and a non-Anarchy
-government. Compass/UI resets do not bypass this check. Witch space, a
-destroyed station, and the Thargoid-controlled mission station are exempt.
+government. Compass/UI resets do not bypass this check. An active Cloaking Device,
+witch space, a destroyed station, and the Thargoid-controlled mission station
+are exempt. Cloaked ejections still create the canister and remove the exact
+cargo amount, but do not change the legal record or send a radio warning.
 Mission state $52 is explicitly excluded. The record still saturates at 255;
 reaching that limit does not suppress further warnings. Failed, empty,
 cancelled or otherwise ineligible requests do not send a message.

@@ -4,8 +4,12 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## x.xx.2029 V1.93
+## 5.10.2029 V1.93
 
+- Updated trader greetings to select players, pirates or other traders according to legal status and ships in the bubble.
+- Active Cloaking Device now suppresses all new radio messages and notification beeps, including AI-to-AI traffic.
+- Cargo ejection while cloaked no longer triggers legal penalties or station warnings.
+- Added a per-ship radio cooldown of 50 game frames (about 3 seconds), including off-screen and in-flight UI.
 - Player missile launches now provoke targeted AI ships and break their Scramble ID truce. Traders can protest at launch with a 50% chance, without repeating the message on impact. Preserved ECM, Python defensive behaviour and mission-specific AI.
 
 ## 5.10.2029 V1.92
