@@ -10,7 +10,6 @@
     include "rcs-loop.inc"
     include "engine-loop.inc"
     include "bomb-sample.inc"
-    include "comm-sample.inc"
     xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
 ; Length of the ECM wave in VBL ticks, 2.32 seconds at PAL 50 Hz. The Atari
@@ -52,9 +51,9 @@ fx:
     cmp.w #sfx_hyperspace,d0
     bne .not_warp
     ifne display_ntsc
-    move.w #120,warp_ticks      ; two seconds at 60 Hz
+    move.w #180,warp_ticks      ; three seconds at 60 Hz
     else
-    move.w #100,warp_ticks      ; two seconds at 50 Hz
+    move.w #150,warp_ticks      ; three seconds at 50 Hz
     endc
     st end_hyperspace(a6)
 .not_warp:
@@ -70,10 +69,19 @@ fx:
     bne .bomb_ready
     move.w #bomb_audio_ticks+1,bomb_flash_ticks(a6) ; sample starts at the next VBL
 .bomb_ready:
+    cmp.w #sfx_spacejump,d0
+    bne.s .torus_ready
+    st torus_audio_requested   ; owner state keeps the loop alive until quiet
+.torus_ready:
     btst #f_fx,user(a6)
     beq .return
-    cmp.w #16,d0
+    cmp.w #sfx_identify,d0
+    beq.s .request_enabled
+    cmp.w #sfx_countdown,d0
+    beq.s .request_enabled
+    cmp.w #sfx_teletype,d0
     bhi .return
+.request_enabled:
     tst music_playing
     bne .return
     move.l a0,-(sp)
@@ -147,26 +155,39 @@ play_effect:
     bra.s .channel_ready
 .rotate:
     move.w next_channel,d6
+    lea effect_ids,a0
+    moveq #3,d7
+.find_replaceable:
     cmp.w #3,d6
-    bne .channel_ready
+    bne.s .check_owner
     tst beam_kind
-    beq .channel_ready
-    moveq #0,d6                ; channel 3 belongs to the held beam, including release
+    bne.s .next_candidate
+.check_owner:
+    cmp.b #sfx_spacejump,(a0,d6.w)
+    beq.s .check_live
+    cmp.b #sfx_alert,(a0,d6.w)
+    bne.s .channel_ready
+.check_live:
+    move.w d6,d1
+    add.w d1,d1
+    lea effect_ticks,a1
+    tst.w (a1,d1.w)
+    beq.s .channel_ready
+.next_candidate:
+    addq.w #1,d6
+    and.w #3,d6
+    dbra d7,.find_replaceable
+    bra .done                  ; never replace a sustained owner or held beam
 .channel_ready:
+    move.w d6,d1
+    lsl.w #4,d1
+    lea effect_envelopes,a4
+    move.w (a4,d1.w),-(sp)      ; old voice may have slid beyond period 428
     move.w d6,next_channel
     addq.w #1,next_channel
     and.w #3,next_channel
     lea effect_ids,a0
     move.b d0,(a0,d6.w)
-    cmp.w #sfx_comm,d0
-    bne.s .not_comm
-    lea comm_sample,a0
-    move.w #comm_sample_bytes,d2
-    move.w #comm_audio_period,d7
-    move.w #comm_audio_ticks,d3
-    lea comm_descriptor(pc),a2
-    bra .finite
-.not_comm:
     cmp.w #sfx_bomb,d0
     bne .original_sample
     lea bomb_sample,a0
@@ -174,7 +195,7 @@ play_effect:
     move.w #bomb_audio_period,d7
     move.w #bomb_audio_ticks,d3
     lea bomb_descriptor(pc),a2
-    bra .finite
+    bra .envelope_setup
 .original_sample:
     lea effect_map(pc),a0
     move.b (a0,d0.w),d0
@@ -198,13 +219,28 @@ play_effect:
     lea amiga_sample_lengths(pc),a1
     moveq #0,d2
     move.w (a1,d5.w),d2
+    ; The original byte counter runs for duration+1 services per pass.
+    ; Repeat zero still means two passes; fading starts after the last one.
     moveq #0,d3
     move.b 5(a2),d3
-    addq.w #2,d3
-    cmp.b #255,7(a2)
-    bne .finite
-    moveq #40,d3                ; bounded alert/drive loop; game logic retriggers alerts
-.finite:
+    addq.w #1,d3
+    moveq #0,d0
+    move.b 7(a2),d0
+    cmp.b #255,d0
+    beq.s .sustained
+    addq.w #2,d0
+    mulu.w d0,d3
+    moveq #0,d0
+    move.b 6(a2),d0
+    beq.s .envelope_setup
+    moveq #0,d1
+    move.b 3(a2),d1
+    divu.w d0,d1
+    add.w d1,d3                 ; original fade includes the zero-volume service
+    bra.s .envelope_setup
+.sustained:
+    moveq #-1,d3               ; no arbitrary lifetime for alerts or torus
+.envelope_setup:
     move.w d6,d0
     lsl.w #4,d0
     lea effect_envelopes,a4
@@ -223,9 +259,21 @@ play_effect:
     move.w d0,8(a4)
     move.b 6(a2),d0
     move.w d0,10(a4)
-    beq .duration
-    add.w #64,d3
-.duration:
+    move.b 5(a2),12(a4)         ; remaining duration in the current pass
+    move.b 5(a2),13(a4)         ; duration reloaded between passes
+    move.b 7(a2),14(a4)         ; signed original repeat counter, 255=sustained
+    clr.b 15(a4)               ; original alternating-pitch phase
+    lea effect_ids,a1
+    cmp.b #sfx_laser,(a1,d6.w)
+    bne.s .envelope_ready
+    ; Original Pulse enables DMA on its first envelope update, not during
+    ; initialization. Start at that audible state without adding input latency.
+    ; Counting the silent setup frame as playback repeats the PCM attack on PAL.
+    subq.w #1,d3
+    subq.b #1,12(a4)
+    sub.w 6(a4),d7
+    move.w d7,(a4)
+.envelope_ready:
     move.w d6,d4
     add.w d4,d4
     lea effect_ticks,a1
@@ -236,8 +284,8 @@ play_effect:
     lea $dff0a0,a1
     adda.w d6,a1
     move.w #0,8(a1)             ; do not expose the previous held DAC sample
-    moveq #4,d1
-    bsr audio_settle            ; latch zero volume before stopping an old effect
+    move.w (sp)+,d1
+    bsr effect_settle          ; latch zero volume at the old sample period
     move.w d4,$dff096
     move.w d7,6(a1)
     move.w #0,10(a1)            ; replace the stopped channel's data with silence
@@ -248,14 +296,24 @@ play_effect:
     bsr audio_settle
     or.w #$8200,d4
     move.w d4,$dff096
-    move.w #64,8(a1)
+    move.w 8(a4),8(a1)
 .done:
     movem.l (sp)+,d0-d7/a0-a5
     rts
 
-; Paula applies volume at a sample-period boundary. Stopping DMA immediately
-; after AUDxVOL can freeze the previous sample/gain. Wait before DMA-off:
-; five line transitions for effects (period <=428), seventeen conservatively cover music periods (<=1712).
+; Paula applies volume at a sample-period boundary. Original pitch arithmetic
+; can reach a 12-bit period, so allow two old sample periods before DMA-off.
+; 112 Paula clocks per half scanline is conservative on both PAL and NTSC.
+effect_settle:
+    and.l #$fff,d1
+    cmp.w #428,d1
+    bhs.s .period
+    move.w #428,d1             ; also covers a free/RCS/engine/beam voice
+.period:
+    divu.w #112,d1
+    addq.w #1,d1
+
+; Wait for scanline transitions, including the transition already in progress.
 ; D1 = line transitions minus one; D0/D1 are scratch. No OS calls from VBL.
 audio_settle:
 .line:
@@ -291,17 +349,18 @@ quiet:
     clr.w comm_audio_pending
     clr.l effect_ticks+4
     lea effect_requests,a0
-    moveq #16,d0
+    moveq #sfx_count-1,d0
 .requests:
     clr.b (a0)+
     dbra d0,.requests
     clr alert_fx(a6)
+    clr torus_audio_requested
     move.w #0,$dff0a8           ; DMA-off alone leaves the last sample at the DAC
     move.w #0,$dff0b8
     move.w #0,$dff0c8
     move.w #0,$dff0d8
     move.l d1,-(sp)
-    moveq #16,d1                ; let all four channels latch the muted volume
+    moveq #37,d1                ; covers every original 12-bit effect period
     bsr audio_settle
     move.l (sp)+,d1
     move.w #15,$dff096
@@ -346,60 +405,94 @@ sound:
     tst music_playing
     bne play_music
     bsr update_beam_sound
+    clr alert_fx(a6)
     lea effect_ticks,a0
     lea effect_envelopes,a2
     lea $dff0a0,a3
+    lea effect_ids,a4
     moveq #1,d0
     moveq #3,d7
 .effects:
     tst.w (a0)
     beq .next
+    cmp.b #sfx_spacejump,(a4)
+    bne.s .alert_owner
+    tst torus_on(a6)
+    beq .expire
+    tst docked(a6)
+    bne .expire
+    tst game_over(a6)
+    bne .expire
+    bra.s .owner_enabled
+.alert_owner:
+    cmp.b #sfx_alert,(a4)
+    bne.s .lifetime
+    cmp.w #2,condition(a6)
+    bne .expire
+    st alert_fx(a6)
+.owner_enabled:
+    btst #f_fx,user(a6)
+    beq .expire
+.lifetime:
+    cmp.w #-1,(a0)
+    beq.s .pitch
     subq.w #1,(a0)
-    bne .envelope
-    move.w #0,8(a3)            ; fully mute an expired effect, including held data
-    move.l d0,-(sp)
-    moveq #4,d1
-    bsr audio_settle
-    move.l (sp)+,d0
-    move.w d0,$dff096
-    bra .next
-.envelope:
-    move.w (a2),d1
-    cmp.w #1,4(a2)
-    bne .down
-    sub.w 6(a2),d1
-    cmp.w #180,d1
-    bhs .period
-    move.w #180,d1
-    bra .period
-.down:
-    cmp.w #2,4(a2)
-    bne .alternate
-    add.w 6(a2),d1
-    cmp.w #428,d1
-    bls .period
-    move.w #428,d1
-    bra .period
-.alternate:
-    cmp.w #4,4(a2)
-    bne .period
-    move.w 2(a2),d2
-    move.w d1,2(a2)
-    move.w d2,d1
-.period:
-    move.w d1,(a2)
-    move.w d1,6(a3)
-    cmp.w #64,(a0)
-    bhi .next
+    beq .expire
+    cmp.b #sfx_bomb,(a4)
+    beq .next                  ; enhanced bomb envelope is baked into the PCM
+    tst.b 12(a2)
+    bne.s .duration
+    tst.b 14(a2)
+    bmi.s .fade
+    subq.b #1,14(a2)
+    move.b 13(a2),12(a2)
+    bra .next                  ; a reload service does not update the pitch
+.fade:
     move.w 8(a2),d1
     sub.w 10(a2),d1
-    bpl .volume
-    moveq #0,d1
-.volume:
     move.w d1,8(a2)
     move.w d1,8(a3)
+    bra .next
+.duration:
+    subq.b #1,12(a2)
+.pitch:
+    move.w (a2),d1
+    btst #2,5(a2)
+    bne.s .alternate
+    btst #1,5(a2)
+    bne.s .down
+    btst #0,5(a2)
+    beq .next
+    cmp.w #180,d1
+    beq .next
+    sub.w 6(a2),d1
+    bra.s .period
+.down:
+    cmp.w #428,d1
+    beq .next
+    add.w 6(a2),d1
+    bra.s .period
+.alternate:
+    not.b 15(a2)
+    beq .next
+    move.w 2(a2),d1            ; preserve the original handler's phase behaviour
+.period:
+    and.w #$fff,d1             ; original Paula period arithmetic, not clamping
+    move.w d1,(a2)
+    move.w d1,6(a3)
+    bra.s .next
+.expire:
+    clr.w (a0)
+    clr.w 8(a2)
+    move.w #0,8(a3)            ; fully mute an expired effect, including held data
+    move.l d0,-(sp)
+    move.w (a2),d1
+    bsr effect_settle
+    move.l (sp)+,d0
+    move.w d0,$dff096
 .next:
     addq.l #2,a0
+    addq.l #1,a4
     lea 16(a2),a2
     lea 16(a3),a3
     add.w d0,d0
@@ -426,8 +519,23 @@ sound:
 .advance:
     addq.l #1,a0
     addq.w #1,d0
-    cmp.w #17,d0
+    cmp.w #sfx_count,d0
     bne .request
+    ; A transient owner change between game-frame steps must not permanently
+    ; lose the drive loop. Quiet cancels this permission as well as the voice.
+    tst torus_audio_requested
+    beq.s .no_torus
+    tst torus_on(a6)
+    beq.s .no_torus
+    tst docked(a6)
+    bne.s .no_torus
+    tst game_over(a6)
+    bne.s .no_torus
+    btst #f_fx,user(a6)
+    beq.s .no_torus
+    moveq #sfx_spacejump,d0
+    bsr play_effect
+.no_torus:
     bsr update_rcs_sound       ; ordinary pending effects always get first choice
     bsr update_engine_sound    ; manual throttle is below RCS and all effects
 .return:
@@ -492,8 +600,8 @@ update_beam_sound:
     clr effect_ticks+6
     move.b #-1,effect_ids+3
     move.w #0,$dff0d8
-    moveq #4,d1
-    bsr audio_settle
+    move.w effect_envelopes+48,d1
+    bsr effect_settle          ; a previous discrete effect may have a long period
     move.w #8,$dff096
     move.w #beam_audio_period,$dff0d6
     move.w #0,$dff0da
@@ -946,20 +1054,16 @@ play_music:
 
     include "amiga-samples.inc"
 ; Shared ST events -> corresponding effects in the supplied Amiga player.
-; SFX_BOMB and SFX_COMM bypass this table and use their own samples.
+; SFX_BOMB bypasses this table and uses its own sample. Launch is unused here.
+; Radio receipt and countdown share original effect 18, distinct from target lock.
 effect_map:
     dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
+    dc.b 0,18,18,9
     even
 ; The bomb's attack, noise sweep and fade are baked into its own PCM sample.
 bomb_descriptor:
     dc.b 0,0,0,64,0,0,0,0
-; The notification's single attack/release is baked into its PCM sample.
-comm_descriptor:
-    dc.b 0,1,1,64,0,0,0,0
     section amiga_audio,data
-comm_sample:
-    incbin "comm-sample.bin"
-    even
 bomb_sample:
     incbin "bomb-sample.bin"
     even
@@ -979,7 +1083,10 @@ laser_impact_pending: ds.w 1
 comm_audio_pending: ds.w 1
 effect_ticks: ds.w 4
 effect_ids: ds.b 4
-effect_requests: ds.b 18
+effect_requests: ds.b sfx_count
+    even
+; Per voice: period, alternate period, mode, pitch step, volume, decay (words),
+; then current duration, reload duration, signed repeats and pitch phase (bytes).
 effect_envelopes: ds.b 64
 next_channel: ds.w 1
 music_playing: ds.w 1
@@ -999,3 +1106,4 @@ rcs_pitch: ds.w 1
 engine_voice: ds.w 1
 engine_request: ds.w 1 ; gameplay permission, not a speed-change detector
 engine_volume: ds.w 1
+torus_audio_requested: ds.w 1 ; a drive request remains owned by TORUS_ON

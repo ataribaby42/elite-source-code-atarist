@@ -57,7 +57,7 @@ initial instrument updates. A WinUAE display screenshot was captured during
 the animation.
 
 The build completed successfully with `noprotect=yes commander=default
-laser=singlebeam aifiresound=no scannerlogo=no altgfx=no outputname=ELITE`.
+laser=singlebeam scannerlogo=no altgfx=no outputname=ELITE`.
 Native test scripts, dumps and reports remain under the platform build
 directory.
 

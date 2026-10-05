@@ -19,7 +19,6 @@ from tools.beam_audio import generate_beam_audio
 from tools.rcs_audio import generate_rcs_audio
 from tools.engine_audio import generate_engine_audio
 from tools.bomb_audio import generate_bomb_audio
-from tools.comm_audio import generate_comm_audio
 from tools.make_adf import make_adf
 from tools.amiga_hunk import verify_hunk
 
@@ -71,7 +70,7 @@ def validate_outputname(name):
     return name
 
 
-def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', aifiresound=False, scannerlogo=True, altgfx=False, outputname='ELITE', display='pal', cpu='68000', frame=True, frametime=False, fastdraw=False, shadowcopy='changes'):
+def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbeam', scannerlogo=True, altgfx=False, outputname='ELITE', display='pal', cpu='68000', frame=True, frametime=False, fastdraw=False, shadowcopy='changes'):
     options, display_name = DISPLAYS[display]
     options = {**DISPLAY_DEFAULTS, **options}
     ntsc, hires, lace = options['ntsc'], options['hires'], options['lace']
@@ -93,7 +92,6 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     audio['rcs'] = generate_rcs_audio(BUILD)
     audio['engine'] = generate_engine_audio(BUILD)
     audio['energy_bomb'] = generate_bomb_audio(BUILD)
-    audio['communications'] = generate_comm_audio(BUILD)
     def run(command, name):
         result = subprocess.run(list(map(str,command)), cwd=BUILD, capture_output=True, text=True)
         (BUILD/name).write_text(result.stdout+result.stderr)
@@ -105,7 +103,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     def assemble(name, fmt='vobj', output=None):
         output = output or BUILD/(name+'.o')
         run([vasm,'-m'+cpu,*FLAGS,f'-Dnoprotect={int(noprotect)}',f'-Dcpu_68020={int(cpu == "68020")}',
-             f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
+             f'-Dcommander_max={int(commander == "max")}',
              f'-Dscannerlogo={int(scannerlogo)}',
              *(f'-Ddisplay_{name}={value}' for name, value in options.items()),
              f'-Dframe={int(frame)}', f'-Dframetime={int(frametime)}',
@@ -118,7 +116,6 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     print('Assembling independent native Amiga game modules for MC68000...')
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
     print('Player laser style: ' + laser)
-    print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
     rows = (200 if ntsc or frame else 256)*(1+tall)
     print('Display: ' + (f'{"NTSC" if ntsc else "PAL"}{" hires" if hires else ""}'
@@ -205,7 +202,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
     disk_report = make_adf(files, disk, boot)
     report = {'platform':'amiga','cpu':'MC' + cpu,'minimum_kickstart':'1.3',
               'png_graphics':graphics,
-              'build_options':{'cpu':cpu,'noprotect':noprotect,'commander':commander,'laser':laser,'aifiresound':aifiresound,'scannerlogo':scannerlogo,'altgfx':altgfx,'outputname':outputname,'display':display,'frame':frame,'frametime':frametime,'fastdraw':fastdraw,'shadowcopy':shadowcopy},
+              'build_options':{'cpu':cpu,'noprotect':noprotect,'commander':commander,'laser':laser,'scannerlogo':scannerlogo,'altgfx':altgfx,'outputname':outputname,'display':display,'frame':frame,'frametime':frametime,'fastdraw':fastdraw,'shadowcopy':shadowcopy},
               'output_paths':{'directory':str(game),'disk':str(disk)},
               'audio':audio,'disk':disk_report,'runtime_tested':False,
               'hunks':hunks,
@@ -226,7 +223,7 @@ def build_amiga(vasm, vlink, noprotect=False, commander='default', laser='dualbe
 def read_options(parser, words):
     """The option words of one build, as keyword arguments for build_amiga."""
     settings = {'noprotect': False, 'commander': 'default', 'laser': 'dualbeam',
-                'aifiresound': False, 'scannerlogo': True, 'altgfx': False,
+                'scannerlogo': True, 'altgfx': False,
                 'outputname': 'ELITE', 'display': 'pal', 'cpu': '68000', 'frame': True,
                 'frametime': False, 'fastdraw': False, 'shadowcopy': 'changes'}
     for option in words:
@@ -236,8 +233,6 @@ def read_options(parser, words):
             settings['commander'] = option.split('=', 1)[1]
         elif option in ('laser=dualbeam', 'laser=singlebeam'):
             settings['laser'] = option.split('=', 1)[1]
-        elif option in ('aifiresound=yes', 'aifiresound=no'):
-            settings['aifiresound'] = option == 'aifiresound=yes'
         elif option in ('scannerlogo=yes', 'scannerlogo=no'):
             settings['scannerlogo'] = option == 'scannerlogo=yes'
         elif option in ('altgfx=yes', 'altgfx=no'):
@@ -259,7 +254,7 @@ def read_options(parser, words):
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
                          'or commander=max|default or laser=dualbeam|singlebeam '
-                         'or aifiresound=yes|no or scannerlogo=yes|no or altgfx=yes|no '
+                         'or scannerlogo=yes|no or altgfx=yes|no '
                          'or outputname=NAME or frame=yes|no or frametime=yes|no or fastdraw=yes|no '
                          'or shadowcopy=changes|counter|all '
                          'or display=' + '|'.join(DISPLAYS))
@@ -284,7 +279,6 @@ def main():
                         help='noprotect=yes|no (default: no); commander=max|default '
                              '(default: default, max starts with 1,000,000 Cr); '
                              'laser=dualbeam|singlebeam (default: dualbeam); '
-                             'aifiresound=yes|no (default: no); '
                              'scannerlogo=yes|no (default: yes); '
                              'altgfx=yes|no (default: no); '
                              'outputname=NAME (default: ELITE); '

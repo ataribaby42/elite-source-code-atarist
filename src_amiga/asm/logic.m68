@@ -627,7 +627,7 @@ q_logic_m68_33:
 	move.w #3,ai_laser_cooldown(a5)
 .accuracy:
 	cmp.w #2,ai_laser(a5)
-	bne.s .laser_sound ; geometric miss, still consumes a firing tick
+	bne.s .done ; geometric miss, still consumes a firing tick
 	bsr ai_laser_miss_threshold
 .accuracy_roll:
 	jsr random
@@ -636,19 +636,15 @@ q_logic_m68_33:
 	cmp.w d2,d0
 	bhs.s .on_target
 	move.w #1,ai_laser(a5) ; a miss never interrupts the visible burst
-	bra.s .laser_sound
+	bra.s .done
 .on_target:
 	jsr ai_laser_power ; unchanged base damage, no random multiplier
 	tst.l target(a5)
 	bne.s .hit_ship
 	jsr reduce_laser_shields
-	bra.s .laser_sound
+	bra.s .done
 .hit_ship:
 	bsr damage_target
-.laser_sound:
-	ifne aifiresound
-	q_sfx laser
-	endc
 .done:
 	rts
 .cancel:

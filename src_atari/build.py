@@ -108,13 +108,11 @@ def main():
                         help='noprotect=yes|no (default: no); commander=max|default '
                              '(default: default, max starts with 1,000,000 Cr); '
                              'laser=dualbeam|singlebeam (default: dualbeam); '
-                             'aifiresound=yes|no (default: no); '
                              'scannerlogo=yes|no (default: yes); '
                              'altgfx=yes|no (default: no); '
                              'outputname=NAME (default: ELITE)')
     args = parser.parse_intermixed_args()
     noprotect, commander, laser = False, 'default', 'dualbeam'
-    aifiresound = False
     scannerlogo = True
     altgfx = False
     outputname = 'ELITE'
@@ -125,8 +123,6 @@ def main():
             commander = option.split('=', 1)[1]
         elif option in ('laser=dualbeam', 'laser=singlebeam'):
             laser = option.split('=', 1)[1]
-        elif option in ('aifiresound=yes', 'aifiresound=no'):
-            aifiresound = option == 'aifiresound=yes'
         elif option in ('scannerlogo=yes', 'scannerlogo=no'):
             scannerlogo = option == 'scannerlogo=yes'
         elif option in ('altgfx=yes', 'altgfx=no'):
@@ -136,7 +132,7 @@ def main():
         else:
             parser.error(f'Unknown build option: {option}; expected noprotect=yes|no '
                          'or commander=max|default or laser=dualbeam|singlebeam '
-                         'or aifiresound=yes|no or scannerlogo=yes|no or altgfx=yes|no '
+                         'or scannerlogo=yes|no or altgfx=yes|no '
                          'or outputname=NAME')
     try:
         validate_outputname(outputname)
@@ -156,7 +152,7 @@ def main():
     def assemble(name, fmt='vobj', output=None, extra=(), extension='.m68'):
         output = output or BUILD / (name + '.o')
         run([args.vasm, *FLAGS, f'-Dnoprotect={int(noprotect)}',
-             f'-Dcommander_max={int(commander == "max")}', f'-Daifiresound={int(aifiresound)}',
+             f'-Dcommander_max={int(commander == "max")}',
              f'-Dscannerlogo={int(scannerlogo)}',
              f'-Dlaser_singlebeam={int(laser == "singlebeam")}', '-F' + fmt, *extra,
              '-I' + str(BUILD), '-I' + str(ROOT / 'asm'), '-I' + str(ROOT / 'assets'),
@@ -170,7 +166,6 @@ def main():
     print(f'Assembling {len(modules)} game modules for MC68000...')
     print('Novella question: ' + ('disabled' if noprotect else 'enabled'))
     print('Player laser style: ' + laser)
-    print('AI laser firing sound: ' + ('enabled' if aifiresound else 'disabled'))
     print('Scanner ELITE logo: ' + ('shown' if scannerlogo else 'hidden'))
     print('Default commander: ' + ('1,000,000 Cr, Deadly' if commander == 'max' else '100 Cr, Harmless'))
     for name in modules + ['workspace']:
@@ -304,7 +299,7 @@ def main():
     report = {
         'cpu': 'MC68000', 'game_modules': len(modules), 'checksum': f'{checksum:04X}',
         'png_graphics': graphics,
-        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'aifiresound': aifiresound, 'scannerlogo': scannerlogo, 'altgfx': altgfx, 'outputname': outputname},
+        'build_options': {'noprotect': noprotect, 'commander': commander, 'laser': laser, 'scannerlogo': scannerlogo, 'altgfx': altgfx, 'outputname': outputname},
         'output_paths': {'directory': str(game), 'disk': str(disk)},
         'entry': f'{ORIGIN:08X}', 'loader_entry': f'{LOADER_ORIGIN:08X}',
         'other_screen': f'{syms["other_screen"]:08X}', 'vars': f'{syms["vars"]:08X}',

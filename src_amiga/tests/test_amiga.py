@@ -9,7 +9,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tools.amiga_assets import extract_assets
 from tools.bomb_audio import generate_bomb_audio, PAL_CLOCK, NTSC_CLOCK, PERIOD
-from tools import comm_audio
 from tools.amiga_hunk import verify_hunk
 from tools.make_adf import make_adf, verify_adf
 
@@ -109,31 +108,47 @@ class AmigaTests(unittest.TestCase):
             self.assertEqual(data[stop-100:], bytes(len(data)-stop+100))
 
 
-    def test_comm_beep_is_one_short_tone_without_dma_repeat(self):
-        report = comm_audio.generate_comm_audio(self.temp)
-        data = (self.temp/'comm-sample.bin').read_bytes()
-        samples = [v if v < 128 else v-256 for v in data]
-        rate = comm_audio.PAL_CLOCK / comm_audio.PERIOD
-        audible = [n for n, value in enumerate(samples) if value]
-        self.assertEqual(len(data) % 2, 0)
-        self.assertLessEqual(max(map(abs, samples)), 127)
-        self.assertEqual(samples[0], 0)
-        self.assertGreater(audible[-1] / rate, .095)
-        self.assertLess(audible[-1] / rate, .105)
-        # No gaps or a second pulse inside the audible interval.
-        for start in range(int(.010*rate), int(.085*rate), int(.008*rate)):
-            self.assertGreater(sum(v*v for v in samples[start:start+int(.008*rate)]), 10000)
-        steady = samples[int(.01*rate):int(.085*rate)]
-        crossings = sum(a <= 0 < b for a, b in zip(steady, steady[1:]))
-        frequency = crossings * rate / len(steady)
-        self.assertGreater(frequency, 700)
-        self.assertLess(frequency, 780)
-        for clock, hz, ticks in ((comm_audio.PAL_CLOCK, 50, report['pal_ticks']),
-                                 (comm_audio.NTSC_CLOCK, 60, report['ntsc_ticks'])):
-            stop = int(ticks / hz * clock / comm_audio.PERIOD)
-            self.assertGreater(stop, audible[-1])
-            self.assertLess(stop, len(data))
-            self.assertEqual(data[stop:], bytes(len(data)-stop))
+    def test_original_countdown_beep_stops_before_pcm_repeats(self):
+        from tools.amiga_assets import ofs_file
+        adf = (ROOT.parent/'resources/amiga/Elite 2.0.adf').read_bytes()
+        game = ofs_file(adf, 887)
+        # Original countdown reload, effect 18, then the original FX entry.
+        self.assertEqual(game[0x788c:0x789c], bytes.fromhex(
+            '3d7c0032029c303c00124eb9000058de'))
+        descriptor = game[0x5fe4+18*8:0x5fe4+19*8]
+        self.assertEqual(descriptor, bytes((18, 0, 0, 64, 0, 0, 0, 0)))
+        lengths = struct.unpack_from('>19H', game, 0x60d0)
+        period = struct.unpack_from('>H', game, 0x5f5a)[0]
+        self.assertEqual(period, 428)
+        start = 0x5b1cc + sum(lengths[:18])
+        sample = game[start:start+lengths[18]]
+        self.assertEqual(len(sample), 598)
+        for clock, hz in ((3546895, 50), (3579545, 60)):
+            stop = int(2 / hz * clock / period)
+            self.assertLess(stop, len(sample))
+            self.assertTrue(any(sample[:stop]))
+
+    def test_original_pulse_audible_duration_stops_before_pcm_repeats(self):
+        from tools.amiga_assets import ofs_file
+        game = ofs_file((ROOT.parent/'resources/amiga/Elite 2.0.adf').read_bytes(), 887)
+        # Initialization sets all mute bits; the next service clears the voice's
+        # bit before its first pitch update. The setup service is not audible.
+        self.assertEqual(game[0x5b28+0x1cc:0x5b36+0x1cc], bytes.fromhex(
+            '13fc000f00005e0a03f900005e0a'))
+        self.assertEqual(game[0x5b4e+0x1cc:0x5b54+0x1cc], bytes.fromhex(
+            '03b900005e0a'))
+        descriptor = game[0x5fe4+3*8:0x5fe4+4*8]
+        self.assertEqual(descriptor, bytes((3, 0, 1, 64, 1, 4, 0, 0)))
+        lengths = struct.unpack_from('>19H', game, 0x60d0)
+        self.assertEqual(lengths[3], 1580)
+        # The native oracle checks these periods against the original executable.
+        audible_periods = (427, 426, 425, 424, 424, 423, 422, 421, 420)
+        for clock, hz in ((3546895, 50), (3579545, 60)):
+            consumed = sum(clock / hz / period for period in audible_periods)
+            self.assertLess(consumed, lengths[3])
+        old_consumed = sum(3546895 / 50 / period
+                           for period in (428, *audible_periods))
+        self.assertGreater(old_consumed, lengths[3])
 
 
 if __name__ == '__main__':

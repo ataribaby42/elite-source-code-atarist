@@ -26,12 +26,10 @@ line is at logical y=8, leaving the frameless view heading visible. Existing fon
 routines scale text for hires, interlaced and doubled display modes. Messages
 are not painted on menus or charts.
 
-Each arrival requests a dedicated short single beep (`sfx_comm`), including
-while in a UI screen, subject to the normal Effects setting and music priority.
-The sound resembles identification but has its own voice and lasts approximately
-100 ms. Atari uses a steady PSG tone slightly lower than its identification
-pitch; Amiga uses a new 740 Hz sample with a short attack and release. Its silent
-tail prevents DMA from repeating the audible part before the VBL stops it.
+Each arrival requests its own receipt voice (`sfx_comm`), including while in a UI
+screen, subject to the normal Effects setting and music priority. The sound is
+the platform's hyperspace countdown beep: original Amiga effect 18, or Atari's
+existing lock/countdown PSG tone. There is no separately generated radio sample.
 Rapid receipts restart one receipt voice instead of stacking voices. Drawing
 and expiry do not play a sound. Identification and missile locking retain their
 original sounds; ordinary Amiga identification/lock requests retain duplicate
@@ -477,3 +475,18 @@ the 126-case communications suite. The ten Amiga asset/build tests also pass,
 including the new waveform, pitch, single-pulse and PAL/NTSC DMA-tail check.
 Existing Amiga sound and music asset metadata is unchanged. Evidence is under
 `build/comm-beep-qa`; both standard and selected ALT distributions were rebuilt.
+
+
+## Countdown beep reuse (2026-10-05)
+
+Receipts now reuse each platform's countdown beep. Amiga uses original effect
+18 from `Elite 2.0.adf`, also selected by the newly independent countdown event.
+The generated communication PCM and its generator have been removed. Atari
+receipts call the existing lock/countdown sound setup (tone period 50, volume
+12, ten sound services). They keep their own service identity solely to reclaim
+an existing receipt voice. Neither platform changes identification or missile
+lock audio. The receipt still sounds in UI, honours Effects/music gates, and
+restarts one receipt voice when another message arrives.
+
+See [countdown fix and original sound review](2026-10-05-countdown-audio-review.md)
+for validation and differences deliberately left unchanged.

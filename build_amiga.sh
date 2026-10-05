@@ -5,7 +5,7 @@
 # "all" builds every delivered image: one call each, named by its outputname.
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 build="$here/src_amiga/build.sh"
-common="noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no fastdraw=yes"
+common="noprotect=yes commander=default laser=singlebeam scannerlogo=no fastdraw=yes"
 test=$BUILD_AMIGA_TEST  # build_amiga_test.sh sets these; the command line still wins
 
 set -e

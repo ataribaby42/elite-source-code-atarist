@@ -2,7 +2,16 @@
 
 Modified Atari ST/Amiga Elite from Atari ST source code
 
-Release build configuration: `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no`
+Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
+
+## x.xx.2029 V1.xx
+
+- Fixed Amiga hyperspace countdown sound; incoming radio messages now use the same beep.
+- Removed the custom radio sound and the aifiresound option; AI firing remains silent.
+- Restored original Amiga identification sound, effect durations, repetitions and fades.
+- Fixed continuous Torus sound playback and shutdown.
+- Extended Amiga hyperspace and galactic jump animations to three seconds.
+- Fixed the Amiga Pulse laser’s rattling tail.
 
 ## 4.10.2029 V1.90 First Feature Complete Release
 

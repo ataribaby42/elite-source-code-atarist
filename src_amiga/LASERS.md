@@ -82,8 +82,7 @@ leaving three channels for effects. Volume ramps to 48/64 and releases in
 three PAL VBLs (60 ms); the existing muted-DAC delay precedes DMA shutdown.
 
 Successful player hits still trigger the original target-impact effect. It plays
-on another effect channel alongside the continuous beam; `aifiresound=no`
-does not disable this feedback.
+on another effect channel alongside the continuous beam.
 
 ## AI weapons
 
@@ -163,16 +162,13 @@ full ship model; point-sized and subpixel ships can also fire.
 The original random trigger opportunity, cloaking check and control
 lock remain in effect. A hit is applied immediately to the front or aft shield
 according to the shooter's position. Every shot still draws its beam, including
-both kinds of miss. The build option `aifiresound=no` (default) disables only the
-AI laser firing sound. `aifiresound=yes` requests the existing firing sound on
-damage ticks, including misses, subject to the game's Effects setting. Each
+both kinds of miss. AI laser firing is silent. Each
 accepted incoming laser hit retriggers the shield impact sound, including
 while the previous impact is still playing. The same voice is reused; music
 and Effects OFF retain their existing suppression. Other impact sounds keep
 their previous handling. Misses do not update
 shields/energy or request an impact sound. Player firing sounds, missile alerts
-and other effects keep their existing handling. The option does not change
-accuracy, damage, firing opportunities or random-number consumption.
+and other effects keep their existing handling.
 
 Successful AI hits use the same base damage as the corresponding player
 weapon: Pulse 5, Beam 9 and Military 11. The stored ship loadout supplies this

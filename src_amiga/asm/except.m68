@@ -89,7 +89,7 @@ q_except_m68_1:
 ; Quelo: 			if <eq> then.s
 	bne.s q_except_m68_9
 	move #50,count_jiffy(a6)
-	q_sfx locked
+	q_sfx countdown
 	q_dec count_down(a6)
 ; Quelo: 				if <eq> then.s
 	bne.s q_except_m68_11

@@ -13,9 +13,9 @@ the space used by mounted lasers and installed devices.
 
 During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy or at the Thargoid-controlled mission station. An illegal ejection also produces a station comm warning. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
-Ordinary salvaged cargo yields **1 t**, **1–10 kg**, or **1–10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
+Ordinary salvaged cargo yields **1 t**, **1â€“10 kg**, or **1â€“10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
 
-Cargo canisters released by destroyed AI ships drift at a random **3–6 world units per movement step**, matching player-ejected canisters. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
+Cargo canisters released by destroyed AI ships drift at a random **3â€“6 world units per movement step**, matching player-ejected canisters. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
 
 Random Viper patrols check the player's legal record on first contact and when
 it changes, using the existing police-response probability. A successful check
@@ -85,7 +85,7 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** and t
 
 `commander=default` restores the original **100 Cr**, **Harmless** rating and zero score. Loading a saved commander uses the balance, score and rating stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam aifiresound=no scannerlogo=no altgfx=yes` as persistent defaults. `display=` selects one of six Amiga screens and `frame=yes` keeps the cockpit frame. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam scannerlogo=no altgfx=yes` as persistent defaults. `display=` selects one of six Amiga screens and `frame=yes` keeps the cockpit frame. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 Player lasers default to `laser=dualbeam`: two filled beams converge
 from the lower left and right on the jittering crosshair tip. Use
@@ -114,18 +114,8 @@ Player Beam and Military lasers have distinct continuous sounds while firing,
 with short attack and release ramps. Amiga uses new synthesized sample loops;
 Atari ST uses its native PSG. Pulse and Mining keep their original firing sounds.
 
-AI laser firing sounds are disabled by default (`aifiresound=no`). Enable them
-with:
-
-```powershell
-.\build_atari.bat aifiresound=yes
-.\build_amiga.bat aifiresound=yes
-```
-
-`aifiresound=no` explicitly disables them again. This option controls AI laser
-shot sounds only. Impact sounds, player firing sounds, missile alerts and other
-effects retain their existing handling. Enabled AI firing sounds still follow
-the game's Effects setting.
+AI laser fire is silent. Impact sounds, player firing sounds, missile alerts
+and other effects retain their existing handling.
 
 The ELITE caption below the scanner is shown by default (`scannerlogo=yes`).
 Hide it in either build with:
@@ -319,7 +309,7 @@ Run `build_amiga.bat` to create `output_amiga/ELITE.ADF` and the game files in `
 
 To launch from Workbench, open the game disk or copy the complete `output_amiga/ELITE` directory to a hard drive, then double-click the `ELITE` icon. The classic four-colour, dual-image icon comes from `src_amiga/assets/ELITE.info` and is included in both outputs. Keep the executable, icon and data files together. Workbench launches use the executable's directory for assets and HDD commander files, and Ctrl+F10 returns to Workbench. The icon uses the current Workbench palette, so its colours differ between the default Workbench 1.3 and 3.0 screens.
 
-The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original effect samples extracted from `resources/amiga/Elite 2.0.adf`. Music uses the original four-channel Amiga arrangement of Blue Danube, with its seven sampled instruments and native replay, for the title, docking computer and Elite congratulations screen. Effect timing and envelopes remain simplified. See [Amiga music notes](src_amiga/MUSIC.md) for extraction and validation details.
+The renderer writes directly into two Chip RAM screens using native Amiga bitplanes. Copper selects the visible screen; there is no ST framebuffer or per-frame screen conversion. The game consumes native Amiga raw-key events, reads the joystick port, and uses AmigaDOS calls with 32-bit file handles. Its sound code drives Paula with 19 original effect samples extracted from `resources/amiga/Elite 2.0.adf`. Music uses the original four-channel Amiga arrangement of Blue Danube, with its seven sampled instruments and native replay, for the title, docking computer and Elite congratulations screen. Original effects now retain their duration counters, repeats, fades and pitch progression. Identification uses its own original sample, and the torus loop follows the active drive. See [original-effect replay notes](game-docs/2026-10-05-amiga-original-effect-replay.md) for verification. See [Amiga music notes](src_amiga/MUSIC.md) for extraction and validation details.
 
 The independent version has been checked in WinUAE 6.0.3 through startup, launch, all flight views, pitch controls, charts, commander save/load and catalog, and return to AmigaDOS. Audio register setup was inspected; audible sound quality, physical input devices, extended gameplay and real hardware remain untested.
 
@@ -359,7 +349,7 @@ Every wide image prints the frame time in the top left: three numbers in millise
 | 68040+ with Fast RAM, from 33 MHz | `ELITE.WIDE.NTSC-HIRESLACE` |
 | 68040+ with Fast RAM, from 50 MHz | `ELITE.WIDE.PAL-HIRESLACE` |
 | AGA, 68040+ with Fast RAM, from 33 MHz, 27 kHz monitor | `ELITE.WIDE.DBLNTSC-HIRES`, `ELITE.WIDE.DBLPAL-HIRES` |
-​
+â€‹
 ## Project structure
 
 | Path | Purpose |
@@ -388,9 +378,9 @@ See [src_atari/README.md](src_atari/README.md) for development, testing, and opt
 
 The Atari ST version credits the following contributors in its [in-game credits](src_atari/asm/action.m68):
 
-- **Rob Nicholson of Mr. Micro Ltd.** — Atari ST conversion and programming.
-- **Gary Patchen** — assistance with the conversion.
-- **James McDermott** — graphics.
+- **Rob Nicholson of Mr. Micro Ltd.** â€” Atari ST conversion and programming.
+- **Gary Patchen** â€” assistance with the conversion.
+- **James McDermott** â€” graphics.
 
 The [original source header](src_atari/asm/elite.m68) identifies the Atari ST conversion as derived from the MSX version and carries **Copyright (c) 1988 Mr. Micro and Firebird Software**. The [title-screen code](src_atari/asm/attract.m68) also credits **Bell & Braben**.
 

@@ -26,9 +26,6 @@ commander_max: equ 0 ; build option: default commander starts with 1,000,000 Cr 
 	ifnd laser_singlebeam
 laser_singlebeam: equ 0 ; build option: 0 = dualbeam (default), 1 = singlebeam
 	endc
-	ifnd aifiresound
-aifiresound: equ 0 ; build option: AI laser firing sound, disabled by default
-	endc
 	ifnd scannerlogo
 scannerlogo: equ 1 ; build option: show ELITE below the scanner (default)
 	endc

@@ -136,12 +136,7 @@ extension still use the Cobra Mk III.
 .\build_atari.bat laser=singlebeam
 ```
 
-`aifiresound=no` is the build default and disables AI laser firing sounds. `aifiresound=yes` enables them, subject to the game's existing Effects setting. This option controls AI laser shot sounds only; hit/impact sounds, player weapons, missile alerts and other effects keep their existing handling.
-
-```powershell
-.\build_atari.bat aifiresound=no
-.\build_atari.bat aifiresound=yes
-```
+AI laser fire is silent. Impact sounds, player weapons, missile alerts and other effects retain their existing handling.
 
 `scannerlogo=yes` (default) shows the ELITE caption below the scanner. Use `scannerlogo=no` to hide the caption on both cockpit buffers. The scanner, instruments and other game logos are unaffected. This is a build-time setting.
 
@@ -149,7 +144,7 @@ extension still use the Cobra Mk III.
 .\build_atari.bat scannerlogo=no
 ```
 
-The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=singlebeam aifiresound=no scannerlogo=yes`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
+The root `build_atari.bat` currently supplies `noprotect=yes commander=max laser=singlebeam scannerlogo=yes`. Arguments passed on the command line override these defaults; the last occurrence of each option wins independently. Use `build_atari.bat commander=default` to build with the original starting balance.
 
 The build uses the bundled `tools/vasmm68k_mot.exe` and `tools/vlink.exe` in the project root. It assembles all game modules from source, without using `src_orig` or old `.LTX` objects. It writes the game files to `output_atari/ELITE` and the floppy image to `output_atari/ELITE.ST`. Both assembler and linker run from `src_atari/build` with explicit output paths to prevent `a.out` from appearing in the root.
 
@@ -405,7 +400,7 @@ The starfield uses a native adaptation of the BBC/C64 Elite depth and recycling 
 
 A separate sparse white sky sits behind every flight object and the existing dark grey starfield. Its fixed one-pixel stars remain consistent across all views and move only with rotation. **Game Options / Stars: ON/OFF** controls this white sky (default ON). OFF skips its rendering and rotation updates and restores the moving starfield to yellow. Switching back ON restarts the sky orientation and returns the moving starfield to dark grey. The preference is saved with the commander. Startup and default Jameson use ON; older commanders also load with ON. The 256-byte save format remains compatible between Atari and Amiga. A spatial tree skips unseen regions, and straight flight reuses cached screen positions; see [STARFIELD.md](STARFIELD.md#distant-white-sky) for implementation and validation details.
 
-Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. Each ordinary AI ship selects a persistent Pulse / Beam / Military loadout at creation: chances are 90/7/3% at Harmless through Poor, 70/21/9% at Average through Competent, and 50/35/15% at Dangerous through Elite. Police Vipers replace any Pulse result with Beam, giving Beam/Military chances of 97/3%, 91/9% and 85/15% across those bands without another roll. Colours follow that ship's weapon: red / orange / white. Cougar always has Beam and Constrictor Military. Thargoids always have Beam (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless of player rating; both remain light blue. Player damage per hit is unchanged; successful AI hits now use the same base damage for the same laser class against both the player and other AI ships (Pulse 5, Beam 9, Military 11). AI Pulse shots have a minimum 10-step interval; Beam and Military use uninterrupted 6–18-step bursts with damage checks every 6 and 3 steps, respectively. Each incoming damaging laser hit retriggers its impact sound. See [AI bursts](../game-docs/2026-10-03-ai-laser-bursts.md). Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam and optional firing sound without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
+Player and AI lasers use instant-hit beams. Player Beam and Military lasers now have distinct continuous firing sounds with short attack and release ramps; Pulse and Mining retain their original firing effects. Player colours depend on the weapon: Pulse red, Beam orange, Military white, and Mining instrument-bar magenta. Each ordinary AI ship selects a persistent Pulse / Beam / Military loadout at creation: chances are 90/7/3% at Harmless through Poor, 70/21/9% at Average through Competent, and 50/35/15% at Dangerous through Elite. Police Vipers replace any Pulse result with Beam, giving Beam/Military chances of 97/3%, 91/9% and 85/15% across those bands without another roll. Colours follow that ship's weapon: red / orange / white. Cougar always has Beam and Constrictor Military. Thargoids always have Beam (power 9), while Thargons (Tharglets) always have Pulse (power 5), regardless of player rating; both remain light blue. Player damage per hit is unchanged; successful AI hits now use the same base damage for the same laser class against both the player and other AI ships (Pulse 5, Beam 9, Military 11). AI Pulse shots have a minimum 10-step interval; Beam and Military use uninterrupted 6–18-step bursts with damage checks every 6 and 3 steps, respectively. Each incoming damaging laser hit retriggers its impact sound. See [AI bursts](../game-docs/2026-10-03-ai-laser-bursts.md). Player beam jitter is cosmetic: targeting stays at the crosshair centre. AI beams originate at each model's `gun_node`, with centred bow muzzles for Sidewinder, Gecko, Adder and Moray; even correctly aimed shots can miss, with a linearly interpolated chance of 10% at 1,000 units or less, 20% at 3,000, 30% at 5,000 and 50% at 7,000, preserving the beam without causing damage. See [LASERS.md](LASERS.md) for weapon timing, targeting and runtime validation.
 
 Sprite and bitmap drawing uses fixed left/right rotation loops from `asm/sprite_rows.inc`, including clipped sprites. It never patches executable instructions, avoiding stale rotation opcodes in the instruction cache of 68020 and later CPUs. Each rotation still uses at most eight steps on the 68000. This change concerns sprite rendering; compatibility with other Atari display hardware and operating systems requires separate testing.
 
@@ -502,8 +497,8 @@ See [Scramble ID rules and validation](../game-docs/2026-10-03-scramble-id.md).
 Messages addressed to the player pulse only the recipient ID in the engine colour, including a scrambled `??-???`; NPC recipients and the rest of the text stay yellow.
 
 Up to three yellow messages appear at the top left of the flight viewport,
-oldest first. Arrivals use a dedicated short single beep similar to identification, including
-on UI screens. One shared timer removes the
+oldest first. Arrivals reuse the hyperspace countdown beep, including on UI screens.
+The receipt retains its own voice identity so rapid messages restart only that voice. One shared timer removes the
 oldest message every seven seconds in 3D and pauses in UI. New UI arrivals
 immediately replace the oldest entry when full. Text
 is drawn only in 3D. Illegal station-zone jettison selects one of five warnings.
