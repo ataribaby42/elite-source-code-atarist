@@ -235,8 +235,9 @@
     movem.l (sp)+,d0-d7/a0-a5
     rts
 
-; A4 surviving victim, A0 laser attacker (0 player) or impacting missile.
-; Called only after positive weapon damage. Does not include collision damage.
+; A4 living victim, A0 laser attacker (0 player) or the threatening missile.
+; Called after positive weapon damage or a successful player missile launch.
+; Both events share one protest opportunity. Does not include collision damage.
 ; All registers preserved, including the damage routine's D0 return value.
     q_subr ai_comm_hit,global
     movem.l d0-d7/a0-a5,-(sp)
@@ -255,7 +256,7 @@
     tst.w game_over(a6)
     bne .done
     bset #1,radio_flags(a4)
-    bne .done ; the first survived hit consumes the opportunity
+    bne .done ; the first threat or survived hit consumes the opportunity
     cmp.l #radar_range,obj_range(a4)
     bhi .done
     jsr comm_id_object

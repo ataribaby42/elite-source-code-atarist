@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## x.xx.2029 V1.93
+
+- Player missile launches now provoke targeted AI ships and break their Scramble ID truce. Traders can protest at launch with a 50% chance, without repeating the message on impact. Preserved ECM, Python defensive behaviour and mission-specific AI.
+
 ## 5.10.2029 V1.92
 
 - Fixed player and AI missiles disappearing when their target is destroyed; they now explode in place without extra damage or rewards.

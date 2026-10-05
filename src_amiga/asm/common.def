@@ -522,7 +522,7 @@ shield_flash: rs.w 1 ; shield-hit hull frames left; expires even off-screen
 ; Cosmetic radio state; excluded from model headers and commander saves.
 radio_instance: rs.l 1 ; unique lifetime serial, never copied from a parent
 radio_target: rs.l 1 ; last announced/attempted target serial (0 player, -1 none)
-radio_flags: rs.w 1 ; bits 0 greeting attempted, 1 survived-hit protest attempted
+radio_flags: rs.w 1 ; bits 0 greeting attempted, 1 threat/hit protest attempted
 radio_owner: rs.l 1 ; missile launch-time shooter ID snapshot, 0 unknown
 radio_owner_player: rs.w 1 ; missile shooter was the player, even if anonymous
 

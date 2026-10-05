@@ -165,6 +165,33 @@ calls or extra object allocation. Unrelated missiles keep their targets, and
 missiles already marked for removal are not revived. The existing player
 "Target lost" notification and lock cancellation are retained.
 
+Successfully launching a player missile now provokes its live, vulnerable
+combat-capable target before impact. The launch clears that target's pirate
+truce and sets its hostility flag. A cruising ship starts an attack on the
+player immediately; normal faction target ranking resumes on its next turn.
+An existing fight retains its target, laser burst and manoeuvre. A peaceful
+peel-off finishes its turn before attacking rather than returning to cruise
+and clearing the provocation. This launch reaction uses no additional gameplay
+random numbers and does not simulate weapon damage.
+
+Eligible traders, including the Python, use their existing protest message
+set when the player successfully launches a missile at them. The existing
+50% radio chance and separate radio random stream are retained. This consumes
+the same one-time opportunity as their first survived weapon hit, even when
+the radio roll is silent; a later impact or another launch cannot repeat it.
+Player identity masking is taken from the missile's shooter snapshot. Pirate,
+police and Thargoid threats continue to follow their normal target-selection
+observer, which can now see the attack prompted by the launch before impact.
+
+The Python, Shuttle, Transporter and other fleeing or passive hulls retain
+their existing behaviour. In particular, the Python still uses ECM and its
+existing low-energy defensive missile logic. Stations, mission-only hulls
+(Constrictor and Cougar), dormant Thargons, protected or disappearing objects,
+and launch/docking scripts are excluded from the new reaction. Missile ECM
+checks, damage, station penalties and mission progression remain on their
+existing paths. A failed launch, including a full object bubble, cannot
+provoke the target.
+
 Zero remaining energy is lethal, including an exact-zero hit. Recharge cannot
 revive a ship after a lethal hit. Existing destruction, cargo, score, bounty and
 mission routines still process the death.

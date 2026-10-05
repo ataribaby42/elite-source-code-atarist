@@ -1,4 +1,4 @@
-	xref ai_comm_missile_ai,ai_comm_missile_player
+	xref ai_comm_missile_ai,ai_comm_missile_player,ai_comm_hit
 	xref laser_impact_sound
 	xref missile_detonate
 	xref comm_departure_ship,comm_station_hit
@@ -1779,11 +1779,69 @@ q_combat_m68_129:
 	st velocity(a4) ; launch at full speed
 	jsr create_object ; create object
 	jsr ai_comm_missile_player
+	bsr missile_provoke ; only a successfully launched player missile is a threat
 	q_sfx missile ; launch sound effect
 	q_dec equip+missiles(a6) ; missile used
 	clr f_missiles(a6)
 
 	q_ret return
+
+
+; A4 is the newly launched player missile. Mark only a live combat-capable
+; target; stations, mission-only hulls, dormant Thargons and fleeing Python
+; traders retain their own rules. Launch/docking scripts must finish untouched.
+; No damage, legal penalty or new gameplay RNG draws. Traders use their one
+; protest opportunity at launch, including Python; a later hit cannot repeat it.
+; DO_LOCKED still decides when the target may use ECM, regardless of hostility.
+; Preserve all registers, including the caller's missile and current object.
+	q_subr missile_provoke
+	movem.l d0-d1/a0/a4,-(sp)
+	move.l a4,a0 ; radio recipient comes from the missile shooter snapshot
+	move.l target(a4),d0
+	ble .done
+	move.l d0,a4
+	btst #in_use,flags(a4)
+	beq.s .done
+	btst #remove,flags(a4)
+	bne.s .done
+	btst #invincible,flags(a4)
+	bne.s .done
+	bsr is_combat_ship
+	beq.s .done
+	cmp.w #act_nothing,attack_type(a4)
+	beq.s .done
+	move.w logic(a4),d1
+	bsr combat_state
+	tst.w d0
+	beq.s .done
+	jsr ai_comm_hit ; first threat or survived hit, with the existing 50% chance
+	cmp.w #act_attack,attack_type(a4)
+	bne.s .done ; fleeing traders keep their movement and defensive weapons
+	clr.w pirate_truce(a4)
+	bset #angry,flags(a4)
+	cmp.w #1,d0
+	bne.s .fighting
+; A cruising ship must leave cruise immediately, otherwise DO_CRUISING clears
+; ANGRY before this slot's next RETARGET turn. Normal faction ranking resumes.
+	clr.l target(a4)
+	move.w #log_attack,logic(a4)
+	clr.w on_course(a4)
+	move.w health(a4),pre_attack(a4)
+	bra.s .done
+.fighting:
+; Keep an existing fight, burst or evasive manoeuvre. A peaceful peel-off must
+; not return to cruise and erase the new provocation when its turn finishes.
+	cmp.w #log_peel_off,d1
+	bne.s .done
+	cmp.w #log_cruise,next_logic(a4)
+	beq.s .retaliate
+	cmp.w #log_fly_planet,next_logic(a4)
+	bne.s .done
+.retaliate:
+	move.w #log_attack,next_logic(a4)
+.done:
+	movem.l (sp)+,d0-d1/a0/a4
+	rts
 
 
 ; **********************************************
