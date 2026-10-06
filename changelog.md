@@ -9,6 +9,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Reworked Equipment and Goods icons to be more readable.
 - Energy Bomb is replaced by Zerion Sentinel I.F.F. Unit
 - Fixed Atari sound effects to mute properly when finished or interrupted, preventing end-of-sound rattling.
+- Fixed missaligned alien heads and bodies.
 
 ## 5.10.2029 V1.93
 
