@@ -47,7 +47,6 @@
 	xref draw_lasers,orthogonal,torus_drive,collision,update_inst,run_docking
 	xref check_cargo,check_police,check_inflight,draw_space,text_blatt,docking_sequence
 	xref retarget
-	xref draw_bomb_discharge
 
 * ---- LOCAL CONSTANTS ----
 
@@ -201,7 +200,6 @@ q_main_m68_19:
 	beq.s q_main_m68_21
 	jsr draw_space ; planet/sun, starfield, then the remaining objects
 	jsr draw_lasers ; draw our lasers
-	jsr draw_bomb_discharge ; fresh electrical arcs on every rendered flight frame
 	jsr draw_sight ; draw laser sight
 	ifeq frame
 	jsr name_view ; the view name sits in the viewport and is cleared with it
@@ -887,6 +885,13 @@ q_main_m68_66:
 
 	q_subr id_object,global
 
+	tst.w equip+iff_unit(a6)
+	bne.s .installed
+	clr.w id_trigger(a6)
+	lea iff_missing(pc),a0
+	jsr disp_message
+	bra beep ; same unavailable-equipment feedback as ECM
+.installed:
 	st id_trigger(a6) ; set ID trigger
 	lea text24(pc),a0 ; display message and exit
 	bra disp_message
@@ -1273,5 +1278,6 @@ text17: dc.b 'Drive repaired',0
 text18: dc.b 'Cloaking active',0
 text19: dc.b 'Jammer active',0
 text24: dc.b 'ID active',0
+iff_missing: dc.b 'I.F.F. Not Installed',0
 text29: dc.b 'Capsule Not Installed',0
 text30: dc.b 'Capsule Malfunction!',0

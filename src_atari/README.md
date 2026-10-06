@@ -343,8 +343,8 @@ fighting him does not fire one at him because a third ship shot it. A missile
 destroys the ship it reaches, which is what the player's missiles have always
 done, so a well-armed pirate is dangerous to traders that cannot answer.
 
-The energy bomb remains player equipment. Damage between two ships uses a fixed
-fixed strength instead of the player's combat rating, which has no meaning in a
+Damage between two ships uses a fixed
+strength instead of the player's combat rating, which has no meaning in a
 fight he is not part of. It is deliberately lighter than his own: a hit lands
 somewhere in 2 to 12 and averages six, against the nine an average-rated
 commander takes, so two ships take a while over each other and the fight is
@@ -365,13 +365,7 @@ slots. See
 An NPC kill awards the player no score, rating, bounty or police-record change,
 but cargo canisters still drop, so waiting for two ships to fight can pay. It is
 also silent, so a distant fight does not announce itself. Ships destroyed by the
-player's laser, missile or collision play the normal explosion sound. A successful
-energy bomb plays its dedicated rising-and-fading noise effect once, suppressing
-the individual ship explosion sounds. Two light-blue electrical arcs change on
-every rendered flight frame for the effect's 107 VBL ticks. They stay inside the
-viewport and clear with each buffer; Effects OFF mutes the sound but retains the
-visual blast. Their private random state does not affect gameplay. Failed
-activation keeps the existing beep and does not consume the bomb.
+player's laser, missile or collision play the normal explosion sound.
 
 An enemy beam is drawn from its gun to its actual target, with a small random
 offset when the shot misses; beams aimed at the
@@ -515,3 +509,21 @@ Offender and Fugitive players receive cautious trader greetings. Tharglets,
 Cougars and Constrictors remain silent. Radio observes existing decisions without
 changing combat, spawns, missions or gameplay randomness. See
 [AI radio rules and validation](../game-docs/2026-10-04-ai-radio.md).
+
+## I.F.F. Unit
+
+The Zerion Sentinel I.F.F. Unit replaces the former Energy Bomb in Equip.
+Without it, every visible scanner contact is steady yellow and pressing I
+reports `I.F.F. Not Installed`. With it, scanner colours, hostile-contact
+flashing and ship identification work as before. Missile locking, the compass,
+radio messages, AI hostility and mission logic do not depend on I.F.F.
+
+The unit uses the same hull-category prices and shop availability as the item
+it replaces, occupies one tonne, and can be sold for half its purchase price.
+It is permanent equipment, not a consumable. New default commanders do not
+carry it. Existing saved equipment slot 8 becomes I.F.F. without changing the
+256-byte commander format; an old fitted Energy Bomb becomes an installed unit.
+Tab no longer activates a weapon. The former bomb handler, sound and electrical
+discharge renderer have been removed from this enhanced version.
+
+See [I.F.F. implementation and verification](../game-docs/2026-10-06-iff-unit.md).

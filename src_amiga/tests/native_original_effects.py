@@ -41,7 +41,7 @@ def make_suite(root, s):
         return f' move.w #{event},d0\n'+call('fx')+call('sound')+f' move.w #{event},d3\n bsr qa_find\n cmp.w #1,d0\n bne fail\n move.l a0,qa_voice\n'
     def no_voice(event):
         return f' move.w #{event},d3\n bsr qa_find\n tst.w d0\n bne fail\n'
-    mapping = [0,1,15,3,7,6,4,16,17,12,11,14,13,10,None,16,8,None,None,18,9]
+    mapping = [0,1,15,3,7,6,4,16,17,12,11,14,13,10,16,8,None,None,18,9]
     for event, effect in enumerate(mapping):
         if effect is None:
             continue

@@ -17,9 +17,7 @@ transition has been removed from `check_hit` to avoid counting a laser kill
 twice. Constrictor mission handling remains in its original laser-hit path.
 
 Damage, health, score, bounty handling, fragments, RNG and object record
-layout are unchanged. The station starts with 1024 health. Energy Bomb still
-skips the three reserved planet/station/sun records in normal space; it does
-not destroy this station or complete the mission. A subsequent system reset
+layout are unchanged. The station starts with 1024 health. A subsequent system reset
 clears `station_destroyed` while retaining `$53` until the reward is received.
 
 The station's IFF label is `Alien Space Station ??-???`; its hidden

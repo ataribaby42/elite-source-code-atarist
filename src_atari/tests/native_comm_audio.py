@@ -35,10 +35,52 @@ def make_suite(root,s):
     body+=' st hold_sound(a6)\n'+call('comm_arrival_sound')+' clr.w hold_sound(a6)\n bsr qa_find\n tst.w d0\n bne fail\n'
     case('Quiet silences the receipt')
     body+=arrival()+call('quiet')+' bsr qa_find\n tst.w d0\n bne fail\n'+call('quiet')
+    # The software active flag alone does not prove that the YM voice stopped.
+    # Exercise both beep entry points on every voice while other voices play.
+    body+=f' move.w ${s["sound"]:x},qa_sound_opcode\n move.w #$4e75,${s["sound"]:x}\n'
+    for effect in ('locked','comm'):
+        for channel in range(3):
+            case(f'{effect} mutes actual YM voice {channel+1} without changing other voices')
+            for _ in range(channel):
+                body+=' moveq #sfx_locked,d0\n'+call('fx')
+            body+=(' moveq #sfx_locked,d0\n'+call('fx') if effect=='locked' else call('comm_arrival_sound'))
+            body+=f' lea chan_1+{channel}*fx_len(a6),a5\n'
+            body+=' cmp.w #10,duration(a5)\n bne fail\n'
+            body+=f' moveq #{channel+8},d0\n bsr qa_read_psg\n cmp.b #12,d0\n bne fail\n'
+            body+=' lea qa_psg_before,a1\n bsr qa_read_registers\n'
+            body+=f' moveq #8,d6\nqa_hw_tick_{effect}_{channel}:\n'+call('mark_time')
+            body+=f' dbra d6,qa_hw_tick_{effect}_{channel}\n'
+            body+=' tst.w chn_active(a5)\n beq fail\n cmp.w #1,duration(a5)\n bne fail\n'
+            body+=f' moveq #{channel+8},d0\n bsr qa_read_psg\n cmp.b #12,d0\n bne fail\n'
+            body+=call('mark_time')+' tst.w chn_active(a5)\n bne fail\n'
+            body+=' lea qa_psg_after,a1\n bsr qa_read_registers\n'
+            for reg in range(11):
+                if reg in (channel*2,channel*2+1,channel+8):
+                    body+=f' tst.b qa_psg_after+{reg}\n bne fail\n'
+                else:
+                    body+=f' move.b qa_psg_before+{reg},d0\n cmp.b qa_psg_after+{reg},d0\n bne fail\n'
+    body+=call('quiet')+f' move.w qa_sound_opcode,${s["sound"]:x}\n'
     tail=f'''qa_case: dc.w 0
 qa_repeat: dc.w 0
 qa_sound_opcode: dc.w 0
 qa_video: dc.w 0
+qa_psg_before: ds.b 12
+qa_psg_after: ds.b 12
+qa_read_psg:
+ move.b d0,psg_select
+ moveq #0,d0
+ move.b psg_read,d0
+ rts
+qa_read_registers:
+ moveq #0,d2
+.loop:
+ move.w d2,d0
+ bsr qa_read_psg
+ move.b d0,(a1)+
+ addq.w #1,d2
+ cmp.w #11,d2
+ bne.s .loop
+ rts
 qa_find:
  move.l #${s['comm_time']:x},d3
  moveq #50,d4

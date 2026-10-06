@@ -353,6 +353,8 @@ blip_word macro
 	q_ret eq ; no, return
 	tst invisible(a6) ; object invisible (cougar) ?
 	q_ret ne ; yes, return
+	tst.w equip+iff_unit(a6) ; without I.F.F., contacts do not report hostility
+	beq.s q_radar_m68_17
 	btst #angry,flags(a5) ; angry with player ?
 ; Quelo: 	if <ne> then.s						yes
 	beq q_radar_m68_17
@@ -403,9 +405,13 @@ q_radar_m68_19:
 	move.w d5,(a4)+ ; store offset between lines
 	q_push.l a4 ; save pointer to depth entry
 	addq.l #2,a4 ; skip depth entry (filled in later)
+	moveq #yellow,d4 ; unidentified contacts share one steady colour
+	tst.w equip+iff_unit(a6)
+	beq.s .blip_colour
 	move ship_type(a5),d4 ; determine colour of radar blip
 	lea blip_colours(pc),a3
 	move.b (a3,d4),d4
+.blip_colour:
 	lea colour_masks,a3
 	asl #3,d4
 	lea (a3,d4),a3

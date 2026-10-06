@@ -66,7 +66,6 @@ npc_launch_prob: equ 4*4+missile_prob
 	q_vars combat
 
 exploded: rs.w 1 ; flag: object exploded
-bomb_active: rs.w 1 ; suppress individual explosions during an energy bomb
 found: rs.w 1 ; object found
 launch_rate: rs.w 1 ; rate of viper launch
 next_pos: rs.w 1 ; next position for pirate
@@ -631,8 +630,8 @@ q_combat_m68_69:
 
 	q_save_all save ; all registers
 ; Mission objectives belong to a ship's destruction, not to the weapon that
-; managed it, so they are counted here: laser, missile, ramming and the energy
-; bomb all arrive through EXPLODE_OBJECT. Both are guarded on the objective
+; managed it, so laser, missile and ramming kills are counted here through
+; EXPLODE_OBJECT. Both are guarded on the objective
 ; actually being the active one, and on the wreck not already exploding, so
 ; nothing is counted twice.
 	cmp #log_exploding,logic(a4) ; already going up ?
@@ -749,9 +748,7 @@ q_combat_m68_19:
 give_up:
 
 	tst npc_kill(a6) ; a kill he had no part in stays quiet: his laser,
-	bne.s .silent ; missile, ramming and energy bomb all leave this clear
-	tst bomb_active(a6) ; LAUNCH_BOMB plays one effect for the whole blast
-	bne.s .silent
+	bne.s .silent ; missile and ramming also leave this clear
 	q_sfx explosion ; sfx: explosion
 .silent:
 	clr collided(a6) ; clear collided flag
@@ -2773,79 +2770,6 @@ encounter_positions:
 	q_ret
 
 
-; **************************************
-; **								  **
-; ** LAUNCH_BOMB - LAUNCH ENERGY BOMB **
-; **								  **
-; **************************************
-
-; Launches the energy bomb (if fitted) which instantly destroys all objects
-; (excepts suns, planets, space station and thargoids). It may only be used
-; once.
-
-; Entry: None
-; Exit:  None
-
-; Regs: ?
-; Subr: ?
-
-	q_subr launch_bomb,global
-
-	jsr check_inflight ; check if inflight
-	tst equip+energy_bomb(a6) ; do we have an energy bomb
-; Quelo: 	if <eq> then.s						no
-	bne.s q_combat_m68_161
-	lea text20(pc),a0 ; print error message
-	jsr disp_message
-	bra beep
-q_combat_m68_161:
-	lea objects(a6),a4 ; assume all objects
-	moveq #max_objects-1,d7
-	tst witch_space(a6) ; witch space ?
-; Quelo: 	if <eq> then.s						no
-	bne.s q_combat_m68_163
-	add.l #obj_len*3,a4 ; skip 1st three objects
-	subq #3,d7
-q_combat_m68_163:
-	clr exploded(a6) ; nothing exploded yet
-	st bomb_active(a6)
-	q_loop 1 ; loop for each object
-	btst #in_use,flags(a4) ; in use ?
-; Quelo: 		if <ne> then.s					yes
-	beq.s q_combat_m68_165
-	move type(a4),d0 ; thargoid ?
-	cmp #thargoid,d0
-	beq ignore_bomb ; yes
-	cmp #platlet,d0 ; platlet ?
-	beq ignore_bomb ; yes
-	cmp #constr,d0 ; constrictor ?
-	beq ignore_bomb ; yes
-	cmp #cougar,d0 ; cougar ?
-	beq ignore_bomb
-	q_push d7 ; destroy object
-	bset #no_bounty,flags(a4)
-	bsr explode_object
-	q_pop d7
-
-ignore_bomb:
-
-q_combat_m68_165:
-	lea obj_len(a4),a4 ; next object
-	q_next 1
-	clr bomb_active(a6)
-	tst exploded(a6) ; anything exploded ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_combat_m68_167
-	clr equip+energy_bomb(a6) ; only use once
-	q_sfx bomb ; one energy-bomb effect, only after a successful blast
-	bra.s q_combat_m68_168
-q_combat_m68_167:
-	bsr beep ; beep (nothing to destroy)
-q_combat_m68_168:
-
-	q_ret return
-
-
 ; ---- LOCAL DATA ----
 
 ; Rating bands for score.
@@ -2894,4 +2818,3 @@ text16: dc.b 'Missile Already Targetted',0
 text17: dc.b 'No Missiles Left!',0
 text18: dc.b 'Missile Not Targetted',0
 text19: dc.b 'Missile Not Locked',0
-text20: dc.b 'Energy Bomb Not Installed',0

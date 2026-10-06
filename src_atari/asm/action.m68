@@ -23,7 +23,7 @@
 	xref clear_input,print_centre,wait_key,market_prices,disk,data,inventory
 	xref status,galactic_chart,home_cursor,disp_distance,local_chart,options
 	xref find_planet,target_missile,unarm_missile,fire_missile,computer,escape
-	xref start_hyperspace,engage_ecm,launch_bomb,id_object,cloaking_toggle
+	xref start_hyperspace,engage_ecm,id_object,cloaking_toggle
 	xref jammer_toggle,magnification,text_blatt,disp_message,hide_cursor
 	xref restore_cursor,cancel_angles,hacker,start_galactic,fire_retros
 	xref check_inflight,str_copy,str_cat,build_number,text_colour,str_len
@@ -52,7 +52,6 @@ key_target: equ 'T' ; Target missile
 key_missile: equ 'M' ; Fire missile
 key_unarm: equ 'U' ; Unarm missile and cancel identification
 key_ecm: equ 'E' ; Electronic counter measure
-key_energy: equ 9 ; Energy bomb (TAB)
 key_escape: equ 'Q' ; Escape capsule
 key_docking: equ 'C' ; Docking computer on/off
 
@@ -774,7 +773,6 @@ key_list:
 	key hyper,start_hyperspace ; Hyperspace jump
 	key docking,computer ; Engage docking computer
 	key ecm,engage_ecm ; Engage ECM
-	key energy,launch_bomb ; Launch energy bomb
 	key inter,inter_galactic ; Inter-galactic jump
 	key escape,escape ; Launch escape capsule
 	key cargo,courier_chart_key ; W: delivery target on charts
@@ -818,7 +816,7 @@ text2: dc.b c_ink,pulse,'** PAUSED **',0
 text3: dc.b $00,$00
 text4: dc.b 'Press ''H'' to confirm',0
 text5: dc.b 'Inter-Galaxy Jump Aborted',0
-text6: dc.b 'Atari ST Elite Version 1.93       '
+text6: dc.b 'Atari ST Elite Version 1.94       '
 	dc.b 'You have scored ',0
 text7: dc.b ' points and have been playing for ',0
 text8: dc.b ' days, ',0

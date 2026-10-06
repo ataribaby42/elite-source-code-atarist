@@ -836,7 +836,7 @@ reset_table:
 	dc.w $8000 ; beam lasers
 	dc.w 1 ; fuel scoop
 	dc.w 1 ; escape capsule
-	dc.w 1 ; energy bomb
+	dc.w 1 ; I.F.F. unit
 	dc.w 0 ; extra energy unit
 	dc.w 1 ; docking computer
 	dc.w 1 ; hyperdrive
@@ -888,7 +888,7 @@ reset_table:
 	dc.w $8000 ; beam lasers
 	dc.w 0 ; fuel scoop
 	dc.w 0 ; escape capsule
-	dc.w 0 ; energy bomb
+	dc.w 0 ; I.F.F. unit
 	dc.w 0 ; extra energy unit
 	dc.w 0 ; docking computer
 	dc.w 0 ; hyperdrive

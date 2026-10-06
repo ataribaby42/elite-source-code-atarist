@@ -331,7 +331,6 @@ sfx_spacejump: rs.b 1 ; space skip towards planet
 sfx_missile: rs.b 1 ; missile player
 sfx_hyperspace: rs.b 1 ; flying through hyperspace
 sfx_cargo: rs.b 1 ; captured some cargo
-sfx_bomb: rs.b 1 ; energy bomb
 sfx_doors: rs.b 1 ; opening doors
 sfx_teletype: rs.b 1 ; teletype print effect
 sfx_launch: rs.b 1 ; engine spool-up when leaving the hangar
@@ -641,7 +640,7 @@ pulse_lasers: rs.w 1 ; position of pulse lasers
 beam_lasers: rs.w 1 ; position of beam lasers
 fuel_scoop: rs.w 1 ; fuel scoop fitted
 escape_capsule: rs.w 1 ; escape capsule fitted
-energy_bomb: rs.w 1 ; energy bomb fitted
+iff_unit: rs.w 1 ; I.F.F. fitted; saved equipment slot 8 remains unchanged
 energy_unit: rs.w 1 ; energy unit fitted
 docking_comp: rs.w 1 ; docking computer fitted
 hyperdrive: rs.w 1 ; galactic hyperdrive fitted
@@ -974,8 +973,6 @@ screen1_ptr: rs.l 1 ; ptr  screen #1
 screen2_ptr: rs.l 1 ; ptr  screen #2
 flip_screen: rs.l 1 ; eor mask for flipping screens
 
-bomb_flash_ticks: rs.w 1 ; energy-bomb discharge lifetime, in sound VBL ticks
-bomb_flash_seed: rs.w 1 ; cosmetic RNG, independent of gameplay randomness
 
 ; Optional SHP1 save tail and derived player hull values.
 player_ship_tag: rs.l 1

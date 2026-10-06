@@ -259,7 +259,7 @@ explicitly with `python src_atari/tools/planet_colours.py` and
 
 ## Ship registrations
 
-In both enhanced versions, press **I** and centre a ship or station in the
+With an I.F.F. Unit installed, press **I** and centre a ship or station in the
 crosshair to identify its type and registration, for example `Viper AB-123`.
 Identification also works in a view without a fitted laser. Pirates conceal
 their registration as `??-???`; a hostile police ship still displays its ID.

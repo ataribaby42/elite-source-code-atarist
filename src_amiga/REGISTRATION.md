@@ -92,3 +92,7 @@ The player can buy identity concealment on entering Equip in an Anarchy station.
 Status displays `??-???` while the original RID1 bytes remain unchanged. A new
 hull clears concealment. See [Scramble ID](../game-docs/2026-10-03-scramble-id.md) for
 pricing, police and pirate rules, SID1 save compatibility and native tests.
+
+Ship identification with I requires an installed I.F.F. Unit. Without it,
+the request reports `I.F.F. Not Installed`; registration assignment, saved IDs
+and radio addressing are unaffected.

@@ -168,7 +168,7 @@ elite_chrset:
 	dc.b "Beam Laser",0
 	dc.b "Fuel Scoop",0
 	dc.b "Escape Capsule",0
-	dc.b "Energy Bomb",0
+	dc.b "I.F.F. Unit",0
 	dc.b "Extra Energy Unit",0
 	dc.b "Docking Computer",0
 	dc.b "Galactic Hyperdrive",0
@@ -187,7 +187,7 @@ elite_chrset:
 	dc.b "Beam ",0
 	dc.b "Fuel Scoop",0
 	dc.b "Escape Capsule",0
-	dc.b "Energy Bomb",0
+	dc.b "I.F.F. Unit",0
 	dc.b "Energy Unit",0
 	dc.b "Docking Computer",0
 	dc.b "Gal. Hyperdrive",0

@@ -167,7 +167,6 @@ qa_world:
  clr.w docked(a6)
  clr.w collided(a6)
  clr.w npc_kill(a6)
- clr.w bomb_active(a6)
  clr.w obj_hit(a6)
  clr.w hit_check(a6)
  clr.w controls_locked(a6)

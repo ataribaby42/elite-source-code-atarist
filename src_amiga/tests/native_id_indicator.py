@@ -9,7 +9,7 @@ def make_suite(root, s):
     call=lambda name:f' jsr ${s[name]:x}\n'
     def case(name):
         names.append(name)
-        emit(f' move.w #{len(names)},qa_case\n bsr qa_world\n clr.w id_trigger(a6)\n clr.w check_key(a6)\n clr.w csr_on(a6)\n clr.w display_clock(a6)\n')
+        emit(f' move.w #{len(names)},qa_case\n bsr qa_world\n move.w #1,equip+iff_unit(a6)\n clr.w id_trigger(a6)\n clr.w check_key(a6)\n clr.w csr_on(a6)\n clr.w display_clock(a6)\n')
     def key(char):emit(f" moveq #'{char}',d0\n"+call('check'))
     def eq(value,field):emit(f' cmp.w #{value},{field}\n bne fail\n')
     for state in (0,1,2):

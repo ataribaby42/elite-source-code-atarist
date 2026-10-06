@@ -1054,7 +1054,7 @@ equip_coords:
 	dc equip_x,equip_y+52 ; beam laser
 	dc equip_x+64,equip_y+52 ; extra energy unit
 	dc equip_x+128,equip_y+52 ; escape capsule
-	dc equip_x+192,equip_y+52 ; energy bomb
+	dc equip_x+192,equip_y+52 ; I.F.F. unit
 	dc equip_x+256,equip_y+52 ; fuel scoop
 	dc equip_x,equip_y+104 ; docking computer
 	dc equip_x+64,equip_y+104 ; hyperdrive
@@ -1197,7 +1197,7 @@ equipment_desc:
 	dc.b "Ingram Model 1928A2 Beam Laser",0
 	dc.b "Deep Space ReQax Fuel Scoop",0
 	dc.b "Xeesian FastJet LSC Escape Capsule",0
-	dc.b "Medusa Pandora Energy Bomb",0
+	dc.b "Zerion Sentinel I.F.F. Unit",0
 	dc.b "Extra Zieman Energy Unit",0
 	dc.b "SinCorn RemLock Docking Computer",0
 	dc.b "Xexor/Hikan Galactic Hyperdrive",0

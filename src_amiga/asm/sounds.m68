@@ -9,7 +9,6 @@
     include "beam-loops.inc"
     include "rcs-loop.inc"
     include "engine-loop.inc"
-    include "bomb-sample.inc"
     xdef prepare_rcs_frame,publish_rcs_sound,stop_rcs_sound
 sounds_used: equ 0
 ; Length of the ECM wave in VBL ticks, 2.32 seconds at PAL 50 Hz. The Atari
@@ -65,10 +64,6 @@ fx:
     move.w #ecm_wave,ecm_ticks
     st ecm_on(a6)
 .enabled:
-    cmp.w #sfx_bomb,d0
-    bne .bomb_ready
-    move.w #bomb_audio_ticks+1,bomb_flash_ticks(a6) ; sample starts at the next VBL
-.bomb_ready:
     cmp.w #sfx_spacejump,d0
     bne.s .torus_ready
     st torus_audio_requested   ; owner state keeps the loop alive until quiet
@@ -188,15 +183,6 @@ play_effect:
     and.w #3,next_channel
     lea effect_ids,a0
     move.b d0,(a0,d6.w)
-    cmp.w #sfx_bomb,d0
-    bne .original_sample
-    lea bomb_sample,a0
-    move.w #bomb_sample_bytes,d2
-    move.w #bomb_audio_period,d7
-    move.w #bomb_audio_ticks,d3
-    lea bomb_descriptor(pc),a2
-    bra .envelope_setup
-.original_sample:
     lea effect_map(pc),a0
     move.b (a0,d0.w),d0
     and.w #255,d0
@@ -326,7 +312,6 @@ audio_settle:
 
 quiet:
     st audio_resetting         ; the main task may be interrupted by sound's VBL
-    clr bomb_flash_ticks(a6)
     bsr stop_engine_voice
     clr engine_request
     clr rcs_voice
@@ -384,10 +369,6 @@ start_fade:
 sound:
     tst audio_resetting
     bne .return
-    tst bomb_flash_ticks(a6)
-    beq .bomb_done
-    subq.w #1,bomb_flash_ticks(a6)
-.bomb_done:
     tst warp_ticks
     beq .ecm
     subq.w #1,warp_ticks
@@ -438,8 +419,6 @@ sound:
     beq.s .pitch
     subq.w #1,(a0)
     beq .expire
-    cmp.b #sfx_bomb,(a4)
-    beq .next                  ; enhanced bomb envelope is baked into the PCM
     tst.b 12(a2)
     bne.s .duration
     tst.b 14(a2)
@@ -1054,19 +1033,13 @@ play_music:
 
     include "amiga-samples.inc"
 ; Shared ST events -> corresponding effects in the supplied Amiga player.
-; SFX_BOMB bypasses this table and uses its own sample. Launch is unused here.
+; Launch uses its own engine loop.
 ; Radio receipt and countdown share original effect 18, distinct from target lock.
 effect_map:
-    dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,15,16,8
+    dc.b 0,1,15,3,7,6,4,16,17,12,11,14,13,10,16,8
     dc.b 0,18,18,9
     even
-; The bomb's attack, noise sweep and fade are baked into its own PCM sample.
-bomb_descriptor:
-    dc.b 0,0,0,64,0,0,0,0
     section amiga_audio,data
-bomb_sample:
-    incbin "bomb-sample.bin"
-    even
 amiga_samples:
     incbin "amiga-samples.bin"
     even

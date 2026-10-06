@@ -4,6 +4,12 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## 6.10.2029 V1.94
+
+- Reworked Equipment and Goods icons to be more readable.
+- Energy Bomb is replaced by Zerion Sentinel I.F.F. Unit
+- Fixed Atari sound effects to mute properly when finished or interrupted, preventing end-of-sound rattling.
+
 ## 5.10.2029 V1.93
 
 - Updated trader greetings to select players, pirates or other traders according to legal status and ships in the bubble.

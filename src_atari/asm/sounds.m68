@@ -360,10 +360,6 @@ q_sounds_m68_1:
 	move.w #ecm_wave,ecm_ticks(a6)
 	st ecm_on(a6)
 .enabled:
-	cmp.w #sfx_bomb,d0
-	bne.s .bomb_ready
-	move.w #107,bomb_flash_ticks(a6) ; FX_BANG: 32 attack + 75 decay VBLs
-.bomb_ready:
 	btst #f_fx,user(a6) ; effects enabled ?
 	q_ret eq ; no, return
 	cmp #1,sound_type(a6) ; music playing ?
@@ -492,10 +488,6 @@ q_sounds_m68_5:
 
 	q_subr sound,global
 
-	tst bomb_flash_ticks(a6)
-	beq.s .bomb_done
-	subq.w #1,bomb_flash_ticks(a6)
-.bomb_done:
 	tst warp_ticks(a6)
 	beq.s .ecm
 	subq.w #1,warp_ticks(a6)
@@ -1085,17 +1077,22 @@ q_sounds_m68_27:
 * **									 **
 * *****************************************
 
-* Silences a channel by setting the pitch to 0 and stopping any noise.
+* Mutes a channel before resetting its pitch and stopping any noise.
 * Any flag byte associated with the effect is also cleared.
 
 * Entry: A5 = ptr: current channel
 * Exit:  None
 
 * Regs: D0-D2 corrupt.
-* Subr: REG7_MASK, PSG_OUTPUT, SET_TONE.
+* Subr: SET_VOLUME, REG7_MASK, PSG_OUTPUT, SET_TONE.
 
 	q_subr silence_effect
 
+; YM2149 period zero still oscillates. Mute every completed or pre-empted
+; effect before changing its tone/noise gates, including fixed-volume sounds.
+	moveq #0,d0
+	bsr set_volume
+	clr clear_env(a5)
 	cmpa.l engine_channel(a6),a5
 	bne.s .check_rcs
 	clr.l engine_channel(a6)
@@ -1103,8 +1100,6 @@ q_sounds_m68_27:
 	cmpa.l rcs_channel(a6),a5
 	bne.s .ordinary
 	clr.l rcs_channel(a6)
-	moveq #0,d0
-	bsr set_volume
 ; RCS alone disables its tone gate. Restore it before a normal effect reuses it.
 	move.w reg_volume(a5),d2
 	subq.w #8,d2
@@ -1119,13 +1114,6 @@ q_sounds_m68_27:
 	or.b d0,d1
 	moveq #7,d0
 	bsr psg_output
-	tst clear_env(a5) ; envelope to clear ?
-; Quelo: 	if <ne> then.s						yes
-	beq.s q_sounds_m68_35
-	clr d0 ; volume = 0
-	move d0,clear_env(a5)
-	bsr set_volume
-q_sounds_m68_35:
 	move flag_ptr(a5),d0 ; flag to clear ?
 ; Quelo: 	if <ne> then.s						yes
 	beq.s q_sounds_m68_37
@@ -1287,7 +1275,6 @@ q_sounds_m68_37:
 * Subr:  ?
 
 	q_subr quiet,global
-	clr bomb_flash_ticks(a6)
 
 	clr warp_ticks(a6)
 	clr end_hyperspace(a6)
@@ -2206,81 +2193,6 @@ do_cargo:
 	q_ret
 
 
-* ******************************************************
-* **												  **
-* ** FX_BOMB	- ENERGY BOMB RELEASE & EXPLODE SOUND **
-* **												  **
-* ******************************************************
-
-* This effect is triggered when the ENERGY BOMB is released
-
-	q_subr fx_bomb
-
-	set_fx volume,15
-	set_fx noise_on
-	set_fx duration,5
-	set_fx cycle,15
-	set_fx service,do_bomb
-	set_fx done
-
-	q_ret
-
-do_bomb:
-
-	move duration(a5),d1 ; give the white-noise the tone value
-	moveq #6,d0 ; of _DURATION
-	bsr psg_output
-	q_dec duration(a5)
-	q_ret ne
-	move #5,duration(a5)
-	move cycle(a5),d0
-	bsr set_volume
-	q_dec cycle(a5)
-	beq silence_effect
-
-	q_ret
-
-
-* ********************************************
-* **										**
-* ** FX_BANG	- ENERGY BOMB EXPLODE SOUND **
-* **										**
-* ********************************************
-
-* This is part of the explosion effect
-
-	q_subr fx_bang
-
-	set_fx volume,0
-	set_fx noise_on
-	set_fx duration,2
-	set_fx cycle,16
-	set_fx service,do_bang
-	set_fx done
-
-	q_ret
-
-do_bang:
-
-	moveq #18,d1
-	moveq #6,d0
-	bsr psg_output
-	q_dec duration(a5)
-	q_ret ne
-	move #2,duration(a5)
-	move volume(a5),d0
-	bsr set_volume
-	q_inc volume(a5)
-	q_dec cycle(a5)
-	q_ret ne
-	set_fx duration,5 ; trigger the after effect
-	set_fx cycle,15
-	set_fx service,do_bomb
-	set_fx done
-
-	q_ret
-
-
 * *******************************************
 * **									   **
 * ** FX_DOOR - LAUNCH DOORS OPENING EFFECT **
@@ -2448,8 +2360,7 @@ fx_vectors:
 	dc.l fx_missile ; L
 	dc.l fx_warp ; M
 	dc.l fx_cargo ; N
-	dc.l fx_bang ; O
-	dc.l fx_doors ; P
+	dc.l fx_doors ; O
 	dc.l fx_teletype
 	dc.l fx_launch
 	dc.l fx_comm
