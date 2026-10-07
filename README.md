@@ -423,7 +423,10 @@ with five equally likely texts. Stations greet departing civilian AI ships and C
 Offender and Fugitive players receive a separate set of ten cautionary farewells,
 except in Anarchy, where all players receive the ordinary departure set.
 A positive cargo inspection on entry into the station S zone sends one of ten
-contraband warnings, without changing the existing penalties or docking rules.
+contraband warnings, without changing the existing penalty amounts or docking rules.
+Active Cloaking Device defers the inspection until the player becomes visible
+inside S; completed scans still rearm only beyond the existing outer S-zone
+hysteresis boundary, not when cloaking is toggled.
 On a close approach within 2,000 units, a human station sends one of ten docking clearances or five leave-area warnings according to the existing docking permission. The notification rearms on leaving S; losing permission after clearance sends one extra warning. A station hit within S sends that warning immediately, including after launch and beyond 2,000 units without prior clearance. It uses the same sent flag, so further hits cannot repeat it until the visit resets.
 Death, new/load game, hyperspace and docking
 clear the queue. See [Communications](game-docs/2026-10-04-comm-messages.md).

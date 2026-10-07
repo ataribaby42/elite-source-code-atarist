@@ -34,6 +34,15 @@ this inspection message. Neither launching nor switching between flight UI and
 3D repeats the inspection; the existing cargo checkpoint and its outer 512-unit
 hysteresis boundary control rearming after leaving station space.
 
+Active Cloaking Device defers the S-entry inspection itself: no cargo penalty,
+warning or completed-scan flag is produced while cloaked. If the player becomes
+visible while still inside S, the next normal flight update inspects the cargo
+then present, including on flight UI pages. A completed inspection remains
+completed when cloaking is toggled or the player moves just outside S; only
+reaching the existing outer boundary, 512 units beyond S, rearms it. Uncloaking
+outside S does not inspect cargo until the player re-enters S. Launch exemptions
+and the independent once-per-system police-response checkpoint are unchanged.
+
 The warning uses the existing cargo laws, including inspection in Anarchy. It
 does not add a second penalty, alter cargo, change police decisions, set a
 docking ban or consume/reset the docking-message latch. A close approach can
@@ -54,9 +63,10 @@ Mission cargo keeps its existing exclusion from the inspection.
 ## Shared exclusions and implementation
 
 The Thargoid-controlled mission station, alien station models, absent/destroyed
-stations and witch space stay silent. Active Cloaking Device suppresses the
-message and beep without consuming cosmetic randomness; it does not change the
-existing cargo-inspection penalty. A scrambled player ID remains `??-???`.
+stations and witch space stay silent. Active Cloaking Device defers S-entry
+inspection and suppresses new messages and beeps without consuming cosmetic
+randomness. The normal penalty and warning apply when a pending inspection
+becomes eligible after uncloaking inside S. A scrambled player ID remains `??-???`.
 
 The new departure texts occupy IDs 110â€“119 and contraband texts 120â€“129. Both
 sets use the existing unbiased ten-way station lottery, independent of gameplay,
@@ -89,3 +99,17 @@ scenarios per platform (145 station-radio and 45 actual-departure cases). The
 status/government matrix now requires ordinary farewells in Anarchy for every
 legal-status boundary and both visible and hidden IDs. ELITE and ELITE_ALT were
 rebuilt for each platform. Follow-up reports are in `build/station-radio-qa/anarchy`.
+
+
+The cloaking deferral follow-up passed **546 native scenarios per platform**,
+including 54 new `native_cloak_cargo.py` cases. The previous Atari build failed
+the first cloaked-entry case before the change. New cases exercise the actual
+cloak toggle, all governments, visible/hidden IDs, UI/3D, repeated updates and
+compass resets, pending and completed scans at both exact boundaries, changing
+cargo while cloaked, capped legal records, close-range docking messages, mission
+station silence, reset and real launch exemptions. Existing station-radio,
+approach, docking-policy, departure, lifecycle, cloak-radio, navigation and
+Scramble ID suites also pass. The production change gates only the pending cargo
+scan; the outer hysteresis and independent police checkpoint are unchanged.
+Both ELITE and ELITE_ALT were rebuilt for Atari and Amiga. Evidence and source
+snapshots are in each tree's `build/cloaked-cargo-qa` directory.

@@ -831,9 +831,13 @@ q_main_m68_63:
 ; Quelo: 	if.l d0 <lo> #spcstn_space then.s	yes
 	cmp.l #spcstn_space,d0
 	bhs.s q_main_m68_65
-; The low checkpoint byte tracks physical entry independently of the
+; The low checkpoint byte tracks a completed scan independently of the
 ; compass, which PREPARE_COCKPIT resets when returning from a flight menu.
+; Cloaked entries stay pending until visible inside S. Only the existing
+; outer hysteresis boundary below rearms an already completed inspection.
 	tst.b checkpoint+1(a6)
+	bne.s cargo_already_checked
+	tst.w cloaking_on(a6)
 	bne.s cargo_already_checked
 	st checkpoint+1(a6)
 	jsr check_cargo ; update record before the existing police response

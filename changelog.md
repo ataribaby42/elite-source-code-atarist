@@ -6,6 +6,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 
 ## 7.10.2029 V1.95
 
+- Cloaking Device now delays S-zone cargo inspections until the player uncloaks inside the zone.
 - Added 10 departure messages for Offenders and Fugitives; Anarchy stations retain normal greetings.
 - Added 10 contraband warnings triggered by cargo inspections when entering the station S zone.
 

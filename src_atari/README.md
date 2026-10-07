@@ -444,7 +444,7 @@ code is fatal on hosts that abort on a zero divide.
 
 ## Cargo inspections
 
-Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
+Fuel Scoop collection no longer adds an immediate legal penalty. Each entry into the station protection zone (S) checks all cargo: Firearms add 2 points per complete tonne; Slaves and Narcotics add 4. Inspections apply under all governments, saturate at 255, and repeat only after travelling at least 512 world units beyond the S boundary and re-entering the zone. Launching and switching flight screens do not trigger another inspection. Cloaking defers a pending inspection until the player becomes visible inside S; it does not reset a completed inspection. Purchase penalties and the existing once-per-system police response remain unchanged.
 
 
 ## Planet surfaces
@@ -501,7 +501,10 @@ Stations greet departing civilian AI ships and Clean players with one of ten equ
 Offender and Fugitive players receive a separate set of ten cautionary farewells,
 except in Anarchy, where all players receive the ordinary departure set.
 A positive cargo inspection on entry into the station S zone sends one of ten
-contraband warnings, without changing the existing penalties or docking rules.
+contraband warnings, without changing the existing penalty amounts or docking rules.
+Active Cloaking Device defers the inspection until the player becomes visible
+inside S; completed scans still rearm only beyond the existing outer S-zone
+hysteresis boundary, not when cloaking is toggled.
 Within S and at most 2,000 units from a human station, the player receives a docking clearance or leave-area warning according to the existing permission rules. Every clearance and denial uses this distance limit, including revocation after an earlier clearance. A station hit sets the ban and adds the existing 10 legal-record points immediately (capped at 255); its warning arrives immediately only within 2,000 units, otherwise on the next close approach. Sending a denial sets the same visit flag, so repeated hits cannot repeat it. Leaving S rearms notifications without clearing the ban.
 Death, new/load game, hyperspace and docking clear the queue. See
 [Communications](../game-docs/2026-10-04-comm-messages.md) for IDs, geometry and tests.

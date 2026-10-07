@@ -73,7 +73,11 @@ not consumed while cloaked. After uncloaking, current eligible conditions can
 produce messages normally; past departure/ejection events are not replayed.
 Station docking permissions, bans and S-zone latch resets still follow their
 existing rules. Cloaking does not bypass the Scramble ID docking restriction.
-Cargo ejection is the explicit legal-status exception described below.
+Cargo ejection has the legal-status exception described below. S-entry cargo
+inspections are deferred while cloaked and run when the player becomes visible
+inside S. An already completed inspection is not repeated by toggling cloaking;
+the existing outer S-zone hysteresis boundary still controls rearming. See
+[station cargo inspections](2026-10-07-station-radio.md) for the detailed rules.
 
 ## Registrations and callers
 
