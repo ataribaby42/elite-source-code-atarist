@@ -1,3 +1,4 @@
+	xref comm_cargo_detected
 	xref courier_open
 	xref ship_cargo_spare
 	include "common.def"
@@ -1278,8 +1279,9 @@ q_cargo_m68_53:
 ; 2 for Firearms, independent of government. Saturate the record at 255.
 ; Preserve every data/address register; no cargo or market values change.
 	q_subr check_cargo,global
-	movem.l d0-d1/d7/a0-a1,-(sp)
+	movem.l d0-d2/d7/a0-a1,-(sp)
 	move police_record(a6),d1
+	moveq #0,d2 ; track detection even when the record is already 255
 	lea hold(a6),a0
 	lea products(a6),a1
 	moveq #refugees-1,d7 ; mission cargo has no market entry
@@ -1292,6 +1294,9 @@ q_cargo_m68_53:
 	lsr.l #6,d0
 	divu #15625,d0
 	mulu naughty(a1),d0
+	tst.l d0
+	beq.s .next
+	moveq #1,d2
 	add d0,d1
 	cmp #255,d1
 	blo.s .next
@@ -1303,7 +1308,11 @@ q_cargo_m68_53:
 	dbra d7,.item
 .done:
 	move d1,police_record(a6)
-	movem.l (sp)+,d0-d1/d7/a0-a1
+	tst.w d2
+	beq.s .quiet
+	jsr comm_cargo_detected
+.quiet:
+	movem.l (sp)+,d0-d2/d7/a0-a1
 	rts
 
 

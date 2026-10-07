@@ -1059,7 +1059,9 @@ comm_friend_text: equ comm_pirate_text+10
 comm_alien_text: equ comm_friend_text+10
 comm_police_text: equ comm_alien_text+10
 comm_protest_text: equ comm_police_text+10
-comm_text_count: equ comm_protest_text+10
+comm_departure_caution_text: equ comm_protest_text+10
+comm_contraband_text: equ comm_departure_caution_text+10
+comm_text_count: equ comm_contraband_text+10
 station_traffic_range: equ 2000 ; trader launch exclusion and arrival greeting
 comm_hidden: equ $3f3f0000
 comm_count: rs.w 1

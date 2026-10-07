@@ -274,8 +274,41 @@
     move.l d0,d1
     bsr comm_random_departure
     tst.w d3
-    bne comm_enqueue_player
-    bra comm_enqueue
+    beq comm_enqueue ; civilian AI greetings do not use the player record
+    tst.w splanet+govern(a6) ; Anarchy always uses the ordinary farewell
+    beq comm_enqueue_player
+    tst.w police_record(a6)
+    beq comm_enqueue_player
+    add.w #comm_departure_caution_text-comm_departure_text,d0
+    bra comm_enqueue_player
+.done:
+    rts
+
+; One warning for a positive S-entry cargo inspection, including a capped
+; legal record. The existing cargo checkpoint owns repeat suppression.
+; Do not change the docking latch, permission, penalty or gameplay RNG.
+    q_subr comm_cargo_detected,global
+    tst.w cloaking_on(a6)
+    bne.s .done
+    tst.w witch_space(a6)
+    bne.s .done
+    tst.w station_destroyed(a6)
+    bne.s .done
+    cmp.w #$52,mission(a6)
+    beq.s .done
+    cmp.w #spacestn,station_rec+type(a6)
+    bne.s .done
+    btst #in_use,station_rec+flags(a6)
+    beq.s .done
+    movem.l d0-d2,-(sp)
+    bsr comm_id_station
+    move.l d0,d1
+    bsr comm_id_player
+    move.l d0,d2
+    bsr comm_random_ten
+    add.w #comm_contraband_text,d0
+    bsr comm_enqueue_player
+    movem.l (sp)+,d0-d2
 .done:
     rts
 
@@ -626,6 +659,26 @@ comm_texts:
     dc.w comm_text107-comm_texts
     dc.w comm_text108-comm_texts
     dc.w comm_text109-comm_texts
+    dc.w comm_text110-comm_texts
+    dc.w comm_text111-comm_texts
+    dc.w comm_text112-comm_texts
+    dc.w comm_text113-comm_texts
+    dc.w comm_text114-comm_texts
+    dc.w comm_text115-comm_texts
+    dc.w comm_text116-comm_texts
+    dc.w comm_text117-comm_texts
+    dc.w comm_text118-comm_texts
+    dc.w comm_text119-comm_texts
+    dc.w comm_text120-comm_texts
+    dc.w comm_text121-comm_texts
+    dc.w comm_text122-comm_texts
+    dc.w comm_text123-comm_texts
+    dc.w comm_text124-comm_texts
+    dc.w comm_text125-comm_texts
+    dc.w comm_text126-comm_texts
+    dc.w comm_text127-comm_texts
+    dc.w comm_text128-comm_texts
+    dc.w comm_text129-comm_texts
 comm_text0: dc.b 'Dumping cargo near this station is illegal.',0
 comm_text1: dc.b 'Cargo dumping is prohibited in the station zone.',0
 comm_text2: dc.b 'Illegal cargo disposal detected. This offence has been recorded.',0
@@ -737,4 +790,24 @@ comm_text106: dc.b "Cease fire! This is a civilian ship.",0
 comm_text107: dc.b "Back off and let us pass!",0
 comm_text108: dc.b "Our cargo isn't worth this!",0
 comm_text109: dc.b "Stop firing before someone dies!",0
+comm_text110: dc.b 'Have a good flight. Do not cause trouble out there.',0
+comm_text111: dc.b 'Departure cleared. Stay on the right side of the law.',0
+comm_text112: dc.b 'Fly safe, and keep your weapons to yourself.',0
+comm_text113: dc.b 'You may leave. Keep out of trouble.',0
+comm_text114: dc.b 'Safe travels. We expect better behaviour out there.',0
+comm_text115: dc.b 'Departure confirmed. Do not add to your record.',0
+comm_text116: dc.b 'Good flight. Leave the other traders in peace.',0
+comm_text117: dc.b 'You are clear to depart. Make this a lawful trip.',0
+comm_text118: dc.b 'On your way. We will be watching your record.',0
+comm_text119: dc.b 'Have a safe journey. Give our patrols no reason to stop you.',0
+comm_text120: dc.b 'Illegal cargo detected. Your offence has been recorded.',0
+comm_text121: dc.b 'Contraband found in your hold. Your record has been updated.',0
+comm_text122: dc.b 'Cargo scan complete. Illegal goods detected.',0
+comm_text123: dc.b 'You are carrying prohibited goods. This has been recorded.',0
+comm_text124: dc.b 'Contraband detected. Your legal record has been updated.',0
+comm_text125: dc.b 'Our scanners have detected illegal cargo aboard your ship.',0
+comm_text126: dc.b 'Prohibited cargo found. This offence is on your record.',0
+comm_text127: dc.b 'Illegal goods detected in your hold. Authorities notified.',0
+comm_text128: dc.b 'Cargo inspection failed. Contraband has been recorded.',0
+comm_text129: dc.b 'Your cargo violates the law. This offence has been logged.',0
     even

@@ -419,7 +419,11 @@ removes only the oldest message and starts a new five-second interval.
 The timer pauses in menus and resumes on return; new UI arrivals still shift a full
 queue. Pirate and scrambled identities appear as `??-???`. The first message
 type warns about illegal cargo dumping in the station S zone,
-with five equally likely texts. Stations greet departing civilian AI ships and the player with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+with five equally likely texts. Stations greet departing civilian AI ships and Clean players with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+Offender and Fugitive players receive a separate set of ten cautionary farewells,
+except in Anarchy, where all players receive the ordinary departure set.
+A positive cargo inspection on entry into the station S zone sends one of ten
+contraband warnings, without changing the existing penalties or docking rules.
 On a close approach within 2,000 units, a human station sends one of ten docking clearances or five leave-area warnings according to the existing docking permission. The notification rearms on leaving S; losing permission after clearance sends one extra warning. A station hit within S sends that warning immediately, including after launch and beyond 2,000 units without prior clearance. It uses the same sent flag, so further hits cannot repeat it until the visit resets.
 Death, new/load game, hyperspace and docking
 clear the queue. See [Communications](game-docs/2026-10-04-comm-messages.md).

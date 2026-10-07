@@ -22,6 +22,8 @@ def make_suite(root,s):
     ordinary=((48,50,65),(72,80,96),(100,106,109),(50,), (71,), (82,), (90,), (106,))
     profiles=[(ids,(False,)*len(ids)) for ids in ordinary]
     profiles += [((48,80,106),(True,False,True)), ((50,),(True,)), ((106,),(True,))]
+    profiles += [((i,), (True,)) for i in range(110,130)]
+    profiles += [((119,120,129), (True,True,True))]
     for ids,players in profiles:
         for hidden in (False,True):
             for visible in (False,True):
@@ -30,7 +32,7 @@ def make_suite(root,s):
                 emit(f' move.w #{n},qa_case\n'+call('comm_reset')+' bsr qa_clear\n')
                 for i,player in zip(ids,players):
                     enqueue='comm_enqueue_player' if player else 'comm_enqueue'
-                    emit(f' moveq #{i},d0\n move.l #$43316b00,d1\n move.l #{"comm_hidden" if hidden else "$4a532a00"},d2\n'+call(enqueue))
+                    emit(f' move.w #{i},d0\n move.l #$43316b00,d1\n move.l #{"comm_hidden" if hidden else "$4a532a00"},d2\n'+call(enqueue))
                 # Audience and display ID are receipt snapshots, independent of later changes.
                 emit(' move.l #$58590100,player_registration(a6)\n move.w #255,scrambled_id(a6)\n')
                 emit(f' move.w #{int(visible)},cockpit_on(a6)\n moveq #red,d0\n moveq #trans,d1\n'+call('text_colour')+' moveq #3,d0\n moveq #120,d1\n'+call('locate')+' move.l text_addr(a6),qa_text_addr\n'+call('comm_draw'))

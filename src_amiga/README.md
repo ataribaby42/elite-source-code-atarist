@@ -559,7 +559,11 @@ oldest message every seven seconds in 3D and pauses in UI. New UI arrivals
 immediately replace the oldest entry when full. Text
 is drawn only in 3D. Illegal station-zone jettison selects one of five warnings.
 Anarchy and the Thargoid-controlled station do not warn or penalize dumping.
-Stations greet departing civilian AI ships and the player with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+Stations greet departing civilian AI ships and Clean players with one of ten equally likely departure messages; police Vipers and alien stations are excluded.
+Offender and Fugitive players receive a separate set of ten cautionary farewells,
+except in Anarchy, where all players receive the ordinary departure set.
+A positive cargo inspection on entry into the station S zone sends one of ten
+contraband warnings, without changing the existing penalties or docking rules.
 Within S and at most 2,000 units from a human station, the player receives a docking clearance or leave-area warning according to the existing permission rules. Every clearance and denial uses this distance limit, including revocation after an earlier clearance. A station hit sets the ban and adds the existing 10 legal-record points immediately (capped at 255); its warning arrives immediately only within 2,000 units, otherwise on the next close approach. Sending a denial sets the same visit flag, so repeated hits cannot repeat it. Leaving S rearms notifications without clearing the ban.
 Death, new/load game, hyperspace and docking clear the queue. See
 [Communications](../game-docs/2026-10-04-comm-messages.md) for IDs, geometry and tests.

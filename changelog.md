@@ -4,6 +4,11 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## 7.10.2029 V1.95
+
+- Added 10 departure messages for Offenders and Fugitives; Anarchy stations retain normal greetings.
+- Added 10 contraband warnings triggered by cargo inspections when entering the station S zone.
+
 ## 6.10.2029 V1.94
 
 - Reworked Equipment and Goods icons to be more readable.

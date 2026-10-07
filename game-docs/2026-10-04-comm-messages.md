@@ -125,8 +125,13 @@ Anarchy stations also greet departing ships; this is independent of cargo law.
 Alien, absent and destroyed stations remain silent, including mission state $52
 and witch space. Pirate and scrambled player recipient IDs remain hidden.
 
-The player receives a greeting from the same set after the real launch animation, system
-reset and return to the cockpit, so the departure reset cannot erase it.
+A Clean player receives a greeting from the same set after the real launch animation,
+system reset and return to the cockpit, so the departure reset cannot erase it.
+Offenders and Fugitives instead receive one of ten cautionary farewells, except
+in Anarchy, where all players receive the ordinary set. The player record does
+not affect civilian AI departure greetings.
+See [station farewells and contraband warnings](2026-10-07-station-radio.md)
+for the additional texts and S-entry cargo inspection messages.
 Pressing the launch/view shortcut while already in flight does not repeat it.
 The existing queue, beep, UI pause and seven-second removal rules apply.
 
