@@ -67,6 +67,11 @@ clock_pending: rs.w 1 ; clock text still needs painting during this VBL
 	q_subr vblank,global
 
 	lea vars,a6 ; point to variables
+	move.l scr_base(a6),-(sp)
+	tst.l ui_scr_base(a6)
+	beq.s .screen_ready
+	move.l ui_scr_base(a6),scr_base(a6) ; cursor stays on the visible UI
+.screen_ready:
 	st flyback(a6) ; flyback has occured
 	q_inc frame_count(a6) ; increment frame counter
 	cmp #2,condition(a6) ; condition red ?
@@ -104,6 +109,7 @@ q_except_m68_6:
 	bsr paint_clock ; upper cursor is already drawn; also handles disabled cursor
 	jsr sound ; execute sound
 	bsr colour_cycle ; cycle colours
+	move.l (sp)+,scr_base(a6)
 
 	q_ret
 

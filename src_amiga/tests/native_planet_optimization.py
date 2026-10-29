@@ -51,6 +51,7 @@ def make_suite(root, s):
         body += f'snap_{label}:\n nop\n move.w #{shots},qa_snapshot\nqa_opt_wait_{shots}:\n tst.w qa_snapshot\n bne.s qa_opt_wait_{shots}\n'
 
     body += ' bset #f_planets,user+1(a6)\n' + call('prepare_cockpit') + call('front_view')
+    body+=' st game_frozen(a6)\n clr.l game_time(a6)\n clr.l game_time+4(a6)\n'
     for seed_index in range(3):
         for colour in (8, 1):
             for angle in range(0, 360, 45):

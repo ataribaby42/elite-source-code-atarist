@@ -6,7 +6,15 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 
 ## x.xx.2029 V1.96
 
-- Optimized planet rendering on Atari ST and Amiga without visual changes.
+- Optimized planet rendering with early visibility checks and cached vertex projections on Atari ST and Amiga.
+- Optimized horizon calculations and batched continent spans while preserving rendering accuracy.
+- Added procedural counts of 3–6 continents or craters, with eight vertices per continent.
+- Added 3D planet rotation with seeded direction and 30–120-minute periods tied to the STATUS clock.
+- Preserved the initial random planet orientation.
+- Added accelerated, frame-paced F7 rotation matching each planet’s rotation direction.
+- Fixed mouse cursor flickering during F7 planet animation.
+- Fixed the Atari ST issue preventing visible F7 planet rotation.
+- Added synchronized F7 display updates to prevent partially drawn planet artifacts on both platforms.
 
 ## 7.10.2029 V1.95
 

@@ -11,6 +11,8 @@ def make_suite(root,s):
     body+=call('ship_apply')+call('reset_system')+call('prepare_cockpit')+call('front_view')+call('clear_objects')
     body+=' lea planet_rec(a6),a4\n move.b #$87,flags(a4)\n move.w #planet,type(a4)\n move.w #16384,obj_rad(a4)\n move.l #100000,zpos(a4)\n'
     body+=call('create_object')
+    # Freeze the status clock for repeatable geometry and orbit captures.
+    body+=' st game_frozen(a6)\n clr.l game_time(a6)\n clr.l game_time+4(a6)\n'
     names=[];shots=0
     def case(name):
         nonlocal body
@@ -36,6 +38,120 @@ def make_suite(root,s):
         body+=' bsr qa_fill\n'+call('clear_image')+call('wait_clear')
         body+=f' lea planet_rec(a6),a5\n move.w #{radius*zy},scr_radius(a5)\n move.w #{x*zx},centre_x(a5)\n move.w #{y*zy},centre_y(a5)\n clr.l this_xpos(a5)\n clr.l this_ypos(a5)\n move.l #100000,this_zpos(a5)\n move.w #planet,d0\n'
         body+=call('draw_point')+' bsr qa_guard_check\n'
+    # Execute the real generator over adjacent seeds, including every allowed
+    # count. Validate record padding and unused records as well as determinism.
+    for colour,low,vertices,mask in ((8,3,8,0x78),(1,3,12,0x78)):
+        case(f'Seeded count {low}..6, geometry and repeatability across 64 seeds')
+        body+=f""" move.l #$12345678,random_seed(a6)
+ move.l #$5a4a0248,splanet+seed(a6)
+ move.w #$b700,splanet+seed+4(a6)
+ moveq #0,d5
+ moveq #63,d7
+qa_count_seed_{colour}:
+"""
+        init(colour)
+        body+=f""" cmp.l #$12345678,random_seed(a6)
+ bne fail
+ cmp.w #{vertices},ps_vertices(a6)
+ bne fail
+ cmp.w #30,ps_spin_minutes(a6)
+ blo fail
+ cmp.w #120,ps_spin_minutes(a6)
+ bhi fail
+ move.w ps_spin_direction(a6),d0
+ cmp.w #1,d0
+ beq.s qa_count_direction_{colour}
+ cmp.w #-1,d0
+ bne fail
+qa_count_direction_{colour}:
+ move.w ps_active(a6),d6
+ cmp.w #{low},d6
+ blo fail
+ cmp.w #6,d6
+ bhi fail
+ bset d6,d5
+ lea ps_map(a6),a0
+ move.w d6,d4
+ subq.w #1,d4
+qa_count_feature_{colour}:
+ move.w ps_vertices(a6),d3
+qa_count_point_{colour}:
+ move.w (a0)+,d0
+ muls.w d0,d0
+ move.w (a0)+,d1
+ muls.w d1,d1
+ add.l d1,d0
+ move.w (a0)+,d1
+ muls.w d1,d1
+ add.l d1,d0
+ cmp.l #4088*4088,d0
+ blo fail
+ cmp.l #4104*4104,d0
+ bhi fail
+ dbra d3,qa_count_point_{colour}
+"""
+        if vertices==8:
+            body+=f""" moveq #11,d3
+qa_count_padding_{colour}:
+ tst.w (a0)+
+ bne fail
+ dbra d3,qa_count_padding_{colour}
+"""
+        body+=f""" dbra d4,qa_count_feature_{colour}
+ lea ps_map+ps_features*ps_feature_bytes(a6),a1
+qa_count_unused_{colour}:
+ cmpa.l a1,a0
+ beq.s qa_count_unused_done_{colour}
+ tst.w (a0)+
+ bne fail
+ bra.s qa_count_unused_{colour}
+qa_count_unused_done_{colour}:
+ lea ps_map(a6),a0
+ lea qa_map(pc),a1
+ move.w #ps_features*ps_feature_bytes/2-1,d3
+qa_count_save_{colour}:
+ move.w (a0)+,(a1)+
+ dbra d3,qa_count_save_{colour}
+"""
+        init(colour)
+        body+=f""" cmp.w ps_active(a6),d6
+ bne fail
+ lea ps_map(a6),a0
+ lea qa_map(pc),a1
+ move.w #ps_features*ps_feature_bytes/2-1,d3
+qa_count_repeat_{colour}:
+ move.w (a0)+,d0
+ cmp.w (a1)+,d0
+ bne fail
+ dbra d3,qa_count_repeat_{colour}
+ addq.w #1,splanet+seed+4(a6)
+ dbra d7,qa_count_seed_{colour}
+ cmp.w #${mask:x},d5
+ bne fail
+"""
+    # Capture every allowed population, including both rendering extremes.
+    # Expected counts are checked against the native generator before drawing.
+    def first_random(word):
+        value=(((0x5a4a0248<<5)|(0x5a4a0248>>27))&0xffffffff)^word
+        value^=(value<<13)&0xffffffff
+        value^=value>>17
+        return value^((value<<5)&0xffffffff)
+    for colour,low,label in ((8,3,'land'),(1,3,'crater')):
+        examples={}
+        for word in range(0xb700,0xb740):
+            value=first_random(word)
+            count=(value&3)+3
+            examples.setdefault(count,word)
+        assert set(examples)==set(range(low,7))
+        for count,word in sorted(examples.items()):
+            case(f'Render {count} seeded {label} features')
+            body+=f' move.w #${word:x},splanet+seed+4(a6)\n'
+            init(colour)
+            body+=f' cmp.w #{count},ps_active(a6)\n bne fail\n'
+            render();snapshot(f'count_{label}_{count}')
+    case('Plain planets clear the active count after a detailed planet')
+    init(2)
+    body+=' tst.w ps_active(a6)\n bne fail\n tst.w ps_vertices(a6)\n bne fail\n'
     case('Same seed regenerates identical complete map without advancing gameplay RNG')
     body+=' move.l #$12345678,random_seed(a6)\n move.l #$5a4a0248,splanet+seed(a6)\n move.w #$b753,splanet+seed+4(a6)\n'
     init(8)

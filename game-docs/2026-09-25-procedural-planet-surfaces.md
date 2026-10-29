@@ -23,8 +23,11 @@ map to steady red for planet backgrounds. These choices do not
 advance the geometry generator or change the existing coastline.
 Seas and continents have independently oriented, elongated, irregular coasts;
 overlapping regions can form larger connected areas. They use a single palette
-colour without stippling or alternating rows. Eight regions or twelve craters
-are spread around the sphere. Each crater has eight rim vertices and four rays.
+colour without stippling or alternating rows. The system seed selects 3..6
+regions or 3..6 craters over the entire sphere. Each region has eight coastal
+vertices; its internal centre is used only for the triangle fan. Regions can
+overlap, so their count is not the number of separate visible land masses.
+Each crater retains eight rim vertices and four rays.
 Ray extensions vary from half to the full rim radius, with independent angular
 deflections between -10 and +10 degrees.
 
@@ -36,8 +39,9 @@ threshold the existing circle renderer runs without surface transformations.
 ## Options and Planet Data
 
 The row above Reset Game / Exit Program in Options contains `Planets: ON / OFF`.
-ON enables surface markings in flight and a rendered Planet Data portrait at zero rotation. The
-portrait uses the selected system's seed and the existing galaxy/planet colour
+ON enables surface markings in flight and an animated Planet Data portrait.
+The preview starts at zero rotation on each visit and then turns in the same
+seeded direction as the real planet, at an accelerated speed. The portrait uses the selected system's seed and the existing galaxy/planet colour
 table, regardless of the current flight view or hyperspace arrival longitude.
 OFF keeps the original plain flight globe and textured bitmap on Planet Data.
 
@@ -71,13 +75,17 @@ shadow and invalidate its screen mirrors after the direct copy.
 
 Each tree owns `asm/planet.m68`. `init_planet_surface` combines the current
 system's three seed words into a private xorshift32 state. It generates and
-caches only that system's geometry, independent of the gameplay random state.
+caches the flight system's geometry, independent of the gameplay random state.
+The first private random value selects the feature count, rotation direction
+and period; subsequent values choose positions and shapes. All these properties
+repeat for the same seed. Planet Data keeps a separate selected-system cache.
 The map is regenerated after hyperspace and on launch, with no save-file layout changes.
 
 Hyperspace creation and station launch with Planets ON call `turn_planet_surface`. It samples the
 existing random state without advancing it and chooses one of 64 longitudes
 (5.625-degree steps) around the vertical axis. This simulates rotation while
-away or docked; it does not regenerate geography or animate rotation during the visit.
+away or docked; it does not regenerate geography. Continuous local-axis spin
+is added to this arrival orientation using the status-screen game clock.
 Launch with Planets OFF keeps the original orientation. Player roll and pitch now update
 the planet's orientation even though it retains its point-object flag for
 gameplay, collisions and draw ordering. Other point objects keep their old path.
@@ -104,7 +112,8 @@ use a bounded triangle fan. The two alternating polygon colour rows contain
 identical masks, avoiding the striped result produced by using line-colour data
 as a polygon material.
 
-The renderer first transforms only Z for all thirteen vertices of a feature.
+The renderer first transforms only Z for the nine points of a region
+(centre plus eight coast vertices), or all thirteen points of a crater.
 If all vertices are behind the horizon, it skips their X/Y transformations.
 Otherwise it computes X/Y and projects each near-side vertex once into a
 per-feature screen-coordinate cache. Coast polygons, triangle fans and crater
@@ -422,3 +431,300 @@ hashes, private emulator configurations, captures, cleanup verification and
 `comparison-ELITE.json` / `comparison-ELITE_ALT.json` reports are under each
 platform's `build/planet-opt4-qa` directory. The Atari directory also contains
 `comparison-summary.json`, covering both platforms and all measured radii.
+
+
+## Seeded feature counts and six-point coasts (2026-10-29)
+
+Both enhanced builds now use six coastal vertices per filled region, plus the
+internal fan centre. The region has six fan triangles when clipping requires
+the fallback path. Craters retain eight rim vertices and four ray endpoints.
+The first value from the private seeded generator selects 1..6 filled regions
+or 3..6 craters. The count covers the complete sphere; overlap and the hidden
+hemisphere can reduce the number of separate markings visible in one view.
+
+Counts are chosen once during map generation and repeat for the same system
+seed. Surface colour selection does not consume this generator, so filled
+worlds with different base colours still share the same count and geography
+for the same seed. Gameplay randomness remains unchanged. Planet Data saves
+and restores the count and point limit together with the live surface state.
+
+A map now reserves six feature records. Each record retains space for thirteen
+points so crater indexing stays unchanged; the six unused coastal slots are
+cleared and skipped. Visibility, transformation and projection visit seven
+points for a filled region and thirteen for a crater. Fast polygon filling and
+the clipped fan both use six coastal vertices. The surface workspace uses
+2,196 bytes inside its unchanged 3,200-byte reservation, including the portrait
+backup; the existing span-batch capacity is unchanged.
+
+### Performance sample
+
+The same radius-48 fixture measures eight longitudes and 256 detail passes on
+an emulated 8 MHz Atari ST and a cycle-exact PAL Amiga 68000, each with 1 MB RAM.
+The seed `5a4a 0248 b753` now generates three regions or four craters. The prior
+measurements below come from the retained optimization-4 build, whose source
+hash matches the source saved before this change. That version generated eight
+regions with twelve coastal vertices, or twelve craters.
+
+| Platform, standard ELITE | Detail | Previous time | Current time | Time reduction |
+| --- | --- | ---: | ---: | ---: |
+| Atari ST | Regions | 86.875 ms | 21.797 ms | 74.91% |
+| Atari ST | Craters | 39.141 ms | 13.750 ms | 64.87% |
+| Amiga 68000 | Regions | 102.969 ms | 25.781 ms | 74.96% |
+| Amiga 68000 | Craters | 47.422 ms | 16.719 ms | 64.74% |
+
+These are detail-pass times, excluding the base circle and other frame work.
+They reflect the requested changes to both geometry and population, and are
+not a comparison of identical images. Other seeds have different counts and
+costs. Timing uses the same 50 Hz VBL counter as the earlier measurements.
+
+### Validation
+
+The standard `ELITE` and `ELITE_ALT` distributions were built and tested on
+both platforms. Each passed 201 native scenarios (804 total), including
+64 seeds per surface type, both range endpoints and every intermediate count,
+repeat generation, gameplay RNG preservation, normalized vertices, cleared
+unused records and coastal padding. Ten new captures exercise every allowed
+population. Existing tests cover viewport guards, orbit rotation, hidden
+features, palette selection, Planets OFF, saves and Planet Data state restore.
+
+Per distribution, 37 decoded frames remain inside the plain globe silhouette,
+and six framebuffer comparisons verify full-orbit repetition, hidden and
+disabled markings, and repeatable portraits. The exact horizon arithmetic and
+span-union regressions also pass. Emulator instances used verified private
+hidden Windows desktops, with no interaction with the user's emulator.
+
+The Python suites passed 35 Atari and 36 Amiga tests, with one pre-existing
+skip per platform. QA reports, snapshots and timing data are under each tree's
+`build/planet-counts-qa`. All four distribution images match the tested copies.
+The preserved source archive, original game tree and changelog were not changed.
+
+
+## Eight-point coasts and animated planets (2026-10-29)
+
+This revision supersedes the six-point coast and 1..6 region settings above.
+Both platforms now generate 3..6 filled regions with eight coastal vertices
+plus an internal fan centre, or 3..6 craters with their existing eight rim
+vertices and four rays. The same seed also determines a local rotation
+direction and an integer period from 30 through 120 game minutes, following
+the period-range update below.
+
+Flight rotation reads the seconds, minutes, hours and days displayed on the
+status screen. Its phase is derived from that clock, not accumulated once per
+frame, so lower frame rates do not change the period. The calculation follows
+the saved clock, including its existing 24-day reset. It adds local-axis spin
+to the temporary rendering matrix and leaves the object's stored orientation
+and position unchanged. The existing random longitude on hyperspace arrival
+and station launch is retained, as are the player's roll and pitch transforms.
+The 64-entry trigonometric table is interpolated to a 16-bit full-turn phase.
+
+F7 uses a deliberately accelerated preview with the selected planet's real
+rotation direction. It advances 1/256 turn (1.40625 degrees) per rendered
+main-loop frame. The docked menu has the same minimum three-flyback spacing as
+the flight loop, so it cannot spin faster merely because that menu otherwise
+polls input without a frame limit. At 12 rendered frames per second a preview
+turn takes about 21.3 seconds; the PAL minimum interval permits at most about
+16.7 frames per second. A late frame produces one step, without a catch-up
+burst. Leaving F7, turning Planets OFF, entering the cockpit or pausing stops
+the preview updates.
+
+Opening F7 regenerates its selected map once. Subsequent frames use the private
+cache and preserve the entire flight surface workspace, live planet object,
+view and gameplay RNG. Each frame is drawn into the invisible scratch screen;
+only pixels belonging to the globe are copied back. This keeps the distance
+arrow, captions, inhabitants and other page contents intact. The cursor handling
+was subsequently corrected as described below. The combined surface state,
+flight backup and preview cache originally used 2,708 of the existing 3,200
+reserved bytes on each platform.
+
+### Original rotation validation (2..24-hour revision)
+
+Standard `ELITE` and `ELITE_ALT` builds passed 218 native scenarios each on
+Atari ST and Amiga 68000, for 872 scenarios in total. The new
+`tests/native_planet_rotation.py` fixture checks 368 exact clock-phase vectors
+per distribution, covering every period from 2 through 24 hours, both signs,
+quarter/full turns, second/minute/day boundaries and the clock's final day.
+It verifies unchanged arrival basis vectors and geography during flight spin,
+preview rate limiting, the selected system's direction, cache reuse, preservation
+of input events and flight state, and stopping on pause, Planets OFF, cockpit
+entry and another UI page.
+
+Per distribution, eleven pairs of framebuffer captures match exactly, including
+full periods and opposite-direction quarter turns. A separate status-page check
+allows only its normal ticking/flashing game-clock row to change after leaving
+F7. Forty-five flight frames remain inside the globe silhouette. Eight successive
+F7 updates change globe pixels while preserving all pixels outside its circle.
+The Python suites also passed (35 Atari and 36 Amiga tests, with one existing
+skip each). All emulator runs used verified private hidden desktops and private
+disks. Release disk hashes match the tested copies; QA evidence is in each tree's
+`build/planet-rotation-qa`. The original source archive remains unchanged.
+
+## F7 cursor visibility correction (2026-10-29)
+
+The animated portrait previously erased the software cursor before rendering
+each frame and disabled its VBL updates until the whole operation finished.
+The next VBL redrew it, but another preview frame soon erased it again. This
+made the cursor visibly blink even when it did not overlap the globe.
+
+Both platforms now keep a separate visible UI screen pointer while rendering
+the portrait offscreen. The VBL temporarily uses that pointer, so the normal
+cursor renderer and mouse/joystick handling continue during the expensive draw.
+It restores the main loop's drawing target before returning.
+
+Only the final portrait copy briefly holds cursor movement. It leaves the
+visible cursor rectangle intact and merges covered globe words into the
+cursor's saved background instead. The next normal VBL redraw applies that
+background, including when the mouse moves away. There is no extra cursor
+erase/redraw outside the VBL and no clearing of queued movement or clicks.
+Amiga handles both its cached cursor background layout and the general sprite
+fallback. Atari uses its own interleaved sprite layout.
+
+The fix adds four bytes within the reserved planet workspace (2,712 bytes used)
+and a four-byte visible UI pointer. Planet geometry, colours, rotation direction,
+phase calculation and preview step size are unchanged.
+
+### Validation of cursor visibility
+
+Both standard distributions passed 184 native cursor checks per platform.
+These cover all three cursor types, all 16 horizontal shifts, globe overlap,
+clipping at screen edges, queued clicks, movement and exact full-screen
+background restoration. Amiga `ELITE_ALT` additionally passed 48 cases with
+the cached cursor path disabled, exercising the general sprite fallback.
+Across the 784 cases, VBL probes observed 2,802 rendering-time flybacks without
+a missing cursor or an incorrect sampled opaque pixel. The original Atari
+binary failed the same regression on its first case, with the cursor absent
+during the three observed flybacks.
+
+An uninstrumented Amiga main-loop run then captured 150 native display frames:
+50 each with the cursor over the globe, clipped at the top edge and overlapping
+the globe's lower-right edge. Every visible opaque cursor pixel matched the
+reference in every capture while the planet animation continued.
+
+All four standard builds also passed the existing 218 native planet scenarios
+and their framebuffer validation. For each distribution, 46 flight and F7
+frames match the pre-fix binary byte for byte. The Python suites passed 35 Atari
+and 36 Amiga tests, with one existing skip each. Tests used private disks and
+verified hidden desktops; release disks match those tested. Diagnostics are
+under each source tree's `build/planet-cursor-qa` directory.
+
+## F7 presentation and live Atari rotation corrections (2026-10-29)
+
+### Atari destination address
+
+The F7 entry points accept word-sized coordinates. The portrait copy converted
+X to a byte offset with word operations, then added it to the screen address as
+a longword. An unrelated upper half left in D0 by the normal game loop therefore
+became part of the destination address. Rotation phase advanced, but the visible
+globe stayed unchanged. The controlled native fixture had previously supplied
+zero upper halves and did not expose this live-loop failure.
+
+The Atari renderer now clears the unused upper half before adding the offset.
+The rotation fixture deliberately supplies nonzero upper halves and checks the
+destination on every subsequent F7 step. The previous binary fails this check;
+both corrected Atari distributions pass all 218 native planet scenarios.
+
+A separate cold boot in a private Steem SSE 4.1.2 instance, using TOS 1.04 UK,
+1 MB RAM and Lave with Planets ON, reproduced the user's symptom: all 15 globe
+captures were identical despite an advancing phase. The corrected program
+produced 15 different globe captures; the first and last differed at 1,128
+interior pixels. The tested image was copied to the user's specified emulator
+disk path, with its previous contents retained under `build/planet-present-qa`.
+The emulator must boot the updated program to replace its old RAM contents.
+
+### Amiga display transfer
+
+The original masked copy modified the visible bitplanes through intermediate
+AND/OR states. Display DMA could read those states or a mixture of old and new
+planes, producing short horizontal strips in colours absent from the planet.
+An ordinary Orerve F7 session reproduced this in three of 200 native WinUAE
+display captures; completed framebuffer comparisons alone could not detect it.
+
+The Amiga renderer now completes the masked composition on the invisible
+screen, records the changed 16-pixel groups, and transfers those groups through
+direct stores after the beam has passed the portrait. Unchanged groups are not
+transferred. Each changed row also checks the beam before writing: if a slow
+transfer crosses into the next field, it waits until that row has been scanned
+instead of exposing partially updated bitplanes. This is confined to F7
+presentation; flight geometry and the four existing rendering optimizations
+are unchanged.
+
+The visible cursor remains drawn throughout. Its saved background receives
+covered planet words. Cursor redraw is held during the final composition,
+raster wait and transfer, while interrupts, sound and queued input continue.
+This also prevents the slower general HiRes cursor path on a 68000 from
+repeatedly consuming the transfer window. Cursor updates continue normally
+through the longer offscreen planet rendering work.
+
+The planet workspace uses 2,884 bytes in single-height modes and 3,044 bytes in
+double-height modes, within the existing 3,200-byte reservation. Surface shapes,
+colours, seeded direction, 2–24 STATUS-hour flight periods, arrival orientation
+and the accelerated F7 phase step are unchanged.
+
+### Atari scanout transfer
+
+Following the additional report of vertical F7 artifacts on Atari, its own
+renderer received the same offscreen-composition and changed-group transfer
+approach. It uses the ST video address counter, rather than Amiga registers,
+to start below the globe and protect each destination row from Shifter reads.
+All four interleaved plane words are transferred directly. The address fix
+above remains in place, and the cursor's saved background is preserved.
+The Atari planet workspace now uses 2,884 of its reserved 3,200 bytes.
+
+Synchronization adds some F7 overhead. A short Steem sample of Lave measured
+about 9.5 preview updates per second at 8 MHz, compared with about 12.4 using
+the address-corrected but unsynchronized copy. This affects the F7 presentation
+path; the flight renderer and STATUS-clock rotation calculation are unchanged.
+
+### Final verification
+
+All 18 Amiga release distributions were rebuilt and booted on private hidden
+desktops: standard PAL, WIDE PAL/NTSC, PAL/NTSC HiRes, PAL/NTSC HiRes interlace,
+and DblPAL/DblNTSC, each with both graphics sets. Non-doubled modes were also
+stressed on a 68000; doubled modes used AGA and a 68020. Each distribution
+passed 120 native display captures, with advancing rotation in the correct
+direction and working F7 exit/re-entry. None of the 2,160 frames contained an
+unexpected globe colour, including a second check covering 95% of its radius.
+
+Both Atari distributions passed 200 native Hatari display captures each without
+unexpected globe colours. The preceding unsynchronized Atari captures did not
+reproduce the user's transient artifact in Hatari, so those captures alone do
+not establish the original symptom's cause. The transfer now explicitly avoids
+partially updated plane words during scanout. A separate private Steem session
+confirmed that all 15 successive Lave globe captures still differ after this
+presentation change.
+
+All four standard distributions passed 218 native planet scenarios each.
+Atari passed 184 cursor scenarios per distribution; Amiga passed 232, including
+its general sprite fallback. Amiga additionally passed 150 native opaque-cursor
+captures per graphics set. For every standard distribution, 46 flight and F7
+framebuffers match the previous intended appearance byte for byte, and the
+existing clock, silhouette and preview-boundary validations pass. Python tests
+passed 35 Atari and 36 Amiga cases, with one existing skip per tree.
+
+Final binaries, private test copies, native captures and verification reports
+are under each tree's `build/planet-present-qa/release`. Release outputs and the
+user's specified Atari disk are byte-identical to their tested copies. The
+historical source archive and original-game tree were not changed.
+
+
+## Shorter flight rotation periods (2026-10-29)
+
+Both independent platform trees now select an integer rotation period from
+30 through 120 STATUS-clock minutes, inclusive, replacing the previous
+2..24-hour range. The same seeded value selects the period without consuming
+another random number. Seeded direction, continent/crater geometry and initial
+arrival orientation are unchanged. Flight phase still follows the saved STATUS
+clock, and the accelerated F7 preview keeps its existing speed and direction.
+The cached period is stored in minutes, so phase calculation no longer needs
+an hours-to-minutes multiplication.
+
+The standard `ELITE` and `ELITE_ALT` distributions were rebuilt for both
+platforms. Each passed 218 native scenarios, including 1,456 exact phase checks
+covering all 91 periods in both directions, full and quarter turns, sub-minute
+positions and day boundaries. Per distribution, 168 framebuffer captures match
+the preceding release byte for byte at equivalent rotation angles; the existing
+F7 circle bounds, full-turn and opposite-direction comparisons also pass.
+Python tests passed 35 Atari and 36 Amiga cases, with one existing skip each.
+Emulator tests ran on verified private hidden desktops. Evidence is under each
+tree's `build/planet-present-qa/period-minutes`. The four output disk images match
+the tested copies, and the user's specified Atari `ELITE_ALT.ST` was updated
+with a preserved backup under the Atari build directory.

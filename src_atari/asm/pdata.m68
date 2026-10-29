@@ -1,4 +1,5 @@
 	xref ship_put_bitmap,ship_bitmap,draw_planet_portrait,cockpit
+	xref animate_planet_portrait
 	include "common.def"
 ; Ported from src_orig/asm/pdata.m68; edit this copy.
 * @@@@@@  @@@@@ 	 @@    @@@@@@	 @@
@@ -353,6 +354,30 @@ q_pdata_m68_6:
 	jsr init_cursor
 
 	q_ret
+
+
+; Called once by the main loop, after the flight frame (or while docked).
+; The page's cursor table is its identity; leaving F7 stops preview work.
+    q_subr update_planet_data,global
+    tst.w cockpit_on(a6)
+    bne.s .done
+    tst.w game_frozen(a6)
+    bne.s .done
+    tst.w game_over(a6)
+    bne.s .done
+    btst #f_planets,user+1(a6)
+    beq.s .done
+    movem.l d0-d1/a0,-(sp)
+    lea data_action_table(pc),a0
+    cmpa.l action_table(a6),a0
+    bne.s .restore
+    move.w #planet_x,d0
+    move.w #planet_y,d1
+    jsr animate_planet_portrait
+.restore:
+    movem.l (sp)+,d0-d1/a0
+.done:
+    rts
 
 
 ; Reserve only the flight RGB entries actually needed by the rendered globe.

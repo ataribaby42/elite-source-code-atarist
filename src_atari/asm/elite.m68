@@ -54,7 +54,7 @@
 
 	xref initialise,attract,check_keys,quiet,game_logic,prepare_text
 	xref print_string,end_game,cockpit,read_key,put_bitmap,find_bitmap
-	xref comm_update
+	xref comm_update,update_planet_data
 	xref prepare_rcs_frame
 
 	section text,code
@@ -84,6 +84,7 @@ q_elite_m68_5:
 	tst docked(a6) ; docked ?
 	q_call eq,game_logic ; no, perform game logic
 q_elite_m68_7:
+	jsr update_planet_data ; animate F7 once per main-loop frame
 	tst game_over(a6) ; until game over
 	beq q_elite_m68_5
 q_elite_m68_6:

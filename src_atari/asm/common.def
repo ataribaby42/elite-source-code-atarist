@@ -1091,6 +1091,8 @@ comm_last_tick: rs.l 1 ; real flyback clock at the last update
 comm_queue: rs.b comm_capacity*comm_size
 comm_buffer: rs.b 96 ; 15-character prefix, at most 63 text characters, NUL
 
+ui_scr_base: rs.l 1 ; visible UI target while the main loop renders offscreen
+
 var_size: equ __RS ; size of variables
 
 ; Pointers to common objects.
