@@ -11,6 +11,7 @@ SECTIONS
     hyper_buffer = .;  . = . + 3 * 15 * 8;
     left_arm = .;      . = . + 200 * 2;
     right_arm = .;     . = . + 200 * 2;
+    *(planet_spans)
     . = . + 32768 - (. & 0x7fff);
     other_screen = .;  . = . + 16384 * 2;
     save1_buffer = .;  . = . + 4096;

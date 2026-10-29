@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## x.xx.2029 V1.96
+
+- Optimized planet rendering on Atari ST and Amiga without visual changes.
+
 ## 7.10.2029 V1.95
 
 - Cloaking Device now delays S-zone cargo inspections until the player uncloaks inside the zone.

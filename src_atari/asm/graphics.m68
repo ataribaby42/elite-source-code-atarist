@@ -48,6 +48,11 @@ vertex_list1: rs.b node_len*max_vert ; vertex list #1
 vertex_list2: rs.b node_len*max_vert ; vertex list #2
 which_list: rs.l 1 ; ptr: which list to use next
 message_pulse: rs.w 1 ; current message uses the engine/tunnel pulse colour
+batch_ready: rs.w 1 ; span counts initialized; END clears the touched rows
+batch_active: rs.w 1 ; collect a continent instead of painting each triangle
+batch_min: rs.w 1 ; touched physical screen rows
+batch_max: rs.w 1
+batch_remaining: rs.w 1 ; intervals left in the current output row
 
 	q_end_vars graphics
 
@@ -1712,6 +1717,8 @@ q_graphics_m68_146:
 	cmp bottom_y(a6),d0
 	blt q_graphics_m68_139
 q_graphics_m68_140:
+    tst.w batch_active(a6)
+    bne polygon_batch_collect
 	move top_y(a6),d7 ; fetch start y coordinate
 	clr offset(a6) ; assume even line
 	btst #0,d7 ; corrent ?
@@ -1753,6 +1760,150 @@ q_graphics_m68_156:
 	q_ret return
 
 
+; A continent has at most twelve clipped triangles. Keep their exact inclusive
+; spans, including disjoint intervals in concave coastlines. All triangles use
+; the same colour; their union can therefore be painted once without changing
+; Bresenham rounding, directed horizon intersections or viewport clipping.
+polygon_span_bytes: equ 2+12*4
+
+; BEGIN/END bracket at most twelve polygons of one colour in the viewport.
+; BEGIN preserves A5; END preserves A5 and clears every touched row count.
+    q_subr begin_polygon_batch,global
+    tst.w batch_ready(a6)
+    bne.s .ready
+    move.w #1,batch_ready(a6)
+    lea polygon_spans,a0
+    move.w #y_size-1,d0
+.clear:
+    clr.w (a0)
+    lea polygon_span_bytes(a0),a0
+    dbra d0,.clear
+.ready:
+    move.w #y_top+y_size,batch_min(a6)
+    move.w #-1,batch_max(a6)
+    move.w #1,batch_active(a6)
+    rts
+
+; Called only after SOLID_POLYGON has generated the original left/right arms.
+polygon_batch_collect:
+    move.w top_y(a6),d0
+    cmp.w batch_min(a6),d0
+    bge.s .min_ready
+    move.w d0,batch_min(a6)
+.min_ready:
+    move.w bottom_y(a6),d7
+    cmp.w batch_max(a6),d7
+    ble.s .max_ready
+    move.w d7,batch_max(a6)
+.max_ready:
+    sub.w d0,d7
+    sub.w #y_top,d0
+    mulu.w #polygon_span_bytes,d0
+    lea polygon_spans,a0
+    adda.l d0,a0
+    lea left_arm,a3
+    lea right_arm,a4
+.row:
+    move.w (a3)+,d0
+    move.w (a4)+,d2
+    cmp.w d2,d0
+    bls.s .ordered
+    exg d0,d2
+.ordered:
+    move.w (a0),d3
+    lea 2(a0),a1
+    moveq #0,d4
+.scan:
+    cmp.w d3,d4
+    beq.s .append
+    move.w 2(a1),d1
+    addq.w #1,d1
+    cmp.w d1,d0
+    bgt.s .skip
+    move.w d2,d1
+    addq.w #1,d1
+    cmp.w (a1),d1
+    blt.s .skip
+    cmp.w (a1),d0
+    ble.s .left_ready
+    move.w (a1),d0
+.left_ready:
+    cmp.w 2(a1),d2
+    bge.s .right_ready
+    move.w 2(a1),d2
+.right_ready:
+    ; Most rows have one connected interval: update it without list removal.
+    cmp.w #1,d3
+    beq.s .store
+    subq.w #1,d3
+    move.w d3,(a0)
+    move.w d3,d1
+    lsl.w #2,d1
+    move.l 2(a0,d1.w),(a1)
+    lea 2(a0),a1
+    moveq #0,d4
+    bra.s .scan
+.skip:
+    addq.l #4,a1
+    addq.w #1,d4
+    bra.s .scan
+.append:
+    addq.w #1,d3
+    move.w d3,(a0)
+.store:
+    move.w d0,(a1)
+    move.w d2,2(a1)
+    lea polygon_span_bytes(a0),a0
+    dbra d7,.row
+    rts
+
+    q_subr end_polygon_batch,global
+    clr.w batch_active(a6)
+    move.w batch_min(a6),d7
+    cmp.w batch_max(a6),d7
+    bgt .done
+    move.l a5,-(sp)
+    move.w d7,d0
+    sub.w #y_top,d0
+    mulu.w #polygon_span_bytes,d0
+    lea polygon_spans,a3
+    adda.l d0,a3
+    move.w d7,d0
+    mulu.w #160,d0
+    add.l scr_base(a6),d0
+    move.l d0,a4
+.row:
+    lea polygon_span_bytes(a3),a5
+    move.w (a3)+,batch_remaining(a6)
+    beq.s .next_row
+    clr.w -2(a3) ; recycle touched rows for the next continent
+.span:
+    move.w (a3)+,d0
+    move.w (a3)+,d2
+    move.w d0,d1
+    lsr.w #1,d1
+    and.w #$7ff8,d1
+    ext.l d1
+    move.l a4,a0
+    adda.l d1,a0
+    move.l colour_ptr(a6),a1
+    btst #0,d7
+    beq.s .colour_ready
+    addq.l #8,a1
+.colour_ready:
+    bsr horiz_line
+    subq.w #1,batch_remaining(a6)
+    bne.s .span
+.next_row:
+    move.l a5,a3
+    adda.l #160,a4
+    addq.w #1,d7
+    cmp.w batch_max(a6),d7
+    ble.s .row
+    move.l (sp)+,a5
+.done:
+    rts
+
 * ********************************************************
 * **													**
 * ** C_SOLID_POLYGON - DRAW SOLID POLYGON WITH CLIPPING **
@@ -1767,6 +1918,7 @@ q_graphics_m68_156:
 
 * Regs: ?
 * Subr: ?
+
 
 	q_subr c_solid_polygon,global
 
@@ -2292,3 +2444,6 @@ clip_list:
 	dc.w off_top
 	dc.l intersect_top
 
+
+    section planet_spans,bss
+polygon_spans: ds.b polygon_span_bytes*y_size
