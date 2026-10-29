@@ -234,6 +234,8 @@ q_combat_m68_11:
 
 	q_subr is_combat_ship,global
 
+	cmp.w #log_departure_cloud,logic(a4)
+	beq.s .no
 	move type(a4),d0
 	cmp #viper,d0 ; police
 	beq.s .yes
@@ -431,6 +433,8 @@ faction_mask:
 	moveq #1,d0 ; passive, may be drawn in
 	cmp #log_cruise,d1
 	beq.s .done
+	cmp #log_departure_wait,d1
+	beq.s .done
 	cmp #log_fly_planet,d1
 	beq.s .done
 	moveq #2,d0 ; already in a fight
@@ -475,6 +479,11 @@ faction_mask:
 	cmp #act_attack,attack_type(a5) ; and must be able to fight back
 	bne.s .done
 	move logic(a5),d1 ; may this logic be disturbed ?
+	cmp.w #log_peel_off,d1
+	bne.s .departure_checked
+	cmp.w #log_departure_wait,next_logic(a5)
+	beq.s .done ; finish the station departure turn before choosing a jump
+.departure_checked:
 	bsr combat_state
 	tst d0
 	beq.s .done ; no
@@ -1048,6 +1057,8 @@ q_combat_m68_67:
 	q_subr laser_in_sights
 
 	moveq #0,d0
+	cmp.w #log_departure_cloud,logic(a5)
+	beq.s .done
 	tst in_sights(a6) ; also excludes hidden, invincible and off-view objects
 	beq.s .done
 	cmp #log_exploding,logic(a5)

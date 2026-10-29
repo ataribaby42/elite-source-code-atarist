@@ -108,11 +108,13 @@ scrolling: rs.w 1 ; flag: message scrolling
 ; resets still call UNARM_MISSILE directly and do not cancel identification.
 	q_subr cancel_targeting,global
 	tst.w id_trigger(a6)
-	beq unarm_missile
+	beq.s .unarm
 	clr.w id_trigger(a6)
 	tst.w missile_state(a6)
-	bne unarm_missile
+	bne.s .unarm
 	rts
+.unarm:
+	jmp unarm_missile ; cross-module target can exceed a 68000 branch displacement
 
 
 * *****************************************

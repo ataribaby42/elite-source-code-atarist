@@ -23,7 +23,7 @@
 	xref explode_object,find_object,release_cargo,fx,do_circle
 	xref random,auto_pilot,inst_echar,get_dist,reduce_shields
 	xref target_lost,local_x_rotate,rand,move_object,alloc_object,damage_target
-	xref is_combat_ship
+	xref is_combat_ship,obj_data
 	xref create_object,copy_object,monst,transform,random_direction
 	xref do_launch1a,do_launch1b,do_launch2a,do_launch2b,do_launch3a
 	xref do_launch3b,do_launch4a,do_launch4b,do_dock1a,do_dock1b,do_dock1c
@@ -32,6 +32,7 @@
 
 * ---- LOCAL CONSTANTS ----
 
+departure_jump_percent: equ 50 ; normal probability; use 100 only for testing
 launch_dist: equ 3600 ; distance of launch before turn
 land_dist: equ $10000*3/4 ; distance of ship before land
 missile_range: equ 300 ; missile hit range before detonate
@@ -68,6 +69,10 @@ bspeed: equ 7 ; barrel explosion speed
 
 	q_subr do_logic,global
 
+	tst.w departure_radius(a5)
+	bpl.s .departure_checked
+	bsr departure_tick
+.departure_checked:
 	cmp #log_cruise,logic(a5)
 	beq.s .convoy_checked
 	clr convoy_speed(a5) ; combat/evasion ends formation; never rejoin afterwards
@@ -251,7 +256,7 @@ q_logic_m68_21:
 	move d2,peel_x(a5)
 	clr peel_z_count(a5) ; no z rotation
 	move #log_peel_off,logic(a5) ; set logic type
-	move #log_cruise,next_logic(a5) ; cruise after peel off
+	move #log_departure_wait,next_logic(a5) ; decide on hyperspace after the turn
 
 	q_ret
 
@@ -363,6 +368,8 @@ q_logic_m68_33:
 	q_ret ne ; no
 	move next_logic(a5),d0 ; move to next logic sequence
 	move d0,logic(a5)
+	cmp #log_departure_wait,d0
+	beq start_departure
 	cmp #log_cruise,d0 ; cruising ?
 	q_ret eq ; yes, return
 	cmp #log_avoid,d0 ; avoid player ?
@@ -1200,6 +1207,148 @@ q_logic_m68_62:
 	q_ret
 
 
+
+; Station departures roll once after their original model-dependent turn.
+; Rejected rolls retain the ordinary cruise path without another attempt.
+    q_subr start_departure,global
+    clr.w departure_radius(a5)
+    move.w #log_cruise,logic(a5)
+    move.w type(a5),d0
+    sub.w #traders,d0
+    cmp.w #no_traders,d0
+    bhs.s .done
+    moveq #100,d2
+    jsr rand
+    move.w d0,d3
+    bsr departure_chance
+    cmp.w d0,d3
+    bhs.s .done
+    moveq #6,d2
+    jsr rand
+    addq.w #5,d0 ; inclusive 5..10 seconds
+    move.w d0,d3
+    bsr departure_hz
+    mulu.w d3,d0
+    add.l departure_clock(a6),d0
+    move.l d0,departure_deadline(a5)
+    move.w #-1,departure_radius(a5) ; armed across ordinary combat/evasion changes
+    move.w #log_departure_wait,logic(a5)
+.done:
+    rts
+
+; Normal departures use 50%; the same selection path supports 100% tests.
+    q_subr departure_chance,global
+    moveq #departure_jump_percent,d0
+    rts
+
+    q_subr do_departure_wait,global
+    bra do_cruising
+
+; A selected jump keeps its deadline if the ship is attacked while waiting.
+; Destruction or ordinary bubble removal cancels it without creating a cloud.
+    q_subr departure_tick,global
+    btst #remove,flags(a5)
+    bne.s .cancel
+    cmp.w #log_exploding,logic(a5)
+    beq.s .cancel
+    move.l departure_clock(a6),d0
+    sub.l departure_deadline(a5),d0
+    bmi.s .done
+    bra start_departure_cloud
+.cancel:
+    clr.w departure_radius(a5)
+.done:
+    rts
+
+; Mean bounding radius of the five equally likely departing trader models.
+; Read the installed model headers, including the selected graphics set.
+    q_subr departure_mean_radius,global
+    lea obj_data+traders*4,a0
+    moveq #0,d0
+    moveq #no_traders-1,d1
+.model:
+    move.l (a0)+,a1
+    add.w obj_rad-nodes(a1),d0
+    dbra d1,.model
+    add.w #no_traders/2,d0
+    divu.w #no_traders,d0
+    rts
+
+; Keep TYPE and SHIP_TYPE until normal removal balances their counters.
+; POINT replaces the hull; the cloud remains in the same world position.
+    q_subr start_departure_cloud,global
+    move.w #log_departure_cloud,logic(a5)
+    clr.w velocity(a5)
+    clr.w shield_flash(a5)
+    clr.w ai_laser(a5)
+    clr.w ai_laser_burst(a5)
+    clr.w ai_laser_cooldown(a5)
+    clr.l ai_laser_target(a5)
+    move.l #no_target,target(a5)
+    bclr #angry,flags(a5)
+    bset #point,flags(a5)
+    bset #invincible,flags(a5)
+    bset #no_radar,flags(a5)
+    clr.w in_sights(a6) ; DRAW_OBJECT ran before this transition
+    bsr departure_mean_radius
+    move.w d0,departure_radius(a5)
+    move.w d0,obj_rad(a5)
+    move.l departure_clock(a6),departure_deadline(a5)
+    move.l a5,a4
+    jsr target_lost ; release locks and missiles without a kill or salvage
+    lea objects(a6),a0
+    moveq #max_objects-1,d1
+.targets:
+    cmpa.l target(a0),a5
+    bne.s .beam
+    move.l #no_target,target(a0)
+.beam:
+    cmpa.l ai_laser_target(a0),a5
+    bne.s .next
+    clr.l ai_laser_target(a0)
+    clr.w ai_laser(a0)
+    clr.w ai_laser_burst(a0)
+.next:
+    lea obj_len(a0),a0
+    dbra d1,.targets
+    rts
+
+; One second from 1x to 2x, then one second from 2x to zero.
+; A paused game does not advance DEPARTURE_CLOCK. Screen FPS is irrelevant.
+    q_subr do_departure_cloud,global
+    bsr departure_hz
+    move.w d0,d2
+    move.l departure_clock(a6),d1
+    sub.l departure_deadline(a5),d1
+    cmp.l d0,d1
+    bhs.s .shrink
+    mulu.w departure_radius(a5),d1
+    divu.w d2,d1
+    add.w departure_radius(a5),d1
+    bra.s .radius
+.shrink:
+    add.l d0,d0
+    sub.l d1,d0
+    ble.s .finished
+    mulu.w departure_radius(a5),d0
+    add.l d0,d0
+    divu.w d2,d0
+    move.w d0,d1
+.radius:
+    move.w d1,obj_rad(a5)
+    rts
+.finished:
+    clr.w obj_rad(a5)
+    bset #remove,flags(a5)
+    rts
+
+    q_subr departure_hz,global
+    moveq #50,d0
+    ifne display_ntsc
+    moveq #60,d0
+    endc
+    rts
+
 * ---- LOCAL DATA ----
 
 * Table of logic vectors. The former photon slot is reserved and inert. The
@@ -1216,7 +1365,7 @@ logic_vectors:
 	dc.l do_launch3b,do_launch4a,do_launch4b,do_circle,do_dock1a,do_dock1b
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c
 	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a,do_locked
-	dc.l do_abandoned
+	dc.l do_abandoned,do_departure_wait,do_departure_cloud
 
 * List of colours for fragments.
 

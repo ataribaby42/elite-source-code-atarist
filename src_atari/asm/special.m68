@@ -16,7 +16,7 @@
 
 	include "macros.m68"
 
-	xref draw_planet_surface
+	xref draw_planet_surface,check_sights
 	xref random
 	xref set_colour,polygon,circle,c_line,c_plotxy,explode_vectors
 	xref solid_polygon,line
@@ -53,6 +53,8 @@ exp_colour: rs.w 1 ; colour of explosion points
 
 	q_subr draw_point,global
 
+	cmp.w #log_departure_cloud,logic(a5)
+	beq draw_departure_cloud
 	cmp #hyp_circle,d0 ; hyperspace circle ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s q_special_m68_1
@@ -139,6 +141,35 @@ q_special_m68_2:
 
 * Regs: ?
 * Subr: ?
+
+
+; Two solid concentric circles: blue rim and lighter half-radius centre.
+; Re-project after logic changed the world radius earlier in this frame.
+    q_subr draw_departure_cloud,global
+    tst.w obj_rad(a5)
+    beq.s .done
+    jsr check_sights
+    tst.w scr_radius(a5)
+    ble.s .done
+    clr.w sun_flare(a6)
+    moveq #drk_blue,d0
+    jsr set_colour
+    movem.w centre_x(a5),d5/d6
+    move.w scr_radius(a5),d7
+    subq.w #1,d7
+    jsr circle
+    move.w scr_radius(a5),d7
+    subq.w #1,d7
+    lsr.w #1,d7
+    beq.s .done
+    move.w d7,-(sp)
+    moveq #mid_blue,d0
+    jsr set_colour
+    move.w (sp)+,d7
+    movem.w centre_x(a5),d5/d6
+    jmp circle
+.done:
+    rts
 
 	q_subr draw_explosion,global
 

@@ -74,6 +74,10 @@ clock_pending: rs.w 1 ; clock text still needs painting during this VBL
 .screen_ready:
 	st flyback(a6) ; flyback has occured
 	q_inc frame_count(a6) ; increment frame counter
+	tst.w game_frozen(a6)
+	bne.s .departure_paused
+	addq.l #1,departure_clock(a6)
+.departure_paused:
 	cmp #2,condition(a6) ; condition red ?
 ; Quelo: 	if <eq> then.s
 	bne.s q_except_m68_1

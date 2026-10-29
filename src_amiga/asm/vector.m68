@@ -1000,7 +1000,7 @@ q_vector_m68_100:
 * Regs:  ?
 * Subr:  ?
 
-	q_subr check_sights
+	q_subr check_sights,global
 
 	move.l obj_range(a5),d2 ; fetch objects range
 	move.l d2,d3 ; determine amount to scale z coord to

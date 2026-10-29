@@ -4,8 +4,9 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## x.xx.2029 V1.96
+## 29.10.2029 V1.96
 
+- Added station trader hyperspace departures with a 50% chance and animated blue clouds on Atari ST and Amiga.
 - Optimized planet rendering with early visibility checks and cached vertex projections on Atari ST and Amiga.
 - Optimized horizon calculations and batched continent spans while preserving rendering accuracy.
 - Added procedural counts of 3–6 continents or craters, with eight vertices per continent.
