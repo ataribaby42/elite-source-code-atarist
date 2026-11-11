@@ -575,6 +575,7 @@ q_orbit_m68_28:
 	bsr random_direction
 	jsr create_object ; create the object
 	move (sp)+,cargo_type(a4) ; set cargo type
+	move.l radio_instance(a5),loot_origin(a4) ; exact destroyed hull lifetime
 	cmp #barrel,type(a4) ; leave mined asteroid fragments at their model speed
 	bne.s release_cargo_speed_ready
 	jsr random

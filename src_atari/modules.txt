@@ -31,6 +31,7 @@ auto
 radar
 orbit
 combat
+loot
 tweak
 cargo
 equip

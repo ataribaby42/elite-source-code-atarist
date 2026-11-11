@@ -1,0 +1,519 @@
+; Pirate salvage: independent of combat targets and player cargo handling.
+    include "common.def"
+    include "macros.m68"
+    xref is_combat_ship,pick_target,chebyshev_range,rand
+    xref auto_pilot,get_dist,target_lost,calc_distance
+    q_module loot
+
+; A4 new object. Parent copies and recycled slots never inherit salvage state.
+    q_subr loot_init,global
+    movem.l d0/a0,-(sp)
+    lea loot_origin(a4),a0
+    moveq #(loot_end-loot_origin)/2-1,d0
+.clear:
+    clr.w (a0)+
+    dbra d0,.clear
+    movem.l (sp)+,d0/a0
+    rts
+
+; A5 collector. Release only its own reservation of this exact cargo lifetime.
+    q_subr loot_release,global
+    movem.l d0/a0,-(sp)
+    move.l loot_target(a5),d0
+    beq.s .clear
+    move.l d0,a0
+    move.l loot_serial(a5),d0
+    cmp.l radio_instance(a0),d0
+    bne.s .clear
+    cmpa.l loot_owner(a0),a5
+    bne.s .clear
+    move.l radio_instance(a5),d0
+    cmp.l loot_owner_serial(a0),d0
+    bne.s .clear
+    clr.l loot_owner(a0)
+    clr.l loot_owner_serial(a0)
+.clear:
+    clr.l loot_target(a5)
+    clr.l loot_serial(a5)
+    clr.w loot_steps(a5)
+    movem.l (sp)+,d0/a0
+    rts
+
+; A5 removed object, possibly a reserved barrel. No score or cargo side effects.
+    q_subr loot_removed,global
+    movem.l d0/a0,-(sp)
+    bsr loot_release
+    move.l loot_owner(a5),d0
+    beq.s .done
+    move.l d0,a0
+    move.l loot_owner_serial(a5),d0
+    cmp.l radio_instance(a0),d0
+    bne.s .done
+    cmpa.l loot_target(a0),a5
+    bne.s .done
+    move.l radio_instance(a5),d0
+    cmp.l loot_serial(a0),d0
+    bne.s .done
+    clr.l loot_target(a0)
+    clr.l loot_serial(a0)
+.done:
+    clr.l loot_owner(a5)
+    clr.l loot_owner_serial(a5)
+    clr.w loot_mode(a5)
+    movem.l (sp)+,d0/a0
+    rts
+
+; A4 destroyed ship, before its logic becomes LOG_EXPLODING. Defer selection
+; until its cargo has been released and this hunter's ordinary retarget turn.
+; Only destruction triggers this opportunity; despawn and hyperspace do not.
+    q_subr loot_destroyed,global
+    movem.l d0-d7/a0-a5,-(sp)
+    cmp.w #log_exploding,logic(a4)
+    beq .done
+    tst.w npc_kill(a6) ; laser, ram and missile paths already identify the killer
+    bne.s .cleanup
+    move.l a4,a5
+    bsr loot_provoke_group
+.cleanup:
+    move.l a4,a5
+    bsr loot_removed
+    jsr is_combat_ship
+    tst.w d0
+    beq .done
+    move.l radio_instance(a4),d4
+    beq .done
+    lea objects(a6),a0
+    moveq #max_objects-1,d7
+.hunters:
+    cmpa.l a0,a4
+    beq.s .next
+    btst #in_use,flags(a0)
+    beq.s .next
+    btst #remove,flags(a0)
+    bne.s .next
+    cmp.w #log_exploding,logic(a0)
+    beq.s .next
+    cmp.w #typ_pirate,ship_type(a0)
+    bne.s .next
+    cmp.w #first_combat,type(a0)
+    blo.s .next
+    cmp.w #last_combat,type(a0)
+    bhi.s .next
+    cmp.w #act_attack,attack_type(a0)
+    bne.s .next
+    tst.w loot_mode(a0)
+    bne.s .next
+    cmp.w #loot_capacity,loot_count(a0)
+    bhs.s .next
+    cmpa.l target(a0),a4
+    bne.s .next
+    move.l d4,loot_origin(a0)
+    move.w #loot_pending,loot_mode(a0)
+.next:
+    lea obj_len(a0),a0
+    dbra d7,.hunters
+.done:
+    movem.l (sp)+,d0-d7/a0-a5
+    rts
+
+; A4 victim, A0 attacker (zero = player). An actual hit or launched missile
+; ends salvage immediately, including peaceful waiting/departure. Preserve all
+; registers for the existing damage and missile routines.
+    q_subr loot_hit,global
+    tst.w loot_mode(a4)
+    bne.s loot_attack
+    rts
+
+; Also used by group theft, including members already fighting or departing.
+    q_subr loot_attack
+    movem.l d0/a0/a5,-(sp)
+    move.l a4,a5
+    bsr loot_release
+    clr.w loot_mode(a4)
+    clr.l loot_origin(a4)
+    move.l a0,target(a4)
+    move.w #log_attack,logic(a4)
+    clr.w on_course(a4)
+    move.w health(a4),pre_attack(a4)
+    move.l a0,d0
+    bne.s .restore
+    clr.w pirate_truce(a4)
+    bset #angry,flags(a4)
+.restore:
+    movem.l (sp)+,d0/a0/a5
+.done:
+    rts
+
+; A5 cargo successfully scooped or destroyed by the player. Its stable group
+; ID affects only surviving pirates from that encounter, never unrelated
+; collectors, police or recycled records. Failed scoops, nonlethal hits and
+; NPC kills do not call this hook. Destruction is notified before cleanup.
+    q_subr loot_provoke_group,global
+    cmp.w #barrel,type(a5)
+    bne.s .done
+    tst.l loot_group(a5)
+    beq.s .done
+    movem.l d0-d7/a0-a5,-(sp)
+    move.l loot_group(a5),d4
+    lea objects(a6),a4
+    moveq #max_objects-1,d7
+.members:
+    btst #in_use,flags(a4)
+    beq.s .next
+    btst #remove,flags(a4)
+    bne.s .next
+    cmp.w #log_exploding,logic(a4)
+    beq.s .next
+    cmp.w #typ_pirate,ship_type(a4)
+    bne.s .next
+    cmp.w #act_attack,attack_type(a4) ; an escaped pilot cannot return to its hull
+    bne.s .next
+    cmp.l loot_group(a4),d4
+    bne.s .next
+    suba.l a0,a0 ; player
+    bsr loot_attack
+.next:
+    lea obj_len(a4),a4
+    dbra d7,.members
+    movem.l (sp)+,d0-d7/a0-a5
+.done:
+    rts
+
+; A4 newly launched missile; A5 shooter for AI missiles. Failed launches and
+; merely arming/locking the player's weapon never interrupt salvage.
+    q_subr loot_missile,global
+    movem.l d0/a0/a4,-(sp)
+    move.l target(a4),d0
+    ble.s .done
+    move.l a5,a0
+    cmp.w #log_locked,logic(a4)
+    bne.s .ai
+    suba.l a0,a0
+.ai:
+    move.l d0,a4
+    bsr loot_hit
+.done:
+    movem.l (sp)+,d0/a0/a4
+    rts
+
+; A4 cargo. A reservation is valid only while both lifetimes and the owner's
+; current objective still match. D0=1 free, 0 owned; D1/A0 scratch.
+    q_subr loot_available
+    move.l loot_owner(a4),d0
+    beq.s .free
+    move.l d0,a0
+    btst #in_use,flags(a0)
+    beq.s .stale
+    btst #remove,flags(a0)
+    bne.s .stale
+    cmp.w #log_loot,logic(a0)
+    bne.s .stale
+    move.l radio_instance(a0),d1
+    cmp.l loot_owner_serial(a4),d1
+    bne.s .stale
+    cmpa.l loot_target(a0),a4
+    bne.s .stale
+    move.l radio_instance(a4),d1
+    cmp.l loot_serial(a0),d1
+    bne.s .stale
+    moveq #0,d0
+    rts
+.stale:
+    clr.l loot_owner(a4)
+    clr.l loot_owner_serial(a4)
+.free:
+    moveq #1,d0
+    rts
+
+; A4 barrel. Fresh drops may not have received their first GET_RANGE update.
+; Compute their player distance once, without changing the hunter's APPROACH.
+    q_subr loot_cargo_range
+    tst.l obj_range(a4)
+    bpl.s .cached
+    movem.l d0-d7/a0-a5,-(sp)
+    move.l xpos(a4),d0
+    bpl.s .x
+    neg.l d0
+.x:
+    move.l ypos(a4),d1
+    bpl.s .y
+    neg.l d1
+.y:
+    move.l zpos(a4),d2
+    bpl.s .z
+    neg.l d2
+.z:
+    jsr calc_distance
+    move.l d2,obj_range(a4)
+    movem.l (sp)+,d0-d7/a0-a5
+.cached:
+    rts
+
+; A5 collector. Find an ordinary barrel within 4096 units per axis, respecting the
+; wreck identity unless this is the dedicated encounter. D0 found, D1 any
+; suitable cargo (including reserved), A4 result. Called only on retarget turns.
+    q_subr loot_find
+    movem.l d3/d6-d7/a3,-(sp)
+    suba.l a3,a3
+    move.l #loot_search_range+1,d3
+    moveq #0,d6
+    lea objects(a6),a4
+    moveq #max_objects-1,d7
+.scan:
+    btst #in_use,flags(a4)
+    beq.s .next
+    btst #remove,flags(a4)
+    bne.s .next
+    cmp.w #barrel,type(a4)
+    bne.s .next
+    cmp.w #log_exploding,logic(a4)
+    beq.s .next
+    cmp.w #max_products,cargo_type(a4)
+    bhs.s .next ; excludes negative mission equipment too
+    bsr loot_cargo_range
+    cmp.l #radar_range,obj_range(a4)
+    bhi.s .next
+    cmp.w #loot_encounter,loot_mode(a5)
+    beq.s .range
+    move.l loot_origin(a5),d0
+    cmp.l loot_origin(a4),d0
+    bne.s .next
+.range:
+    jsr chebyshev_range
+    cmp.l #loot_search_range,d0
+    bhi.s .next
+    moveq #1,d6
+    cmp.l d3,d0
+    bhs.s .next
+    move.l d0,-(sp)
+    bsr loot_available
+    tst.w d0
+    beq.s .owned
+    move.l (sp)+,d3
+    move.l a4,a3
+    bra.s .next
+.owned:
+    addq.l #4,sp
+.next:
+    lea obj_len(a4),a4
+    dbra d7,.scan
+    move.l a3,a4
+    move.l a3,d0
+    sne d0
+    and.w #1,d0
+    move.w d6,d1
+    movem.l (sp)+,d3/d6-d7/a3
+    rts
+
+; A5 collector, D0 requested speed. Cap only salvage movement to 20% of the
+; model maximum (integer floor). VEL_MAX stays intact, so leaving LOG_LOOT
+; immediately restores normal cruise/combat acceleration without saved state.
+; D0/D1 scratch. Apply after approach minima, including waiting and pickup.
+    q_subr loot_speed,global
+    moveq #0,d1
+    move.w vel_max(a5),d1
+    divu.w #5,d1
+    cmp.w d1,d0
+    bls.s .store
+    move.w d1,d0
+.store:
+    move.w d0,velocity(a5)
+    rts
+
+; A5 collector, A4 free barrel. Both sides capture a lifetime serial.
+    q_subr loot_claim
+    move.l a4,loot_target(a5)
+    move.l radio_instance(a4),loot_serial(a5)
+    move.l a5,loot_owner(a4)
+    move.l radio_instance(a5),loot_owner_serial(a4)
+    clr.w loot_steps(a5)
+    clr.w on_course(a5)
+    move.w #log_loot,logic(a5)
+    move.l #no_target,target(a5)
+    clr.w ai_laser(a5)
+    clr.w ai_laser_burst(a5)
+    clr.l ai_laser_target(a5)
+    bclr #angry,flags(a5)
+    move.w velocity(a5),d0
+    bra loot_speed ; limit immediately on entering salvage, before the next frame
+
+; Return D0=1 to suppress this hunter's normal target selection. This never
+; changes IS_COMBAT_SHIP or faction masks: Vipers still hunt every collector.
+    q_subr loot_retarget,global
+    moveq #0,d0
+    tst.w loot_mode(a5)
+    beq .return
+    movem.l d4-d7/a2-a3,-(sp)
+    cmp.w #loot_departing,loot_mode(a5)
+    beq .handled
+    cmp.w #loot_pending,loot_mode(a5)
+    beq.s .decision
+    tst.l loot_target(a5)
+    bne .handled
+    cmp.w #loot_capacity,loot_count(a5)
+    bhs .finish
+    bsr loot_find
+    tst.w d0
+    bne.s .claim
+    cmp.w #loot_encounter,loot_mode(a5)
+    bne .finish
+    tst.w d1 ; another collector may release its reservation
+    bne .handled
+    bra .finish
+.decision:
+    jsr pick_target
+    bsr loot_find
+    tst.w d0
+    beq.s .decline
+    cmp.l #no_target,target(a5)
+    beq.s .accept
+    moveq #100,d2
+    jsr rand
+    cmp.w #50,d0
+    bhs.s .decline
+.accept:
+    move.w #loot_wreck,loot_mode(a5)
+.claim:
+    bsr loot_claim
+    bra.s .handled
+.decline:
+    clr.w loot_mode(a5)
+    clr.l loot_origin(a5)
+    moveq #0,d0
+    bra.s .restore
+.finish:
+    bsr loot_finish
+.handled:
+    moveq #1,d0
+.restore:
+    movem.l (sp)+,d4-d7/a2-a3
+.return:
+    rts
+
+    q_subr loot_finish
+    bsr loot_release
+    moveq #0,d0
+    cmp.w #loot_encounter,loot_mode(a5)
+    bne.s .ordinary
+    moveq #loot_departing,d0
+.ordinary:
+    move.w d0,loot_mode(a5)
+    clr.l loot_origin(a5)
+    move.w #log_cruise,logic(a5)
+    move.l #no_target,target(a5)
+    move.w #1,on_course(a5)
+    bclr #angry,flags(a5)
+    rts
+
+; Validate every frame, including a different barrel reusing the same slot.
+    q_subr loot_valid
+    move.l loot_target(a5),d0
+    beq.s .no
+    move.l d0,a4
+    btst #in_use,flags(a4)
+    beq.s .no
+    btst #remove,flags(a4)
+    bne.s .no
+    cmp.w #barrel,type(a4)
+    bne.s .no
+    cmp.w #log_exploding,logic(a4)
+    beq.s .no
+    cmp.w #max_products,cargo_type(a4)
+    bhs.s .no
+    move.l loot_serial(a5),d0
+    cmp.l radio_instance(a4),d0
+    bne.s .no
+    cmpa.l loot_owner(a4),a5
+    bne.s .no
+    move.l radio_instance(a5),d0
+    cmp.l loot_owner_serial(a4),d0
+    bne.s .no
+    moveq #1,d0
+    rts
+.no:
+    moveq #0,d0
+    rts
+
+; No scans or probability rolls here. Actual NPC pickup bypasses player hold,
+; sounds, equipment and kill/bounty paths. The ordinary end-of-frame removal
+; owns object counters. Cargo remains available to the player's collision path.
+    q_subr do_loot,global
+    cmp.l #radar_range,obj_range(a5)
+    bhi .distant
+    bsr loot_valid
+    tst.w d0
+    beq .lost
+    addq.w #1,loot_steps(a5)
+    cmp.w #loot_approach_steps,loot_steps(a5)
+    bhs loot_finish ; a bounded attempt, never an endless orbit
+    jsr get_dist
+    cmp.l #loot_search_range*2,d2 ; includes the full selection cube's diagonal
+    bhi .lost
+    moveq #0,d0
+    move.w obj_rad(a5),d0
+    add.w obj_rad(a4),d0
+    add.w #32,d0
+    cmp.l d0,d2
+    bhi.s .approach
+    ; Within scoop reach, require the cargo in the forward hemisphere.
+    move.l xpos(a4),d0
+    sub.l xpos(a5),d0
+    muls.w z_vector(a5),d0
+    move.l ypos(a4),d1
+    sub.l ypos(a5),d1
+    muls.w z_vector+2(a5),d1
+    add.l d1,d0
+    move.l zpos(a4),d1
+    sub.l zpos(a5),d1
+    muls.w z_vector+4(a5),d1
+    add.l d1,d0
+    bmi.s .approach
+    bset #remove,flags(a4) ; claim consumption before any other collector runs
+    ; Its slot stays allocated until REMOVE_OBJECTS. If the main loop reaches
+    ; this barrel later in the same frame, it must neither collide with the
+    ; player nor accept a shot or appear as ordinary collectible cargo.
+    bset #point,flags(a4)
+    bset #invincible,flags(a4)
+    bset #no_radar,flags(a4)
+    clr.w obj_rad(a4)
+    clr.w scr_radius(a4)
+    clr.w velocity(a4)
+    move.w #log_none,logic(a4)
+    jsr target_lost
+    addq.w #1,loot_count(a5)
+    bsr loot_release
+    cmp.w #loot_capacity,loot_count(a5)
+    bhs loot_finish
+    moveq #8,d0
+    bra loot_speed
+.approach:
+    ; Turn slowly; once aligned use distance-dependent approach speed.
+    move.l d2,-(sp)
+    clr.w on_course(a5)
+    movem.l xpos(a4),d0-d2
+    jsr auto_pilot
+    move.l (sp)+,d0
+    lsr.l #4,d0
+    cmp.w vel_max(a5),d0
+    bls.s .limited
+    move.w vel_max(a5),d0
+.limited:
+    cmp.w #8,d0
+    bhs.s .minimum
+    moveq #8,d0
+.minimum:
+    tst.w on_course(a5)
+    bne.s .speed
+    moveq #4,d0
+.speed:
+    bra loot_speed
+.lost:
+    bsr loot_release
+    moveq #8,d0 ; quiet capped cruise until the next selection turn
+    bra loot_speed
+.distant:
+    bsr loot_release
+    move.l a5,a4
+    jsr target_lost
+    bset #remove,flags(a5)
+    rts

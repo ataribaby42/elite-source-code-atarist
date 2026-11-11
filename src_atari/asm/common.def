@@ -403,6 +403,15 @@ log_ai_missile: rs.b 1 ; DO_LOCKED, but fired by a ship rather than the player
 log_abandoned: rs.b 1 ; drift until outside scanner range after pilot escape
 log_departure_wait: rs.b 1 ; station trader waiting to jump
 log_departure_cloud: rs.b 1 ; stationary departure cloud
+log_loot: rs.b 1 ; pirate collecting a separate cargo objective
+
+loot_pending: equ 1
+loot_wreck: equ 2
+loot_encounter: equ 3
+loot_departing: equ 4
+loot_capacity: equ 4
+loot_search_range: equ 4096
+loot_approach_steps: equ 5120 ; five times the old budget for 20% speed
 
 ; Possible displays.
 
@@ -564,6 +573,18 @@ radio_cooldown: rs.w 1 ; game frames before this ship may transmit again
 
 departure_deadline: rs.l 1 ; waiting deadline or cloud start, in active VBL ticks
 departure_radius: rs.w 1 ; 0 idle, -1 jump armed, positive cloud base radius
+
+; Transient NPC salvage; not part of model headers or commander saves.
+loot_origin: rs.l 1 ; destroyed ship lifetime ID, or barrel provenance
+loot_group: rs.l 1 ; unique encounter ID, retained through combat/departure
+loot_target: rs.l 1 ; collector's cargo pointer (separate from combat TARGET)
+loot_serial: rs.l 1 ; cargo lifetime ID
+loot_owner: rs.l 1 ; barrel reservation: collector pointer
+loot_owner_serial: rs.l 1 ; collector lifetime ID
+loot_mode: rs.w 1 ; pending/wreck/encounter/departing; zero ordinary AI
+loot_count: rs.w 1 ; collected ordinary barrels, limited to four per lifetime
+loot_steps: rs.w 1 ; bounded approach attempt
+loot_end: equ __RS
 
 nodes: rs.l 1 ; ptr  node data
 surfaces: rs.l 1 ; ptr  surface data

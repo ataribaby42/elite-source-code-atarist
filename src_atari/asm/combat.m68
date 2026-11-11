@@ -1,3 +1,4 @@
+	xref loot_retarget,loot_destroyed,loot_hit,loot_missile,loot_speed
 	xref ai_comm_missile_ai,ai_comm_missile_player,ai_comm_hit
 	xref laser_impact_sound
 	xref missile_detonate
@@ -54,6 +55,8 @@ role_thargoid: equ 3
 role_viper: equ 4
 role_bounty: equ 5
 role_convoy: equ 6 ; peaceful traders sharing a cruise speed until combat
+role_loot_pirate: equ 7 ; peaceful scavengers, still pirate faction
+role_loot_cargo: equ 8 ; ordinary scoopable barrels
 ; The player's own fire rolls RATING*4+MISSILE_PROB before a ship lets go of a
 ; missile or a group of thargons. His combat rating means nothing in a fight he
 ; is not part of, so NPC missile retaliation uses the middle rating band.
@@ -431,6 +434,8 @@ faction_mask:
 	q_subr combat_state,global
 
 	moveq #1,d0 ; passive, may be drawn in
+	cmp #log_loot,d1
+	beq.s .done
 	cmp #log_cruise,d1
 	beq.s .done
 	cmp #log_departure_wait,d1
@@ -478,6 +483,9 @@ faction_mask:
 	beq.s .done
 	cmp #act_attack,attack_type(a5) ; and must be able to fight back
 	bne.s .done
+	jsr loot_retarget ; suppress only this collector, never other hunters
+	tst.w d0
+	bne .done
 	move logic(a5),d1 ; may this logic be disturbed ?
 	cmp.w #log_peel_off,d1
 	bne.s .departure_checked
@@ -593,6 +601,11 @@ q_combat_m68_69:
 	move.l a5,-(sp) ; the shooter; every reaction below works on A5
 	move d0,-(sp) ; HIT_REACTION corrupts the hit power
 	move.l target(a5),a5 ; A5 = ptr: the ship that was hit
+	movem.l a0/a4,-(sp)
+	move.l a5,a4
+	move.l 10(sp),a0 ; saved shooter below pointers and hit power
+	jsr loot_hit
+	movem.l (sp)+,a0/a4
 	bsr hit_reaction ; break off from the shot
 	move (sp)+,d0
 	move.l a5,a4
@@ -638,6 +651,7 @@ q_combat_m68_69:
 	q_subr explode_object,global
 
 	q_save_all save ; all registers
+	jsr loot_destroyed
 ; Mission objectives belong to a ship's destruction, not to the weapon that
 ; managed it, so laser, missile and ramming kills are counted here through
 ; EXPLODE_OBJECT. Both are guarded on the objective
@@ -1101,6 +1115,11 @@ q_combat_m68_67:
 	q_ret eq ; no, return
 	tst obj_hit(a6) ; object already hit ?
 	q_ret ne ; yes, return
+	movem.l a0/a4,-(sp)
+	move.l a5,a4
+	suba.l a0,a0
+	jsr loot_hit
+	movem.l (sp)+,a0/a4
 ; ANGRY is what PICK_TARGET reads to decide whether the player is a candidate
 ; for this ship, and DO_ATTACK was the only thing setting it -- which a ship
 ; reaches only once it already hunts him. A ship he shot therefore broke off,
@@ -1358,6 +1377,7 @@ q_combat_m68_107:
 	move #log_ai_missile,logic(a4) ; DO_LOCKED, marked as not the player's
 	move.l target(a5),target(a4)
 	jsr create_object ; create object
+	jsr loot_missile
 	jsr ai_comm_missile_ai ; retain shooter identity after its slot disappears
 	q_dec no_missiles(a5) ; reduce missile count
 
@@ -1791,6 +1811,7 @@ q_combat_m68_129:
 	st velocity(a4) ; launch at full speed
 	jsr create_object ; create object
 	jsr ai_comm_missile_player
+	jsr loot_missile
 	bsr missile_provoke ; only a successfully launched player missile is a threat
 	q_sfx missile ; launch sound effect
 	q_dec equip+missiles(a6) ; missile used
@@ -2378,6 +2399,14 @@ q_combat_m68_157:
 
 	q_subr encounter_type,global
 
+	cmp #role_loot_cargo,d0
+	bne.s .not_cargo
+	moveq #barrel,d0
+	rts
+.not_cargo:
+	cmp #role_loot_pirate,d0
+	beq.s .pirates
+
 	cmp #role_pirate,d0
 	beq.s .pirates
 	cmp #role_trader,d0
@@ -2441,6 +2470,7 @@ encounter_groups:
 	dc.b 2,0,role_pirate,2,role_bounty,1,0
 	dc.b 2,0,role_pirate,2,role_bounty,1,role_trader,1,0
 	dc.b 2,0,role_convoy,2,0
+	dc.b 1,0,role_loot_cargo,8,role_loot_pirate,2,0
 	dc.b 0 ; end of the table
 
 	even
@@ -2478,8 +2508,8 @@ encounter_groups:
 
 ; Picks one row by weight, ignoring every row the system's government forbids.
 ; Two passes: the first totals the weights allowed here, the second walks again
-; and stops where the roll runs out. The total is never zero, because six of
-; the eight rows carry no government condition.
+; and stops where the roll runs out. The total is never zero, because seven of
+; the nine rows carry no government condition.
 
 ; Entry: None
 ; Exit:  A0 = ptr: the chosen row's first role/count pair
@@ -2563,18 +2593,22 @@ encounter_groups:
 ; ****************************************************
 
 ; Moves a copied member one step along the first member's own axes, in the
-; manner of PIRATE_ATTACK's squadron. Four seats cover any group this design
-; can build.
+; manner of PIRATE_ATTACK's squadron. Salvage groups instead use compact
+; cargo cells with random jitter and separate pirate approach positions.
 
 ; Entry: A4 = ptr: a follower holding the first member's position and vectors
 ; Exit:  None
 
-; Regs: D0, D1, D6, A0, A1, A2 corrupt.
+; Regs: D0, D1, D2, D6, A0, A1, A2 corrupt.
 
 	q_subr encounter_offset
 
 	move encounter_seat(a6),d0
 	addq #1,encounter_seat(a6)
+	cmp.w #role_loot_cargo,encounter_role(a6)
+	beq.s .salvage
+	cmp.w #role_loot_pirate,encounter_role(a6)
+	beq.s .pirate
 	and #3,d0 ; four seats, wrapping
 	asl #2,d0
 	lea encounter_positions(pc),a0
@@ -2593,7 +2627,39 @@ encounter_groups:
 	rts
 
 
-; Where a follower sits relative to the first member.
+; Cargo stays within 224 units per axis of the first barrel. Separate cells
+; plus independent jitter give a compact irregular wreck cloud without overlap.
+.salvage:
+	mulu.w #6,d0
+	lea loot_positions(pc),a1
+	adda.w d0,a1
+	lea xpos(a4),a2
+	moveq #2,d6
+.coordinate:
+	move.w #129,d2
+	jsr rand
+	sub.w #64,d0
+	add.w (a1)+,d0
+	ext.l d0
+	add.l d0,(a2)+
+	dbra d6,.coordinate
+	rts
+.pirate:
+	move.l #900,d1
+	tst.w d0
+	bne.s .right
+	neg.l d1
+.right:
+	add.l d1,xpos(a4)
+	add.l #1400,zpos(a4)
+	jmp vector_pos ; do not inherit the first container's random heading
+
+loot_positions:
+	dc.w -160,-160,-160, 160,-160,-160
+	dc.w -160,160,-160, 160,160,-160
+	dc.w -160,-160,160, 160,-160,160, -160,160,160
+
+; Where a combat/convoy follower sits relative to the first member.
 
 encounter_positions:
 
@@ -2638,6 +2704,36 @@ encounter_positions:
 	move.l #no_target,target(a4) ; RETARGET gives it one of its own
 	st velocity(a4) ; CREATE_OBJECT raises it to VEL_MAX
 	jsr create_object
+	cmp.w #role_loot_cargo,encounter_role(a6)
+	bne.s .not_loot_cargo
+	move.w #log_twisting,logic(a4)
+	bset #no_bounty,flags(a4)
+	jsr random_direction ; each barrel drifts along its own unit vector
+	moveq #16,d2 ; ordinary commodity IDs, no mission equipment
+	jsr rand
+	move.w d0,cargo_type(a4)
+	moveq #2,d2
+	jsr rand
+	addq.w #1,d0 ; independent 1..2 speed, catchable by capped collectors
+	move.w d0,velocity(a4)
+	move.w d0,vel_max(a4)
+	move.l encounter_lead(a6),a0
+	move.l radio_instance(a0),loot_group(a4)
+	bra .created
+.not_loot_cargo:
+	cmp.w #role_loot_pirate,encounter_role(a6)
+	bne.s .not_looter
+	move.w #loot_encounter,loot_mode(a4)
+	move.w #log_loot,logic(a4)
+	move.l a5,-(sp)
+	move.l a4,a5
+	moveq #8,d0
+	jsr loot_speed ; the limit applies from the first spawned frame
+	move.l (sp)+,a5
+	move.l encounter_lead(a6),a0
+	move.l radio_instance(a0),loot_group(a4)
+	bra .created
+.not_looter:
 	cmp #viper,type(a4)
 	bne.s .convoy
 	move #-2,patrol_record(a4) ; inspect on its first eligible retarget turn
@@ -2685,6 +2781,8 @@ encounter_positions:
 	q_subr random_encounter,global
 
 	bsr encounter_template ; A0 = the chosen row's first pair
+	cmp.b #role_loot_cargo,(a0)
+	beq spawn_loot_encounter
 	move.l a0,encounter_row(a6)
 	clr.l encounter_lead(a6) ; no first member yet
 	clr encounter_seat(a6)
@@ -2725,6 +2823,69 @@ encounter_positions:
 
 ; Regs: ?
 ; Subr: ?
+
+; The salvage template requires at least four barrels and one pirate. Count
+; free slots first so scarcity cannot leave a cargo-only or pirate-only group.
+; Existing templates retain their original partial-spawn behaviour.
+	q_subr spawn_loot_encounter,global
+	lea objects(a6),a0
+	moveq #max_objects-1,d0
+	moveq #0,d3
+.free:
+	btst #in_use,flags(a0)
+	bne.s .next
+	addq.w #1,d3
+.next:
+	lea obj_len(a0),a0
+	dbra d0,.free
+	cmp.w #5,d3
+	blo .done
+	moveq #5,d2
+	jsr rand
+	addq.w #4,d0
+	move.w d0,d4 ; 4..8 barrels
+	moveq #2,d2
+	jsr rand
+	addq.w #1,d0
+	move.w d0,d5 ; pirates
+.fit:
+	move.w d4,d0
+	add.w d5,d0
+	cmp.w d3,d0
+	bls.s .ready
+	cmp.w #4,d4
+	beq.s .fewer_pirates
+	subq.w #1,d4
+	bra.s .fit
+.fewer_pirates:
+	subq.w #1,d5
+	bra.s .fit
+.ready:
+	move.w d5,-(sp)
+	move.w d4,-(sp)
+	clr.l encounter_lead(a6)
+	clr.w encounter_seat(a6)
+	move.w #role_loot_cargo,encounter_role(a6)
+.cargo:
+	bsr encounter_member
+	bcc.s .cargo_failed
+	subq.w #1,(sp)
+	bne.s .cargo
+	addq.l #2,sp
+	clr.w encounter_seat(a6) ; pirate seats are independent of the cargo count
+	move.w #role_loot_pirate,encounter_role(a6)
+.pirates:
+	bsr encounter_member
+	bcc.s .pirate_failed
+	subq.w #1,(sp)
+	bne.s .pirates
+.pirate_failed:
+	addq.l #2,sp
+	rts
+.cargo_failed:
+	addq.l #4,sp
+.done:
+	rts
 
 	q_subr check_police,global
 

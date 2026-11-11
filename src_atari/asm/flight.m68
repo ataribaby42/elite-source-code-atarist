@@ -29,7 +29,7 @@
 	xref create_system,reset_system,instruments,flush_keyboard,clear_image
 	xref text_blatt,update_inst,swap_screen,wait,magnitude_table,sqrt,get_unit
 	xref spawn_pirate_wave,explode_object,target_lost,reduce_shields,cargo_spare
-	xref product_list,find_table,rand
+	xref product_list,find_table,rand,loot_provoke_group
 
 ; ---- LOCAL CONSTANTS ----
 
@@ -1335,6 +1335,7 @@ q_flight_m68_169:
 	bne q_flight_m68_169
 q_flight_m68_170:
 salvage_message:
+	jsr loot_provoke_group ; successful theft provokes this cargo's pirate group
 ; Scooping has no immediate legal penalty; station entry inspects the hold.
 	move cargo_type(a5),d0 ; find message
 	lea product_list,a0

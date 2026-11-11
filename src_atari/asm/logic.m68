@@ -1,3 +1,4 @@
+	xref do_loot
 	xref reduce_laser_shields,reduce_missile_shields
 	xref ship_missile_damage,hit_reaction,ai_laser_power
 	include "common.def"
@@ -1366,7 +1367,7 @@ logic_vectors:
 	dc.l do_launch3b,do_launch4a,do_launch4b,do_circle,do_dock1a,do_dock1b
 	dc.l do_dock1c,do_dock2a,do_dock2b,do_dock3a,do_dock3b,do_dock3c
 	dc.l do_dock3d,do_dock4a,do_dock4b,do_dock5a,do_locked
-	dc.l do_abandoned,do_departure_wait,do_departure_cloud
+	dc.l do_abandoned,do_departure_wait,do_departure_cloud,do_loot
 
 * List of colours for fragments.
 

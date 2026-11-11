@@ -1,3 +1,4 @@
+	xref loot_init,loot_removed
 	xref ai_comm_observe,ai_comm_clear,ai_comm_created,ai_comm_tick
 	include "common.def"
 	xref comm_draw,comm_reset,comm_departure_player
@@ -317,6 +318,8 @@ q_main_m68_25:
 
 	q_subr create_object,global
 
+	jsr loot_init
+
 	clr ai_laser(a4) ; copied/reused object records never inherit a shot
 	clr.l cargo_mass(a4) ; copied/reused slots do not inherit exact-quantity cargo
 	move #-1,patrol_record(a4) ; encounter vipers opt in after creation
@@ -437,6 +440,8 @@ q_main_m68_39:
 * Subr:  ?
 
 	q_subr remove_object
+
+	jsr loot_removed
 
 	clr.w ai_laser_cooldown(a5)
 	clr.w ai_laser_burst(a5)

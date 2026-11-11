@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## xx.xx.2029 V1.97
+
+- Added pirate cargo collection and new salvage encounters with 4–8 containers, 1–2 pirates, and retaliation for cargo theft or destruction.
+
 ## 29.10.2029 V1.96
 
 - Added station trader hyperspace departures with a 50% chance and animated blue clouds on Atari ST and Amiga.
