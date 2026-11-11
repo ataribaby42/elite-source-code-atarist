@@ -108,8 +108,10 @@ Each container receives its own normalized random flight direction and an
 independent speed of 1–2 units per simulation step. Its spin is around that
 flight direction; cruise logic retains the selected speed. Containers carry
 ordinary commodity IDs 0–15. This lets even the slower capped collectors close
-the distance to the new encounter's cargo. Other encounter formations and
-ordinary destruction drops retain their previous placement and drift rules.
+the distance to the new encounter's cargo. Ordinary ship-destruction containers
+also use independent speeds of 1–2, following the later adjustment on
+2026-11-11. Other encounter formations, drop placement and mined-fragment speeds
+retain their previous rules.
 
 The generator counts free slots before creating the group. With fewer than five
 free slots it creates nothing. Otherwise it reduces the requested group if

@@ -579,8 +579,8 @@ q_orbit_m68_28:
 	cmp #barrel,type(a4) ; leave mined asteroid fragments at their model speed
 	bne.s release_cargo_speed_ready
 	jsr random
-	and #3,d0
-	addq #3,d0 ; each dropped canister drifts at 3..6 units per step
+	and #1,d0
+	addq #1,d0 ; each dropped canister drifts at 1..2 units per step
 	move d0,velocity(a4)
 	move d0,vel_max(a4) ; cruise logic must retain this individual speed
 release_cargo_speed_ready:

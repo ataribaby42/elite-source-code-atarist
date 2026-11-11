@@ -113,10 +113,18 @@ transcript write failing with disk-full, and a handle-close failure.
 
 ## Existing design limits
 
-- Ordinary destruction cargo still drifts at 3–6. A slow pirate under the 20%
-  collection cap can fail to catch a fast ordinary barrel and eventually stop
-  trying. The new encounter uses the agreed 1–2 range and passes moving-cargo
-  pursuit tests. Ordinary destruction-drop speeds were not changed.
+- At the time of the review, ordinary destruction cargo still drifted at 3–6,
+  so a slow collector could fail to catch it. A subsequent user-requested change
+  on 2026-11-11 reduces these containers to 1–2 on both platforms. This matches
+  the new encounter's range and remains below the Adder's capped speed of 3.
+  Mined fragments retain their existing speed. The review totals above describe
+  the pre-adjustment binaries; follow-up checks are recorded separately under
+  each platform's `build/pirate-loot-qa/wreck-cargo-speed` directory.
+  Both platforms passed 197 native follow-up scenarios: five cargo-drift/mining
+  checks in each artwork variant, 83 spawn checks and 104 pirate-salvage checks.
+  These include 128 real ship-cargo releases, speed retention over 64 updates,
+  unchanged mining/player-jettison speeds, and actual Adder pursuit of drifting
+  cargo. Standard `ELITE` and `ELITE_ALT` images match the tested copies.
 - A single pirate can leave cargo behind in a group larger than four containers;
   this follows its existing four-container capacity.
 - Collected cargo is counted, not stored as an NPC commodity inventory. Destroying

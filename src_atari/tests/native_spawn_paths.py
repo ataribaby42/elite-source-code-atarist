@@ -178,10 +178,10 @@ qa_coin:
     eq('log_abandoned','logic(a5)');eq('act_nothing','attack_type(a5)');zero('no_missiles(a5)');eq('worm','objects+obj_len*4+type(a6)');zero('objects+obj_len*4+convoy_speed(a6)');eq('log_cruise','objects+obj_len*4+logic(a6)')
     zero('objects+obj_len*4+ai_front(a6)');zero('objects+obj_len*4+ai_aft(a6)');zero('objects+obj_len*4+shield_flash(a6)');eq(96,'objects+obj_len*4+health(a6)')
     emit(call('do_logic'));zero('convoy_speed(a5)')
-    case('Cargo released by a convoy retains independent 3..6 drift, quantity and payload')
+    case('Cargo released by a convoy retains independent 1..2 drift, quantity and payload')
     emit(' bsr qa_parent\n move.w #-1,cargo_type(a5)\n move.l a5,a4\n'+call('release_cargo'))
     eq('barrel','objects+obj_len*4+type(a6)');eq(-1,'objects+obj_len*4+cargo_type(a6)');zero('objects+obj_len*4+convoy_speed(a6)');zero('objects+obj_len*4+cargo_mass(a6)','l')
-    emit(' lea objects+obj_len*4(a6),a5\n move.w velocity(a5),d4\n cmp.w #3,d4\n blo fail\n cmp.w #6,d4\n bhi fail\n move.l #1000,obj_range(a5)\n'+call('do_logic')+' cmp.w velocity(a5),d4\n bne fail\n')
+    emit(' lea objects+obj_len*4(a6),a5\n move.w velocity(a5),d4\n cmp.w #1,d4\n blo fail\n cmp.w #2,d4\n bhi fail\n move.l #1000,obj_range(a5)\n'+call('do_logic')+' cmp.w velocity(a5),d4\n bne fail\n')
 
     case('Full object pool safely rejects all principal spawners')
     emit(' bsr qa_fill\n')
