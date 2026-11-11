@@ -1059,7 +1059,7 @@ ferdela:
 	dc.l ferdela_nodes
 	dc.l ferdela_surfaces
 	dc.l ferdela_text
-	dc 9,18,49,80,22,0,1,55,20,0,2,1,0,3,1,5,70,100
+	dc 9,18,49,80,22,0,1,55,20,5,2,1,0,3,1,5,70,100
 
 ferdela_text:
 

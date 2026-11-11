@@ -286,11 +286,13 @@ q_combat_m68_11:
 .done:
 	rts
 
-; Hostility masks indexed by SHIP_TYPE.
+; Hostility masks indexed by SHIP_TYPE. Bounty hunters retain the former
+; Fer-de-Lance trader relations with pirates/aliens; both can fight them back.
+; Police keep their original mask and remain neutral to bounty hunters.
 
 faction_mask:
 
-	dc.b $82,$95,$82,$00,$82,$00,$00,$17
+	dc.b $82,$B5,$82,$00,$82,$82,$00,$37
 	; trader pirate shuttle debris police bounty missile alien
 
 	even
@@ -375,7 +377,11 @@ faction_mask:
 	bra.s .player
 .alien:
 	cmp #typ_alien,ship_type(a5)
+	beq.s .player
+	cmp #typ_bounty,ship_type(a5)
 	bne.s .ships
+	cmp.w #bounty_record_min,police_record(a6)
+	blo.s .ships ; no random roll and no Scramble ID exemption
 .player:
 	cmp.l #radar_range,obj_range(a5) ; he obeys the same scanner limit
 	bhi.s .ships
@@ -501,6 +507,10 @@ faction_mask:
 	move (sp)+,d1
 	tst d0 ; anything hostile in range ?
 	beq.s .nothing
+	cmp.w #typ_bounty,ship_type(a5)
+	bne.s .hunt_ready
+	clr.w departure_radius(a5) ; a hunter commits to the fight, cancelling its jump
+.hunt_ready:
 	cmp #1,d1 ; was it cruising ?
 ; Quelo: 	if <eq> then.s						yes
 	bne.s .done
@@ -696,10 +706,13 @@ q_combat_m68_69:
 	tst collided(a6) ; collided with object ?
 ; Quelo: 	if <eq> then.s						no
 	bne.s q_combat_m68_13
-	move ship_type(a4),d0 ; trader ?
+	move ship_type(a4),d0 ; lawful civilian, including the former trader FDL ?
+	cmp #typ_bounty,d0
+	beq.s .civilian_kill
 	cmp #typ_trader,d0
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_combat_m68_15
+.civilian_kill:
 	bsr inc_record ; increase police record
 	bra.s q_combat_m68_16
 q_combat_m68_15:
@@ -1180,6 +1193,8 @@ q_combat_m68_84:
 	move ship_type(a5),d0 ; trader ?
 	cmp #typ_trader,d0
 	beq prep ; yes
+	cmp #typ_bounty,d0 ; lawful hunter retains the former trader protection
+	beq prep
 	cmp #typ_police,d0 ; police ?
 	beq prep ; yes
 	cmp #typ_alien,d0 ; alien ?
@@ -1445,9 +1460,12 @@ q_combat_m68_107:
 	jsr random ; random probability
 	cmp #escape_prob,d0
 	q_ret hs ; no
-	move ship_type(a5),d0 ; trader pirate or shuttle ?
+	move ship_type(a5),d0 ; civilian hunter retains its escape capsule
+	cmp #typ_bounty,d0
+	beq.s .can_escape
 	cmp #typ_shuttle,d0
 	q_ret hi ; no
+.can_escape:
 	cmp #act_nothing,attack_type(a5) ; dead ?
 	q_ret eq ; yes
 	jsr alloc_object ; allocate a record

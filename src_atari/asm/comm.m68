@@ -679,6 +679,16 @@ comm_texts:
     dc.w comm_text127-comm_texts
     dc.w comm_text128-comm_texts
     dc.w comm_text129-comm_texts
+    dc.w comm_text130-comm_texts
+    dc.w comm_text131-comm_texts
+    dc.w comm_text132-comm_texts
+    dc.w comm_text133-comm_texts
+    dc.w comm_text134-comm_texts
+    dc.w comm_text135-comm_texts
+    dc.w comm_text136-comm_texts
+    dc.w comm_text137-comm_texts
+    dc.w comm_text138-comm_texts
+    dc.w comm_text139-comm_texts
 comm_text0: dc.b 'Dumping cargo near this station is illegal.',0
 comm_text1: dc.b 'Cargo dumping is prohibited in the station zone.',0
 comm_text2: dc.b 'Illegal cargo disposal detected. This offence has been recorded.',0
@@ -810,4 +820,15 @@ comm_text126: dc.b 'Prohibited cargo found. This offence is on your record.',0
 comm_text127: dc.b 'Illegal goods detected in your hold. Authorities notified.',0
 comm_text128: dc.b 'Cargo inspection failed. Contraband has been recorded.',0
 comm_text129: dc.b 'Your cargo violates the law. This offence has been logged.',0
+; Bounty hunter combat threats. Existing station and AI IDs stay unchanged.
+comm_text130: dc.b "Your bounty is mine.",0
+comm_text131: dc.b "I've come to collect.",0
+comm_text132: dc.b "The hunt ends here.",0
+comm_text133: dc.b "Consider this contract closed.",0
+comm_text134: dc.b "You can run. I get paid to follow.",0
+comm_text135: dc.b "Target acquired. Weapons ready.",0
+comm_text136: dc.b "You're worth more than your cargo.",0
+comm_text137: dc.b "Nothing personal. Just business.",0
+comm_text138: dc.b "One less name on my list.",0
+comm_text139: dc.b "You won't outrun a bounty hunter.",0
     even

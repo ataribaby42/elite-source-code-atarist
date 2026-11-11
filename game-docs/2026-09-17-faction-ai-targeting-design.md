@@ -1,5 +1,10 @@
 # Faction-based AI targeting
 
+Update 2026-11-11: NPC Fer-de-Lance now uses the bounty-hunter faction. Its
+legal-record targeting, reciprocal hostility, civilian accounting and station
+departure policy are documented in [Bounty hunters](2026-11-11-bounty-hunters.md).
+The original design below describes the earlier trader-faction behaviour.
+
 > Historical design/implementation record. The optional CPU-emulation test
 > suite was removed on 2026-09-19. References below to its dependency, test
 > files, sample harness code and commands are historical, not current setup

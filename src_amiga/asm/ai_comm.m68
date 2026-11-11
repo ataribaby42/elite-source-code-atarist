@@ -352,10 +352,17 @@
     cmp.w #typ_pirate,ship_type(a5)
     beq.s .target
     cmp.w #viper,type(a5)
-    bne .done
+    bne.s .hunter
     cmp.w #typ_police,ship_type(a5)
     bne .done
     move.w #comm_police_text,d4
+    bra.s .target
+.hunter:
+    cmp.w #ferdelance,type(a5)
+    bne .done
+    cmp.w #typ_bounty,ship_type(a5)
+    bne .done
+    move.w #comm_bounty_text,d4
 .target:
     move.l target(a5),d3
     bmi.s .lost

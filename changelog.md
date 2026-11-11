@@ -4,9 +4,11 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## xx.xx.2029 V1.97
+## 11.11.2029 V1.97
 
 - Added pirate cargo collection and new salvage encounters with 4–8 containers, 1–2 pirates, and retaliation for cargo theft or destruction.
+- Added Fer-de-Lance bounty hunters and fixed their station-departure retaliation and abandoned-ship hyperspace behavior on Atari ST and Amiga.
+- Reduced station collision spheres to match model bounds, preventing premature impacts on Atari ST and Amiga.
 
 ## 29.10.2029 V1.96
 

@@ -22,7 +22,7 @@ def make_suite(root,s):
     ordinary=((48,50,65),(72,80,96),(100,106,109),(50,), (71,), (82,), (90,), (106,))
     profiles=[(ids,(False,)*len(ids)) for ids in ordinary]
     profiles += [((48,80,106),(True,False,True)), ((50,),(True,)), ((106,),(True,))]
-    profiles += [((i,), (True,)) for i in range(110,130)]
+    profiles += [((i,), (True,)) for i in range(110,140)]
     profiles += [((119,120,129), (True,True,True))]
     for ids,players in profiles:
         for hidden in (False,True):

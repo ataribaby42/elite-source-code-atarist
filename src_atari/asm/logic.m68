@@ -1213,6 +1213,20 @@ q_logic_m68_62:
 ; Rejected rolls retain the ordinary cruise path without another attempt.
     q_subr start_departure,global
     clr.w departure_radius(a5)
+; A shot during the protected launch turn sets ANGRY but keeps that turn intact.
+; Do not enter cruise and erase the provocation before the next retarget slot.
+    cmp.w #typ_bounty,ship_type(a5)
+    bne.s .cruise
+    cmp.w #act_attack,attack_type(a5)
+    bne.s .cruise
+    btst #angry,flags(a5)
+    beq.s .cruise
+    move.w #log_attack,logic(a5)
+    clr.l target(a5) ; the player provoked it; normal nearest ranking resumes
+    clr.w on_course(a5)
+    move.w health(a5),pre_attack(a5)
+    rts
+.cruise:
     move.w #log_cruise,logic(a5)
     move.w type(a5),d0
     sub.w #traders,d0
@@ -1245,9 +1259,23 @@ q_logic_m68_62:
     q_subr do_departure_wait,global
     bra do_cruising
 
-; A selected jump keeps its deadline if the ship is attacked while waiting.
+; Ordinary traders keep their deadline when attacked. A bounty hunter cancels
+; its jump on combat/provocation, including hits before its next RETARGET turn.
 ; Destruction or ordinary bubble removal cancels it without creating a cloud.
     q_subr departure_tick,global
+    cmp.w #typ_bounty,ship_type(a5)
+    bne.s .ordinary
+    cmp.w #act_attack,attack_type(a5) ; an escaped pilot cannot take the hull away
+    bne.s .cancel
+    btst #angry,flags(a5)
+    bne.s .cancel
+    cmp.l #no_target,target(a5)
+    bne.s .cancel
+    move.w logic(a5),d1
+    jsr combat_state
+    cmp.w #2,d0
+    beq.s .cancel
+.ordinary:
     btst #remove,flags(a5)
     bne.s .cancel
     cmp.w #log_exploding,logic(a5)

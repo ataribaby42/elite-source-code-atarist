@@ -366,10 +366,13 @@ q_main_m68_31:
 	bhs.s q_main_m68_33
 	lea obj_ctr(a6),a0 ; increment object counter
 	addq.b #1,(a0,d0)
-	move ship_type(a4),d0 ; trader ?
+	move ship_type(a4),d0 ; civilian traffic (spawn gate and torus) ?
+	cmp #typ_bounty,d0
+	beq.s .count_civilian
 	cmp #typ_trader,d0
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_main_m68_35
+.count_civilian:
 	q_inc trader_count(a6)
 	bra q_main_m68_36
 q_main_m68_35:
@@ -462,10 +465,13 @@ q_main_m68_39:
 	lea obj_ctr(a6),a0 ; decrement object counter
 	subq.b #1,(a0,d0)
 	bsr repair_drive ; repair hyperdrive in witch space
-	move ship_type(a5),d0 ; trader ?
+	move ship_type(a5),d0 ; balance the civilian traffic count
+	cmp #typ_bounty,d0
+	beq.s .uncount_civilian
 	cmp #typ_trader,d0
 ; Quelo: 		if <eq> then.s					yes
 	bne.s q_main_m68_43
+.uncount_civilian:
 	q_dec trader_count(a6)
 	bra q_main_m68_44
 q_main_m68_43:

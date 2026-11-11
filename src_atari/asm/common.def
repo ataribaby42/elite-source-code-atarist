@@ -637,6 +637,7 @@ typ_shuttle: equ 2
 typ_debris: equ 3
 typ_police: equ 4
 typ_bounty: equ 5
+bounty_record_min: equ 40 ; serious offender, as in C64/BBC hunter tactics
 typ_missile: equ 6
 typ_alien: equ 7
 
@@ -815,7 +816,7 @@ launch_count: rs.w 1 ; no. vipers next to launch
 who_fired: rs.w 1 ; flag  who first first
 random_seed: rs.b 4 ; random number seed (general?)
 pirate_count: rs.w 1 ; no. pirates flying round
-trader_count: rs.w 1 ; no. traders flying round
+trader_count: rs.w 1 ; civilian traffic, including bounty hunters (spawn gate/torus)
 jump_count: rs.w 1 ; hyperspace jump counter
 next_mission: rs.w 1 ; next mission to perform
 mission: rs.w 1 ; current mission
@@ -1103,7 +1104,8 @@ comm_police_text: equ comm_alien_text+10
 comm_protest_text: equ comm_police_text+10
 comm_departure_caution_text: equ comm_protest_text+10
 comm_contraband_text: equ comm_departure_caution_text+10
-comm_text_count: equ comm_contraband_text+10
+comm_bounty_text: equ comm_contraband_text+10
+comm_text_count: equ comm_bounty_text+10
 station_traffic_range: equ 2000 ; trader launch exclusion and arrival greeting
 comm_hidden: equ $3f3f0000
 comm_count: rs.w 1
