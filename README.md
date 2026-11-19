@@ -11,11 +11,11 @@ Buy / Sell controls for preparing a hull exchange. See the
 Status shows **Equipment** mass and **Spare** cargo capacity in tonnes, including
 the space used by mounted lasers and installed devices.
 
-During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful dumping in the station protection zone adds 15 legal-status points, except under Anarchy or at the Thargoid-controlled mission station. An illegal ejection also produces a station comm warning. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
+During flight, double-click a cargo item on **Inventory** to jettison up to **1 t** (or the entire smaller remainder), after YES/NO confirmation. Tonne, kilogram and gram commodities qualify, including Alien Items and Medical Supplies; mission cargo remains excluded. The canister retains its original commodity and exact mass in grams for scooping. Successful visible dumping in the station protection zone adds 15 legal-status points, except under Anarchy or at the Thargoid-controlled mission station. Ejection while cloaked incurs no dumping penalty. An illegal ejection also produces a station comm warning. See the [jettison notes](src_atari/JETTISON.md) for details shared by both enhanced versions.
 
-Ordinary salvaged cargo yields **1 t**, **1â€“10 kg**, or **1â€“10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
+Ordinary salvaged cargo yields **1 t**, **1-10 kg**, or **1-10 g** per container, according to the commodity's market unit and available hold space, on both Atari ST and Amiga. Player-ejected containers retain their exact original contents.
 
-Cargo canisters released by destroyed AI ships drift at a random **3â€“6 world units per movement step**, matching player-ejected canisters. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
+Cargo canisters released by destroyed AI ships drift at a random **1-2 world units per movement step**. Player-ejected canisters retain their **3-6** speed. Each canister's maximum speed is set to its initial speed, so it does not accelerate later.
 
 Random Viper patrols check the player's legal record on first contact and when
 it changes, using the existing police-response probability. A successful check
@@ -49,10 +49,10 @@ Run this from the project root:
 .\build_atari.bat
 ```
 
-On Linux, `build_amiga.sh` builds the Amiga version instead. It needs Python 3.10+ and runs the bundled native Linux assembler and linker, which produce the same game files as the Windows pair. With no display named it builds PAL then NTSC; naming one builds only that. Each build is named by its `outputname` and nothing else.
+On Linux, `build_amiga.sh` builds the Amiga version instead. It needs Python 3.10+ and runs the bundled native Linux assembler and linker, which produce the same game files as the Windows pair. The root script builds PAL `ELITE` and `ELITE_ALT` by default; `display=` applies the selected display to both distributions. Each build is named by its `outputname` and nothing else.
 
 ```sh
-./build_amiga.sh              # ELITE.ADF, named by outputname
+./build_amiga.sh              # ELITE.ADF and ELITE_ALT.ADF, both PAL
 ./build_amiga.sh display=ntsc
 ./build_amiga.sh all          # every delivered image, one call each
 ```
@@ -85,7 +85,7 @@ Use `commander=max` to give the default Jameson commander **1,000,000 Cr** and t
 
 `commander=default` restores the original **100 Cr**, **Harmless** rating and zero score. Loading a saved commander uses the balance, score and rating stored in that save. The Python builds default to `commander=default`.
 
-The root build scripts currently supply `noprotect=yes commander=default laser=singlebeam scannerlogo=no altgfx=yes` as persistent defaults. `display=` selects one of six Amiga screens and `frame=yes` keeps the cockpit frame. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
+The root build scripts create `ELITE` with `altgfx=no` and `ELITE_ALT` with `altgfx=yes`, supplying `noprotect=yes commander=default laser=singlebeam scannerlogo=no` as persistent defaults. Amiga also supplies `fastdraw=yes`. `display=` selects one of eight Amiga screens and `frame=yes` keeps the cockpit frame. Command-line arguments override these defaults independently: the last occurrence of each option wins. For example, `build_amiga.bat noprotect=no commander=default` enables the novella question and restores the original starting balance.
 
 Player lasers default to `laser=dualbeam`: two filled beams converge
 from the lower left and right on the jittering crosshair tip. Use
@@ -349,7 +349,6 @@ Every wide image prints the frame time in the top left: three numbers in millise
 | 68040+ with Fast RAM, from 33 MHz | `ELITE.WIDE.NTSC-HIRESLACE` |
 | 68040+ with Fast RAM, from 50 MHz | `ELITE.WIDE.PAL-HIRESLACE` |
 | AGA, 68040+ with Fast RAM, from 33 MHz, 27 kHz monitor | `ELITE.WIDE.DBLNTSC-HIRES`, `ELITE.WIDE.DBLPAL-HIRES` |
-â€‹
 ## Project structure
 
 | Path | Purpose |
@@ -378,9 +377,9 @@ See [src_atari/README.md](src_atari/README.md) for development, testing, and opt
 
 The Atari ST version credits the following contributors in its [in-game credits](src_atari/asm/action.m68):
 
-- **Rob Nicholson of Mr. Micro Ltd.** â€” Atari ST conversion and programming.
-- **Gary Patchen** â€” assistance with the conversion.
-- **James McDermott** â€” graphics.
+- **Rob Nicholson of Mr. Micro Ltd.** - Atari ST conversion and programming.
+- **Gary Patchen** - assistance with the conversion.
+- **James McDermott** - graphics.
 
 The [original source header](src_atari/asm/elite.m68) identifies the Atari ST conversion as derived from the MSX version and carries **Copyright (c) 1988 Mr. Micro and Firebird Software**. The [title-screen code](src_atari/asm/attract.m68) also credits **Bell & Braben**.
 

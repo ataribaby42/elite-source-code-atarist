@@ -1,37 +1,49 @@
 #!/bin/sh
-# shellcheck disable=SC2086  # the option strings are meant to split
 # Linux counterpart of build_amiga.bat. Persistent default options live here;
 # anything on the command line overrides them, last occurrence winning.
 # "all" builds every delivered image: one call each, named by its outputname.
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 build="$here/src_amiga/build.sh"
-common="noprotect=yes commander=default laser=singlebeam scannerlogo=no fastdraw=yes"
-test=$BUILD_AMIGA_TEST  # build_amiga_test.sh sets these; the command line still wins
-
 set -e
-if [ "$1" != all ]; then
-    "$build" outputname=ELITE $common altgfx=no display=pal $test "$@"
-    "$build" outputname=ELITE_ALT $common altgfx=yes display=pal $test "$@"
+build_image() {
+    "$build" noprotect=yes commander=default laser=singlebeam scannerlogo=no fastdraw=yes "$@"
+}
+
+if [ "${1-}" != all ]; then
+    build_image outputname=ELITE altgfx=no display=pal "$@"
+    build_image outputname=ELITE_ALT altgfx=yes display=pal "$@"
     exit
 fi
 
 shift
-common="$common frametime=no $test $*"  # extra options apply to every image, which keeps its own name and display
-"$build" $common outputname=ELITE                         altgfx=no  frame=yes display=pal
-"$build" $common outputname=ELITE.WIDE.PAL                altgfx=no  frame=no  display=pal
-"$build" $common outputname=ELITE.WIDE.NTSC               altgfx=no  frame=no  display=ntsc
-"$build" $common outputname=ELITE.WIDE.PAL-HIRES          altgfx=no  frame=no  display=pal-hires
-"$build" $common outputname=ELITE.WIDE.NTSC-HIRES         altgfx=no  frame=no  display=ntsc-hires
-"$build" $common outputname=ELITE.WIDE.PAL-HIRESLACE      altgfx=no  frame=no  display=pal-hireslace
-"$build" $common outputname=ELITE.WIDE.NTSC-HIRESLACE     altgfx=no  frame=no  display=ntsc-hireslace
-"$build" $common outputname=ELITE.WIDE.DBLPAL-HIRES       altgfx=no  frame=no  display=dblpal-hires cpu=68020
-"$build" $common outputname=ELITE.WIDE.DBLNTSC-HIRES      altgfx=no  frame=no  display=dblntsc-hires cpu=68020
-"$build" $common outputname=ELITE_ALT                     altgfx=yes frame=yes display=pal
-"$build" $common outputname=ELITE_ALT.WIDE.PAL            altgfx=yes frame=no  display=pal
-"$build" $common outputname=ELITE_ALT.WIDE.NTSC           altgfx=yes frame=no  display=ntsc
-"$build" $common outputname=ELITE_ALT.WIDE.PAL-HIRES      altgfx=yes frame=no  display=pal-hires
-"$build" $common outputname=ELITE_ALT.WIDE.NTSC-HIRES     altgfx=yes frame=no  display=ntsc-hires
-"$build" $common outputname=ELITE_ALT.WIDE.PAL-HIRESLACE  altgfx=yes frame=no  display=pal-hireslace
-"$build" $common outputname=ELITE_ALT.WIDE.NTSC-HIRESLACE altgfx=yes frame=no  display=ntsc-hireslace
-"$build" $common outputname=ELITE_ALT.WIDE.DBLPAL-HIRES   altgfx=yes frame=no  display=dblpal-hires cpu=68020
-"$build" $common outputname=ELITE_ALT.WIDE.DBLNTSC-HIRES  altgfx=yes frame=no  display=dblntsc-hires cpu=68020
+# Keep user options as an argument vector. Each release entry still owns its
+# output name and display, as before; only double-scan entries force CPU.
+release_image() {
+    image_name=$1
+    image_alt=$2
+    image_frame=$3
+    image_display=$4
+    shift 4
+    case $image_display in
+        dbl*) build_image frametime=no "$@" "outputname=$image_name" "altgfx=$image_alt" "frame=$image_frame" "display=$image_display" cpu=68020 ;;
+        *) build_image frametime=no "$@" "outputname=$image_name" "altgfx=$image_alt" "frame=$image_frame" "display=$image_display" ;;
+    esac
+}
+release_image ELITE                         no  yes pal            "$@"
+release_image ELITE.WIDE.PAL                no  no  pal            "$@"
+release_image ELITE.WIDE.NTSC               no  no  ntsc           "$@"
+release_image ELITE.WIDE.PAL-HIRES          no  no  pal-hires      "$@"
+release_image ELITE.WIDE.NTSC-HIRES         no  no  ntsc-hires     "$@"
+release_image ELITE.WIDE.PAL-HIRESLACE      no  no  pal-hireslace  "$@"
+release_image ELITE.WIDE.NTSC-HIRESLACE     no  no  ntsc-hireslace "$@"
+release_image ELITE.WIDE.DBLPAL-HIRES       no  no  dblpal-hires   "$@"
+release_image ELITE.WIDE.DBLNTSC-HIRES      no  no  dblntsc-hires  "$@"
+release_image ELITE_ALT                     yes yes pal            "$@"
+release_image ELITE_ALT.WIDE.PAL            yes no  pal            "$@"
+release_image ELITE_ALT.WIDE.NTSC           yes no  ntsc           "$@"
+release_image ELITE_ALT.WIDE.PAL-HIRES      yes no  pal-hires      "$@"
+release_image ELITE_ALT.WIDE.NTSC-HIRES     yes no  ntsc-hires     "$@"
+release_image ELITE_ALT.WIDE.PAL-HIRESLACE  yes no  pal-hireslace  "$@"
+release_image ELITE_ALT.WIDE.NTSC-HIRESLACE yes no  ntsc-hireslace "$@"
+release_image ELITE_ALT.WIDE.DBLPAL-HIRES   yes no  dblpal-hires   "$@"
+release_image ELITE_ALT.WIDE.DBLNTSC-HIRES  yes no  dblntsc-hires  "$@"

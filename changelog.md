@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## xx.xx.2029 V1.98
+
+- Fixed Amiga rendering synchronization, high-balance ship and laser transactions on Atari and Amiga, and Linux build argument handling.
+
 ## 11.11.2029 V1.97
 
 - Added pirate cargo collection and new salvage encounters with 4–8 containers, 1–2 pirates, and retaliation for cargo theft or destruction.

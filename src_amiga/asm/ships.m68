@@ -153,6 +153,22 @@
 	move.l (sp)+,d0
 	rts
 
+; D0 signed net charge (negative = refund), D1 unsigned cash -> D1 new cash.
+; Carry means insufficient funds; no persistent state changes here. D0 is scratch.
+; Refunds saturate at the cash field's maximum instead of wrapping to zero.
+	q_subr ship_cash_delta
+	tst.l d0
+	bmi.s .refund
+	sub.l d0,d1
+	rts
+.refund:
+	neg.l d0
+	add.l d0,d1
+	bcc.s .done
+	moveq #-1,d1 ; MOVEQ also clears carry: a capped refund is successful
+.done:
+	rts
+
 ; D0 hull -> D0 error: 0 success, 1 cash, 2 equipment, 3 cargo, 4 missiles, 5 same.
 ; No persistent state changes until all checks pass.
 	q_subr ship_purchase,global
@@ -188,9 +204,10 @@
 	blo .cargo_error
 	move.w player_ship(a6),d0
 	bsr ship_profile
+	move.l sp_price(a3),d0
+	sub.l sp_trade(a0),d0 ; net price fits a signed long; cash need not
 	move.l cash(a6),d1
-	add.l sp_trade(a0),d1
-	sub.l sp_price(a3),d1
+	bsr ship_cash_delta
 	bcs .cash_error
 	move.l d1,cash(a6)
 	move.w d6,player_ship(a6)
@@ -254,10 +271,11 @@
 	cmp.w hull_missiles(a6),d0
 	bhs .full
 .buy_device:
-	move.l cash(a6),d0
-	sub.l d4,d0
+	move.l d4,d0
+	move.l cash(a6),d1
+	bsr ship_cash_delta
 	bcs .cash
-	move.l d0,cash(a6)
+	move.l d1,cash(a6)
 	addq.w #1,(a5)
 	bra .success
 .sell_device:
@@ -278,8 +296,12 @@
 	blo .space
 .sell:
 	subq.w #1,(a5)
-	lsr.l #1,d4
-	add.l d4,cash(a6)
+	move.l d4,d0
+	lsr.l #1,d0
+	neg.l d0
+	move.l cash(a6),d1
+	bsr ship_cash_delta
+	move.l d1,cash(a6)
 	cmp.w #14,d6
 	bne .success
 	clr.w retro_used(a6)
@@ -316,10 +338,11 @@
 	cmp.l #1000000,d3
 	blt .space
 .pay_laser:
-	move.l cash(a6),d0
-	sub.l d4,d0
-	bmi .cash ; a cheaper replacement can produce a refund
-	move.l d0,cash(a6)
+	move.l d4,d0
+	move.l cash(a6),d1
+	bsr ship_cash_delta
+	bcs .cash
+	move.l d1,cash(a6)
 	move.l a4,d0
 	beq.s .mount
 	bclr d7,1(a4)
@@ -330,8 +353,12 @@
 	btst d7,1(a5)
 	beq.s .invalid
 	bclr d7,1(a5)
-	lsr.l #1,d4
-	add.l d4,cash(a6)
+	move.l d4,d0
+	lsr.l #1,d0
+	neg.l d0
+	move.l cash(a6),d1
+	bsr ship_cash_delta
+	move.l d1,cash(a6)
 .success:
 	moveq #0,d0
 	bra.s .exit

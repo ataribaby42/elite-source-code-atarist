@@ -1,3 +1,7 @@
 #!/bin/sh
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-BUILD_AMIGA_TEST="commander=max frametime=yes shadowcopy=counter" exec "$here/build_amiga.sh" "$@"
+if [ "${1-}" = all ]; then
+    shift
+    exec "$here/build_amiga.sh" all commander=max frametime=yes shadowcopy=counter "$@"
+fi
+exec "$here/build_amiga.sh" commander=max frametime=yes shadowcopy=counter "$@"
