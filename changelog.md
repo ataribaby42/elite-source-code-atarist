@@ -4,9 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## xx.xx.2029 V1.99
+## 27.11.2029 V1.99
 
 - Added C64-style laser energy consumption for players and AI, with AI firing disabled below 5% energy.
+- Replaced the escape capsule with the C64 model, randomly colored blue or orange, on Atari ST and Amiga.
 
 ## 20.11.2029 V1.98
 
