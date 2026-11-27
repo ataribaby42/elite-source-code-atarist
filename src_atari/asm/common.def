@@ -211,6 +211,11 @@ max_shield: equ 24 ; max front shield value
 max_fuel: equ 70 ; max fuel carried
 max_ltemp: equ 48 ; max laser temperature
 max_energy: equ 96 ; max energy
+; One C64 energy unit, scaled from 256 to our 96-point banks (16.16).
+laser_energy_cost: equ max_energy*256
+ai_laser_min_whole: equ (max_energy+19)/20
+; Largest fractional debt at the rounded-up 5% boundary.
+ai_laser_max_debt: equ ai_laser_min_whole*65536-(max_energy*65536+19)/20
 missile_damage: equ 60 ; all guided missiles, before hull resistance
 weapon_resistance_base: equ 154 ; lcm(11 Pulse, 7 Military, 2 missiles)
 pulse_damage: equ 5

@@ -3,7 +3,7 @@
 	xref laser_impact_sound
 	xref missile_detonate
 	xref comm_departure_ship,comm_station_hit
-	xref ship_weapon_damage,ship_damage_store
+	xref ship_weapon_damage,ship_damage_store,ship_laser_energy
 	xref ship_shield_damage,ship_ai_damage,ship_ai_recharge,ship_charge_tick
 	include "common.def"
 ; Ported from src_orig/asm/combat.m68; edit this copy.
@@ -1506,6 +1506,8 @@ q_combat_m68_107:
 	bne .done
 	tst laser_type(a6)
 	bmi .done
+	tst.w energy(a6) ; a destroyed ship cannot fire
+	beq .done
 	cmp #max_ltemp,laser_temp(a6)
 	bhs .done
 	cmp #2,laser_type(a6) ; beam/military: a visual request for this frame
@@ -1525,6 +1527,12 @@ q_combat_m68_107:
 	move.l d0,laser_flash_end(a6)
 	st laser_flash(a6)
 .heat:
+	movem.l a0-a1,-(sp)
+	lea energy(a6),a0
+	lea energy_fraction(a6),a1
+	jsr ship_laser_energy
+	movem.l (sp)+,a0-a1
+	clr.w f_energy(a6)
 	q_inc laser_temp(a6) ; exactly once per accepted shot, as before
 	clr f_laser(a6)
 	cmp #2,laser_type(a6) ; held weapons use the continuous VBL sound

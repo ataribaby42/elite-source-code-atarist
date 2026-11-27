@@ -1,6 +1,6 @@
 	xref do_loot
 	xref reduce_laser_shields,reduce_missile_shields
-	xref ship_missile_damage,hit_reaction,ai_laser_power
+	xref ship_missile_damage,hit_reaction,ai_laser_power,ship_laser_energy
 	include "common.def"
 ; Ported from src_orig/asm/logic.m68; edit this copy.
 * @@@@		@@@ 	@@@@   @@@@@@	@@@@
@@ -579,6 +579,14 @@ q_logic_m68_33:
 	q_subr ai_fire_laser,global
 	cmp.w #log_attack,logic(a5)
 	bne .cancel
+; Use actual energy, including fractional damage, for the 5% cutoff.
+; Check even during a visible burst so incoming damage stops it immediately.
+	cmp.w #ai_laser_min_whole,health(a5)
+	bhi.s .energy_ready
+	blo .cancel
+	cmp.w #ai_laser_max_debt,ai_energy_fraction(a5)
+	bhi .cancel
+.energy_ready:
 	bsr validate_target
 	tst.w d0
 	beq .cancel
@@ -625,6 +633,11 @@ q_logic_m68_33:
 	move.w d0,ai_laser_burst(a5)
 	move.l target(a5),ai_laser_target(a5)
 .shot:
+	movem.l a0-a1,-(sp)
+	lea health(a5),a0
+	lea ai_energy_fraction(a5),a1
+	jsr ship_laser_energy ; hits and misses pay once; visual-only frames do not
+	movem.l (sp)+,a0-a1
 	move.w #10,ai_laser_cooldown(a5) ; Pulse
 	cmp.w #beam_damage,ai_laser_loadout(a5)
 	bne.s .military

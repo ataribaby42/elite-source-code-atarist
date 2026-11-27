@@ -761,6 +761,30 @@
 	movem.l (sp)+,d1-d2
 	rts
 
+; Drain one accepted laser shot from energy A0 / fractional debt A1.
+; As in C64 DENGY, firing alone leaves one scaled C64 unit of energy.
+; Never raise an already lower store or revive a destroyed ship.
+; Preserve all registers; firing does not damage shields or provoke combat.
+	q_subr ship_laser_energy,global
+	movem.l d0-d1,-(sp)
+	moveq #0,d0
+	move.w (a0),d0
+	swap d0
+	moveq #0,d1
+	move.w (a1),d1
+	sub.l d1,d0
+	cmp.l #laser_energy_cost,d0
+	ble.s .done
+	sub.l #laser_energy_cost,d0 ; available energy above the reserve
+	cmp.l #laser_energy_cost,d0
+	bls.s .drain
+	move.l #laser_energy_cost,d0
+.drain:
+	bsr ship_damage_store
+.done:
+	movem.l (sp)+,d0-d1
+	rts
+
 ; Legacy collision damage remains rounded with the original hull strength.
 	q_subr ship_shield_damage,global
 	move.l d1,-(sp)

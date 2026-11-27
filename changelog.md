@@ -4,6 +4,10 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
+## xx.xx.2029 V1.99
+
+- Added C64-style laser energy consumption for players and AI, with AI firing disabled below 5% energy.
+
 ## 20.11.2029 V1.98
 
 - Fixed Amiga rendering synchronization, high-balance ship and laser transactions on Atari and Amiga, and Linux build argument handling.
