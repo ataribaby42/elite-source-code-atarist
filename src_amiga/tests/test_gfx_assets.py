@@ -103,7 +103,7 @@ class GraphicsTests(unittest.TestCase):
     def test_unused_panel_cobra_is_absent_without_renumbering_other_bitmaps(self):
         compile_assets(self.root)
         bank = (self.root/'assets/BITMAPS.IMG').read_bytes()
-        self.assertEqual(len(bank), 109532)
+        self.assertEqual(len(bank), 109548)
         table = struct.unpack_from('>125I', bank)
         self.assertEqual([i for i, offset in enumerate(table) if not offset], [54])
         active = [e for e in self.layout['bitmaps'] if e.get('export', True)]

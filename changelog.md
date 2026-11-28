@@ -4,22 +4,28 @@ Modified Atari ST/Amiga Elite from Atari ST source code
 
 Release build configuration: `noprotect=yes commander=default laser=singlebeam scannerlogo=no`
 
-## 27.11.2029 V1.99
+## 28.11.2026 V2.00
+
+- Fixed missile locking in all views, including those without a laser.
+- Ensured IFF works in all views.
+- Restored the military crosshair’s missing top pixel without shifting its aim.
+
+## 27.11.2026 V1.99
 
 - Added C64-style laser energy consumption for players and AI, with AI firing disabled below 5% energy.
 - Replaced the escape capsule with the C64 model, randomly colored blue or orange, on Atari ST and Amiga.
 
-## 20.11.2029 V1.98
+## 20.11.2026 V1.98
 
 - Fixed Amiga rendering synchronization, high-balance ship and laser transactions on Atari and Amiga, and Linux build argument handling.
 
-## 11.11.2029 V1.97
+## 11.11.2026 V1.97
 
 - Added pirate cargo collection and new salvage encounters with 4–8 containers, 1–2 pirates, and retaliation for cargo theft or destruction.
 - Added Fer-de-Lance bounty hunters and fixed their station-departure retaliation and abandoned-ship hyperspace behavior on Atari ST and Amiga.
 - Reduced station collision spheres to match model bounds, preventing premature impacts on Atari ST and Amiga.
 
-## 29.10.2029 V1.96
+## 29.10.2026 V1.96
 
 - Added station trader hyperspace departures with a 50% chance and animated blue clouds on Atari ST and Amiga.
 - Optimized planet rendering with early visibility checks and cached vertex projections on Atari ST and Amiga.
@@ -32,20 +38,20 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Fixed the Atari ST issue preventing visible F7 planet rotation.
 - Added synchronized F7 display updates to prevent partially drawn planet artifacts on both platforms.
 
-## 7.10.2029 V1.95
+## 7.10.2026 V1.95
 
 - Cloaking Device now delays S-zone cargo inspections until the player uncloaks inside the zone.
 - Added 10 departure messages for Offenders and Fugitives; Anarchy stations retain normal greetings.
 - Added 10 contraband warnings triggered by cargo inspections when entering the station S zone.
 
-## 6.10.2029 V1.94
+## 6.10.2026 V1.94
 
 - Reworked Equipment and Goods icons to be more readable.
 - Energy Bomb is replaced by Zerion Sentinel I.F.F. Unit
 - Fixed Atari sound effects to mute properly when finished or interrupted, preventing end-of-sound rattling.
 - Fixed missaligned alien heads and bodies.
 
-## 5.10.2029 V1.93
+## 5.10.2026 V1.93
 
 - Updated trader greetings to select players, pirates or other traders according to legal status and ships in the bubble.
 - Active Cloaking Device now suppresses all new radio messages and notification beeps, including AI-to-AI traffic.
@@ -53,11 +59,11 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Added a per-ship radio cooldown of 50 game frames (about 3 seconds), including off-screen and in-flight UI.
 - Player missile launches now provoke targeted AI ships and break their Scramble ID truce. Traders can protest at launch with a 50% chance, without repeating the message on impact. Preserved ECM, Python defensive behaviour and mission-specific AI.
 
-## 5.10.2029 V1.92
+## 5.10.2026 V1.92
 
 - Fixed player and AI missiles disappearing when their target is destroyed; they now explode in place without extra damage or rewards.
 
-## 5.10.2029 V1.91
+## 5.10.2026 V1.91
 
 - Fixed incorrect Yellow status during safe flight on Amiga and Atari ST; energy checks now use the ship’s actual energy level.
 - Fixed Amiga hyperspace countdown sound; incoming radio messages now use the same beep.
@@ -67,7 +73,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Extended Amiga hyperspace and galactic jump animations to three seconds.
 - Fixed the Amiga Pulse laser’s rattling tail.
 
-## 4.10.2029 V1.90 First Feature Complete Release
+## 4.10.2026 V1.90 First Feature Complete Release
 
 - Added situational AI radio messages for traders, pirates, police and Thargoids.
 - Set hyperspace and galactic jump timers to 3 seconds on Atari and 2 seconds on Amiga.
@@ -126,7 +132,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Unused MOVE16 code removed: nothing called it any more, and on a 68040 or 68060 it clears Fast RAM slower than plain moves.
 - Less repeated code: pieces written out several times are now shared.
 
-## xx.xx.2029 V1.81 Planet tech preview
+## xx.xx.2026 V1.81 Planet tech preview
 
 - Hyperspace countdown now pulses red in sync with the tunnel text and ship engines.
 - Improved inhabitant colour mapping and added random planet rotation on station launch with Planets ON.
@@ -136,7 +142,7 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Added the saved Planets ON/OFF option. ON also replaces the Planet Data bitmap with the selected planet rendered at zero rotation; OFF retains the original plain globe and bitmap. New games and older commanders default to OFF; newly saved commanders retain their selected setting.
 - Added seeded surface details around the entire planet on Atari and Amiga: solid irregular blue/light blue seas on green/light green worlds, green/light green continents on blue/light blue worlds, and dark grey craters on light grey worlds. Each planet's seed selects one detail shade; other planet colours get differently coloured continents. Details appear from a 24-pixel logical diameter. Hyperspace arrivals choose a new longitude while preserving the map; crater rays have varied lengths and directions.
 
-## xx.xx.2029 V1.80 Flyable ships preview
+## xx.xx.2026 V1.80 Flyable ships preview
 	
 - Stopped exporting the unused Cobra from panels.png on Atari ST and Amiga, preserving the PNG artwork and bitmap IDs while saving 3,268 disk bytes and 4,084 bytes of bitmap RAM (8,164 in HIRES, 16,324 in HIRES-LACED).
 - Replaced disk-based ship atlases with native model rendering on Atari ST and Amiga: generate all Shipyards tiles at startup and only the current hull's Status and Planet Data views on new game, load or purchase; keep fixed image sizes across display modes and isolated memory buffers. Original PNGs remain archived in resources/gfx_assets; obsolete PNG generation files were removed.
@@ -146,32 +152,32 @@ Release build configuration: `noprotect=yes commander=default laser=singlebeam s
 - Loading fix. On a 68040 (ACA1240) in pal-hireslace the game could freeze on the loading picture: BITMAPS.IMG read into the second screen sometimes arrived corrupted and the loader looped forever. Files now load through workspace buffers, and a failed or short read exits instead of hanging.
 - New Amiga screen ELITE.WIDE.DBLPAL-HIRES (display=dblpal-hires): 640 x 512 like PAL-HIRESLACE, without interlace flicker and slightly faster. Needs AGA and a 27 kHz monitor.
 
-## 23.09.2029 V1.71
+## 23.09.2026 V1.71
 
 - Better cockpit panel bitmap for wide variants.
 - Amiga builds with `frame=no` now compile `gfx/cockpit_noframe.png` for `altgfx=no` or `gfx_alt/cockpit_noframe.png` for `altgfx=yes` into `COCKPIT.PC1`, using the cockpit palette in all WIDE, HIRES and HIRES LACED modes. Builds with `frame=yes` use `cockpit.png` from the selected graphics directory.
 - Added NES-inspired Energy Bomb electrical arcs on Atari ST and Amiga. Two light-blue zigzags change every rendered flight frame for the sound effect's duration, scale to framed, WIDE, HIRES and interlaced viewports, and leave no trails in either screen buffer.
 - Fixed Energy Bomb activation audio on Atari ST and Amiga: successful blasts now play one dedicated effect instead of individual ship explosion sounds. Atari ST uses its original bomb effect; Amiga uses a new sample based on it. Failed activations retain the error beep and do not consume the bomb.
 
-## 22.09.2029 V1.70
+## 22.09.2026 V1.70
 
 - Wide flight view, with six screens to choose from: PAL or NTSC, each in lores, hires and hires interlaced.
 - Faster flight view and the view reaching the top of the screen.
 - Changed the AI laser damage multiplier from 1–3 to an equally weighted 2 or 3 for both player and AI targets on Atari and Amiga; updated documentation.
 
-## 21.09.2029 V1.68
+## 21.09.2026 V1.68
 
 - Reduced the AI laser damage multiplier from 2–4 to 1–3 for both player and AI targets on Atari and Amiga; updated documentation.
 
-## 21.09.2029 V1.67
+## 21.09.2026 V1.67
 
 - Fixed encounter ships spawning beyond scanner range by reducing the leader’s maximum spawn radius on Atari and Amiga.
 
-## 21.09.2029 V1.66
+## 21.09.2026 V1.66
 
 - Fixed random encounters to replace 50% of pirate spawns during both normal flight and torus travel on Atari and Amiga, preserving mission spawns.
 
-## 20.09.2029 V1.65
+## 20.09.2026 V1.65
 
 - Fixed intermittent energy-bank flickering during Game Over on Atari ST and Amiga caused by repeatedly restoring stale radar backgrounds.
 - Added trader convoy encounters (1–2 ships, weight 2) on Atari ST and Amiga, maintaining formation and a shared cruising speed until combat.

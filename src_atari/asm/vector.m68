@@ -1019,9 +1019,11 @@ q_vector_m68_101:
 q_vector_m68_103:
 	cmp d0,d1
 	q_ret hi ; no, return
-	tst laser_type(a6) ; identification also works without a fitted laser
-	bmi.s .identify
-	st in_sights(a6) ; preserve the original laser/missile targeting rules
+	tst laser_type(a6) ; only laser hit detection needs a fitted laser
+	bmi.s .missile
+	st in_sights(a6)
+.missile:
+	; Missile acquisition and identification work in every view without a laser.
 	cmp #1,missile_state(a6) ; missile armed ?
 	bne.s .identify
 	move.l a5,a4

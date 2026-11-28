@@ -1913,7 +1913,7 @@
     },
     {
       "id": 20,
-      "offset": 17492,
+      "offset": 17508,
       "sheet": "panels",
       "rect": [
         0,
@@ -1925,7 +1925,7 @@
     },
     {
       "id": 21,
-      "offset": 21592,
+      "offset": 21608,
       "sheet": "panels",
       "rect": [
         0,
@@ -1937,7 +1937,7 @@
     },
     {
       "id": 22,
-      "offset": 22876,
+      "offset": 22892,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -1949,7 +1949,7 @@
     },
     {
       "id": 23,
-      "offset": 23168,
+      "offset": 23184,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -1961,7 +1961,7 @@
     },
     {
       "id": 24,
-      "offset": 23460,
+      "offset": 23476,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -1973,7 +1973,7 @@
     },
     {
       "id": 25,
-      "offset": 23752,
+      "offset": 23768,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -1985,7 +1985,7 @@
     },
     {
       "id": 26,
-      "offset": 23996,
+      "offset": 24012,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -1997,7 +1997,7 @@
     },
     {
       "id": 27,
-      "offset": 24064,
+      "offset": 24080,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2025,15 +2025,15 @@
       "sheet": "gadgets",
       "rect": [
         64,
-        48,
+        47,
         32,
-        26
+        27
       ],
       "name": "bit_sights[1]"
     },
     {
       "id": 30,
-      "offset": 16844,
+      "offset": 16860,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2045,7 +2045,7 @@
     },
     {
       "id": 31,
-      "offset": 17168,
+      "offset": 17184,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2057,7 +2057,7 @@
     },
     {
       "id": 32,
-      "offset": 24220,
+      "offset": 24236,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2069,7 +2069,7 @@
     },
     {
       "id": 33,
-      "offset": 25536,
+      "offset": 25552,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2081,7 +2081,7 @@
     },
     {
       "id": 34,
-      "offset": 26852,
+      "offset": 26868,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2093,7 +2093,7 @@
     },
     {
       "id": 35,
-      "offset": 28168,
+      "offset": 28184,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2105,7 +2105,7 @@
     },
     {
       "id": 36,
-      "offset": 29484,
+      "offset": 29500,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2117,7 +2117,7 @@
     },
     {
       "id": 37,
-      "offset": 30800,
+      "offset": 30816,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2129,7 +2129,7 @@
     },
     {
       "id": 38,
-      "offset": 36064,
+      "offset": 36080,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2141,7 +2141,7 @@
     },
     {
       "id": 39,
-      "offset": 33432,
+      "offset": 33448,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2153,7 +2153,7 @@
     },
     {
       "id": 40,
-      "offset": 34748,
+      "offset": 34764,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2165,7 +2165,7 @@
     },
     {
       "id": 41,
-      "offset": 32116,
+      "offset": 32132,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2177,7 +2177,7 @@
     },
     {
       "id": 42,
-      "offset": 37380,
+      "offset": 37396,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2189,7 +2189,7 @@
     },
     {
       "id": 43,
-      "offset": 38696,
+      "offset": 38712,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2201,7 +2201,7 @@
     },
     {
       "id": 44,
-      "offset": 40012,
+      "offset": 40028,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2213,7 +2213,7 @@
     },
     {
       "id": 45,
-      "offset": 41328,
+      "offset": 41344,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2225,7 +2225,7 @@
     },
     {
       "id": 46,
-      "offset": 42644,
+      "offset": 42660,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2237,7 +2237,7 @@
     },
     {
       "id": 47,
-      "offset": 43960,
+      "offset": 43976,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2249,7 +2249,7 @@
     },
     {
       "id": 48,
-      "offset": 45276,
+      "offset": 45292,
       "sheet": "panels",
       "rect": [
         0,
@@ -2261,7 +2261,7 @@
     },
     {
       "id": 49,
-      "offset": 48972,
+      "offset": 48988,
       "sheet": "panels",
       "rect": [
         0,
@@ -2273,7 +2273,7 @@
     },
     {
       "id": 50,
-      "offset": 58960,
+      "offset": 58976,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2285,7 +2285,7 @@
     },
     {
       "id": 51,
-      "offset": 59688,
+      "offset": 59704,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2297,7 +2297,7 @@
     },
     {
       "id": 52,
-      "offset": 59324,
+      "offset": 59340,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2309,7 +2309,7 @@
     },
     {
       "id": 53,
-      "offset": 60052,
+      "offset": 60068,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2334,7 +2334,7 @@
     },
     {
       "id": 55,
-      "offset": 60416,
+      "offset": 60432,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2346,7 +2346,7 @@
     },
     {
       "id": 56,
-      "offset": 60460,
+      "offset": 60476,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2358,7 +2358,7 @@
     },
     {
       "id": 57,
-      "offset": 60504,
+      "offset": 60520,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2370,7 +2370,7 @@
     },
     {
       "id": 58,
-      "offset": 61120,
+      "offset": 61136,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2382,7 +2382,7 @@
     },
     {
       "id": 59,
-      "offset": 61936,
+      "offset": 61952,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2394,7 +2394,7 @@
     },
     {
       "id": 60,
-      "offset": 60956,
+      "offset": 60972,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2406,7 +2406,7 @@
     },
     {
       "id": 61,
-      "offset": 63116,
+      "offset": 63132,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2418,7 +2418,7 @@
     },
     {
       "id": 62,
-      "offset": 63320,
+      "offset": 63336,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2430,7 +2430,7 @@
     },
     {
       "id": 63,
-      "offset": 60792,
+      "offset": 60808,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2442,7 +2442,7 @@
     },
     {
       "id": 64,
-      "offset": 60548,
+      "offset": 60564,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2454,7 +2454,7 @@
     },
     {
       "id": 65,
-      "offset": 62628,
+      "offset": 62644,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2466,7 +2466,7 @@
     },
     {
       "id": 66,
-      "offset": 62424,
+      "offset": 62440,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2478,7 +2478,7 @@
     },
     {
       "id": 67,
-      "offset": 62180,
+      "offset": 62196,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2490,7 +2490,7 @@
     },
     {
       "id": 68,
-      "offset": 61692,
+      "offset": 61708,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2502,7 +2502,7 @@
     },
     {
       "id": 69,
-      "offset": 63484,
+      "offset": 63500,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2514,7 +2514,7 @@
     },
     {
       "id": 70,
-      "offset": 63688,
+      "offset": 63704,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2526,7 +2526,7 @@
     },
     {
       "id": 71,
-      "offset": 63932,
+      "offset": 63948,
       "sheet": "equipment",
       "rect": [
         112,
@@ -2538,7 +2538,7 @@
     },
     {
       "id": 72,
-      "offset": 61528,
+      "offset": 61544,
       "sheet": "equipment",
       "rect": [
         224,
@@ -2550,7 +2550,7 @@
     },
     {
       "id": 73,
-      "offset": 61284,
+      "offset": 61300,
       "sheet": "equipment",
       "rect": [
         336,
@@ -2562,7 +2562,7 @@
     },
     {
       "id": 74,
-      "offset": 62832,
+      "offset": 62848,
       "sheet": "equipment",
       "rect": [
         0,
@@ -2574,7 +2574,7 @@
     },
     {
       "id": 75,
-      "offset": 65076,
+      "offset": 65092,
       "sheet": "characters",
       "rect": [
         0,
@@ -2586,7 +2586,7 @@
     },
     {
       "id": 76,
-      "offset": 72272,
+      "offset": 72288,
       "sheet": "characters",
       "rect": [
         64,
@@ -2598,7 +2598,7 @@
     },
     {
       "id": 77,
-      "offset": 66104,
+      "offset": 66120,
       "sheet": "characters",
       "rect": [
         128,
@@ -2610,7 +2610,7 @@
     },
     {
       "id": 78,
-      "offset": 74328,
+      "offset": 74344,
       "sheet": "characters",
       "rect": [
         192,
@@ -2622,7 +2622,7 @@
     },
     {
       "id": 79,
-      "offset": 67132,
+      "offset": 67148,
       "sheet": "characters",
       "rect": [
         256,
@@ -2634,7 +2634,7 @@
     },
     {
       "id": 80,
-      "offset": 71244,
+      "offset": 71260,
       "sheet": "characters",
       "rect": [
         0,
@@ -2646,7 +2646,7 @@
     },
     {
       "id": 81,
-      "offset": 68160,
+      "offset": 68176,
       "sheet": "characters",
       "rect": [
         64,
@@ -2658,7 +2658,7 @@
     },
     {
       "id": 82,
-      "offset": 69188,
+      "offset": 69204,
       "sheet": "characters",
       "rect": [
         128,
@@ -2670,7 +2670,7 @@
     },
     {
       "id": 83,
-      "offset": 73300,
+      "offset": 73316,
       "sheet": "characters",
       "rect": [
         192,
@@ -2682,7 +2682,7 @@
     },
     {
       "id": 84,
-      "offset": 70216,
+      "offset": 70232,
       "sheet": "characters",
       "rect": [
         256,
@@ -2694,7 +2694,7 @@
     },
     {
       "id": 85,
-      "offset": 82280,
+      "offset": 82296,
       "sheet": "characters",
       "rect": [
         0,
@@ -2706,7 +2706,7 @@
     },
     {
       "id": 86,
-      "offset": 84588,
+      "offset": 84604,
       "sheet": "characters",
       "rect": [
         64,
@@ -2718,7 +2718,7 @@
     },
     {
       "id": 87,
-      "offset": 77664,
+      "offset": 77680,
       "sheet": "characters",
       "rect": [
         128,
@@ -2730,7 +2730,7 @@
     },
     {
       "id": 88,
-      "offset": 79972,
+      "offset": 79988,
       "sheet": "characters",
       "rect": [
         192,
@@ -2742,7 +2742,7 @@
     },
     {
       "id": 89,
-      "offset": 86896,
+      "offset": 86912,
       "sheet": "characters",
       "rect": [
         256,
@@ -2754,7 +2754,7 @@
     },
     {
       "id": 90,
-      "offset": 75356,
+      "offset": 75372,
       "sheet": "characters",
       "rect": [
         0,
@@ -2766,7 +2766,7 @@
     },
     {
       "id": 91,
-      "offset": 89204,
+      "offset": 89220,
       "sheet": "characters",
       "rect": [
         64,
@@ -2778,7 +2778,7 @@
     },
     {
       "id": 92,
-      "offset": 93820,
+      "offset": 93836,
       "sheet": "characters",
       "rect": [
         128,
@@ -2790,7 +2790,7 @@
     },
     {
       "id": 93,
-      "offset": 91512,
+      "offset": 91528,
       "sheet": "characters",
       "rect": [
         192,
@@ -2802,7 +2802,7 @@
     },
     {
       "id": 94,
-      "offset": 96128,
+      "offset": 96144,
       "sheet": "characters",
       "rect": [
         256,
@@ -2814,7 +2814,7 @@
     },
     {
       "id": 95,
-      "offset": 64352,
+      "offset": 64368,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2826,7 +2826,7 @@
     },
     {
       "id": 96,
-      "offset": 64176,
+      "offset": 64192,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2838,7 +2838,7 @@
     },
     {
       "id": 97,
-      "offset": 64220,
+      "offset": 64236,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2850,7 +2850,7 @@
     },
     {
       "id": 98,
-      "offset": 64264,
+      "offset": 64280,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2862,7 +2862,7 @@
     },
     {
       "id": 99,
-      "offset": 64308,
+      "offset": 64324,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2874,7 +2874,7 @@
     },
     {
       "id": 100,
-      "offset": 98436,
+      "offset": 98452,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2886,7 +2886,7 @@
     },
     {
       "id": 101,
-      "offset": 99848,
+      "offset": 99864,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2898,7 +2898,7 @@
     },
     {
       "id": 102,
-      "offset": 101260,
+      "offset": 101276,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2910,7 +2910,7 @@
     },
     {
       "id": 103,
-      "offset": 102672,
+      "offset": 102688,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2922,7 +2922,7 @@
     },
     {
       "id": 104,
-      "offset": 104020,
+      "offset": 104036,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -2934,7 +2934,7 @@
     },
     {
       "id": 105,
-      "offset": 105432,
+      "offset": 105448,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -2946,7 +2946,7 @@
     },
     {
       "id": 106,
-      "offset": 105676,
+      "offset": 105692,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -2958,7 +2958,7 @@
     },
     {
       "id": 107,
-      "offset": 105920,
+      "offset": 105936,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -2970,7 +2970,7 @@
     },
     {
       "id": 108,
-      "offset": 106164,
+      "offset": 106180,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -2982,7 +2982,7 @@
     },
     {
       "id": 109,
-      "offset": 106408,
+      "offset": 106424,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -2994,7 +2994,7 @@
     },
     {
       "id": 110,
-      "offset": 106652,
+      "offset": 106668,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -3006,7 +3006,7 @@
     },
     {
       "id": 111,
-      "offset": 106896,
+      "offset": 106912,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -3018,7 +3018,7 @@
     },
     {
       "id": 112,
-      "offset": 107260,
+      "offset": 107276,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -3030,7 +3030,7 @@
     },
     {
       "id": 113,
-      "offset": 107624,
+      "offset": 107640,
       "sheet": "panels",
       "rect": [
         0,
@@ -3042,7 +3042,7 @@
     },
     {
       "id": 114,
-      "offset": 47776,
+      "offset": 47792,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -3054,7 +3054,7 @@
     },
     {
       "id": 115,
-      "offset": 47884,
+      "offset": 47900,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -3066,7 +3066,7 @@
     },
     {
       "id": 116,
-      "offset": 24132,
+      "offset": 24148,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -3078,7 +3078,7 @@
     },
     {
       "id": 117,
-      "offset": 24176,
+      "offset": 24192,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -3090,7 +3090,7 @@
     },
     {
       "id": 118,
-      "offset": 47992,
+      "offset": 48008,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -3102,7 +3102,7 @@
     },
     {
       "id": 119,
-      "offset": 48164,
+      "offset": 48180,
       "sheet": "gadgets",
       "rect": [
         256,
@@ -3114,7 +3114,7 @@
     },
     {
       "id": 120,
-      "offset": 48508,
+      "offset": 48524,
       "sheet": "gadgets",
       "rect": [
         320,
@@ -3126,7 +3126,7 @@
     },
     {
       "id": 121,
-      "offset": 48336,
+      "offset": 48352,
       "sheet": "gadgets",
       "rect": [
         0,
@@ -3138,7 +3138,7 @@
     },
     {
       "id": 122,
-      "offset": 48680,
+      "offset": 48696,
       "sheet": "gadgets",
       "rect": [
         64,
@@ -3150,7 +3150,7 @@
     },
     {
       "id": 123,
-      "offset": 48740,
+      "offset": 48756,
       "sheet": "gadgets",
       "rect": [
         128,
@@ -3162,7 +3162,7 @@
     },
     {
       "id": 124,
-      "offset": 48800,
+      "offset": 48816,
       "sheet": "gadgets",
       "rect": [
         192,
@@ -3233,5 +3233,5 @@
     800,
     1911
   ],
-  "bitmap_bytes": 109532
+  "bitmap_bytes": 109548
 }
